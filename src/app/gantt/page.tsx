@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Plus, 
   Edit, 
   Trash2, 
@@ -42,8 +43,6 @@ export default function GanttPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
-  const [showDeleteActivities, setShowDeleteActivities] = useState(false);
-  const [showEditActivities, setShowEditActivities] = useState(false);
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [showCreateActivity, setShowCreateActivity] = useState(false);
@@ -97,8 +96,6 @@ export default function GanttPage() {
     setShowAddTask(false);
     setShowEditActivity(false);
     setShowCreateActivity(false);
-    setShowDeleteActivities(false);
-    setShowEditActivities(false);
     setSelectedActivity(null);
     setEditingActivity(null);
     setExpandedDescriptions(new Set());
@@ -170,6 +167,56 @@ export default function GanttPage() {
     }
   };
 
+  // Función para convertir fecha del formato chileno (DD/MM/YYYY o DD-MM-YYYY) a ISO (YYYY-MM-DD)
+  const convertDateToISO = (dateString: string): string => {
+    console.log('Convirtiendo fecha:', dateString);
+    
+    if (!dateString) {
+      console.log('Fecha vacía, devolviendo cadena vacía');
+      return '';
+    }
+    
+    // Verificar si ya está en formato ISO (YYYY-MM-DD)
+    const isoPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (isoPattern.test(dateString)) {
+      console.log('Ya está en formato ISO:', dateString);
+      return dateString;
+    }
+    
+    // Convertir desde formato DD/MM/YYYY a YYYY-MM-DD
+    const slashParts = dateString.split('/');
+    if (slashParts.length === 3) {
+      const [day, month, year] = slashParts;
+      const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      console.log('Fecha convertida desde DD/MM/YYYY a ISO:', isoDate);
+      return isoDate;
+    }
+    
+    // Convertir desde formato DD-MM-YYYY a YYYY-MM-DD
+    const dashParts = dateString.split('-');
+    if (dashParts.length === 3) {
+      const [day, month, year] = dashParts;
+      // Verificar si es formato DD-MM-YYYY (día y mes de 2 dígitos, año de 4)
+      if (day.length <= 2 && month.length <= 2 && year.length === 4) {
+        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        console.log('Fecha convertida desde DD-MM-YYYY a ISO:', isoDate);
+        return isoDate;
+      }
+    }
+    
+    // Si no se puede convertir, intentar parsear como fecha y convertir
+    console.log('Intentando parsear como fecha nativa:', dateString);
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      const isoDate = date.toISOString().split('T')[0];
+      console.log('Fecha parseada y convertida a ISO:', isoDate);
+      return isoDate;
+    }
+    
+    console.error('No se pudo convertir la fecha:', dateString);
+    return dateString; // Devolver tal como está si no se puede convertir
+  };
+
   // Crear nueva tarea
   const handleCreateTask = async () => {
     if (!selectedActivity || !taskForm.name || !taskForm.startDate || !taskForm.endDate) {
@@ -177,14 +224,30 @@ export default function GanttPage() {
       return;
     }
 
+    console.log('Datos de la tarea antes de convertir:', {
+      name: taskForm.name,
+      startDate: taskForm.startDate,
+      endDate: taskForm.endDate
+    });
+
+    const convertedStartDate = convertDateToISO(taskForm.startDate);
+    const convertedEndDate = convertDateToISO(taskForm.endDate);
+
+    console.log('Datos de la tarea después de convertir:', {
+      name: taskForm.name,
+      startDate: convertedStartDate,
+      endDate: convertedEndDate
+    });
+
     const { error } = await createTask(selectedActivity.id, {
       name: taskForm.name,
       description: '', // No se usa en la base de datos
-      start_date: taskForm.startDate,
-      end_date: taskForm.endDate
+      start_date: convertedStartDate,
+      end_date: convertedEndDate
     });
 
     if (error) {
+      console.error('Error al crear la tarea:', error);
       alert('Error al crear la tarea: ' + error);
     } else {
       setTaskForm({ name: '', startDate: '', endDate: '' });
@@ -254,10 +317,28 @@ export default function GanttPage() {
     closeFormPopups();
     
     const rect = event.currentTarget.getBoundingClientRect();
-    setPopupPosition({
-      x: rect.right + 10, // Posicionar a la derecha del botón
-      y: rect.top - 50    // Centrar verticalmente
-    });
+    const popupWidth = 500; // Ancho del popup
+    const popupHeight = 300; // Altura estimada del popup
+    
+    // Calcular posición horizontal: a la derecha del botón
+    let x = rect.right + 10;
+    
+    // Si el popup se saldría por la derecha, posicionarlo a la izquierda del botón
+    if (x + popupWidth > window.innerWidth) {
+      x = rect.left - popupWidth - 10;
+    }
+    
+    // Calcular posición vertical: centrar respecto al botón
+    let y = rect.top + (rect.height / 2) - (popupHeight / 2);
+    
+    // Asegurar que el popup no se salga por arriba o abajo
+    if (y < 10) {
+      y = 10; // Margen mínimo desde arriba
+    } else if (y + popupHeight > window.innerHeight - 10) {
+      y = window.innerHeight - popupHeight - 10; // Margen mínimo desde abajo
+    }
+    
+    setPopupPosition({ x, y });
     setShowCreateActivity(true);
   };
 
@@ -302,29 +383,6 @@ export default function GanttPage() {
     setShowEditActivity(true);
   };
 
-  // Manejar clic en eliminar actividades
-  const handleDeleteActivitiesClick = () => {
-    if (showDeleteActivities) {
-      // Si ya está activo, desactivarlo
-      setShowDeleteActivities(false);
-    } else {
-      // Activar eliminar y desactivar editar
-      setShowDeleteActivities(true);
-      setShowEditActivities(false);
-    }
-  };
-
-  // Manejar clic en editar actividades
-  const handleEditActivitiesClick = () => {
-    if (showEditActivities) {
-      // Si ya está activo, desactivarlo
-      setShowEditActivities(false);
-    } else {
-      // Activar editar y desactivar eliminar
-      setShowEditActivities(true);
-      setShowDeleteActivities(false);
-    }
-  };
 
   // Manejar cambios en el formulario de edición
   const handleEditActivityInputChange = (field: string, value: string) => {
@@ -576,11 +634,11 @@ export default function GanttPage() {
 
   return (
     <TooltipProvider>
-      <div className="p-6 space-y-6">
+      <div className="pt-0 px-4 pb-4 space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cronograma Gantt</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Carta Gantt</h1>
           <p className="text-gray-600 mt-1">Gestiona las actividades y tareas de tus proyectos</p>
         </div>
         
@@ -736,7 +794,7 @@ export default function GanttPage() {
                           <Button
                             onClick={handleAddActivityClick}
                             variant="outline"
-                            className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                            className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
                           >
                             <Plus className="h-6 w-6" />
                           </Button>
@@ -754,9 +812,9 @@ export default function GanttPage() {
                         <div key={activity.id} className="border-b border-gray-200">
                           {/* Fila de la actividad con sus tareas en la misma línea */}
                           <div className="flex hover:bg-gray-50">
-                            <div className="w-80 p-4 border-r border-gray-200 flex items-start justify-between overflow-hidden">
+                            <div className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-start justify-between overflow-hidden relative">
                               <div className="flex-1 min-w-0 max-w-full">
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-1">
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -769,37 +827,33 @@ export default function GanttPage() {
                                       <ChevronRight className="h-4 w-4" />
                                     )}
                                   </Button>
-                                  <h4 className="font-medium text-gray-900 truncate min-w-0">{activity.name}</h4>
+                                  <h4 className="text-sm font-medium text-gray-900 break-words min-w-0 leading-tight">{activity.name}</h4>
                                 </div>
                                 {expandedDescriptions.has(activity.id) && activity.description && (
-                                  <div className="mt-1 ml-2 max-w-full mr-2">
+                                  <div className="mt-1 ml-2" style={{ marginRight: '2px' }}>
                                     <p className="text-xs text-gray-500 break-words overflow-hidden whitespace-normal leading-relaxed word-break-all text-justify">{activity.description}</p>
                                   </div>
                                 )}
                               </div>
-                              <div className="relative">
-                                {/* Botón de eliminar - posición absoluta */}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteActivity(activity.id)}
-                                  className={`absolute h-7 w-7 p-0 text-red-600 hover:text-red-700 transition-opacity duration-200 z-20 -translate-x-6 ${
-                                    showDeleteActivities ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                                  }`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                                
-                                {/* Botón de editar - posición absoluta */}
+                              <div className="absolute top-2 right-2 flex items-center space-x-0">
+                                {/* Botón de editar - siempre visible */}
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={(e) => handleEditActivityClick(e, activity)}
-                                  className={`absolute h-7 w-7 p-0 text-blue-600 hover:text-blue-700 transition-opacity duration-200 z-20 -translate-x-6 ${
-                                    showEditActivities ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                                  }`}
+                                  className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
                                 >
                                   <Edit className="h-4 w-4" />
+                                </Button>
+                                
+                                {/* Botón de eliminar - siempre visible */}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteActivity(activity.id)}
+                                  className="h-7 w-7 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
@@ -813,7 +867,7 @@ export default function GanttPage() {
                                     handleAddTaskClick(e);
                                   }}
                                   variant="outline"
-                                  className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                  className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
@@ -940,16 +994,16 @@ export default function GanttPage() {
                         </div>
                       ))}
                       
-                      {/* Botones para agregar y eliminar actividades */}
+                      {/* Botón para agregar actividad */}
                       <div className="flex">
                         <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
-                          <div className="flex justify-center space-x-2">
+                          <div className="flex justify-center">
                             {/* Botón agregar actividad */}
                             <div className="relative group">
                               <Button
                                 onClick={handleAddActivityClick}
                                 variant="outline"
-                                className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                                className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
                               >
                                 <Plus className="h-6 w-6" />
                               </Button>
@@ -957,43 +1011,6 @@ export default function GanttPage() {
                                 Agregar actividad
                               </div>
                             </div>
-                            
-                            {/* Botón eliminar actividades */}
-                            <div className="relative group">
-                              <Button
-                                onClick={handleDeleteActivitiesClick}
-                                variant="outline"
-                                className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
-                                  showDeleteActivities 
-                                    ? 'border-red-500 text-red-500 hover:bg-red-100 hover:border-red-600 hover:text-red-500 hover:font-bold hover:shadow-3xl' 
-                                    : 'border-gray-500 text-gray-500 hover:bg-gray-100 hover:border-gray-600 hover:text-gray-500 hover:font-bold hover:shadow-3xl'
-                                }`}
-                              >
-                                <Trash2 className="h-6 w-6" />
-                              </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                                {showDeleteActivities ? 'Cancelar eliminar' : 'Eliminar actividades'}
-                              </div>
-                            </div>
-                            
-                            {/* Botón editar actividades */}
-                            <div className="relative group">
-                              <Button
-                                onClick={handleEditActivitiesClick}
-                                variant="outline"
-                                className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
-                                  showEditActivities 
-                                    ? 'border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-500 hover:font-bold hover:shadow-3xl' 
-                                    : 'border-gray-500 text-gray-500 hover:bg-gray-100 hover:border-gray-600 hover:text-gray-500 hover:font-bold hover:shadow-3xl'
-                                }`}
-                              >
-                                <Edit className="h-6 w-6" />
-                              </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                                {showEditActivities ? 'Cancelar editar' : 'Editar actividades'}
-                              </div>
-                            </div>
-                            
                           </div>
                         </div>
                         <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
@@ -1009,7 +1026,7 @@ export default function GanttPage() {
       ) : (
         <Card>
           <CardContent className="p-8 text-center">
-            <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <CalendarIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Selecciona un Proyecto</h3>
             <p className="text-gray-500">Elige un proyecto para ver y gestionar su cronograma Gantt</p>
           </CardContent>
@@ -1060,20 +1077,29 @@ export default function GanttPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="date"
-                    value={activityForm.startDate}
-                    onChange={(e) => handleActivityInputChange('startDate', e.target.value)}
-                    className="w-full"
-                    required
-                  />
-                  <Input
-                    type="date"
-                    value={activityForm.endDate}
-                    onChange={(e) => handleActivityInputChange('endDate', e.target.value)}
-                    className="w-full"
-                    required
-                  />
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Fecha de inicio *
+                    </Label>
+                    <Calendar
+                      value={activityForm.startDate || undefined}
+                      onChange={(date) => handleActivityInputChange('startDate', date)}
+                      placeholder="Seleccionar fecha de inicio"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Fecha de término *
+                    </Label>
+                    <Calendar
+                      value={activityForm.endDate || undefined}
+                      onChange={(date) => handleActivityInputChange('endDate', date)}
+                      placeholder="Seleccionar fecha de término"
+                      className="w-full"
+                      minDate={activityForm.startDate || undefined}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2">
@@ -1140,20 +1166,29 @@ export default function GanttPage() {
 
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="date"
-                    value={taskForm.startDate}
-                    onChange={(e) => handleTaskInputChange('startDate', e.target.value)}
-                    className="w-full"
-                    required
-                  />
-                  <Input
-                    type="date"
-                    value={taskForm.endDate}
-                    onChange={(e) => handleTaskInputChange('endDate', e.target.value)}
-                    className="w-full"
-                    required
-                  />
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Fecha de inicio *
+                    </Label>
+                    <Calendar
+                      value={taskForm.startDate || undefined}
+                      onChange={(date) => handleTaskInputChange('startDate', date)}
+                      placeholder="Seleccionar fecha de inicio"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Fecha de término *
+                    </Label>
+                    <Calendar
+                      value={taskForm.endDate || undefined}
+                      onChange={(date) => handleTaskInputChange('endDate', date)}
+                      placeholder="Seleccionar fecha de término"
+                      className="w-full"
+                      minDate={taskForm.startDate || undefined}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2">

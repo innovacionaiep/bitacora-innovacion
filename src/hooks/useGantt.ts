@@ -256,21 +256,34 @@ export function useGantt(projectId: string | null) {
     setLoading(true);
     setError(null);
 
+    console.log('=== CREAR TAREA ===');
+    console.log('Activity ID:', activityId);
+    console.log('Task Data recibido:', taskData);
+
     try {
+      const insertData = {
+        name: taskData.name,
+        start_date: taskData.start_date,
+        end_date: taskData.end_date,
+        activity_id: activityId,
+        completed: false,
+        progress: 0
+      };
+
+      console.log('Datos a insertar en Supabase:', insertData);
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert({
-          name: taskData.name,
-          start_date: taskData.start_date,
-          end_date: taskData.end_date,
-          activity_id: activityId,
-          completed: false,
-          progress: 0
-        })
+        .insert(insertData)
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('Respuesta de Supabase:', { data, error });
+
+      if (error) {
+        console.error('Error detallado de Supabase:', error);
+        throw error;
+      }
 
       // Actualizar la actividad con la nueva tarea
       setActivities(prev => 
