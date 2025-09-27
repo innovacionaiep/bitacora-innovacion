@@ -32,16 +32,9 @@ export function useGantt(projectId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Colores para las actividades
+  // Color gris oscuro para todas las actividades
   const ACTIVITY_COLORS = [
-    'bg-blue-500',
-    'bg-green-500', 
-    'bg-purple-500',
-    'bg-orange-500',
-    'bg-pink-500',
-    'bg-indigo-500',
-    'bg-red-500',
-    'bg-teal-500'
+    'bg-gray-700'
   ];
 
   // Cargar actividades del proyecto
@@ -90,6 +83,7 @@ export function useGantt(projectId: string | null) {
 
           return {
             ...activity,
+            color: 'bg-gray-700', // Forzar color gris oscuro para todas las actividades
             tasks,
             progress: correctProgress // Usar el progreso calculado, no el de la DB
           };
@@ -98,12 +92,15 @@ export function useGantt(projectId: string | null) {
 
       setActivities(activitiesWithTasks);
 
-      // Sincronizar automáticamente el progreso en la base de datos si hay inconsistencias
+      // Sincronizar automáticamente el progreso y color en la base de datos si hay inconsistencias
       for (const activity of activitiesWithTasks) {
-        const dbProgress = activitiesData.find(a => a.id === activity.id)?.progress || 0;
-        if (dbProgress !== activity.progress) {
-          console.log(`Syncing activity ${activity.name} progress: ${dbProgress}% -> ${activity.progress}%`);
-          updateActivity(activity.id, { progress: activity.progress });
+        const dbActivity = activitiesData.find(a => a.id === activity.id);
+        const dbProgress = dbActivity?.progress || 0;
+        const dbColor = dbActivity?.color || 'bg-blue-500';
+        
+        if (dbProgress !== activity.progress || dbColor !== 'bg-gray-700') {
+          console.log(`Syncing activity ${activity.name} progress: ${dbProgress}% -> ${activity.progress}% and color: ${dbColor} -> bg-gray-700`);
+          updateActivity(activity.id, { progress: activity.progress, color: 'bg-gray-700' });
         }
       }
 

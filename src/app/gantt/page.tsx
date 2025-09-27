@@ -19,6 +19,7 @@ import {
   Clock,
   Target
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
@@ -239,6 +240,84 @@ export default function GanttPage() {
     return duration * dayWidth;
   };
 
+  // Obtener posición del día de hoy
+  const getTodayPosition = () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentDay = today.getDate();
+    
+    // Si estamos en 2024, mostrar en enero de 2025
+    // Si estamos en 2025, mostrar en el mes correspondiente
+    let targetMonth = currentMonth;
+    if (currentYear === 2024) {
+      targetMonth = 0; // Enero 2025
+    }
+    
+    // Calcular la posición basada en el mes (0-11) y el día del mes
+    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
+    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
+    
+    const leftPosition = (targetMonth * monthWidth) + (currentDay * dayWidth);
+    
+    console.log('Today position calculation:', {
+      currentYear,
+      currentMonth,
+      currentDay,
+      targetMonth,
+      leftPosition: `${leftPosition}%`
+    });
+    
+    return {
+      month: targetMonth,
+      day: currentDay,
+      left: leftPosition
+    };
+  };
+
+  // Obtener posición en porcentaje para la línea roja - Enfoque directo por columna
+  const getTodayPositionPercent = () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11 (enero=0, septiembre=8)
+    const currentDay = today.getDate();
+    
+    // Si estamos en 2024, mostrar en enero de 2025
+    let targetMonth = currentMonth;
+    if (currentYear === 2024) {
+      targetMonth = 0; // Enero 2025
+    }
+    
+    // PASO 1: Calcular la posición de la columna del mes
+    const monthWidth = 100 / 12; // 8.33% por mes
+    const monthStartPosition = targetMonth * monthWidth; // Posición de inicio del mes
+    
+    // PASO 2: Obtener cuántos días tiene el mes actual
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    // PASO 3: Calcular la posición del día dentro del mes
+    const dayWidth = monthWidth / daysInMonth; // Ancho por día basado en días reales del mes
+    const dayPosition = (currentDay - 1) * dayWidth; // Día 1 = 0%, Día 27 = 86.67%
+    
+    // PASO 4: Posición final
+    const leftPercent = monthStartPosition + dayPosition;
+    
+    console.log('Cálculo directo por columna:', {
+      año: currentYear,
+      mes: currentMonth,
+      día: currentDay,
+      mesObjetivo: targetMonth,
+      díasEnMes: daysInMonth,
+      posiciónMes: `${monthStartPosition.toFixed(2)}%`,
+      anchoDía: `${dayWidth.toFixed(2)}%`,
+      posiciónDía: `${dayPosition.toFixed(2)}%`,
+      posiciónFinal: `${leftPercent.toFixed(2)}%`,
+      columna: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][targetMonth]
+    });
+    
+    return leftPercent;
+  };
+
   if (proyectosLoading || ganttLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -264,7 +343,8 @@ export default function GanttPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <TooltipProvider>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -329,6 +409,7 @@ export default function GanttPage() {
         </div>
       )}
 
+
       {/* Selector de proyecto */}
       <Card>
         <CardContent className="p-6">
@@ -373,116 +454,157 @@ export default function GanttPage() {
           {/* Calendario Gantt */}
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto relative">
                 <div className="min-w-[1200px]">
+                  
+                  {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
+                  <div
+                    className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
+                    style={{
+                      left: `calc(256px + ${getTodayPositionPercent()}% * (100% - 256px) / 100%)`,
+                      height: '100%'
+                    }}
+                  ></div>
+                  
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
                     <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-center items-center">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
-                        <Button
-                          onClick={handleAddActivityClick}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Agregar
-                        </Button>
                       </div>
                     </div>
-                    <div className="flex-1 flex">
+                    <div className="flex-1 flex relative">
                       {MONTHS.map((month, index) => (
-                        <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50">
+                        <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center">
                           <div className="text-sm font-medium text-gray-700">{month}</div>
-                          <div className="text-xs text-gray-500">2025</div>
                         </div>
                       ))}
+                      
+                      {/* Indicador de "Hoy" */}
+                      <div
+                        className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
+                        style={{
+                          left: `${getTodayPositionPercent()}%`,
+                          transform: 'translateX(-50%)'
+                        }}
+                      >
+                        Hoy
+                      </div>
                     </div>
                   </div>
+                  
 
                   {/* Filas de actividades */}
                   {activities.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No hay actividades creadas</p>
-                      <p className="text-sm">Haz clic en "Agregar Actividad" para comenzar</p>
-                    </div>
-                  ) : (
-                    activities.map((activity) => (
-                      <div key={activity.id} className="flex border-b border-gray-200 hover:bg-gray-50">
-                        {/* Nombre de la actividad */}
-                        <div className="w-64 p-4 border-r border-gray-200 flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">{activity.name}</h4>
-                            <p className="text-sm text-gray-500">{activity.description}</p>
-                            <div className="flex items-center space-x-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {activity.tasks.length} tareas
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {activity.progress}% completo
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex space-x-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => handleAddTaskClick(e, activity)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteActivity(activity.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    <div className="flex">
+                      <div className="w-64 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
+                        <div className="relative group">
+                          <Button
+                            onClick={handleAddActivityClick}
+                            variant="outline"
+                            className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                          >
+                            <Plus className="h-6 w-6" />
+                          </Button>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                            AGREGAR ACTIVIDAD
                           </div>
                         </div>
-
-                        {/* Barra de progreso de la actividad */}
-                        <div className="flex-1 relative p-2">
-                          <div className="relative h-8 bg-gray-100 rounded">
-                            <div
-                              className={`absolute top-0 h-full ${activity.color} rounded opacity-80`}
-                              style={{
-                                left: `${getDatePosition(activity.start_date).left}%`,
-                                width: `${getBarWidth(activity.start_date, activity.end_date)}%`
-                              }}
-                            ></div>
-                            <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white">
-                              {activity.progress}%
+                      </div>
+                      <div className="flex-1 p-4 bg-gray-50"></div>
+                    </div>
+                  ) : (
+                    <>
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="flex border-b border-gray-200 hover:bg-gray-50">
+                          {/* Nombre de la actividad */}
+                          <div className="w-64 p-4 border-r border-gray-200 flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{activity.name}</h4>
+                              <p className="text-sm text-gray-500">{activity.description}</p>
                             </div>
-                          </div>
-
-                          {/* Tareas de la actividad */}
-                          {activity.tasks.map((task) => (
-                            <div key={task.id} className="mt-1 flex items-center space-x-2">
-                              <Checkbox
-                                checked={task.completed}
-                                onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                className="h-4 w-4"
-                              />
-                              <span className={`text-xs ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
-                                {task.name}
-                              </span>
+                            <div className="flex space-x-1 ml-2">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteTask(task.id)}
-                                className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                onClick={(e) => handleAddTaskClick(e, activity)}
+                                className="h-8 w-8 p-0"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteActivity(activity.id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                          ))}
+                          </div>
+
+                          {/* Barra de progreso de la actividad */}
+                          <div className="flex-1 relative p-2">
+                            <div className="relative h-8 bg-gray-100 rounded">
+                              <div
+                                className={`absolute top-0 h-full ${activity.color} rounded opacity-80`}
+                                style={{
+                                  left: `${getDatePosition(activity.start_date).left}%`,
+                                  width: `${getBarWidth(activity.start_date, activity.end_date)}%`
+                                }}
+                              >
+                                <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
+                                  {activity.progress}%
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Tareas de la actividad */}
+                            {activity.tasks.map((task) => (
+                              <div key={task.id} className="mt-1 flex items-center space-x-2">
+                                <Checkbox
+                                  checked={task.completed}
+                                  onCheckedChange={() => handleToggleTaskCompletion(task.id)}
+                                  className="h-4 w-4"
+                                />
+                                <span className={`text-xs ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                                  {task.name}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
+                      ))}
+                      
+                      {/* Botón sutil para agregar actividad - solo cuando hay actividades */}
+                      <div className="flex">
+                        <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
+                          <div className="flex justify-center">
+                            <div className="relative group">
+                              <Button
+                                onClick={handleAddActivityClick}
+                                variant="outline"
+                                className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                              >
+                                <Plus className="h-6 w-6" />
+                              </Button>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                AGREGAR ACTIVIDAD
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1 p-4 bg-gray-50"></div>
                       </div>
-                    ))
+                    </>
                   )}
                 </div>
               </div>
@@ -665,6 +787,7 @@ export default function GanttPage() {
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
