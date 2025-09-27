@@ -526,7 +526,7 @@ export default function GanttPage() {
           {/* Calendario Gantt */}
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto relative">
+              <div className="overflow-x-auto relative overflow-y-visible">
                 <div className="min-w-[1200px]">
                   
                   {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
@@ -638,14 +638,14 @@ export default function GanttPage() {
                             
                             {/* Área de Gantt con barras de tareas apiladas verticalmente */}
                             <div 
-                              className="flex-1 relative p-2 overflow-hidden"
+                              className="flex-1 relative p-2"
                               style={{ 
-                                height: `${Math.max(64, (activity.tasks.length + 1) * 40)}px` // Altura dinámica: mínimo 64px, +40px por cada tarea
+                                height: `${Math.max(48, 16 + (activity.tasks.length * 40))}px` // Altura dinámica: mínimo 48px, 16px para botón + 40px por cada tarea
                               }}
                             >
                               
-                              {/* Botón agregar tarea - posicionado en el extremo izquierdo, debajo de la tarea superior */}
-                              <div className="absolute top-2 left-2 z-20">
+                              {/* Botón agregar tarea - centrado verticalmente */}
+                              <div className="absolute top-1/2 left-2 z-20 transform -translate-y-1/2">
                                 <div className="relative group">
                                   <Button
                                     onClick={(e) => {
@@ -653,25 +653,31 @@ export default function GanttPage() {
                                       handleAddTaskClick(e);
                                     }}
                                     variant="outline"
-                                    className="border-2 border-green-500 text-green-500 hover:bg-green-100 hover:border-green-600 hover:text-green-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                    className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
-                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[100]">
                                     AGREGAR TAREA
                                   </div>
                                 </div>
                               </div>
                               
                               {/* Barras de Gantt de las tareas apiladas verticalmente */}
-                              {activity.tasks.map((task, index) => (
-                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
-                                  <div 
-                                    className="relative h-8 bg-gray-100 rounded" 
-                                    style={{ 
-                                      top: `${32 + (index * 40)}px` // 32px para el botón + 40px por cada tarea
-                                    }}
-                                  >
+                              {activity.tasks.map((task, index) => {
+                                const containerHeight = Math.max(48, 16 + (activity.tasks.length * 40));
+                                const totalTasksHeight = activity.tasks.length * 40;
+                                const availableHeight = containerHeight - 16; // Restar padding
+                                const startOffset = (availableHeight - totalTasksHeight) / 2 + 4;
+                                
+                                return (
+                                  <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                                    <div 
+                                      className="relative h-8 bg-gray-100 rounded" 
+                                      style={{ 
+                                        top: `${startOffset + (index * 40)}px`
+                                      }}
+                                    >
                                     <div
                                       className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
                                       style={{
@@ -720,7 +726,8 @@ export default function GanttPage() {
                                     </div>
                                   </div>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
