@@ -59,7 +59,6 @@ export default function GanttPage() {
   // Formulario de tarea
   const [taskForm, setTaskForm] = useState({
     name: '',
-    description: '',
     startDate: '',
     endDate: ''
   });
@@ -133,7 +132,7 @@ export default function GanttPage() {
 
     const { error } = await createTask(selectedActivity.id, {
       name: taskForm.name,
-      description: taskForm.description,
+      description: '', // No se usa en la base de datos
       start_date: taskForm.startDate,
       end_date: taskForm.endDate
     });
@@ -141,7 +140,7 @@ export default function GanttPage() {
     if (error) {
       alert('Error al crear la tarea: ' + error);
     } else {
-      setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+      setTaskForm({ name: '', startDate: '', endDate: '' });
       setShowAddTask(false);
       setSelectedActivity(null);
       alert('Tarea creada exitosamente');
@@ -637,64 +636,91 @@ export default function GanttPage() {
                               </div>
                             </div>
                             
-                            {/* Área de Gantt con barras de tareas superpuestas */}
-                            <div className="flex-1 relative p-2">
-                              <div className="relative h-16 bg-gray-50 rounded">
-                                
-                                {/* Barras de Gantt de las tareas superpuestas en la misma línea */}
-                                {activity.tasks.map((task, index) => (
-                                  <div key={task.id} className="absolute top-0 w-full">
-                                    <div className="relative h-8 bg-gray-100 rounded" style={{ top: `${index * 8}px` }}>
-                                      <div
-                                        className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
-                                        style={{
-                                          left: `${getDatePosition(task.start_date).left}%`,
-                                          width: `${getBarWidth(task.start_date, task.end_date)}%`
-                                        }}
-                                      >
-                                        {/* Porcentaje al final de la barra */}
-                                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
-                                          {task.completed ? '✓' : '0%'}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Nombre de la tarea al inicio de la barra, a la izquierda exterior */}
-                                      <div 
-                                        className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
-                                        style={{
-                                          left: `${getDatePosition(task.start_date).left - 2}%`,
-                                          transform: 'translateY(-50%) translateX(-100%)'
-                                        }}
-                                      >
-                                        {task.name}
-                                      </div>
-                                      
-                                      {/* Controles al final de la barra */}
-                                      <div 
-                                        className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border"
-                                        style={{
-                                          left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
-                                          transform: 'translateY(-50%)'
-                                        }}
-                                      >
-                                        <Checkbox
-                                          checked={task.completed}
-                                          onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                          className="h-4 w-4"
-                                        />
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => handleDeleteTask(task.id)}
-                                          className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
-                                        >
-                                          <Trash2 className="h-3 w-3" />
-                                        </Button>
+                            {/* Área de Gantt con barras de tareas apiladas verticalmente */}
+                            <div 
+                              className="flex-1 relative p-2 overflow-hidden"
+                              style={{ 
+                                height: `${Math.max(64, (activity.tasks.length + 1) * 40)}px` // Altura dinámica: mínimo 64px, +40px por cada tarea
+                              }}
+                            >
+                              
+                              {/* Botón agregar tarea - posicionado en el extremo izquierdo, debajo de la tarea superior */}
+                              <div className="absolute top-2 left-2 z-20">
+                                <div className="relative group">
+                                  <Button
+                                    onClick={(e) => {
+                                      setSelectedActivity(activity);
+                                      handleAddTaskClick(e);
+                                    }}
+                                    variant="outline"
+                                    className="border-2 border-green-500 text-green-500 hover:bg-green-100 hover:border-green-600 hover:text-green-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                    AGREGAR TAREA
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Barras de Gantt de las tareas apiladas verticalmente */}
+                              {activity.tasks.map((task, index) => (
+                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                                  <div 
+                                    className="relative h-8 bg-gray-100 rounded" 
+                                    style={{ 
+                                      top: `${32 + (index * 40)}px` // 32px para el botón + 40px por cada tarea
+                                    }}
+                                  >
+                                    <div
+                                      className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
+                                      style={{
+                                        left: `${getDatePosition(task.start_date).left}%`,
+                                        width: `${getBarWidth(task.start_date, task.end_date)}%`
+                                      }}
+                                    >
+                                      {/* Porcentaje al final de la barra */}
+                                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
+                                        {task.completed ? '✓' : '0%'}
                                       </div>
                                     </div>
+                                    
+                                    {/* Nombre de la tarea al inicio de la barra, a la izquierda exterior */}
+                                    <div 
+                                      className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
+                                      style={{
+                                        left: `${getDatePosition(task.start_date).left - 2}%`,
+                                        transform: 'translateY(-50%) translateX(-100%)'
+                                      }}
+                                    >
+                                      {task.name}
+                                    </div>
+                                    
+                                    {/* Controles al final de la barra */}
+                                    <div 
+                                      className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border"
+                                      style={{
+                                        left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
+                                        transform: 'translateY(-50%)'
+                                      }}
+                                    >
+                                      <Checkbox
+                                        checked={task.completed}
+                                        onCheckedChange={() => handleToggleTaskCompletion(task.id)}
+                                        className="h-4 w-4"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteTask(task.id)}
+                                        className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </div>
@@ -754,19 +780,6 @@ export default function GanttPage() {
                               </div>
                             </div>
                             
-                            {/* Botón agregar tarea */}
-                            <div className="relative group">
-                              <Button
-                                onClick={handleAddTaskClick}
-                                variant="outline"
-                                className="border-2 border-green-500 text-green-500 hover:bg-green-100 hover:border-green-600 hover:text-green-600 rounded-full w-8 h-8 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                                AGREGAR TAREA
-                              </div>
-                            </div>
                           </div>
                         </div>
                         <div className="flex-1 p-4 bg-gray-50"></div>
@@ -933,14 +946,6 @@ export default function GanttPage() {
                   />
                 </div>
 
-                <div>
-                  <Input
-                    value={taskForm.description}
-                    onChange={(e) => handleTaskInputChange('description', e.target.value)}
-                    placeholder="Descripción (opcional)"
-                    className="w-full"
-                  />
-                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <Input

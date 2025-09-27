@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 export type Task = {
   id: string;
   name: string;
-  description: string;
   completed: boolean;
   start_date: string;
   end_date: string;
@@ -261,7 +260,9 @@ export function useGantt(projectId: string | null) {
       const { data, error } = await supabase
         .from('tasks')
         .insert({
-          ...taskData,
+          name: taskData.name,
+          start_date: taskData.start_date,
+          end_date: taskData.end_date,
           activity_id: activityId,
           completed: false,
           progress: 0
