@@ -46,6 +46,7 @@ export default function GanttPage() {
   const [showEditActivities, setShowEditActivities] = useState(false);
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [showCreateActivity, setShowCreateActivity] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   
   // Formulario de actividad
@@ -69,6 +70,12 @@ export default function GanttPage() {
     description: ''
   });
 
+  // Formulario de creación de actividad (sin fechas)
+  const [createActivityForm, setCreateActivityForm] = useState({
+    name: '',
+    description: ''
+  });
+
   // Usar el hook de Gantt con Supabase
   const {
     activities,
@@ -84,11 +91,12 @@ export default function GanttPage() {
     syncAllActivitiesProgress
   } = useGantt(selectedProject?.id || null);
 
-  // Cerrar todos los popups cuando cambie el proyecto seleccionado
-  useEffect(() => {
+  // Función para cerrar todos los popups
+  const closeAllPopups = () => {
     setShowAddActivity(false);
     setShowAddTask(false);
     setShowEditActivity(false);
+    setShowCreateActivity(false);
     setShowDeleteActivities(false);
     setShowEditActivities(false);
     setSelectedActivity(null);
@@ -99,6 +107,28 @@ export default function GanttPage() {
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
     setTaskForm({ name: '', startDate: '', endDate: '' });
     setEditActivityForm({ name: '', description: '' });
+    setCreateActivityForm({ name: '', description: '' });
+  };
+
+  // Función para cerrar solo los popups de formularios (sin afectar descripciones expandidas ni modos)
+  const closeFormPopups = () => {
+    setShowAddActivity(false);
+    setShowAddTask(false);
+    setShowEditActivity(false);
+    setShowCreateActivity(false);
+    setSelectedActivity(null);
+    setEditingActivity(null);
+    
+    // Resetear formularios
+    setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setEditActivityForm({ name: '', description: '' });
+    setCreateActivityForm({ name: '', description: '' });
+  };
+
+  // Cerrar todos los popups cuando cambie el proyecto seleccionado
+  useEffect(() => {
+    closeAllPopups();
   }, [selectedProject]);
 
   // Manejar cambios en el formulario de actividad
@@ -119,23 +149,23 @@ export default function GanttPage() {
 
   // Crear nueva actividad
   const handleCreateActivity = async () => {
-    if (!selectedProject || !activityForm.name || !activityForm.startDate || !activityForm.endDate) {
-      alert('Por favor completa todos los campos obligatorios');
+    if (!selectedProject || !createActivityForm.name) {
+      alert('Por favor completa el nombre de la actividad');
       return;
     }
 
     const { error } = await createActivity({
-      name: activityForm.name,
-      description: activityForm.description,
-      start_date: activityForm.startDate,
-      end_date: activityForm.endDate
+      name: createActivityForm.name,
+      description: createActivityForm.description,
+      start_date: null as any,
+      end_date: null as any
     });
 
     if (error) {
       alert('Error al crear la actividad: ' + error);
     } else {
-      setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
-      setShowAddActivity(false);
+      setCreateActivityForm({ name: '', description: '' });
+      setShowCreateActivity(false);
       alert('Actividad creada exitosamente');
     }
   };
@@ -220,16 +250,32 @@ export default function GanttPage() {
 
   // Manejar clic en agregar actividad
   const handleAddActivityClick = (event: React.MouseEvent) => {
+    // Cerrar solo los popups de formularios antes de abrir el nuevo
+    closeFormPopups();
+    
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.bottom + 10
+      x: rect.right + 10, // Posicionar a la derecha del botón
+      y: rect.top - 50    // Centrar verticalmente
     });
-    setShowAddActivity(true);
+    setShowCreateActivity(true);
   };
 
   // Manejar clic en agregar tarea
   const handleAddTaskClick = (event: React.MouseEvent) => {
+    // Cerrar solo los popups de formularios antes de abrir el nuevo (pero mantener selectedActivity)
+    setShowAddActivity(false);
+    setShowAddTask(false);
+    setShowEditActivity(false);
+    setShowCreateActivity(false);
+    setEditingActivity(null);
+    
+    // Resetear formularios
+    setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setEditActivityForm({ name: '', description: '' });
+    setCreateActivityForm({ name: '', description: '' });
+    
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
       x: rect.right + 10, // Posicionar a la derecha del botón
@@ -240,6 +286,9 @@ export default function GanttPage() {
 
   // Manejar clic en editar actividad
   const handleEditActivityClick = (event: React.MouseEvent, activity: Activity) => {
+    // Cerrar solo los popups de formularios antes de abrir el nuevo
+    closeFormPopups();
+    
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
       x: rect.right + 10, // Posicionar a la derecha del botón
@@ -253,9 +302,41 @@ export default function GanttPage() {
     setShowEditActivity(true);
   };
 
+  // Manejar clic en eliminar actividades
+  const handleDeleteActivitiesClick = () => {
+    if (showDeleteActivities) {
+      // Si ya está activo, desactivarlo
+      setShowDeleteActivities(false);
+    } else {
+      // Activar eliminar y desactivar editar
+      setShowDeleteActivities(true);
+      setShowEditActivities(false);
+    }
+  };
+
+  // Manejar clic en editar actividades
+  const handleEditActivitiesClick = () => {
+    if (showEditActivities) {
+      // Si ya está activo, desactivarlo
+      setShowEditActivities(false);
+    } else {
+      // Activar editar y desactivar eliminar
+      setShowEditActivities(true);
+      setShowDeleteActivities(false);
+    }
+  };
+
   // Manejar cambios en el formulario de edición
   const handleEditActivityInputChange = (field: string, value: string) => {
     setEditActivityForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Manejar cambios en el formulario de creación de actividad
+  const handleCreateActivityInputChange = (field: string, value: string) => {
+    setCreateActivityForm(prev => ({
       ...prev,
       [field]: value
     }));
@@ -299,17 +380,40 @@ export default function GanttPage() {
   // Obtener posición de una fecha en el calendario para tareas
   const getDatePosition = (date: string) => {
     const dateObj = new Date(date);
+    const year = dateObj.getFullYear();
     const month = dateObj.getMonth();
     const day = dateObj.getDate();
     
+    // Solo mostrar fechas del año 2025 en el calendario
+    if (year !== 2025) {
+      // Si la fecha está fuera de 2025, posicionarla en los extremos
+      if (year < 2025) {
+        return { month: 0, day: 1, left: 0 }; // Enero 1
+      } else {
+        return { month: 11, day: 31, left: 100 }; // Diciembre 31
+      }
+    }
+    
     // Calcular la posición basada en el mes (0-11) y el día del mes
     const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
-    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
+    
+    // Obtener el número real de días en el mes para un cálculo más preciso
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dayWidth = monthWidth / daysInMonth; // Cada día ocupa 1/días_del_mes del ancho del mes
+    
+    // Calcular la posición del día dentro del mes (día 1 = 0%, último día = 100% del mes)
+    const dayPosition = (day - 1) * dayWidth;
+    
+    // Calcular la posición total
+    const leftPosition = (month * monthWidth) + dayPosition;
+    
+    // Limitar la posición al rango visible (0% a 100%)
+    const clampedLeft = Math.max(0, Math.min(100, leftPosition));
     
     return {
       month: month,
       day: day,
-      left: (month * monthWidth) + (day * dayWidth) // Posición más precisa
+      left: clampedLeft
     };
   };
 
@@ -323,10 +427,49 @@ export default function GanttPage() {
 
   // Obtener ancho de la barra basado en la duración para tareas
   const getBarWidth = (startDate: string, endDate: string) => {
-    const duration = getDuration(startDate, endDate);
-    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
-    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
-    return duration * dayWidth;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Obtener las posiciones de inicio y fin
+    const startPos = getDatePosition(startDate);
+    const endPos = getDatePosition(endDate);
+    
+    // Calcular el ancho basado en la diferencia de posiciones
+    let width = endPos.left - startPos.left;
+    
+    // Si la tarea abarca todo el año (desde enero hasta diciembre de 2025)
+    if (start.getFullYear() === 2025 && end.getFullYear() === 2025 && 
+        start.getMonth() === 0 && start.getDate() === 1 && 
+        end.getMonth() === 11 && end.getDate() === 31) {
+      return 100; // Ocupar todo el ancho del calendario
+    }
+    
+    // Si la tarea comienza antes de 2025 y termina en 2025
+    if (start.getFullYear() < 2025 && end.getFullYear() === 2025) {
+      return endPos.left; // Desde el inicio del calendario hasta la fecha de fin
+    }
+    
+    // Si la tarea comienza en 2025 y termina después de 2025
+    if (start.getFullYear() === 2025 && end.getFullYear() > 2025) {
+      return 100 - startPos.left; // Desde la fecha de inicio hasta el final del calendario
+    }
+    
+    // Si la tarea está completamente fuera del rango de 2025
+    if (start.getFullYear() !== 2025 && end.getFullYear() !== 2025) {
+      return 0; // No mostrar
+    }
+    
+    // Si la tarea se extiende más allá del rango visible, ajustar el ancho
+    if (startPos.left >= 100) {
+      // La tarea comienza después de diciembre, no mostrar
+      return 0;
+    } else if (endPos.left > 100) {
+      // La tarea se extiende más allá de diciembre, limitar al final del calendario
+      width = 100 - startPos.left;
+    }
+    
+    // Asegurar que el ancho mínimo sea al menos 1% para tareas de un día
+    return Math.max(1, width);
   };
 
   // Obtener posición del día de hoy
@@ -544,23 +687,25 @@ export default function GanttPage() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto relative overflow-y-visible">
-                <div className="min-w-[1200px]">
+                <div className="min-w-[1272px]">
                   
                   {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
                   <div
                     className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
                     style={{
-                      left: `calc(256px + ${getTodayPositionPercent()}% * (100% - 256px) / 100%)`,
+                      left: `calc(392px + ${getTodayPositionPercent()}% * (100% - 392px) / 100%)`,
                       height: '100%'
                     }}
                   ></div>
                   
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
-                    <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
+                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
                       <div className="flex justify-center items-center">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
                       </div>
+                    </div>
+                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50">
                     </div>
                     <div className="flex-1 flex relative">
                       {MONTHS.map((month, index) => (
@@ -586,7 +731,7 @@ export default function GanttPage() {
                   {/* Filas de actividades y tareas */}
                   {activities.length === 0 ? (
                     <div className="flex">
-                      <div className="w-64 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
+                      <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
                         <div className="relative group">
                           <Button
                             onClick={handleAddActivityClick}
@@ -595,11 +740,12 @@ export default function GanttPage() {
                           >
                             <Plus className="h-6 w-6" />
                           </Button>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                            AGREGAR ACTIVIDAD
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                            Agregar actividad
                           </div>
                         </div>
                       </div>
+                      <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
                       <div className="flex-1 p-4 bg-gray-50"></div>
                     </div>
                   ) : (
@@ -608,14 +754,14 @@ export default function GanttPage() {
                         <div key={activity.id} className="border-b border-gray-200">
                           {/* Fila de la actividad con sus tareas en la misma línea */}
                           <div className="flex hover:bg-gray-50">
-                            <div className="w-64 p-4 border-r border-gray-200 flex items-center justify-between">
-                              <div className="flex-1">
+                            <div className="w-80 p-4 border-r border-gray-200 flex items-start justify-between overflow-hidden">
+                              <div className="flex-1 min-w-0 max-w-full">
                                 <div className="flex items-center space-x-2">
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => toggleDescription(activity.id)}
-                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded flex-shrink-0"
                                   >
                                     {expandedDescriptions.has(activity.id) ? (
                                       <ChevronDown className="h-4 w-4" />
@@ -623,33 +769,59 @@ export default function GanttPage() {
                                       <ChevronRight className="h-4 w-4" />
                                     )}
                                   </Button>
-                                  <h4 className="font-medium text-gray-900">{activity.name}</h4>
+                                  <h4 className="font-medium text-gray-900 truncate min-w-0">{activity.name}</h4>
                                 </div>
                                 {expandedDescriptions.has(activity.id) && activity.description && (
-                                  <p className="text-sm text-gray-500 mt-1 ml-6">{activity.description}</p>
+                                  <div className="mt-1 ml-2 max-w-full mr-2">
+                                    <p className="text-xs text-gray-500 break-words overflow-hidden whitespace-normal leading-relaxed word-break-all text-justify">{activity.description}</p>
+                                  </div>
                                 )}
                               </div>
-                              <div className="flex space-x-1 ml-2">
-                                {showDeleteActivities && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteActivity(activity.id)}
-                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {showEditActivities && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => handleEditActivityClick(e, activity)}
-                                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                )}
+                              <div className="relative">
+                                {/* Botón de eliminar - posición absoluta */}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteActivity(activity.id)}
+                                  className={`absolute h-7 w-7 p-0 text-red-600 hover:text-red-700 transition-opacity duration-200 z-20 -translate-x-6 ${
+                                    showDeleteActivities ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                                  }`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                
+                                {/* Botón de editar - posición absoluta */}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => handleEditActivityClick(e, activity)}
+                                  className={`absolute h-7 w-7 p-0 text-blue-600 hover:text-blue-700 transition-opacity duration-200 z-20 -translate-x-6 ${
+                                    showEditActivities ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                                  }`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {/* Columna de acciones - Botón agregar tarea */}
+                            <div className="w-12 p-2 border-r border-gray-200 flex items-center justify-center">
+                              <div className="relative group">
+                                <Button
+                                  onClick={(e) => {
+                                    setSelectedActivity(activity);
+                                    handleAddTaskClick(e);
+                                  }}
+                                  variant="outline"
+                                  className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <div 
+                                  className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
+                                >
+                                  Agregar tarea
+                                </div>
                               </div>
                             </div>
                             
@@ -661,31 +833,21 @@ export default function GanttPage() {
                               }}
                             >
                               
-                              {/* Botón agregar tarea - centrado verticalmente */}
-                              <div className="absolute top-1/2 left-2 z-10 transform -translate-y-1/2">
-                                <div className="relative group">
-                                  <Button
-                                    onClick={(e) => {
-                                      setSelectedActivity(activity);
-                                      handleAddTaskClick(e);
-                                    }}
-                                    variant="outline"
-                                    className="border-2 border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[100]">
-                                    AGREGAR TAREA
-                                  </div>
-                                </div>
-                              </div>
-                              
                               {/* Barras de Gantt de las tareas apiladas verticalmente */}
                               {activity.tasks.map((task, index) => {
                                 const containerHeight = Math.max(48, 16 + (activity.tasks.length * 40));
                                 const totalTasksHeight = activity.tasks.length * 40;
                                 const availableHeight = containerHeight - 16; // Restar padding
                                 const startOffset = (availableHeight - totalTasksHeight) / 2 + 4;
+                                
+                                // Verificar si la tarea está dentro del rango visible (enero a diciembre)
+                                const startPos = getDatePosition(task.start_date);
+                                const barWidth = getBarWidth(task.start_date, task.end_date);
+                                
+                                // Si la tarea no es visible (ancho 0), no renderizarla
+                                if (barWidth === 0) {
+                                  return null;
+                                }
                                 
                                 return (
                                   <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
@@ -698,8 +860,8 @@ export default function GanttPage() {
                                     <div
                                       className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-10`}
                                       style={{
-                                        left: `${getDatePosition(task.start_date).left}%`,
-                                        width: `${getBarWidth(task.start_date, task.end_date)}%`
+                                        left: `${startPos.left}%`,
+                                        width: `${barWidth}%`
                                       }}
                                     >
                                       {/* Porcentaje al final de la barra */}
@@ -708,22 +870,50 @@ export default function GanttPage() {
                                       </div>
                                     </div>
                                     
-                                    {/* Nombre de la tarea al inicio de la barra, a la izquierda exterior */}
-                                    <div 
-                                      className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
-                                      style={{
-                                        left: `${getDatePosition(task.start_date).left - 2}%`,
-                                        transform: 'translateY(-50%) translateX(-100%)'
-                                      }}
-                                    >
-                                      {task.name}
-                                    </div>
+                                    {/* Nombre de la tarea - detectar desbordamiento y posicionar apropiadamente */}
+                                    {(() => {
+                                      // Detectar si el nombre se desbordaría hacia la izquierda
+                                      const wouldOverflow = startPos.left < 5; // Si está muy cerca del borde izquierdo
+                                      
+                                      if (wouldOverflow) {
+                                        // Colocar el nombre dentro de la barra cuando hay desbordamiento
+                                        return (
+                                          <div 
+                                            className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-2 py-1 rounded shadow-sm border"
+                                            style={{
+                                              left: `${startPos.left + 2}%`,
+                                              top: '50%', // Centrar verticalmente en la barra
+                                              transform: 'translateY(-50%)', // Centrar verticalmente
+                                              maxWidth: `${Math.max(barWidth - 4, 20)}%`,
+                                              whiteSpace: 'nowrap',
+                                              overflow: 'hidden',
+                                              textOverflow: 'ellipsis'
+                                            }}
+                                          >
+                                            {task.name}
+                                          </div>
+                                        );
+                                      } else {
+                                        // Posicionamiento normal a la izquierda de la barra
+                                        return (
+                                          <div 
+                                            className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
+                                            style={{
+                                              left: `${startPos.left - 2}%`,
+                                              transform: 'translateY(-50%) translateX(-100%)'
+                                            }}
+                                          >
+                                            {task.name}
+                                          </div>
+                                        );
+                                      }
+                                    })()}
                                     
                                     {/* Controles al final de la barra */}
                                     <div 
                                       className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border z-20"
                                       style={{
-                                        left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
+                                        left: `${startPos.left + barWidth + 1}%`,
                                         transform: 'translateY(-50%)'
                                       }}
                                     >
@@ -752,7 +942,7 @@ export default function GanttPage() {
                       
                       {/* Botones para agregar y eliminar actividades */}
                       <div className="flex">
-                        <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
+                        <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
                           <div className="flex justify-center space-x-2">
                             {/* Botón agregar actividad */}
                             <div className="relative group">
@@ -763,15 +953,15 @@ export default function GanttPage() {
                               >
                                 <Plus className="h-6 w-6" />
                               </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                                AGREGAR ACTIVIDAD
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                                Agregar actividad
                               </div>
                             </div>
                             
                             {/* Botón eliminar actividades */}
                             <div className="relative group">
                               <Button
-                                onClick={() => setShowDeleteActivities(!showDeleteActivities)}
+                                onClick={handleDeleteActivitiesClick}
                                 variant="outline"
                                 className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
                                   showDeleteActivities 
@@ -781,15 +971,15 @@ export default function GanttPage() {
                               >
                                 <Trash2 className="h-6 w-6" />
                               </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                                {showDeleteActivities ? 'CANCELAR ELIMINAR' : 'ELIMINAR ACTIVIDADES'}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                                {showDeleteActivities ? 'Cancelar eliminar' : 'Eliminar actividades'}
                               </div>
                             </div>
                             
                             {/* Botón editar actividades */}
                             <div className="relative group">
                               <Button
-                                onClick={() => setShowEditActivities(!showEditActivities)}
+                                onClick={handleEditActivitiesClick}
                                 variant="outline"
                                 className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
                                   showEditActivities 
@@ -799,13 +989,14 @@ export default function GanttPage() {
                               >
                                 <Edit className="h-6 w-6" />
                               </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                                {showEditActivities ? 'CANCELAR EDITAR' : 'EDITAR ACTIVIDADES'}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                                {showEditActivities ? 'Cancelar editar' : 'Editar actividades'}
                               </div>
                             </div>
                             
                           </div>
                         </div>
+                        <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
                         <div className="flex-1 p-4 bg-gray-50"></div>
                       </div>
                     </>
@@ -928,6 +1119,7 @@ export default function GanttPage() {
                   onClick={() => {
                     setShowAddTask(false);
                     setSelectedActivity(null);
+                    setTaskForm({ name: '', startDate: '', endDate: '' });
                   }}
                   className="h-8 w-8 p-0 hover:bg-gray-100"
                 >
@@ -936,30 +1128,6 @@ export default function GanttPage() {
               </div>
               
               <div className="space-y-3">
-                <div>
-                  <Label htmlFor="activity-select" className="text-sm font-medium text-gray-700">
-                    Seleccionar Actividad *
-                  </Label>
-                  <Select 
-                    value={selectedActivity?.id || ''} 
-                    onValueChange={(value) => {
-                      const activity = activities.find(a => a.id === value);
-                      setSelectedActivity(activity || null);
-                    }}
-                  >
-                    <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-green-500">
-                      <SelectValue placeholder="Selecciona una actividad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activities.map((activity) => (
-                        <SelectItem key={activity.id} value={activity.id}>
-                          {activity.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div>
                   <Input
                     value={taskForm.name}
@@ -994,6 +1162,7 @@ export default function GanttPage() {
                     onClick={() => {
                       setShowAddTask(false);
                       setSelectedActivity(null);
+                      setTaskForm({ name: '', startDate: '', endDate: '' });
                     }}
                     size="sm"
                   >
@@ -1022,7 +1191,7 @@ export default function GanttPage() {
             top: `${popupPosition.y}px`
           }}
         >
-          <Card className="w-96 shadow-2xl border-2">
+          <Card className="w-[500px] shadow-2xl border-2">
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1035,9 +1204,9 @@ export default function GanttPage() {
                     setShowEditActivity(false);
                     setEditingActivity(null);
                   }}
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-105"
                 >
-                  ×
+                  <span className="text-lg font-semibold text-gray-600 hover:text-gray-800">×</span>
                 </Button>
               </div>
               
@@ -1058,7 +1227,7 @@ export default function GanttPage() {
                     onChange={(e) => handleEditActivityInputChange('description', e.target.value)}
                     placeholder="Descripción (opcional)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
-                    rows={3}
+                    rows={5}
                   />
                 </div>
 
@@ -1079,6 +1248,80 @@ export default function GanttPage() {
                     size="sm"
                   >
                     Actualizar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Popup para crear actividad */}
+      {showCreateActivity && (
+        <div 
+          className="fixed z-50"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`
+          }}
+        >
+          <Card className="w-[500px] shadow-2xl border-2">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Crear Actividad
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowCreateActivity(false);
+                    setCreateActivityForm({ name: '', description: '' });
+                  }}
+                  className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-105"
+                >
+                  <span className="text-lg font-semibold text-gray-600 hover:text-gray-800">×</span>
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Input
+                    value={createActivityForm.name}
+                    onChange={(e) => handleCreateActivityInputChange('name', e.target.value)}
+                    placeholder="Nombre de la actividad *"
+                    className="w-full"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <textarea
+                    value={createActivityForm.description}
+                    onChange={(e) => handleCreateActivityInputChange('description', e.target.value)}
+                    placeholder="Descripción (opcional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
+                    rows={5}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateActivity(false);
+                      setCreateActivityForm({ name: '', description: '' });
+                    }}
+                    size="sm"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleCreateActivity}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
+                  >
+                    Crear
                   </Button>
                 </div>
               </div>
