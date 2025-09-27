@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/navigation-menu"
 
 import SidebarNav from "@/components/ui/SidebarNav" // 👈 ruta correcta
+import PageHeader from "@/components/PageHeader"
 
 // 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
 export const metadata = {
@@ -37,41 +38,11 @@ export default function RootLayout({
 
           {/* Contenedor derecho desplazado por el ancho del sidebar */}
           <div className="flex flex-col flex-1 ml-56">
-            {/* Navbar superior */}
-            <header className="border-b">
-              <div className="px-4 py-2">
-                <NavigationMenu>
-                  <NavigationMenuList>
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger>Inicio</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <NavigationMenuLink href="/">Dashboard</NavigationMenuLink>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger>Proyectos</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <NavigationMenuLink href="/proyectos">Ver proyectos</NavigationMenuLink>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger>Configuración</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <NavigationMenuLink href="/configuracion">Preferencias</NavigationMenuLink>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-                  </NavigationMenuList>
-
-                  <NavigationMenuIndicator />
-                  <NavigationMenuViewport />
-                </NavigationMenu>
-              </div>
-            </header>
+            {/* Header con menú */}
+            <PageHeader />
 
             {/* Contenido principal */}
-            <main className="flex-1 overflow-y-auto p-6">
+            <main className="flex-1 overflow-y-auto p-6 pt-8">
               <div className="w-full">{children}</div>
             </main>
           </div>

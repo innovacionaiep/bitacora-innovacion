@@ -66,6 +66,7 @@ export default function DashboardPage() {
     dir: 'asc',
   });
 
+
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
   const getDisplayValue = (col: string, p: Project): string | number => {
     if (col === 'reuniones') return `${p.reuniones_hechas}/${p.reuniones_totales}`;
@@ -282,12 +283,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Título */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Resumen general de avances de los proyectos</p>
-        </div>
+      {/* Botón de exportar */}
+      <div className="flex items-center justify-end">
         <Button 
           onClick={exportToExcel}
           className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"

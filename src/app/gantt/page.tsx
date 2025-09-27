@@ -20,7 +20,11 @@ import {
   Clock,
   Target,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Activity as ActivityIcon,
+  CheckSquare,
+  TrendingUp,
+  Save
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState, useEffect } from 'react';
@@ -90,6 +94,31 @@ export default function GanttPage() {
     syncAllActivitiesProgress
   } = useGantt(selectedProject?.id || null);
 
+  // Calcular estadísticas de actividades y tareas completadas
+  const getProjectStats = () => {
+    if (!selectedProject || !activities.length) {
+      return { completedActivities: 0, totalActivities: 0, completedTasks: 0, totalTasks: 0 };
+    }
+
+    const totalActivities = activities.length;
+    const completedActivities = activities.filter(activity => 
+      activity.tasks.length > 0 && activity.tasks.every(task => task.completed)
+    ).length;
+
+    const allTasks = activities.flatMap(activity => activity.tasks);
+    const totalTasks = allTasks.length;
+    const completedTasks = allTasks.filter(task => task.completed).length;
+
+    return {
+      completedActivities,
+      totalActivities,
+      completedTasks,
+      totalTasks
+    };
+  };
+
+  const stats = getProjectStats();
+
   // Función para cerrar todos los popups
   const closeAllPopups = () => {
     setShowAddActivity(false);
@@ -122,6 +151,7 @@ export default function GanttPage() {
     setEditActivityForm({ name: '', description: '' });
     setCreateActivityForm({ name: '', description: '' });
   };
+
 
   // Cerrar todos los popups cuando cambie el proyecto seleccionado
   useEffect(() => {
@@ -608,12 +638,13 @@ export default function GanttPage() {
     return leftPercent;
   };
 
-  if (proyectosLoading || ganttLoading) {
+  // Solo mostrar pantalla de carga completa para la carga inicial de proyectos
+  if (proyectosLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando...</p>
+          <p className="text-muted-foreground">Cargando proyectos...</p>
         </div>
       </div>
     );
@@ -636,87 +667,24 @@ export default function GanttPage() {
     <TooltipProvider>
       <div className="pt-0 px-4 pb-4 space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Carta Gantt</h1>
-          <p className="text-gray-600 mt-1">Gestiona las actividades y tareas de tus proyectos</p>
-        </div>
-        
-        {selectedProject && (
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Progreso del Proyecto</p>
-              <p className="text-2xl font-bold text-blue-600">{calculateProjectProgress()}%</p>
-            </div>
-            <div className="w-32 bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${calculateProjectProgress()}%` }}
-              ></div>
-            </div>
-            <Button
-              onClick={handleSaveGantt}
-              disabled={isSaving}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span>Guardar Cambios</span>
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Mensaje de feedback */}
-      {saveMessage && (
-        <div className={`p-4 rounded-lg ${
-          saveMessage.includes('exitosamente') 
-            ? 'bg-green-100 border border-green-300 text-green-700' 
-            : 'bg-red-100 border border-red-300 text-red-700'
-        }`}>
-          <div className="flex items-center space-x-2">
-            {saveMessage.includes('exitosamente') ? (
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            )}
-            <span className="font-medium">{saveMessage}</span>
-          </div>
-        </div>
-      )}
-
-
-      {/* Selector de proyecto */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <FolderKanban className="h-6 w-6 text-gray-600" />
-            <div className="flex-1">
-              <Label htmlFor="project-select" className="text-sm font-medium text-gray-700">
-                Seleccionar Proyecto
-              </Label>
+      <div className="space-y-4">
+        {/* Selector de proyecto */}
+        <div className="flex items-center space-x-4">
+          <FolderKanban className="h-6 w-6 text-gray-600" />
+          <div>
+            <Label htmlFor="project-select" className="text-sm font-medium text-gray-700">
+              Seleccionar Proyecto
+            </Label>
+            <div className="relative">
               <Select 
                 value={selectedProject?.id || ''} 
                 onValueChange={(value) => {
                   const project = proyectos.find(p => p.id === value);
                   setSelectedProject(project || null);
                 }}
+                disabled={ganttLoading}
               >
-                <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500">
+                <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-80">
                   <SelectValue placeholder="Selecciona un proyecto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -727,99 +695,255 @@ export default function GanttPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {ganttLoading && selectedProject && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                </div>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {selectedProject ? (
-        <div className="space-y-6">
-          {/* Título de actividades */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Actividades de {selectedProject.proyecto}
-            </h2>
+        {/* Cards de resumen - Siempre visibles */}
+        <div className="relative">
+          {/* Botón Guardar Cambios - Posicionado absolutamente a la derecha */}
+          {selectedProject && (
+            <div className="absolute top-0 right-0 z-10">
+              <Button
+                onClick={handleSaveGantt}
+                disabled={isSaving}
+                className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-sm hover:shadow-md"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Guardar Cambios</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
+          {/* Contenedor de las tarjetas centrado respecto a toda la tabla Gantt */}
+          <div className="flex justify-center">
+            <div className="flex items-center space-x-4">
+              {/* Card Actividades completadas */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-20 relative">
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-1.5 bg-gray-100 rounded-md">
+                      <ActivityIcon className="h-3.5 w-3.5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Actividades</p>
+                      <p className="text-xs text-gray-500">completas</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-baseline space-x-1">
+                      <span className="text-xl font-bold text-gray-900">{stats.completedActivities}</span>
+                      <span className="text-sm text-gray-400">/</span>
+                      <span className="text-sm font-medium text-gray-600">{stats.totalActivities}</span>
+                    </div>
+                    <div className="w-20 bg-gray-100 rounded-full h-1">
+                      <div 
+                        className="bg-gray-600 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${stats.totalActivities > 0 ? (stats.completedActivities / stats.totalActivities) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Tareas completadas */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-20 relative">
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-1.5 bg-gray-100 rounded-md">
+                      <CheckSquare className="h-3.5 w-3.5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Tareas</p>
+                      <p className="text-xs text-gray-500">completas</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-baseline space-x-1">
+                      <span className="text-xl font-bold text-gray-900">{stats.completedTasks}</span>
+                      <span className="text-sm text-gray-400">/</span>
+                      <span className="text-sm font-medium text-gray-600">{stats.totalTasks}</span>
+                    </div>
+                    <div className="w-20 bg-gray-100 rounded-full h-1">
+                      <div 
+                        className="bg-gray-600 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección de Progreso */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-20 relative">
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-1.5 bg-gray-100 rounded-md">
+                      <TrendingUp className="h-3.5 w-3.5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Progreso</p>
+                      <p className="text-xs text-gray-500">del proyecto</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-baseline space-x-1">
+                      <span className="text-xl font-bold text-gray-900">{calculateProjectProgress()}%</span>
+                    </div>
+                    <div className="w-24 bg-gray-100 rounded-full h-1.5">
+                      <div 
+                        className="bg-gray-600 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${calculateProjectProgress()}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
 
-          {/* Calendario Gantt */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto relative overflow-y-visible">
-                <div className="min-w-[1272px]">
-                  
-                  {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
-                  <div
-                    className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
-                    style={{
-                      left: `calc(392px + ${getTodayPositionPercent()}% * (100% - 392px) / 100%)`,
-                      height: '100%'
-                    }}
-                  ></div>
-                  
+      {/* Mensaje de feedback compacto */}
+      {saveMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className={`px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2 ${
+            saveMessage.includes('exitosamente') 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {saveMessage.includes('exitosamente') ? (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.818a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="text-sm font-medium">
+              {saveMessage.includes('exitosamente') ? '¡Guardado!' : 'Error'}
+            </span>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Calendario Gantt - Siempre visible */}
+      <div className="space-y-6 mt-12">
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto relative overflow-y-visible">
+              <div className="min-w-[1272px]">
+                
+                {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
+                <div
+                  className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
+                  style={{
+                    left: `calc(392px + ${getTodayPositionPercent()}% * (100% - 392px) / 100%)`,
+                    height: '100%'
+                  }}
+                ></div>
+                
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
                     <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
-                      <div className="flex justify-center items-center">
+                      <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
+                        {ganttLoading && selectedProject && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                        )}
                       </div>
                     </div>
-                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50">
-                    </div>
-                    <div className="flex-1 flex relative">
-                      {MONTHS.map((month, index) => (
-                        <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center">
-                          <div className="text-sm font-medium text-gray-700">{month}</div>
-                        </div>
-                      ))}
-                      
-                      {/* Indicador de "Hoy" */}
-                      <div
-                        className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
-                        style={{
-                          left: `${getTodayPositionPercent()}%`,
-                          transform: 'translateX(-50%)'
-                        }}
-                      >
-                        Hoy
+                  <div className="w-12 p-2 border-r border-gray-200 bg-gray-50">
+                  </div>
+                  <div className="flex-1 flex relative">
+                    {MONTHS.map((month, index) => (
+                      <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center">
+                        <div className="text-sm font-medium text-gray-700">{month}</div>
                       </div>
+                    ))}
+                    
+                    {/* Indicador de "Hoy" */}
+                    <div
+                      className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
+                      style={{
+                        left: `${getTodayPositionPercent()}%`,
+                        transform: 'translateX(-50%)'
+                      }}
+                    >
+                      Hoy
                     </div>
                   </div>
-                  
+                </div>
+                
 
-                  {/* Filas de actividades y tareas */}
-                  {activities.length === 0 ? (
-                    <div className="flex">
-                      <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
-                        <div className="relative group">
-                          <Button
-                            onClick={handleAddActivityClick}
-                            variant="outline"
-                            className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
-                          >
-                            <Plus className="h-6 w-6" />
-                          </Button>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                            Agregar actividad
-                          </div>
+                {/* Filas de actividades y tareas */}
+                {!selectedProject ? (
+                  /* Mensaje cuando no hay proyecto seleccionado */
+                  <div className="flex">
+                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center">
+                      <div className="text-center">
+                        <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm text-gray-500">Selecciona un proyecto</p>
+                      </div>
+                    </div>
+                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
+                    <div className="flex-1 p-4 bg-gray-50 flex items-center justify-center">
+                      <p className="text-sm text-gray-400">El calendario Gantt aparecerá aquí</p>
+                    </div>
+                  </div>
+                ) : activities.length === 0 ? (
+                  <div className="flex">
+                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
+                      <div className="relative group">
+                        <Button
+                          onClick={handleAddActivityClick}
+                          variant="outline"
+                          className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                        >
+                          <Plus className="h-6 w-6" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                          Agregar actividad
                         </div>
                       </div>
-                      <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
-                      <div className="flex-1 p-4 bg-gray-50"></div>
                     </div>
-                  ) : (
-                    <>
-                      {activities.map((activity) => (
-                        <div key={activity.id} className="border-b border-gray-200">
-                          {/* Fila de la actividad con sus tareas en la misma línea */}
-                          <div className="flex hover:bg-gray-50">
-                            <div className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-start justify-between overflow-hidden relative">
-                              <div className="flex-1 min-w-0 max-w-full">
-                                <div className="flex items-center space-x-1">
+                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
+                    <div className="flex-1 p-4 bg-gray-50"></div>
+                  </div>
+                ) : (
+                  <>
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="border-b border-gray-200">
+                        {/* Fila de la actividad con sus tareas en la misma línea */}
+                        <div className="flex hover:bg-gray-50">
+                          <div className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-start justify-between overflow-hidden relative">
+                            <div className="flex-1 min-w-0 max-w-full">
+                              <div className="flex items-start space-x-2">
+                                {/* Columna de botones a la izquierda */}
+                                <div className="flex flex-col items-center space-y-1 flex-shrink-0">
+                                  {/* Botón expandir/colapsar */}
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => toggleDescription(activity.id)}
-                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded flex-shrink-0"
+                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
                                   >
                                     {expandedDescriptions.has(activity.id) ? (
                                       <ChevronDown className="h-4 w-4" />
@@ -827,211 +951,209 @@ export default function GanttPage() {
                                       <ChevronRight className="h-4 w-4" />
                                     )}
                                   </Button>
-                                  <h4 className="text-sm font-medium text-gray-900 break-words min-w-0 leading-tight">{activity.name}</h4>
-                                </div>
-                                {expandedDescriptions.has(activity.id) && activity.description && (
-                                  <div className="mt-1 ml-2" style={{ marginRight: '2px' }}>
-                                    <p className="text-xs text-gray-500 break-words overflow-hidden whitespace-normal leading-relaxed word-break-all text-justify">{activity.description}</p>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="absolute top-2 right-2 flex items-center space-x-0">
-                                {/* Botón de editar - siempre visible */}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => handleEditActivityClick(e, activity)}
-                                  className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                
-                                {/* Botón de eliminar - siempre visible */}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteActivity(activity.id)}
-                                  className="h-7 w-7 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            {/* Columna de acciones - Botón agregar tarea */}
-                            <div className="w-12 p-2 border-r border-gray-200 flex items-center justify-center">
-                              <div className="relative group">
-                                <Button
-                                  onClick={(e) => {
-                                    setSelectedActivity(activity);
-                                    handleAddTaskClick(e);
-                                  }}
-                                  variant="outline"
-                                  className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                                <div 
-                                  className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
-                                >
-                                  Agregar tarea
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Área de Gantt con barras de tareas apiladas verticalmente */}
-                            <div 
-                              className="flex-1 relative p-2"
-                              style={{ 
-                                height: `${Math.max(48, 16 + (activity.tasks.length * 40))}px` // Altura dinámica: mínimo 48px, 16px para botón + 40px por cada tarea
-                              }}
-                            >
-                              
-                              {/* Barras de Gantt de las tareas apiladas verticalmente */}
-                              {activity.tasks.map((task, index) => {
-                                const containerHeight = Math.max(48, 16 + (activity.tasks.length * 40));
-                                const totalTasksHeight = activity.tasks.length * 40;
-                                const availableHeight = containerHeight - 16; // Restar padding
-                                const startOffset = (availableHeight - totalTasksHeight) / 2 + 4;
-                                
-                                // Verificar si la tarea está dentro del rango visible (enero a diciembre)
-                                const startPos = getDatePosition(task.start_date);
-                                const barWidth = getBarWidth(task.start_date, task.end_date);
-                                
-                                // Si la tarea no es visible (ancho 0), no renderizarla
-                                if (barWidth === 0) {
-                                  return null;
-                                }
-                                
-                                return (
-                                  <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
-                                    <div 
-                                      className="relative h-8" 
-                                      style={{ 
-                                        top: `${startOffset + (index * 40)}px`
-                                      }}
-                                    >
-                                    <div
-                                      className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-10`}
-                                      style={{
-                                        left: `${startPos.left}%`,
-                                        width: `${barWidth}%`
-                                      }}
-                                    >
-                                      {/* Porcentaje al final de la barra */}
-                                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
-                                        {task.completed ? '✓' : '0%'}
-                                      </div>
-                                    </div>
-                                    
-                                    {/* Nombre de la tarea - detectar desbordamiento y posicionar apropiadamente */}
-                                    {(() => {
-                                      // Detectar si el nombre se desbordaría hacia la izquierda
-                                      const wouldOverflow = startPos.left < 5; // Si está muy cerca del borde izquierdo
-                                      
-                                      if (wouldOverflow) {
-                                        // Colocar el nombre dentro de la barra cuando hay desbordamiento
-                                        return (
-                                          <div 
-                                            className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-2 py-1 rounded shadow-sm border"
-                                            style={{
-                                              left: `${startPos.left + 2}%`,
-                                              top: '50%', // Centrar verticalmente en la barra
-                                              transform: 'translateY(-50%)', // Centrar verticalmente
-                                              maxWidth: `${Math.max(barWidth - 4, 20)}%`,
-                                              whiteSpace: 'nowrap',
-                                              overflow: 'hidden',
-                                              textOverflow: 'ellipsis'
-                                            }}
-                                          >
-                                            {task.name}
-                                          </div>
-                                        );
-                                      } else {
-                                        // Posicionamiento normal a la izquierda de la barra
-                                        return (
-                                          <div 
-                                            className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
-                                            style={{
-                                              left: `${startPos.left - 2}%`,
-                                              transform: 'translateY(-50%) translateX(-100%)'
-                                            }}
-                                          >
-                                            {task.name}
-                                          </div>
-                                        );
-                                      }
-                                    })()}
-                                    
-                                    {/* Controles al final de la barra */}
-                                    <div 
-                                      className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border z-20"
-                                      style={{
-                                        left: `${startPos.left + barWidth + 1}%`,
-                                        transform: 'translateY(-50%)'
-                                      }}
-                                    >
-                                      <Checkbox
-                                        checked={task.completed}
-                                        onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                        className="h-4 w-4"
-                                      />
+                                  
+                                  {/* Botones de acción - solo visibles cuando está expandido */}
+                                  {expandedDescriptions.has(activity.id) && (
+                                    <>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => handleDeleteTask(task.id)}
-                                        className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                        onClick={(e) => handleEditActivityClick(e, activity)}
+                                        className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
                                       >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Edit className="h-4 w-4" />
                                       </Button>
-                                    </div>
-                                  </div>
+                                      
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteActivity(activity.id)}
+                                        className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Botón para agregar actividad */}
-                      <div className="flex">
-                        <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
-                          <div className="flex justify-center">
-                            {/* Botón agregar actividad */}
-                            <div className="relative group">
-                              <Button
-                                onClick={handleAddActivityClick}
-                                variant="outline"
-                                className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
-                              >
-                                <Plus className="h-6 w-6" />
-                              </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                                Agregar actividad
+                                
+                                {/* Contenido de la actividad */}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-gray-900 break-words min-w-0 leading-tight">{activity.name}</h4>
+                                  {expandedDescriptions.has(activity.id) && activity.description && (
+                                    <div className="mt-1" style={{ marginRight: '2px' }}>
+                                      <p className="text-xs text-gray-500 break-words overflow-hidden whitespace-normal leading-relaxed word-break-all text-justify">{activity.description}</p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
+                          
+                          {/* Columna de acciones - Botón agregar tarea */}
+                          <div className="w-12 p-2 border-r border-gray-200 flex items-center justify-center">
+                            <div className="relative group">
+                              <Button
+                                onClick={(e) => {
+                                  setSelectedActivity(activity);
+                                  handleAddTaskClick(e);
+                                }}
+                                variant="outline"
+                                className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <div 
+                                className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
+                              >
+                                Agregar tarea
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Área de Gantt con barras de tareas apiladas verticalmente */}
+                          <div 
+                            className="flex-1 relative p-2"
+                            style={{ 
+                              height: `${Math.max(48, 16 + (activity.tasks.length * 40))}px` // Altura dinámica: mínimo 48px, 16px para botón + 40px por cada tarea
+                            }}
+                          >
+                            
+                            {/* Barras de Gantt de las tareas apiladas verticalmente */}
+                            {activity.tasks.map((task, index) => {
+                              const containerHeight = Math.max(48, 16 + (activity.tasks.length * 40));
+                              const totalTasksHeight = activity.tasks.length * 40;
+                              const availableHeight = containerHeight - 16; // Restar padding
+                              const startOffset = (availableHeight - totalTasksHeight) / 2 + 4;
+                              
+                              // Verificar si la tarea está dentro del rango visible (enero a diciembre)
+                              const startPos = getDatePosition(task.start_date);
+                              const barWidth = getBarWidth(task.start_date, task.end_date);
+                              
+                              // Si la tarea no es visible (ancho 0), no renderizarla
+                              if (barWidth === 0) {
+                                return null;
+                              }
+                              
+                              return (
+                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                                  <div 
+                                    className="relative h-8" 
+                                    style={{ 
+                                      top: `${startOffset + (index * 40)}px`
+                                    }}
+                                  >
+                                  <div
+                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-10`}
+                                    style={{
+                                      left: `${startPos.left}%`,
+                                      width: `${barWidth}%`
+                                    }}
+                                  >
+                                    {/* Porcentaje al final de la barra */}
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
+                                      {task.completed ? '✓' : '0%'}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Nombre de la tarea - detectar desbordamiento y posicionar apropiadamente */}
+                                  {(() => {
+                                    // Detectar si el nombre se desbordaría hacia la izquierda
+                                    const wouldOverflow = startPos.left < 5; // Si está muy cerca del borde izquierdo
+                                    
+                                    if (wouldOverflow) {
+                                      // Colocar el nombre dentro de la barra cuando hay desbordamiento
+                                      return (
+                                        <div 
+                                          className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-2 py-1 rounded shadow-sm border"
+                                          style={{
+                                            left: `${startPos.left + 2}%`,
+                                            top: '50%', // Centrar verticalmente en la barra
+                                            transform: 'translateY(-50%)', // Centrar verticalmente
+                                            maxWidth: `${Math.max(barWidth - 4, 20)}%`,
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
+                                          }}
+                                        >
+                                          {task.name}
+                                        </div>
+                                      );
+                                    } else {
+                                      // Posicionamiento normal a la izquierda de la barra
+                                      return (
+                                        <div 
+                                          className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
+                                          style={{
+                                            left: `${startPos.left - 2}%`,
+                                            transform: 'translateY(-50%) translateX(-100%)'
+                                          }}
+                                        >
+                                          {task.name}
+                                        </div>
+                                      );
+                                    }
+                                  })()}
+                                  
+                                  {/* Controles al final de la barra */}
+                                  <div 
+                                    className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border z-20"
+                                    style={{
+                                      left: `${startPos.left + barWidth + 1}%`,
+                                      transform: 'translateY(-50%)'
+                                    }}
+                                  >
+                                    <Checkbox
+                                      checked={task.completed}
+                                      onCheckedChange={() => handleToggleTaskCompletion(task.id)}
+                                      className="h-4 w-4"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTask(task.id)}
+                                      className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
-                        <div className="flex-1 p-4 bg-gray-50"></div>
                       </div>
-                    </>
-                  )}
-                </div>
+                    ))}
+                    
+                    {/* Botón para agregar actividad */}
+                    <div className="flex">
+                      <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
+                        <div className="flex justify-center">
+                          {/* Botón agregar actividad */}
+                          <div className="relative group">
+                            <Button
+                              onClick={handleAddActivityClick}
+                              variant="outline"
+                              className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                            >
+                              <Plus className="h-6 w-6" />
+                            </Button>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                              Agregar actividad
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
+                      <div className="flex-1 p-4 bg-gray-50"></div>
+                    </div>
+                  </>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <CalendarIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Selecciona un Proyecto</h3>
-            <p className="text-gray-500">Elige un proyecto para ver y gestionar su cronograma Gantt</p>
+            </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* Popup simple para agregar actividad */}
       {showAddActivity && (
