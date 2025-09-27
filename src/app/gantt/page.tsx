@@ -40,6 +40,10 @@ export default function GanttPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [showDeleteActivities, setShowDeleteActivities] = useState(false);
+  const [showEditActivities, setShowEditActivities] = useState(false);
+  const [showEditActivity, setShowEditActivity] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
@@ -56,12 +60,19 @@ export default function GanttPage() {
     endDate: ''
   });
 
+  // Formulario de edición de actividad
+  const [editActivityForm, setEditActivityForm] = useState({
+    name: '',
+    description: ''
+  });
+
   // Usar el hook de Gantt con Supabase
   const {
     activities,
     loading: ganttLoading,
     error: ganttError,
     createActivity,
+    updateActivity,
     deleteActivity,
     createTask,
     deleteTask,
@@ -205,6 +216,51 @@ export default function GanttPage() {
     });
     setSelectedActivity(activity);
     setShowAddTask(true);
+  };
+
+  // Manejar clic en editar actividad
+  const handleEditActivityClick = (event: React.MouseEvent, activity: Activity) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPopupPosition({
+      x: rect.right + 10, // Posicionar a la derecha del botón
+      y: rect.top - 50    // Centrar verticalmente
+    });
+    setEditingActivity(activity);
+    setEditActivityForm({
+      name: activity.name,
+      description: activity.description
+    });
+    setShowEditActivity(true);
+  };
+
+  // Manejar cambios en el formulario de edición
+  const handleEditActivityInputChange = (field: string, value: string) => {
+    setEditActivityForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Actualizar actividad
+  const handleUpdateActivity = async () => {
+    if (!editingActivity || !editActivityForm.name) {
+      alert('Por favor completa el nombre de la actividad');
+      return;
+    }
+
+    const { error } = await updateActivity(editingActivity.id, {
+      name: editActivityForm.name,
+      description: editActivityForm.description
+    });
+
+    if (error) {
+      alert('Error al actualizar la actividad: ' + error);
+    } else {
+      setEditActivityForm({ name: '', description: '' });
+      setShowEditActivity(false);
+      setEditingActivity(null);
+      alert('Actividad actualizada exitosamente');
+    }
   };
 
   // Obtener posición de una fecha en el calendario para tareas
@@ -516,107 +572,117 @@ export default function GanttPage() {
                   ) : (
                     <>
                       {activities.map((activity) => (
-                        <div key={activity.id}>
-                          {/* Fila de la actividad (solo nombre, sin barra) */}
-                          <div className="flex border-b border-gray-200 hover:bg-gray-50">
+                        <div key={activity.id} className="border-b border-gray-200">
+                          {/* Fila de la actividad con sus tareas en la misma línea */}
+                          <div className="flex hover:bg-gray-50">
                             <div className="w-64 p-4 border-r border-gray-200 flex items-center justify-between">
                               <div className="flex-1">
                                 <h4 className="font-medium text-gray-900">{activity.name}</h4>
                                 <p className="text-sm text-gray-500">{activity.description}</p>
                               </div>
                               <div className="flex space-x-1 ml-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => handleAddTaskClick(e, activity)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteActivity(activity.id)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {showDeleteActivities && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteActivity(activity.id)}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {showEditActivities && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => handleEditActivityClick(e, activity)}
+                                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </div>
-                            {/* Área vacía para la actividad (sin barra) */}
-                            <div className="flex-1 p-2 bg-gray-50"></div>
-                          </div>
-
-                          {/* Filas de tareas con sus barras de Gantt */}
-                          {activity.tasks.map((task) => (
-                            <div key={task.id} className="flex border-b border-gray-200 hover:bg-gray-50">
-                              {/* Columna vacía para la tarea (sin nombre aquí) */}
-                              <div className="w-64 p-4 border-r border-gray-200 flex items-center">
-                                <div className="flex-1">
-                                  {/* Solo indentación, sin nombre */}
-                                </div>
-                              </div>
-
-                              {/* Barra de Gantt de la tarea */}
-                              <div className="flex-1 relative p-2">
-                                <div className="relative h-8 bg-gray-100 rounded">
-                                  <div
-                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
-                                    style={{
-                                      left: `${getDatePosition(task.start_date).left}%`,
-                                      width: `${getBarWidth(task.start_date, task.end_date)}%`
-                                    }}
+                            
+                            {/* Área de Gantt con barras de tareas superpuestas */}
+                            <div className="flex-1 relative p-2">
+                              <div className="relative h-16 bg-gray-50 rounded">
+                                {/* Botón para agregar tarea */}
+                                <div className="absolute top-2 right-2 z-20">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => handleAddTaskClick(e, activity)}
+                                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-full"
                                   >
-                                    {/* Porcentaje al final de la barra */}
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
-                                      {task.completed ? '✓' : '0%'}
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                
+                                {/* Barras de Gantt de las tareas superpuestas en la misma línea */}
+                                {activity.tasks.map((task, index) => (
+                                  <div key={task.id} className="absolute top-0 w-full">
+                                    <div className="relative h-8 bg-gray-100 rounded" style={{ top: `${index * 8}px` }}>
+                                      <div
+                                        className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
+                                        style={{
+                                          left: `${getDatePosition(task.start_date).left}%`,
+                                          width: `${getBarWidth(task.start_date, task.end_date)}%`
+                                        }}
+                                      >
+                                        {/* Porcentaje al final de la barra */}
+                                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
+                                          {task.completed ? '✓' : '0%'}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Nombre de la tarea al inicio de la barra, a la izquierda exterior */}
+                                      <div 
+                                        className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
+                                        style={{
+                                          left: `${getDatePosition(task.start_date).left - 2}%`,
+                                          transform: 'translateY(-50%) translateX(-100%)'
+                                        }}
+                                      >
+                                        {task.name}
+                                      </div>
+                                      
+                                      {/* Controles al final de la barra */}
+                                      <div 
+                                        className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border"
+                                        style={{
+                                          left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
+                                          transform: 'translateY(-50%)'
+                                        }}
+                                      >
+                                        <Checkbox
+                                          checked={task.completed}
+                                          onCheckedChange={() => handleToggleTaskCompletion(task.id)}
+                                          className="h-4 w-4"
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleDeleteTask(task.id)}
+                                          className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
-                                  
-                                  {/* Nombre de la tarea al inicio de la barra, a la izquierda exterior */}
-                                  <div 
-                                    className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
-                                    style={{
-                                      left: `${getDatePosition(task.start_date).left - 2}%`,
-                                      transform: 'translateY(-50%) translateX(-100%)'
-                                    }}
-                                  >
-                                    {task.name}
-                                  </div>
-                                  
-                                  {/* Controles al final de la barra, en la posición verde */}
-                                  <div 
-                                    className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border"
-                                    style={{
-                                      left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
-                                      transform: 'translateY(-50%)'
-                                    }}
-                                  >
-                                    <Checkbox
-                                      checked={task.completed}
-                                      onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                      className="h-4 w-4"
-                                    />
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteTask(task.id)}
-                                      className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
+                                ))}
                               </div>
                             </div>
-                          ))}
+                          </div>
                         </div>
                       ))}
                       
-                      {/* Botón sutil para agregar actividad - solo cuando hay actividades */}
+                      {/* Botones para agregar y eliminar actividades */}
                       <div className="flex">
                         <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
-                          <div className="flex justify-center">
+                          <div className="flex justify-center space-x-2">
+                            {/* Botón agregar actividad */}
                             <div className="relative group">
                               <Button
                                 onClick={handleAddActivityClick}
@@ -627,6 +693,42 @@ export default function GanttPage() {
                               </Button>
                               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                                 AGREGAR ACTIVIDAD
+                              </div>
+                            </div>
+                            
+                            {/* Botón eliminar actividades */}
+                            <div className="relative group">
+                              <Button
+                                onClick={() => setShowDeleteActivities(!showDeleteActivities)}
+                                variant="outline"
+                                className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
+                                  showDeleteActivities 
+                                    ? 'border-red-500 text-red-500 hover:bg-red-100 hover:border-red-600 hover:text-red-500 hover:font-bold hover:shadow-3xl' 
+                                    : 'border-gray-500 text-gray-500 hover:bg-gray-100 hover:border-gray-600 hover:text-gray-500 hover:font-bold hover:shadow-3xl'
+                                }`}
+                              >
+                                <Trash2 className="h-6 w-6" />
+                              </Button>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                {showDeleteActivities ? 'CANCELAR ELIMINAR' : 'ELIMINAR ACTIVIDADES'}
+                              </div>
+                            </div>
+                            
+                            {/* Botón editar actividades */}
+                            <div className="relative group">
+                              <Button
+                                onClick={() => setShowEditActivities(!showEditActivities)}
+                                variant="outline"
+                                className={`border-2 rounded-full w-10 h-10 p-0 shadow-2xl transition-all duration-300 ${
+                                  showEditActivities 
+                                    ? 'border-blue-500 text-blue-500 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-500 hover:font-bold hover:shadow-3xl' 
+                                    : 'border-gray-500 text-gray-500 hover:bg-gray-100 hover:border-gray-600 hover:text-gray-500 hover:font-bold hover:shadow-3xl'
+                                }`}
+                              >
+                                <Edit className="h-6 w-6" />
+                              </Button>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                {showEditActivities ? 'CANCELAR EDITAR' : 'EDITAR ACTIVIDADES'}
                               </div>
                             </div>
                           </div>
@@ -809,6 +911,80 @@ export default function GanttPage() {
                     size="sm"
                   >
                     Crear
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Popup simple para editar actividad */}
+      {showEditActivity && editingActivity && (
+        <div 
+          className="fixed z-50"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`
+          }}
+        >
+          <Card className="w-96 shadow-2xl border-2">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Editar Actividad
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowEditActivity(false);
+                    setEditingActivity(null);
+                  }}
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                >
+                  ×
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Input
+                    value={editActivityForm.name}
+                    onChange={(e) => handleEditActivityInputChange('name', e.target.value)}
+                    placeholder="Nombre de la actividad *"
+                    className="w-full"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <textarea
+                    value={editActivityForm.description}
+                    onChange={(e) => handleEditActivityInputChange('description', e.target.value)}
+                    placeholder="Descripción (opcional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditActivity(false);
+                      setEditingActivity(null);
+                    }}
+                    size="sm"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleUpdateActivity}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
+                  >
+                    Actualizar
                   </Button>
                 </div>
               </div>
