@@ -17,7 +17,9 @@ import {
   BarChart3,
   FolderKanban,
   Clock,
-  Target
+  Target,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState } from 'react';
@@ -44,6 +46,7 @@ export default function GanttPage() {
   const [showEditActivities, setShowEditActivities] = useState(false);
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
@@ -261,6 +264,19 @@ export default function GanttPage() {
       setEditingActivity(null);
       alert('Actividad actualizada exitosamente');
     }
+  };
+
+  // Toggle descripción de actividad
+  const toggleDescription = (activityId: string) => {
+    setExpandedDescriptions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(activityId)) {
+        newSet.delete(activityId);
+      } else {
+        newSet.add(activityId);
+      }
+      return newSet;
+    });
   };
 
   // Obtener posición de una fecha en el calendario para tareas
@@ -577,8 +593,24 @@ export default function GanttPage() {
                           <div className="flex hover:bg-gray-50">
                             <div className="w-64 p-4 border-r border-gray-200 flex items-center justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{activity.name}</h4>
-                                <p className="text-sm text-gray-500">{activity.description}</p>
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => toggleDescription(activity.id)}
+                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                                  >
+                                    {expandedDescriptions.has(activity.id) ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <h4 className="font-medium text-gray-900">{activity.name}</h4>
+                                </div>
+                                {expandedDescriptions.has(activity.id) && activity.description && (
+                                  <p className="text-sm text-gray-500 mt-1 ml-6">{activity.description}</p>
+                                )}
                               </div>
                               <div className="flex space-x-1 ml-2">
                                 {showDeleteActivities && (
