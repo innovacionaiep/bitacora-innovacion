@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 
@@ -83,6 +83,23 @@ export default function GanttPage() {
     calculateProjectProgress,
     syncAllActivitiesProgress
   } = useGantt(selectedProject?.id || null);
+
+  // Cerrar todos los popups cuando cambie el proyecto seleccionado
+  useEffect(() => {
+    setShowAddActivity(false);
+    setShowAddTask(false);
+    setShowEditActivity(false);
+    setShowDeleteActivities(false);
+    setShowEditActivities(false);
+    setSelectedActivity(null);
+    setEditingActivity(null);
+    setExpandedDescriptions(new Set());
+    
+    // Resetear formularios
+    setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setEditActivityForm({ name: '', description: '' });
+  }, [selectedProject]);
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -645,7 +662,7 @@ export default function GanttPage() {
                             >
                               
                               {/* Botón agregar tarea - centrado verticalmente */}
-                              <div className="absolute top-1/2 left-2 z-20 transform -translate-y-1/2">
+                              <div className="absolute top-1/2 left-2 z-10 transform -translate-y-1/2">
                                 <div className="relative group">
                                   <Button
                                     onClick={(e) => {
@@ -673,13 +690,13 @@ export default function GanttPage() {
                                 return (
                                   <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
                                     <div 
-                                      className="relative h-8 bg-gray-100 rounded" 
+                                      className="relative h-8" 
                                       style={{ 
                                         top: `${startOffset + (index * 40)}px`
                                       }}
                                     >
                                     <div
-                                      className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20`}
+                                      className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-10`}
                                       style={{
                                         left: `${getDatePosition(task.start_date).left}%`,
                                         width: `${getBarWidth(task.start_date, task.end_date)}%`
@@ -704,7 +721,7 @@ export default function GanttPage() {
                                     
                                     {/* Controles al final de la barra */}
                                     <div 
-                                      className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border"
+                                      className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border z-20"
                                       style={{
                                         left: `${getDatePosition(task.start_date).left + getBarWidth(task.start_date, task.end_date) + 1}%`,
                                         transform: 'translateY(-50%)'
