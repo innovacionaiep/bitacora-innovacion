@@ -36,6 +36,9 @@ export default function GanttPage() {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
@@ -62,7 +65,8 @@ export default function GanttPage() {
     createTask,
     deleteTask,
     toggleTaskCompletion,
-    calculateProjectProgress
+    calculateProjectProgress,
+    syncAllActivitiesProgress
   } = useGantt(selectedProject?.id || null);
 
   // Manejar cambios en el formulario de actividad
@@ -128,11 +132,8 @@ export default function GanttPage() {
   };
 
   // Toggle completar tarea
-  const handleToggleTaskCompletion = async (taskId: string) => {
-    const result = await toggleTaskCompletion(taskId);
-    if (result?.error) {
-      alert('Error al actualizar la tarea: ' + result.error);
-    }
+  const handleToggleTaskCompletion = (taskId: string) => {
+    toggleTaskCompletion(taskId);
   };
 
   // Eliminar actividad
@@ -159,15 +160,66 @@ export default function GanttPage() {
     }
   };
 
+  // Guardar cambios en el Gantt
+  const handleSaveGantt = async () => {
+    if (!selectedProject) return;
+    
+    setIsSaving(true);
+    setSaveMessage(null);
+    
+    try {
+      const result = await syncAllActivitiesProgress();
+      
+      if (result.success) {
+        setSaveMessage('Cambios guardados exitosamente');
+        setTimeout(() => setSaveMessage(null), 3000);
+      } else {
+        setSaveMessage('Error al guardar: ' + result.error);
+        setTimeout(() => setSaveMessage(null), 5000);
+      }
+    } catch (error) {
+      setSaveMessage('Error al guardar los cambios');
+      setTimeout(() => setSaveMessage(null), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Manejar clic en agregar actividad
+  const handleAddActivityClick = (event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPopupPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 10
+    });
+    setShowAddActivity(true);
+  };
+
+  // Manejar clic en agregar tarea
+  const handleAddTaskClick = (event: React.MouseEvent, activity: Activity) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPopupPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 10
+    });
+    setSelectedActivity(activity);
+    setShowAddTask(true);
+  };
+
   // Obtener posición de una fecha en el calendario
   const getDatePosition = (date: string) => {
     const dateObj = new Date(date);
     const month = dateObj.getMonth();
     const day = dateObj.getDate();
+    
+    // Calcular la posición basada en el mes (0-11) y el día del mes
+    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
+    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
+    
     return {
       month: month,
       day: day,
-      left: (month * 100) + ((day / 31) * 100) // Aproximación visual
+      left: (month * monthWidth) + (day * dayWidth) // Posición más precisa
     };
   };
 
@@ -177,6 +229,14 @@ export default function GanttPage() {
     const end = new Date(endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  // Obtener ancho de la barra basado en la duración
+  const getBarWidth = (startDate: string, endDate: string) => {
+    const duration = getDuration(startDate, endDate);
+    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
+    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
+    return duration * dayWidth;
   };
 
   if (proyectosLoading || ganttLoading) {
@@ -224,9 +284,50 @@ export default function GanttPage() {
                 style={{ width: `${calculateProjectProgress()}%` }}
               ></div>
             </div>
+            <Button
+              onClick={handleSaveGantt}
+              disabled={isSaving}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span>Guardar Cambios</span>
+                </>
+              )}
+            </Button>
           </div>
         )}
       </div>
+
+      {/* Mensaje de feedback */}
+      {saveMessage && (
+        <div className={`p-4 rounded-lg ${
+          saveMessage.includes('exitosamente') 
+            ? 'bg-green-100 border border-green-300 text-green-700' 
+            : 'bg-red-100 border border-red-300 text-red-700'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {saveMessage.includes('exitosamente') ? (
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="font-medium">{saveMessage}</span>
+          </div>
+        </div>
+      )}
 
       {/* Selector de proyecto */}
       <Card>
@@ -262,18 +363,11 @@ export default function GanttPage() {
 
       {selectedProject ? (
         <div className="space-y-6">
-          {/* Controles de actividades */}
+          {/* Título de actividades */}
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">
               Actividades de {selectedProject.proyecto}
             </h2>
-            <Button
-              onClick={() => setShowAddActivity(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Agregar Actividad</span>
-            </Button>
           </div>
 
           {/* Calendario Gantt */}
@@ -284,13 +378,23 @@ export default function GanttPage() {
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
                     <div className="w-64 p-4 border-r border-gray-200 bg-gray-50">
-                      <h3 className="font-semibold text-gray-900">Actividades</h3>
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-900">Actividades</h3>
+                        <Button
+                          onClick={handleAddActivityClick}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Agregar
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex-1 flex">
                       {MONTHS.map((month, index) => (
                         <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50">
                           <div className="text-sm font-medium text-gray-700">{month}</div>
-                          <div className="text-xs text-gray-500">2024</div>
+                          <div className="text-xs text-gray-500">2025</div>
                         </div>
                       ))}
                     </div>
@@ -324,10 +428,7 @@ export default function GanttPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setSelectedActivity(activity);
-                                setShowAddTask(true);
-                              }}
+                              onClick={(e) => handleAddTaskClick(e, activity)}
                               className="h-8 w-8 p-0"
                             >
                               <Plus className="h-4 w-4" />
@@ -347,10 +448,10 @@ export default function GanttPage() {
                         <div className="flex-1 relative p-2">
                           <div className="relative h-8 bg-gray-100 rounded">
                             <div
-                              className={`absolute top-0 left-0 h-full ${activity.color} rounded opacity-80`}
+                              className={`absolute top-0 h-full ${activity.color} rounded opacity-80`}
                               style={{
-                                left: `${getDatePosition(activity.start_date).left / 12}%`,
-                                width: `${(getDuration(activity.start_date, activity.end_date) / 31) * 100}%`
+                                left: `${getDatePosition(activity.start_date).left}%`,
+                                width: `${getBarWidth(activity.start_date, activity.end_date)}%`
                               }}
                             ></div>
                             <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white">
@@ -398,94 +499,80 @@ export default function GanttPage() {
         </Card>
       )}
 
-      {/* Modal para agregar actividad */}
+      {/* Popup simple para agregar actividad */}
       {showAddActivity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
+        <div 
+          className="fixed z-50"
+          style={{
+            left: `${popupPosition.x - 192}px`, // 192px = half of 384px (w-96)
+            top: `${popupPosition.y}px`
+          }}
+        >
+          <Card className="w-96 shadow-2xl border-2">
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Agregar Actividad</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Nueva Actividad</h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAddActivity(false)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
                 >
                   ×
                 </Button>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <Label htmlFor="activity-name" className="text-sm font-medium text-gray-700">
-                    Nombre de la Actividad *
-                  </Label>
                   <Input
-                    id="activity-name"
                     value={activityForm.name}
                     onChange={(e) => handleActivityInputChange('name', e.target.value)}
-                    placeholder="Ej: Planificación del proyecto"
-                    className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                    placeholder="Nombre de la actividad *"
+                    className="w-full"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="activity-description" className="text-sm font-medium text-gray-700">
-                    Descripción
-                  </Label>
                   <Input
-                    id="activity-description"
                     value={activityForm.description}
                     onChange={(e) => handleActivityInputChange('description', e.target.value)}
-                    placeholder="Descripción de la actividad"
-                    className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                    placeholder="Descripción (opcional)"
+                    className="w-full"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="activity-start" className="text-sm font-medium text-gray-700">
-                      Fecha de Inicio *
-                    </Label>
-                    <Input
-                      id="activity-start"
-                      type="date"
-                      value={activityForm.startDate}
-                      onChange={(e) => handleActivityInputChange('startDate', e.target.value)}
-                      className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="activity-end" className="text-sm font-medium text-gray-700">
-                      Fecha de Fin *
-                    </Label>
-                    <Input
-                      id="activity-end"
-                      type="date"
-                      value={activityForm.endDate}
-                      onChange={(e) => handleActivityInputChange('endDate', e.target.value)}
-                      className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                      required
-                    />
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={activityForm.startDate}
+                    onChange={(e) => handleActivityInputChange('startDate', e.target.value)}
+                    className="w-full"
+                    required
+                  />
+                  <Input
+                    type="date"
+                    value={activityForm.endDate}
+                    onChange={(e) => handleActivityInputChange('endDate', e.target.value)}
+                    className="w-full"
+                    required
+                  />
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex justify-end space-x-2 pt-2">
                   <Button
                     variant="outline"
                     onClick={() => setShowAddActivity(false)}
-                    className="px-4 py-2"
+                    size="sm"
                   >
                     Cancelar
                   </Button>
                   <Button
                     onClick={handleCreateActivity}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
                   >
-                    Crear Actividad
+                    Crear
                   </Button>
                 </div>
               </div>
@@ -494,14 +581,20 @@ export default function GanttPage() {
         </div>
       )}
 
-      {/* Modal para agregar tarea */}
+      {/* Popup simple para agregar tarea */}
       {showAddTask && selectedActivity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
+        <div 
+          className="fixed z-50"
+          style={{
+            left: `${popupPosition.x - 192}px`, // 192px = half of 384px (w-96)
+            top: `${popupPosition.y}px`
+          }}
+        >
+          <Card className="w-96 shadow-2xl border-2">
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Agregar Tarea a "{selectedActivity.name}"
+                  Nueva Tarea
                 </h3>
                 <Button
                   variant="ghost"
@@ -510,73 +603,61 @@ export default function GanttPage() {
                     setShowAddTask(false);
                     setSelectedActivity(null);
                   }}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
                 >
                   ×
                 </Button>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="text-sm text-gray-600 mb-2">
+                  Para: <span className="font-medium">{selectedActivity.name}</span>
+                </div>
+
                 <div>
-                  <Label htmlFor="task-name" className="text-sm font-medium text-gray-700">
-                    Nombre de la Tarea *
-                  </Label>
                   <Input
-                    id="task-name"
                     value={taskForm.name}
                     onChange={(e) => handleTaskInputChange('name', e.target.value)}
-                    placeholder="Ej: Definir objetivos del proyecto"
-                    className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                    placeholder="Nombre de la tarea *"
+                    className="w-full"
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="task-start" className="text-sm font-medium text-gray-700">
-                      Fecha de Inicio *
-                    </Label>
-                    <Input
-                      id="task-start"
-                      type="date"
-                      value={taskForm.startDate}
-                      onChange={(e) => handleTaskInputChange('startDate', e.target.value)}
-                      className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="task-end" className="text-sm font-medium text-gray-700">
-                      Fecha de Fin *
-                    </Label>
-                    <Input
-                      id="task-end"
-                      type="date"
-                      value={taskForm.endDate}
-                      onChange={(e) => handleTaskInputChange('endDate', e.target.value)}
-                      className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                      required
-                    />
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={taskForm.startDate}
+                    onChange={(e) => handleTaskInputChange('startDate', e.target.value)}
+                    className="w-full"
+                    required
+                  />
+                  <Input
+                    type="date"
+                    value={taskForm.endDate}
+                    onChange={(e) => handleTaskInputChange('endDate', e.target.value)}
+                    className="w-full"
+                    required
+                  />
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex justify-end space-x-2 pt-2">
                   <Button
                     variant="outline"
                     onClick={() => {
                       setShowAddTask(false);
                       setSelectedActivity(null);
                     }}
-                    className="px-4 py-2"
+                    size="sm"
                   >
                     Cancelar
                   </Button>
                   <Button
                     onClick={handleCreateTask}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    size="sm"
                   >
-                    Crear Tarea
+                    Crear
                   </Button>
                 </div>
               </div>
