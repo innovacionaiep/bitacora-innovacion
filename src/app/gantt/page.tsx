@@ -59,6 +59,7 @@ export default function GanttPage() {
   // Formulario de tarea
   const [taskForm, setTaskForm] = useState({
     name: '',
+    description: '',
     startDate: '',
     endDate: ''
   });
@@ -126,12 +127,13 @@ export default function GanttPage() {
   // Crear nueva tarea
   const handleCreateTask = async () => {
     if (!selectedActivity || !taskForm.name || !taskForm.startDate || !taskForm.endDate) {
-      alert('Por favor completa todos los campos obligatorios');
+      alert('Por favor completa todos los campos obligatorios y selecciona una actividad');
       return;
     }
 
     const { error } = await createTask(selectedActivity.id, {
       name: taskForm.name,
+      description: taskForm.description,
       start_date: taskForm.startDate,
       end_date: taskForm.endDate
     });
@@ -139,7 +141,7 @@ export default function GanttPage() {
     if (error) {
       alert('Error al crear la tarea: ' + error);
     } else {
-      setTaskForm({ name: '', startDate: '', endDate: '' });
+      setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
       setShowAddTask(false);
       setSelectedActivity(null);
       alert('Tarea creada exitosamente');
@@ -211,13 +213,12 @@ export default function GanttPage() {
   };
 
   // Manejar clic en agregar tarea
-  const handleAddTaskClick = (event: React.MouseEvent, activity: Activity) => {
+  const handleAddTaskClick = (event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.bottom + 10
+      x: rect.right + 10, // Posicionar a la derecha del botón
+      y: rect.top - 50    // Centrar verticalmente
     });
-    setSelectedActivity(activity);
     setShowAddTask(true);
   };
 
@@ -639,17 +640,6 @@ export default function GanttPage() {
                             {/* Área de Gantt con barras de tareas superpuestas */}
                             <div className="flex-1 relative p-2">
                               <div className="relative h-16 bg-gray-50 rounded">
-                                {/* Botón para agregar tarea */}
-                                <div className="absolute top-2 right-2 z-20">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => handleAddTaskClick(e, activity)}
-                                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-full"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
                                 
                                 {/* Barras de Gantt de las tareas superpuestas en la misma línea */}
                                 {activity.tasks.map((task, index) => (
@@ -763,6 +753,20 @@ export default function GanttPage() {
                                 {showEditActivities ? 'CANCELAR EDITAR' : 'EDITAR ACTIVIDADES'}
                               </div>
                             </div>
+                            
+                            {/* Botón agregar tarea */}
+                            <div className="relative group">
+                              <Button
+                                onClick={handleAddTaskClick}
+                                variant="outline"
+                                className="border-2 border-green-500 text-green-500 hover:bg-green-100 hover:border-green-600 hover:text-green-600 rounded-full w-8 h-8 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                AGREGAR TAREA
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div className="flex-1 p-4 bg-gray-50"></div>
@@ -867,11 +871,11 @@ export default function GanttPage() {
       )}
 
       {/* Popup simple para agregar tarea */}
-      {showAddTask && selectedActivity && (
+      {showAddTask && (
         <div 
           className="fixed z-50"
           style={{
-            left: `${popupPosition.x - 192}px`, // 192px = half of 384px (w-96)
+            left: `${popupPosition.x}px`,
             top: `${popupPosition.y}px`
           }}
         >
@@ -895,8 +899,28 @@ export default function GanttPage() {
               </div>
               
               <div className="space-y-3">
-                <div className="text-sm text-gray-600 mb-2">
-                  Para: <span className="font-medium">{selectedActivity.name}</span>
+                <div>
+                  <Label htmlFor="activity-select" className="text-sm font-medium text-gray-700">
+                    Seleccionar Actividad *
+                  </Label>
+                  <Select 
+                    value={selectedActivity?.id || ''} 
+                    onValueChange={(value) => {
+                      const activity = activities.find(a => a.id === value);
+                      setSelectedActivity(activity || null);
+                    }}
+                  >
+                    <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-green-500">
+                      <SelectValue placeholder="Selecciona una actividad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activities.map((activity) => (
+                        <SelectItem key={activity.id} value={activity.id}>
+                          {activity.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -906,6 +930,15 @@ export default function GanttPage() {
                     placeholder="Nombre de la tarea *"
                     className="w-full"
                     required
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    value={taskForm.description}
+                    onChange={(e) => handleTaskInputChange('description', e.target.value)}
+                    placeholder="Descripción (opcional)"
+                    className="w-full"
                   />
                 </div>
 

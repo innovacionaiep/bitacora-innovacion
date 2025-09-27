@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export type Task = {
   id: string;
   name: string;
+  description: string;
   completed: boolean;
   start_date: string;
   end_date: string;
@@ -249,6 +250,7 @@ export function useGantt(projectId: string | null) {
   // Crear nueva tarea
   const createTask = async (activityId: string, taskData: {
     name: string;
+    description: string;
     start_date: string;
     end_date: string;
   }) => {
