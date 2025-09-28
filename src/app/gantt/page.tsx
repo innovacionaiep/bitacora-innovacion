@@ -60,18 +60,27 @@ export default function GanttPage() {
   
   // Estado para controlar el offset del timeline (meses desde enero 2025)
   const [timelineOffset, setTimelineOffset] = useState(0); // 0 = enero 2025, -12 = enero 2024, 12 = enero 2026
+  
+  // Estado para controlar el rango visible de meses (6-24 meses)
+  const [visibleMonthsRange, setVisibleMonthsRange] = useState(12); // 12 meses por defecto
 
-  // Generar los meses visibles basados en el offset
+  // Generar los meses visibles basados en el offset y rango
   const getVisibleMonths = () => {
     const months = [];
     const startYear = 2025 + Math.floor(timelineOffset / 12);
     const startMonth = ((timelineOffset % 12) + 12) % 12; // Manejar valores negativos
     
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < visibleMonthsRange; i++) {
       const monthIndex = (startMonth + i) % 12;
       const year = startYear + Math.floor((startMonth + i) / 12);
+      
+      // Determinar si necesitamos truncar el nombre del mes
+      const shouldTruncate = visibleMonthsRange > 12;
+      const monthName = shouldTruncate ? MONTHS[monthIndex].substring(0, 3) : MONTHS[monthIndex];
+      
       months.push({
-        name: MONTHS[monthIndex],
+        name: monthName,
+        fullName: MONTHS[monthIndex],
         year: year,
         monthIndex: monthIndex
       });
@@ -577,20 +586,21 @@ export default function GanttPage() {
     // Calcular el offset de la fecha desde enero 2025
     const dateOffset = (year - 2025) * 12 + month;
     const visibleStartOffset = timelineOffset;
-    const visibleEndOffset = timelineOffset + 11;
+    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
     
-    // Si la fecha está fuera del rango visible, posicionarla en los extremos
+    // Si la fecha está completamente fuera del rango visible, no mostrar la tarea
+    // Pero si está parcialmente visible, ajustarla al borde del rango
     if (dateOffset < visibleStartOffset) {
-      return { month: 0, day: 1, left: 0 }; // Extremo izquierdo
+      return { month: 0, day: 1, left: 0 }; // Ajustar al inicio del rango
     } else if (dateOffset > visibleEndOffset) {
-      return { month: 11, day: 31, left: 100 }; // Extremo derecho
+      return { month: visibleMonthsRange - 1, day: 31, left: 100 }; // Ajustar al final del rango
     }
     
     // Calcular la posición relativa dentro del rango visible
     const relativeMonth = dateOffset - visibleStartOffset;
     
     // Calcular la posición basada en el mes relativo y el día del mes
-    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
+    const monthWidth = 100 / visibleMonthsRange; // Cada mes ocupa 1/total_meses del ancho total
     
     // Obtener el número real de días en el mes para un cálculo más preciso
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -695,7 +705,18 @@ export default function GanttPage() {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Obtener las posiciones de inicio y fin
+    // Calcular los offsets de las fechas
+    const startOffset = (start.getFullYear() - 2025) * 12 + start.getMonth();
+    const endOffset = (end.getFullYear() - 2025) * 12 + end.getMonth();
+    const visibleStartOffset = timelineOffset;
+    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
+    
+    // Si la tarea está completamente fuera del rango visible, no mostrarla
+    if (endOffset < visibleStartOffset || startOffset > visibleEndOffset) {
+      return 0; // No mostrar la tarea
+    }
+    
+    // Obtener las posiciones de inicio y fin (ajustadas al rango visible)
     const startPos = getDatePosition(startDate);
     const endPos = getDatePosition(endDate);
     
@@ -782,7 +803,7 @@ export default function GanttPage() {
     // Calcular el offset de hoy desde enero 2025
     const todayOffset = (currentYear - 2025) * 12 + currentMonth;
     const visibleStartOffset = timelineOffset;
-    const visibleEndOffset = timelineOffset + 11;
+    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
     
     // Solo mostrar la línea "Hoy" si está en el rango visible
     if (todayOffset < visibleStartOffset || todayOffset > visibleEndOffset) {
@@ -793,7 +814,7 @@ export default function GanttPage() {
     const relativeMonth = todayOffset - visibleStartOffset;
     
     // PASO 1: Calcular la posición de la columna del mes
-    const monthWidth = 100 / 12; // 8.33% por mes
+    const monthWidth = 100 / visibleMonthsRange; // Ancho por mes basado en el rango total
     const monthStartPosition = relativeMonth * monthWidth; // Posición de inicio del mes
     
     // PASO 2: Obtener cuántos días tiene el mes actual
@@ -1328,10 +1349,6 @@ export default function GanttPage() {
                                       width: `${barWidth}%`
                                     }}
                                   >
-                                    {/* Porcentaje al final de la barra */}
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white">
-                                      {task.completed ? '✓' : '0%'}
-                                    </div>
                                   </div>
                                   
                                   
@@ -1372,50 +1389,92 @@ export default function GanttPage() {
           </CardContent>
         </Card>
         
-        {/* Slider horizontal para navegación del timeline */}
+        {/* Controles del timeline */}
         <div className="mt-4">
-          <div className="flex items-center justify-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">Timeline:</span>
-            <input
-              type="range"
-              min="-24"
-              max="24"
-              value={timelineOffset}
-              onChange={(e) => setTimelineOffset(parseInt(e.target.value))}
-              className="w-80 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              style={{
-                background: `linear-gradient(to right, 
-                  #e5e7eb 0%, 
-                  #e5e7eb ${((timelineOffset + 24) / 48) * 100}%, 
-                  #3b82f6 ${((timelineOffset + 24) / 48) * 100}%, 
-                  #3b82f6 100%)`
-              }}
-            />
-            <div className="flex items-center space-x-2">
-              <Button
-                onClick={() => setTimelineOffset(prev => prev - 1)}
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0"
-              >
-                ←
-              </Button>
-              <Button
-                onClick={() => setTimelineOffset(0)}
-                variant="outline"
-                size="sm"
-                className="h-8 px-3"
-              >
-                Hoy
-              </Button>
-              <Button
-                onClick={() => setTimelineOffset(prev => prev + 1)}
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0"
-              >
-                →
-              </Button>
+          <div className="flex items-center justify-center space-x-8">
+            {/* Slider de navegación temporal */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-700">Navegación:</span>
+              <input
+                type="range"
+                min="-24"
+                max="24"
+                value={timelineOffset}
+                onChange={(e) => setTimelineOffset(parseInt(e.target.value))}
+                className="w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, 
+                    #e5e7eb 0%, 
+                    #e5e7eb ${((timelineOffset + 24) / 48) * 100}%, 
+                    #3b82f6 ${((timelineOffset + 24) / 48) * 100}%, 
+                    #3b82f6 100%)`
+                }}
+              />
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => setTimelineOffset(prev => prev - 1)}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  ←
+                </Button>
+                <Button
+                  onClick={() => setTimelineOffset(0)}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  Hoy
+                </Button>
+                <Button
+                  onClick={() => setTimelineOffset(prev => prev + 1)}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  →
+                </Button>
+              </div>
+            </div>
+            
+            {/* Botones de rango de meses */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-700">Rango:</span>
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => setVisibleMonthsRange(6)}
+                  variant={visibleMonthsRange === 6 ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  6 meses
+                </Button>
+                <Button
+                  onClick={() => setVisibleMonthsRange(12)}
+                  variant={visibleMonthsRange === 12 ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  12 meses
+                </Button>
+                <Button
+                  onClick={() => setVisibleMonthsRange(18)}
+                  variant={visibleMonthsRange === 18 ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  18 meses
+                </Button>
+                <Button
+                  onClick={() => setVisibleMonthsRange(24)}
+                  variant={visibleMonthsRange === 24 ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 px-3"
+                >
+                  24 meses
+                </Button>
+              </div>
             </div>
           </div>
         </div>
