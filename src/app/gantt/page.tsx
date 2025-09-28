@@ -58,6 +58,28 @@ export default function GanttPage() {
   // Timer para ocultar el tooltip con delay
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
   
+  // Estado para controlar el offset del timeline (meses desde enero 2025)
+  const [timelineOffset, setTimelineOffset] = useState(0); // 0 = enero 2025, -12 = enero 2024, 12 = enero 2026
+
+  // Generar los meses visibles basados en el offset
+  const getVisibleMonths = () => {
+    const months = [];
+    const startYear = 2025 + Math.floor(timelineOffset / 12);
+    const startMonth = ((timelineOffset % 12) + 12) % 12; // Manejar valores negativos
+    
+    for (let i = 0; i < 12; i++) {
+      const monthIndex = (startMonth + i) % 12;
+      const year = startYear + Math.floor((startMonth + i) / 12);
+      months.push({
+        name: MONTHS[monthIndex],
+        year: year,
+        monthIndex: monthIndex
+      });
+    }
+    
+    return months;
+  };
+  
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
     name: '',
@@ -552,17 +574,22 @@ export default function GanttPage() {
     const month = dateObj.getMonth();
     const day = dateObj.getDate();
     
-    // Solo mostrar fechas del año 2025 en el calendario
-    if (year !== 2025) {
-      // Si la fecha está fuera de 2025, posicionarla en los extremos
-      if (year < 2025) {
-        return { month: 0, day: 1, left: 0 }; // Enero 1
-      } else {
-        return { month: 11, day: 31, left: 100 }; // Diciembre 31
-      }
+    // Calcular el offset de la fecha desde enero 2025
+    const dateOffset = (year - 2025) * 12 + month;
+    const visibleStartOffset = timelineOffset;
+    const visibleEndOffset = timelineOffset + 11;
+    
+    // Si la fecha está fuera del rango visible, posicionarla en los extremos
+    if (dateOffset < visibleStartOffset) {
+      return { month: 0, day: 1, left: 0 }; // Extremo izquierdo
+    } else if (dateOffset > visibleEndOffset) {
+      return { month: 11, day: 31, left: 100 }; // Extremo derecho
     }
     
-    // Calcular la posición basada en el mes (0-11) y el día del mes
+    // Calcular la posición relativa dentro del rango visible
+    const relativeMonth = dateOffset - visibleStartOffset;
+    
+    // Calcular la posición basada en el mes relativo y el día del mes
     const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
     
     // Obtener el número real de días en el mes para un cálculo más preciso
@@ -572,8 +599,8 @@ export default function GanttPage() {
     // Calcular la posición del día dentro del mes (día 1 = 0%, último día = 100% del mes)
     const dayPosition = (day - 1) * dayWidth;
     
-    // Calcular la posición total
-    const leftPosition = (month * monthWidth) + dayPosition;
+    // Calcular la posición total usando el mes relativo
+    const leftPosition = (relativeMonth * monthWidth) + dayPosition;
     
     // Limitar la posición al rango visible (0% a 100%)
     const clampedLeft = Math.max(0, Math.min(100, leftPosition));
@@ -752,15 +779,22 @@ export default function GanttPage() {
     const currentMonth = today.getMonth(); // 0-11 (enero=0, septiembre=8)
     const currentDay = today.getDate();
     
-    // Si estamos en 2024, mostrar en enero de 2025
-    let targetMonth = currentMonth;
-    if (currentYear === 2024) {
-      targetMonth = 0; // Enero 2025
+    // Calcular el offset de hoy desde enero 2025
+    const todayOffset = (currentYear - 2025) * 12 + currentMonth;
+    const visibleStartOffset = timelineOffset;
+    const visibleEndOffset = timelineOffset + 11;
+    
+    // Solo mostrar la línea "Hoy" si está en el rango visible
+    if (todayOffset < visibleStartOffset || todayOffset > visibleEndOffset) {
+      return -1; // No mostrar la línea si no está en el rango visible
     }
+    
+    // Calcular la posición relativa dentro del rango visible
+    const relativeMonth = todayOffset - visibleStartOffset;
     
     // PASO 1: Calcular la posición de la columna del mes
     const monthWidth = 100 / 12; // 8.33% por mes
-    const monthStartPosition = targetMonth * monthWidth; // Posición de inicio del mes
+    const monthStartPosition = relativeMonth * monthWidth; // Posición de inicio del mes
     
     // PASO 2: Obtener cuántos días tiene el mes actual
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -776,13 +810,13 @@ export default function GanttPage() {
       año: currentYear,
       mes: currentMonth,
       día: currentDay,
-      mesObjetivo: targetMonth,
+      mesObjetivo: relativeMonth,
       díasEnMes: daysInMonth,
       posiciónMes: `${monthStartPosition.toFixed(2)}%`,
       anchoDía: `${dayWidth.toFixed(2)}%`,
       posiciónDía: `${dayPosition.toFixed(2)}%`,
       posiciónFinal: `${leftPercent.toFixed(2)}%`,
-      columna: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][targetMonth]
+      columna: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][relativeMonth]
     });
     
     return leftPercent;
@@ -969,9 +1003,10 @@ export default function GanttPage() {
                       </div>
                     </div>
                   <div className="flex-1 flex relative">
-                    {MONTHS.map((month, index) => (
-                      <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center">
-                        <div className="text-sm font-medium text-gray-700">{month}</div>
+                    {getVisibleMonths().map((month, index) => (
+                      <div key={`${month.year}-${month.monthIndex}`} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center">
+                        <div className="text-sm font-medium text-gray-700">{month.name}</div>
+                        <div className="text-xs text-gray-500 font-normal">{month.year}</div>
                       </div>
                     ))}
                     
@@ -1332,6 +1367,55 @@ export default function GanttPage() {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Slider horizontal para navegación del timeline */}
+        <div className="mt-4">
+          <div className="flex items-center justify-center space-x-4">
+            <span className="text-sm font-medium text-gray-700">Timeline:</span>
+            <input
+              type="range"
+              min="-24"
+              max="24"
+              value={timelineOffset}
+              onChange={(e) => setTimelineOffset(parseInt(e.target.value))}
+              className="w-80 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, 
+                  #e5e7eb 0%, 
+                  #e5e7eb ${((timelineOffset + 24) / 48) * 100}%, 
+                  #3b82f6 ${((timelineOffset + 24) / 48) * 100}%, 
+                  #3b82f6 100%)`
+              }}
+            />
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={() => setTimelineOffset(prev => prev - 1)}
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                ←
+              </Button>
+              <Button
+                onClick={() => setTimelineOffset(0)}
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+              >
+                Hoy
+              </Button>
+              <Button
+                onClick={() => setTimelineOffset(prev => prev + 1)}
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                →
+              </Button>
+            </div>
+          </div>
+        </div>
+        
       </div>
 
 
