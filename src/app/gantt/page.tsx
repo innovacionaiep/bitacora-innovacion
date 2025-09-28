@@ -49,8 +49,12 @@ export default function GanttPage() {
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [showCreateActivity, setShowCreateActivity] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  
+  // Estado unificado para el popup de actividad
+  const [showActivityPopup, setShowActivityPopup] = useState(false);
+  const [activityPopupMode, setActivityPopupMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [selectedActivityForPopup, setSelectedActivityForPopup] = useState<Activity | null>(null);
   
   // Timer para ocultar el tooltip con delay
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
@@ -66,6 +70,7 @@ export default function GanttPage() {
   // Formulario de tarea
   const [taskForm, setTaskForm] = useState({
     name: '',
+    description: '',
     startDate: '',
     endDate: ''
   });
@@ -76,11 +81,14 @@ export default function GanttPage() {
     description: ''
   });
 
-  // Formulario de creación de actividad (sin fechas)
-  const [createActivityForm, setCreateActivityForm] = useState({
+  // Formulario unificado para el popup de actividad
+  const [unifiedActivityForm, setUnifiedActivityForm] = useState({
     name: '',
     description: ''
   });
+
+  // Estado para tareas temporales en el popup de crear actividad
+  const [tempTasks, setTempTasks] = useState<Task[]>([]);
 
   // Usar el hook de Gantt con Supabase
   const {
@@ -127,16 +135,18 @@ export default function GanttPage() {
     setShowAddActivity(false);
     setShowAddTask(false);
     setShowEditActivity(false);
-    setShowCreateActivity(false);
+    setShowActivityPopup(false);
     setSelectedActivity(null);
     setEditingActivity(null);
+    setSelectedActivityForPopup(null);
     setExpandedDescriptions(new Set());
     
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
-    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
     setEditActivityForm({ name: '', description: '' });
-    setCreateActivityForm({ name: '', description: '' });
+    setUnifiedActivityForm({ name: '', description: '' });
+    setTempTasks([]);
   };
 
   // Función para cerrar solo los popups de formularios (sin afectar descripciones expandidas ni modos)
@@ -144,15 +154,17 @@ export default function GanttPage() {
     setShowAddActivity(false);
     setShowAddTask(false);
     setShowEditActivity(false);
-    setShowCreateActivity(false);
+    setShowActivityPopup(false);
     setSelectedActivity(null);
     setEditingActivity(null);
+    setSelectedActivityForPopup(null);
     
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
-    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
     setEditActivityForm({ name: '', description: '' });
-    setCreateActivityForm({ name: '', description: '' });
+    setUnifiedActivityForm({ name: '', description: '' });
+    setTempTasks([]);
   };
 
 
@@ -186,23 +198,23 @@ export default function GanttPage() {
     }));
   };
 
-  // Crear nueva actividad
+  // Crear nueva actividad (función legacy - ahora se usa handleUnifiedActivityAction)
   const handleCreateActivity = async () => {
-    if (!selectedProject || !createActivityForm.name) {
+    if (!selectedProject || !unifiedActivityForm.name) {
       alert('Por favor completa el nombre de la actividad');
       return;
     }
 
     const { error } = await createActivity({
-      name: createActivityForm.name,
-      description: createActivityForm.description
+      name: unifiedActivityForm.name,
+      description: unifiedActivityForm.description
     });
 
     if (error) {
       alert('Error al crear la actividad: ' + error);
     } else {
-      setCreateActivityForm({ name: '', description: '' });
-      setShowCreateActivity(false);
+      setUnifiedActivityForm({ name: '', description: '' });
+      setShowActivityPopup(false);
       alert('Actividad creada exitosamente');
     }
   };
@@ -279,9 +291,32 @@ export default function GanttPage() {
       endDate: convertedEndDate
     });
 
+    // Si estamos en modo crear actividad o editando, agregar a la lista temporal
+    if (activityPopupMode === 'create' || activityPopupMode === 'edit') {
+      const newTask: Task = {
+        id: `temp-${Date.now()}`, // ID temporal
+        name: taskForm.name,
+        description: taskForm.description,
+        start_date: convertedStartDate,
+        end_date: convertedEndDate,
+        completed: false,
+        activity_id: selectedActivity.id,
+        progress: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      setTempTasks(prev => [...prev, newTask]);
+      setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+      setShowAddTask(false);
+      alert('Tarea agregada a la actividad');
+      return;
+    }
+
+    // Si estamos creando tarea desde fuera del popup de actividad, crear inmediatamente
     const { error } = await createTask(selectedActivity.id, {
       name: taskForm.name,
-      description: '', // No se usa en la base de datos
+      description: taskForm.description,
       start_date: convertedStartDate,
       end_date: convertedEndDate
     });
@@ -290,7 +325,7 @@ export default function GanttPage() {
       console.error('Error al crear la tarea:', error);
       alert('Error al crear la tarea: ' + error);
     } else {
-      setTaskForm({ name: '', startDate: '', endDate: '' });
+      setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
       setShowAddTask(false);
       setSelectedActivity(null);
       alert('Tarea creada exitosamente');
@@ -355,31 +390,7 @@ export default function GanttPage() {
   const handleAddActivityClick = (event: React.MouseEvent) => {
     // Cerrar solo los popups de formularios antes de abrir el nuevo
     closeFormPopups();
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    const popupWidth = 500; // Ancho del popup
-    const popupHeight = 300; // Altura estimada del popup
-    
-    // Calcular posición horizontal: a la derecha del botón
-    let x = rect.right + 10;
-    
-    // Si el popup se saldría por la derecha, posicionarlo a la izquierda del botón
-    if (x + popupWidth > window.innerWidth) {
-      x = rect.left - popupWidth - 10;
-    }
-    
-    // Calcular posición vertical: centrar respecto al botón
-    let y = rect.top + (rect.height / 2) - (popupHeight / 2);
-    
-    // Asegurar que el popup no se salga por arriba o abajo
-    if (y < 10) {
-      y = 10; // Margen mínimo desde arriba
-    } else if (y + popupHeight > window.innerHeight - 10) {
-      y = window.innerHeight - popupHeight - 10; // Margen mínimo desde abajo
-    }
-    
-    setPopupPosition({ x, y });
-    setShowCreateActivity(true);
+    openActivityPopup('create');
   };
 
   // Manejar clic en agregar tarea
@@ -388,14 +399,14 @@ export default function GanttPage() {
     setShowAddActivity(false);
     setShowAddTask(false);
     setShowEditActivity(false);
-    setShowCreateActivity(false);
+    setShowActivityPopup(false);
     setEditingActivity(null);
     
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
-    setTaskForm({ name: '', startDate: '', endDate: '' });
+    setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
     setEditActivityForm({ name: '', description: '' });
-    setCreateActivityForm({ name: '', description: '' });
+    setUnifiedActivityForm({ name: '', description: '' });
     
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
@@ -409,18 +420,7 @@ export default function GanttPage() {
   const handleEditActivityClick = (event: React.MouseEvent, activity: Activity) => {
     // Cerrar solo los popups de formularios antes de abrir el nuevo
     closeFormPopups();
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    setPopupPosition({
-      x: rect.right + 10, // Posicionar a la derecha del botón
-      y: rect.top - 50    // Centrar verticalmente
-    });
-    setEditingActivity(activity);
-    setEditActivityForm({
-      name: activity.name,
-      description: activity.description
-    });
-    setShowEditActivity(true);
+    openActivityPopup('edit', activity);
   };
 
 
@@ -432,12 +432,80 @@ export default function GanttPage() {
     }));
   };
 
-  // Manejar cambios en el formulario de creación de actividad
-  const handleCreateActivityInputChange = (field: string, value: string) => {
-    setCreateActivityForm(prev => ({
+  // Manejar cambios en el formulario unificado
+  const handleUnifiedActivityInputChange = (field: string, value: string) => {
+    setUnifiedActivityForm(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Función para manejar la acción principal del popup (crear o guardar)
+  const handleUnifiedActivityAction = async () => {
+    if (!unifiedActivityForm.name) {
+      alert('Por favor completa el nombre de la actividad');
+      return;
+    }
+
+    if (activityPopupMode === 'create') {
+      // Validar que haya al menos una tarea al crear una actividad
+      if (tempTasks.length === 0) {
+        alert('Error: Debes agregar al menos una tarea para crear la actividad');
+        return;
+      }
+
+      // Crear nueva actividad
+      const { error, data: newActivity } = await createActivity({
+        name: unifiedActivityForm.name,
+        description: unifiedActivityForm.description
+      });
+
+      if (error) {
+        alert('Error al crear la actividad: ' + error);
+      } else if (newActivity) {
+        // Crear las tareas asociadas
+        for (const task of tempTasks) {
+          await createTask(newActivity.id, {
+            name: task.name,
+            description: '',
+            start_date: task.start_date,
+            end_date: task.end_date
+          });
+        }
+
+        setUnifiedActivityForm({ name: '', description: '' });
+        setTempTasks([]);
+        setShowActivityPopup(false);
+        setSelectedActivityForPopup(null);
+        alert('Actividad creada exitosamente con sus tareas');
+      }
+    } else if (activityPopupMode === 'edit' && selectedActivityForPopup) {
+      // Editar actividad existente
+      const { error } = await updateActivity(selectedActivityForPopup.id, {
+        name: unifiedActivityForm.name,
+        description: unifiedActivityForm.description
+      });
+
+      if (error) {
+        alert('Error al actualizar la actividad: ' + error);
+      } else {
+        // Crear las tareas temporales que se agregaron durante la edición
+        for (const task of tempTasks) {
+          await createTask(selectedActivityForPopup.id, {
+            name: task.name,
+            description: task.description,
+            start_date: task.start_date,
+            end_date: task.end_date
+          });
+        }
+
+        setUnifiedActivityForm({ name: '', description: '' });
+        setTempTasks([]);
+        setShowActivityPopup(false);
+        setSelectedActivityForPopup(null);
+        alert('Actividad actualizada exitosamente con sus nuevas tareas');
+      }
+    }
   };
 
   // Actualizar actividad
@@ -532,137 +600,34 @@ export default function GanttPage() {
     return `${day}-${month}-${year}`;
   };
 
-  // Obtener información para el tooltip de la actividad
-  const getActivityTooltipContent = (activity: Activity) => {
-    const activityRange = getActivityDateRange(activity);
-    const sortedTasks = activity.tasks ? [...activity.tasks].sort((a, b) => 
-      new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-    ) : [];
 
-    return (
-      <div className="space-y-2">
-        <div>
-          <div className="font-semibold text-sm text-gray-900">{activity.name}</div>
-        </div>
-        
-        {activityRange && (
-          <div className="text-xs text-gray-600">
-            <div><span className="font-medium">Inicio:</span> {formatDateForTooltip(activityRange.startDate)}</div>
-            <div><span className="font-medium">Término:</span> {formatDateForTooltip(activityRange.endDate)}</div>
-          </div>
-        )}
-        
-        {sortedTasks.length > 0 && (
-          <div className="text-xs">
-            <div className="font-medium text-gray-700 mb-1">Tareas involucradas:</div>
-            <div className="space-y-1">
-              {sortedTasks.map((task, index) => (
-                <div key={task.id} className="flex items-center space-x-2">
-                  <span className="text-gray-500">{index + 1}.</span>
-                  <span className="text-gray-600">{task.name}</span>
-                  <span className="text-gray-400">({formatDateForTooltip(task.start_date)} - {formatDateForTooltip(task.end_date)})</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
-  // Estado para el tooltip global
-  const [tooltipState, setTooltipState] = useState<{
-    show: boolean;
-    content: React.ReactNode;
-    x: number;
-    y: number;
-    activityId: string;
-    isPersistent: boolean;
-  }>({
-    show: false,
-    content: null,
-    x: 0,
-    y: 0,
-    activityId: '',
-    isPersistent: false
-  });
-
-  // Manejar el hover del tooltip para posicionarlo correctamente
-  const handleTooltipHover = (event: React.MouseEvent, show: boolean, activity: Activity) => {
-    // Limpiar timer anterior si existe
-    if (tooltipTimer) {
-      clearTimeout(tooltipTimer);
-      setTooltipTimer(null);
-    }
-
-    if (show) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      
-      // Calcular posición vertical - justo encima de la barra
-      let top = rect.top - 10; // 10px de separación
-      
-      // Calcular posición horizontal - centrado sobre la barra
-      let left = rect.left + (rect.width / 2);
-      
-      setTooltipState({
-        show: true,
-        content: getActivityTooltipContent(activity),
-        x: left,
-        y: top,
-        activityId: activity.id,
-        isPersistent: false
+  // Función para abrir el popup unificado en diferentes modos
+  const openActivityPopup = (mode: 'create' | 'edit' | 'view', activity?: Activity) => {
+    setActivityPopupMode(mode);
+    setSelectedActivityForPopup(activity || null);
+    
+    if (mode === 'create') {
+      setUnifiedActivityForm({ name: '', description: '' });
+      setTempTasks([]);
+    } else if (activity) {
+      setUnifiedActivityForm({
+        name: activity.name,
+        description: activity.description || ''
       });
-    } else {
-      // Si el tooltip está en modo persistente, no ocultarlo inmediatamente
-      if (tooltipState.isPersistent) {
-        return;
-      }
-      
-      // Agregar un pequeño delay antes de ocultar
-      const timer = setTimeout(() => {
-        setTooltipState(prev => ({
-          ...prev,
-          show: false,
-          content: null,
-          x: 0,
-          y: 0,
-          activityId: '',
-          isPersistent: false
-        }));
-      }, 300); // 300ms de delay
-      
-      setTooltipTimer(timer);
-    }
-  };
-
-  // Manejar cuando el mouse entra al tooltip
-  const handleTooltipMouseEnter = () => {
-    if (tooltipTimer) {
-      clearTimeout(tooltipTimer);
-      setTooltipTimer(null);
+      // En modo editar, inicializar con tareas vacías para agregar nuevas
+      // En modo view, mostrar las tareas existentes
+      setTempTasks(mode === 'edit' ? [] : (activity.tasks || []));
     }
     
-    setTooltipState(prev => ({
-      ...prev,
-      isPersistent: true
-    }));
+    setShowActivityPopup(true);
   };
 
-  // Manejar cuando el mouse sale del tooltip
-  const handleTooltipMouseLeave = () => {
-    const timer = setTimeout(() => {
-      setTooltipState({
-        show: false,
-        content: null,
-        x: 0,
-        y: 0,
-        activityId: '',
-        isPersistent: false
-      });
-    }, 200); // 200ms de delay para salir del tooltip
-    
-    setTooltipTimer(timer);
+  // Manejar el clic en la barra de actividad para mostrar popup
+  const handleActivityBarClick = (activity: Activity) => {
+    openActivityPopup('view', activity);
   };
+
 
   // Calcular el rango de fechas de una actividad basado en sus tareas
   const getActivityDateRange = (activity: Activity) => {
@@ -1167,26 +1132,6 @@ export default function GanttPage() {
                               </div>
                             </div>
                             
-                            {/* Botón flotante para agregar tarea - aparece al hacer hover */}
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <div className="relative group">
-                                <Button
-                                  onClick={(e) => {
-                                    setSelectedActivity(activity);
-                                    handleAddTaskClick(e);
-                                  }}
-                                  variant="outline"
-                                  className="border-2 border-blue-400 text-blue-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                                <div 
-                                  className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
-                                >
-                                  Agregar tarea
-                                </div>
-                              </div>
-                            </div>
                           </div>
                           
                           {/* Área de Gantt con barras de tareas apiladas verticalmente */}
@@ -1230,16 +1175,16 @@ export default function GanttPage() {
                                       top: `${startOffset}px`
                                     }}
                                   >
-                                    {/* Barra de fondo gris con tooltip */}
+                                    {/* Barra de fondo gris con popup */}
                                     <div className="relative group h-8">
                                       <div
-                                        className="absolute top-0 h-8 bg-gray-500 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
+                                        className="absolute top-0 h-8 bg-gray-500 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-600 hover:shadow-md transition-all duration-200"
                                         style={{
                                           left: `${startPos.left}%`,
                                           width: `${barWidth}%`
                                         }}
-                                        onMouseEnter={(e) => handleTooltipHover(e, true, activity)}
-                                        onMouseLeave={(e) => handleTooltipHover(e, false, activity)}
+                                        onClick={() => handleActivityBarClick(activity)}
+                                        title="Haz clic para ver detalles de la actividad"
                                       >
                                         {/* Barra de progreso verde - perfectamente alineada */}
                                         <div
@@ -1343,28 +1288,6 @@ export default function GanttPage() {
                                     }
                                   })()}
                                   
-                                  {/* Controles al final de la barra */}
-                                  <div 
-                                    className="absolute top-1/2 flex items-center space-x-1.5 bg-white/90 rounded px-1.5 py-1 shadow-sm border z-30"
-                                    style={{
-                                      left: `${startPos.left + barWidth + 1}%`,
-                                      transform: 'translateY(-50%)'
-                                    }}
-                                  >
-                                    <Checkbox
-                                      checked={task.completed}
-                                      onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                      className="h-3.5 w-3.5"
-                                    />
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteTask(task.id)}
-                                      className="h-3.5 w-3.5 p-0 text-red-500 hover:text-red-600"
-                                    >
-                                      <Trash2 className="h-2.5 w-2.5" />
-                                    </Button>
-                                  </div>
                                 </div>
                               </div>
                               );
@@ -1403,107 +1326,21 @@ export default function GanttPage() {
         </Card>
       </div>
 
-      {/* Popup simple para agregar actividad */}
-      {showAddActivity && (
-        <div 
-          className="fixed z-50"
-          style={{
-            left: `${popupPosition.x - 192}px`, // 192px = half of 384px (w-96)
-            top: `${popupPosition.y}px`
-          }}
-        >
-          <Card className="w-96 shadow-2xl border-2">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Nueva Actividad</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddActivity(false)}
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
-                >
-                  ×
-                </Button>
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <Input
-                    value={activityForm.name}
-                    onChange={(e) => handleActivityInputChange('name', e.target.value)}
-                    placeholder="Nombre de la actividad *"
-                    className="w-full"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Input
-                    value={activityForm.description}
-                    onChange={(e) => handleActivityInputChange('description', e.target.value)}
-                    placeholder="Descripción (opcional)"
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Fecha de inicio *
-                    </Label>
-                    <Calendar
-                      value={activityForm.startDate || undefined}
-                      onChange={(date) => handleActivityInputChange('startDate', date)}
-                      placeholder="Seleccionar fecha de inicio"
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Fecha de término *
-                    </Label>
-                    <Calendar
-                      value={activityForm.endDate || undefined}
-                      onChange={(date) => handleActivityInputChange('endDate', date)}
-                      placeholder="Seleccionar fecha de término"
-                      className="w-full"
-                      minDate={activityForm.startDate || undefined}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddActivity(false)}
-                    size="sm"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleCreateActivity}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    size="sm"
-                  >
-                    Crear
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* Popup simple para agregar tarea */}
       {showAddTask && (
         <div 
-          className="fixed z-50"
-          style={{
+          className={`fixed ${
+            showActivityPopup ? 'flex items-center justify-center inset-0 z-[60]' : 'z-50'
+          }`}
+          style={showActivityPopup ? {} : {
             left: `${popupPosition.x}px`,
             top: `${popupPosition.y}px`
           }}
         >
-          <Card className="w-96 shadow-2xl border-2">
+          <Card className={`w-96 shadow-2xl border-2 ${
+            showActivityPopup ? 'ml-[380px]' : ''
+          }`}>
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1515,7 +1352,7 @@ export default function GanttPage() {
                   onClick={() => {
                     setShowAddTask(false);
                     setSelectedActivity(null);
-                    setTaskForm({ name: '', startDate: '', endDate: '' });
+                    setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
                   }}
                   className="h-8 w-8 p-0 hover:bg-gray-100"
                 >
@@ -1531,6 +1368,16 @@ export default function GanttPage() {
                     placeholder="Nombre de la tarea *"
                     className="w-full"
                     required
+                  />
+                </div>
+
+                <div>
+                  <textarea
+                    value={taskForm.description}
+                    onChange={(e) => handleTaskInputChange('description', e.target.value)}
+                    placeholder="Descripción de la tarea (opcional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
+                    rows={3}
                   />
                 </div>
 
@@ -1567,7 +1414,7 @@ export default function GanttPage() {
                     onClick={() => {
                       setShowAddTask(false);
                       setSelectedActivity(null);
-                      setTaskForm({ name: '', startDate: '', endDate: '' });
+                      setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
                     }}
                     size="sm"
                   >
@@ -1587,27 +1434,36 @@ export default function GanttPage() {
         </div>
       )}
 
-      {/* Popup simple para editar actividad */}
-      {showEditActivity && editingActivity && (
+      {/* Popup unificado de actividad */}
+      {showActivityPopup && (
         <div 
-          className="fixed z-50"
-          style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
+          onClick={() => {
+            setShowActivityPopup(false);
+            setSelectedActivityForPopup(null);
+            setUnifiedActivityForm({ name: '', description: '' });
+            setTempTasks([]);
           }}
         >
-          <Card className="w-[500px] shadow-2xl border-2">
+          <Card 
+            className="w-[700px] max-h-[90vh] shadow-2xl border-2 mx-4 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Editar Actividad
+                  {activityPopupMode === 'create' ? 'Crear Actividad' : 
+                   activityPopupMode === 'edit' ? 'Editar Actividad' : 
+                   'Información de Actividad'}
                 </h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setShowEditActivity(false);
-                    setEditingActivity(null);
+                    setShowActivityPopup(false);
+                    setSelectedActivityForPopup(null);
+                    setUnifiedActivityForm({ name: '', description: '' });
+                    setTempTasks([]);
                   }}
                   className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-105"
                 >
@@ -1615,139 +1471,278 @@ export default function GanttPage() {
                 </Button>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Formulario de nombre y descripción */}
                 <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Nombre</h4>
+                  {activityPopupMode === 'view' ? (
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded-md">
+                      {selectedActivityForPopup?.name}
+                    </p>
+                  ) : (
                   <Input
-                    value={editActivityForm.name}
-                    onChange={(e) => handleEditActivityInputChange('name', e.target.value)}
+                      value={unifiedActivityForm.name}
+                      onChange={(e) => handleUnifiedActivityInputChange('name', e.target.value)}
                     placeholder="Nombre de la actividad *"
                     className="w-full"
                     required
                   />
+                  )}
                 </div>
 
                 <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Descripción</h4>
+                  {activityPopupMode === 'view' ? (
+                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md whitespace-pre-wrap min-h-[60px]">
+                      {selectedActivityForPopup?.description || 'Sin descripción'}
+                    </p>
+                  ) : (
                   <textarea
-                    value={editActivityForm.description}
-                    onChange={(e) => handleEditActivityInputChange('description', e.target.value)}
+                      value={unifiedActivityForm.description}
+                      onChange={(e) => handleUnifiedActivityInputChange('description', e.target.value)}
                     placeholder="Descripción (opcional)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
                     rows={5}
                   />
+                  )}
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowEditActivity(false);
-                      setEditingActivity(null);
-                    }}
-                    size="sm"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleUpdateActivity}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    size="sm"
-                  >
-                    Actualizar
-                  </Button>
+                {/* Período - siempre visible */}
+                {(() => {
+                  const activityRange = selectedActivityForPopup ? getActivityDateRange(selectedActivityForPopup) : null;
+                  if (!activityRange && activityPopupMode === 'view') return null;
+
+                  return (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Período</h4>
+                      <div className="bg-gray-50 p-3 rounded-md">
+                        {activityRange ? (
+                          <>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Inicio:</span> {formatDateForTooltip(activityRange.startDate)}
                 </div>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Término:</span> {formatDateForTooltip(activityRange.endDate)}
               </div>
-            </CardContent>
-          </Card>
+                          </>
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">
+                            {activityPopupMode === 'create' 
+                              ? 'El período se calculará automáticamente basado en las tareas que agregues'
+                              : 'Sin tareas definidas'
+                            }
         </div>
       )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
-      {/* Popup para crear actividad */}
-      {showCreateActivity && (
-        <div 
-          className="fixed z-50"
-          style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`
-          }}
-        >
-          <Card className="w-[500px] shadow-2xl border-2">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Crear Actividad
-                </h3>
+                {/* Progreso - solo en modo view */}
+                {activityPopupMode === 'view' && selectedActivityForPopup && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso</h4>
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Completado</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {getActivityProgress(selectedActivityForPopup)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${getActivityProgress(selectedActivityForPopup)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tareas - siempre visible */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Tareas {(() => {
+                        if (activityPopupMode === 'view') {
+                          return selectedActivityForPopup?.tasks ? `(${selectedActivityForPopup.tasks.length})` : '(0)';
+                        } else if (activityPopupMode === 'edit') {
+                          const existingTasks = selectedActivityForPopup?.tasks || [];
+                          return `(${existingTasks.length + tempTasks.length})`;
+                        } else {
+                          return `(${tempTasks.length})`;
+                        }
+                      })()}
+                    </h4>
+                    {activityPopupMode !== 'view' && (
+                      <Button
+                        onClick={() => {
+                          // Crear una actividad temporal para poder usar el popup de crear tarea
+                          const tempActivity: Activity = selectedActivityForPopup || {
+                            id: 'temp-activity',
+                            name: unifiedActivityForm.name || 'Actividad temporal',
+                            description: unifiedActivityForm.description || '',
+                            progress: 0,
+                            tasks: tempTasks,
+                            project_id: selectedProject?.id || '',
+                            color: '#3B82F6',
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                          };
+                          setSelectedActivity(tempActivity);
+                          setShowAddTask(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Agregar Tarea
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="bg-gray-50 p-3 rounded-md max-h-40 overflow-y-auto">
+                    {(() => {
+                      let tasksToShow = [];
+                      if (activityPopupMode === 'view') {
+                        tasksToShow = selectedActivityForPopup?.tasks || [];
+                      } else if (activityPopupMode === 'edit') {
+                        // En modo editar, mostrar tareas existentes + tareas temporales
+                        const existingTasks = selectedActivityForPopup?.tasks || [];
+                        tasksToShow = [...existingTasks, ...tempTasks];
+                      } else {
+                        // En modo crear, solo tareas temporales
+                        tasksToShow = tempTasks;
+                      }
+                      
+                      return tasksToShow.length > 0 ? (
+                        <div className="space-y-2">
+                          {tasksToShow
+                            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                            .map((task, index) => (
+                            <div key={task.id} className="flex items-start justify-between p-2 bg-white rounded border">
+                              <div className="flex items-start space-x-2 flex-1 min-w-0">
+                                <span className="text-xs text-gray-500">{index + 1}.</span>
+                                {activityPopupMode !== 'view' && (
+                                  <input
+                                    type="checkbox"
+                                    checked={task.completed}
+                                    onChange={async () => {
+                                      if (task.id.startsWith('temp-')) {
+                                        // Actualizar tarea temporal
+                                        setTempTasks(prev => prev.map(t => 
+                                          t.id === task.id ? { ...t, completed: !t.completed } : t
+                                        ));
+                                      } else {
+                                        // Actualizar tarea existente en la base de datos
+                                        handleToggleTaskCompletion(task.id);
+                                        // Actualizar la actividad para reflejar el cambio
+                                        if (selectedActivityForPopup) {
+                                          const updatedActivity = {
+                                            ...selectedActivityForPopup,
+                                            tasks: selectedActivityForPopup.tasks?.map(t => 
+                                              t.id === task.id ? { ...t, completed: !t.completed } : t
+                                            ) || []
+                                          };
+                                          setSelectedActivityForPopup(updatedActivity);
+                                        }
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                )}
+                                <span className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'} break-words max-w-[200px]`}>
+                                  {task.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                                <span className="text-xs text-gray-500">
+                                  {formatDateForTooltip(task.start_date)} - {formatDateForTooltip(task.end_date)}
+                                </span>
+                                <div className={`w-2 h-2 rounded-full ${task.completed ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                {activityPopupMode !== 'view' && (
                 <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    setShowCreateActivity(false);
-                    setCreateActivityForm({ name: '', description: '' });
-                  }}
-                  className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-105"
-                >
-                  <span className="text-lg font-semibold text-gray-600 hover:text-gray-800">×</span>
+                                    variant="ghost"
+                                    onClick={async () => {
+                                      if (activityPopupMode === 'create') {
+                                        setTempTasks(prev => prev.filter(t => t.id !== task.id));
+                                      } else if (activityPopupMode === 'edit') {
+                                        // En modo editar, eliminar tareas temporales o existentes
+                                        if (task.id.startsWith('temp-')) {
+                                          setTempTasks(prev => prev.filter(t => t.id !== task.id));
+                                        } else {
+                                          // Confirmar eliminación antes de proceder
+                                          const confirmed = window.confirm('¿Estás seguro de que deseas eliminar esta tarea?');
+                                          if (confirmed) {
+                                            // Eliminar tarea existente de la base de datos
+                                            handleDeleteTask(task.id);
+                                            // Actualizar la actividad para reflejar el cambio
+                                            if (selectedActivityForPopup) {
+                                              const updatedActivity = {
+                                                ...selectedActivityForPopup,
+                                                tasks: selectedActivityForPopup.tasks?.filter(t => t.id !== task.id) || []
+                                              };
+                                              setSelectedActivityForPopup(updatedActivity);
+                                            }
+                                          }
+                                        }
+                                      } else {
+                                        handleDeleteTask(task.id);
+                                      }
+                                    }}
+                                    className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
                 </Button>
+                                )}
               </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <Input
-                    value={createActivityForm.name}
-                    onChange={(e) => handleCreateActivityInputChange('name', e.target.value)}
-                    placeholder="Nombre de la actividad *"
-                    className="w-full"
-                    required
-                  />
+                </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-gray-500">
+                            {activityPopupMode === 'create' 
+                              ? 'Agrega al menos una tarea para crear la actividad'
+                              : 'No hay tareas definidas'
+                            }
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
-                <div>
-                  <textarea
-                    value={createActivityForm.description}
-                    onChange={(e) => handleCreateActivityInputChange('description', e.target.value)}
-                    placeholder="Descripción (opcional)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
-                    rows={5}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2">
+                {/* Botones de acción */}
+                <div className="flex justify-end space-x-2 pt-4">
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setShowCreateActivity(false);
-                      setCreateActivityForm({ name: '', description: '' });
+                      setShowActivityPopup(false);
+                      setSelectedActivityForPopup(null);
+                      setUnifiedActivityForm({ name: '', description: '' });
+                      setTempTasks([]);
                     }}
                     size="sm"
                   >
-                    Cancelar
+                    {activityPopupMode === 'view' ? 'Cerrar' : 'Cancelar'}
                   </Button>
+                  
+                  {activityPopupMode !== 'view' && (
                   <Button
-                    onClick={handleCreateActivity}
+                      onClick={handleUnifiedActivityAction}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                     size="sm"
                   >
-                    Crear
+                      {activityPopupMode === 'create' ? 'Crear Actividad' : 'Guardar Cambios'}
                   </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {/* Tooltip global - fuera del contenedor de la tabla */}
-      {tooltipState.show && (
-        <div
-          className="fixed z-[9999] max-w-sm px-3 py-2 bg-white text-gray-700 text-sm rounded-lg shadow-lg border border-gray-200"
-          style={{
-            left: tooltipState.x,
-            top: tooltipState.y,
-            transform: 'translateX(-50%) translateY(-100%)'
-          }}
-          onMouseEnter={handleTooltipMouseEnter}
-          onMouseLeave={handleTooltipMouseLeave}
-        >
-          {tooltipState.content}
         </div>
       )}
       </div>

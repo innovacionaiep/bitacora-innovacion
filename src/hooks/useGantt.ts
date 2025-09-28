@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export type Task = {
   id: string;
   name: string;
+  description: string;
   completed: boolean;
   start_date: string;
   end_date: string;
