@@ -447,6 +447,12 @@ export default function GanttPage() {
       return;
     }
 
+    // Validar longitud máxima del título (76 caracteres)
+    if (unifiedActivityForm.name.length > 76) {
+      alert('El nombre de la actividad no puede exceder los 76 caracteres');
+      return;
+    }
+
     if (activityPopupMode === 'create') {
       // Validar que haya al menos una tarea al crear una actividad
       if (tempTasks.length === 0) {
@@ -512,6 +518,12 @@ export default function GanttPage() {
   const handleUpdateActivity = async () => {
     if (!editingActivity || !editActivityForm.name) {
       alert('Por favor completa el nombre de la actividad');
+      return;
+    }
+
+    // Validar longitud máxima del título (76 caracteres)
+    if (editActivityForm.name.length > 76) {
+      alert('El nombre de la actividad no puede exceder los 76 caracteres');
       return;
     }
 
@@ -1077,9 +1089,17 @@ export default function GanttPage() {
                       <div key={activity.id} className="border-b border-gray-200">
                         {/* Fila de la actividad con sus tareas en la misma línea */}
                         <div className="flex hover:bg-gray-50 group">
-                          <div className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-start justify-between overflow-hidden relative">
+                          <div 
+                            className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-center justify-between overflow-hidden relative"
+                            style={{ 
+                              height: `${expandedDescriptions.has(activity.id) 
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 33)) // Altura completa cuando expandido: 40 para barra de actividad + 33px por tarea
+                                : Math.max(48, 16 + 40) // Solo barra de actividad cuando colapsado
+                              }px`
+                            }}
+                          >
                             <div className="flex-1 min-w-0 max-w-full">
-                              <div className="flex items-start space-x-2">
+                              <div className="flex items-center space-x-2">
                                 {/* Columna de botones a la izquierda */}
                                 <div className="flex flex-col items-center space-y-1 flex-shrink-0">
                                   {/* Botón expandir/colapsar */}
@@ -1120,16 +1140,97 @@ export default function GanttPage() {
                                   )}
                                 </div>
                                 
-                                {/* Contenido de la actividad */}
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-gray-900 break-words min-w-0 leading-tight">{activity.name}</h4>
-                                  {expandedDescriptions.has(activity.id) && activity.description && (
-                                    <div className="mt-1" style={{ marginRight: '2px' }}>
-                                      <p className="text-xs text-gray-500 break-words overflow-hidden whitespace-normal leading-relaxed word-break-all text-justify">{activity.description}</p>
-                                    </div>
-                                  )}
-                                </div>
+                                {/* Contenido de la actividad - solo visible cuando NO está expandido */}
+                                {!expandedDescriptions.has(activity.id) && (
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-gray-900 break-words min-w-0 leading-tight" style={{ fontSize: '13px' }}>{activity.name}</h4>
+                                  </div>
+                                )}
                               </div>
+                              
+                              {/* Título de actividad posicionado a la altura de su barra cuando está expandido */}
+                              {expandedDescriptions.has(activity.id) && (
+                                <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+                                  {(() => {
+                                    const isExpanded = expandedDescriptions.has(activity.id);
+                                    const taskSpacing = 33; // Espaciado entre tareas
+                                    const containerHeight = isExpanded 
+                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
+                                      : Math.max(48, 16 + 40);
+                                    const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
+                                    const availableHeight = containerHeight - 16; // Restar padding
+                                    const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
+                                    
+                                    // Estimar si el texto tendrá dos líneas basado en la longitud
+                                    // Ser más conservador: solo aplicar centrado especial para títulos muy largos
+                                    const estimatedLines = activity.name.length > 50 ? 2 : 1;
+                                    
+                                    let topPosition;
+                                    
+                                    if (estimatedLines === 1) {
+                                      // Para títulos de una línea, usar la posición original que ya funcionaba bien
+                                      topPosition = startOffset + 16; // 16px para centrar en la barra de actividad
+                                    } else {
+                                      // Para títulos de múltiples líneas, calcular el centrado especial
+                                      const lineHeight = 13 * 1.2; // line-height de 1.2
+                                      const textHeight = lineHeight; // Altura de una línea
+                                      const totalTextHeight = textHeight * estimatedLines;
+                                      
+                                      // Calcular el offset para centrar el texto en la barra de actividad
+                                      const barCenter = startOffset + 16; // Centro de la barra de actividad
+                                      const textCenter = barCenter - (totalTextHeight / 2);
+                                      topPosition = Math.max(4, textCenter);
+                                    }
+                                    
+                                    return (
+                                      <div 
+                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto"
+                                        style={{ 
+                                          fontSize: '13px',
+                                          lineHeight: '1.2',
+                                          top: `${topPosition}px`,
+                                          left: '40px', // Posición más a la izquierda para coincidir con títulos colapsados
+                                          right: '8px',
+                                          zIndex: 10
+                                        }}
+                                      >
+                                        {activity.name}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              
+                              {/* Nombres de tareas posicionados a la altura de sus barras */}
+                              {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
+                                <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+                                  {activity.tasks.map((task, index) => {
+                                    const isExpanded = expandedDescriptions.has(activity.id);
+                                    const taskSpacing = 33; // Espaciado entre tareas
+                                    const containerHeight = isExpanded 
+                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
+                                      : Math.max(48, 16 + 40);
+                                    const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
+                                    const availableHeight = containerHeight - 16; // Restar padding
+                                    const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
+                                    
+                                    return (
+                                      <div 
+                                        key={task.id} 
+                                        className="absolute text-xs text-gray-600 bg-white px-2 py-1 rounded shadow-sm border border-gray-200 pointer-events-auto"
+                                        style={{ 
+                                          top: `${startOffset + 40 + (index * taskSpacing) + 8}px`, // 40 para la barra de actividad + espaciado + offset
+                                          left: '60px', // Posición fija desde la izquierda
+                                          right: '8px',
+                                          zIndex: 10
+                                        }}
+                                      >
+                                        {task.name}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                             
                           </div>
@@ -1249,44 +1350,6 @@ export default function GanttPage() {
                                     </div>
                                   </div>
                                   
-                                  {/* Nombre de la tarea - detectar desbordamiento y posicionar apropiadamente */}
-                                  {(() => {
-                                    // Detectar si el nombre se desbordaría hacia la izquierda
-                                    const wouldOverflow = startPos.left < 5; // Si está muy cerca del borde izquierdo
-                                    
-                                    if (wouldOverflow) {
-                                      // Colocar el nombre dentro de la barra cuando hay desbordamiento
-                                      return (
-                                        <div 
-                                          className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-1.5 py-1 rounded shadow-sm border"
-                                          style={{
-                                            left: `${startPos.left + 2}%`,
-                                            top: '50%', // Centrar verticalmente en la barra
-                                            transform: 'translateY(-50%)', // Centrar verticalmente
-                                            maxWidth: `${Math.max(barWidth - 4, 20)}%`,
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
-                                          }}
-                                        >
-                                          {task.name}
-                                        </div>
-                                      );
-                                    } else {
-                                      // Posicionamiento normal a la izquierda de la barra
-                                      return (
-                                        <div 
-                                          className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-1.5 py-1 rounded shadow-sm border"
-                                          style={{
-                                            left: `${startPos.left - 2}%`,
-                                            transform: 'translateY(-50%) translateX(-100%)'
-                                          }}
-                                        >
-                                          {task.name}
-                                        </div>
-                                      );
-                                    }
-                                  })()}
                                   
                                 </div>
                               </div>
@@ -1474,7 +1537,14 @@ export default function GanttPage() {
               <div className="space-y-4">
                 {/* Formulario de nombre y descripción */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Nombre</h4>
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-sm font-medium text-gray-700">Nombre</h4>
+                    {activityPopupMode !== 'view' && (
+                      <span className={`text-xs ${unifiedActivityForm.name.length > 76 ? 'text-red-500' : unifiedActivityForm.name.length > 60 ? 'text-yellow-500' : 'text-gray-400'}`}>
+                        {unifiedActivityForm.name.length}/76
+                      </span>
+                    )}
+                  </div>
                   {activityPopupMode === 'view' ? (
                     <p className="text-base text-gray-900 bg-gray-50 p-3 rounded-md">
                       {selectedActivityForPopup?.name}
@@ -1484,7 +1554,8 @@ export default function GanttPage() {
                       value={unifiedActivityForm.name}
                       onChange={(e) => handleUnifiedActivityInputChange('name', e.target.value)}
                     placeholder="Nombre de la actividad *"
-                    className="w-full"
+                    className={`w-full ${unifiedActivityForm.name.length > 76 ? 'border-red-500 focus:border-red-500' : ''}`}
+                    maxLength={76}
                     required
                   />
                   )}
