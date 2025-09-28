@@ -983,14 +983,16 @@ export default function GanttPage() {
             <div className="overflow-x-auto relative overflow-y-visible">
               <div className="min-w-[1272px]">
                 
-                {/* Línea roja continua del día de hoy - atraviesa toda la tabla */}
-                <div
-                  className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
-                  style={{
-                    left: `calc(320px + ${getTodayPositionPercent()}% * (100% - 320px) / 100%)`,
-                    height: '100%'
-                  }}
-                ></div>
+                {/* Línea roja continua del día de hoy - atraviesa toda la tabla - Solo visible si estamos en el rango actual */}
+                {getTodayPositionPercent() >= 0 && (
+                  <div
+                    className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
+                    style={{
+                      left: `calc(320px + ${getTodayPositionPercent()}% * (100% - 320px) / 100%)`,
+                      height: '100%'
+                    }}
+                  ></div>
+                )}
                 
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
@@ -1010,16 +1012,18 @@ export default function GanttPage() {
                       </div>
                     ))}
                     
-                    {/* Indicador de "Hoy" */}
-                    <div
-                      className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
-                      style={{
-                        left: `${getTodayPositionPercent()}%`,
-                        transform: 'translateX(-50%)'
-                      }}
-                    >
-                      Hoy
-                    </div>
+                    {/* Indicador de "Hoy" - Solo visible si estamos en el rango actual */}
+                    {getTodayPositionPercent() >= 0 && (
+                      <div
+                        className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
+                        style={{
+                          left: `${getTodayPositionPercent()}%`,
+                          transform: 'translateX(-50%)'
+                        }}
+                      >
+                        Hoy
+                      </div>
+                    )}
                   </div>
                 </div>
                 
