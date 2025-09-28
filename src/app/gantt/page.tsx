@@ -26,6 +26,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { useState, useEffect } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
@@ -1076,7 +1077,7 @@ export default function GanttPage() {
                                 {!expandedDescriptions.has(activity.id) && (
                                   <div className="flex-1 min-w-0 flex items-center">
                                     <h4 
-                                      className="font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-gray-600 transition-colors duration-200" 
+                                      className="font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200" 
                                       style={{ fontSize: '13px' }}
                                       onClick={() => handleActivityBarClick(activity)}
                                       title="Haz clic para ver detalles de la actividad"
@@ -1126,7 +1127,7 @@ export default function GanttPage() {
                                     
                                     return (
                                       <div 
-                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto cursor-pointer hover:text-gray-600 transition-colors duration-200"
+                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto cursor-pointer hover:text-blue-600 transition-colors duration-200"
                                         style={{ 
                                           fontSize: '13px',
                                           lineHeight: '1.2',
@@ -1530,24 +1531,20 @@ export default function GanttPage() {
                   return (
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Período</h4>
-                      <div className="bg-gray-50 p-3 rounded-md">
+                      <div className="bg-gray-50 p-4 rounded-md">
                         {activityRange ? (
-                          <>
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">Inicio:</span> {formatDateForTooltip(activityRange.startDate)}
-                </div>
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">Término:</span> {formatDateForTooltip(activityRange.endDate)}
-              </div>
-                          </>
+                          <PeriodTimeline 
+                            startDate={activityRange.startDate}
+                            endDate={activityRange.endDate}
+                          />
                         ) : (
-                          <div className="text-sm text-gray-500 italic">
+                          <div className="text-sm text-gray-500 italic text-center py-4">
                             {activityPopupMode === 'create' 
                               ? 'El período se calculará automáticamente basado en las tareas que agregues'
                               : 'Sin tareas definidas'
                             }
-        </div>
-      )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
