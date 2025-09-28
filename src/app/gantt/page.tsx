@@ -1162,8 +1162,8 @@ export default function GanttPage() {
                                     const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
                                     
                                     // Estimar si el texto tendrá dos líneas basado en la longitud
-                                    // Ser más conservador: solo aplicar centrado especial para títulos muy largos
-                                    const estimatedLines = activity.name.length > 50 ? 2 : 1;
+                                    // Usar un umbral más preciso para detectar títulos que realmente se envuelven en dos líneas
+                                    const estimatedLines = activity.name.length > 45 ? 2 : 1;
                                     
                                     let topPosition;
                                     
@@ -1172,14 +1172,17 @@ export default function GanttPage() {
                                       topPosition = startOffset + 16; // 16px para centrar en la barra de actividad
                                     } else {
                                       // Para títulos de múltiples líneas, calcular el centrado especial
-                                      const lineHeight = 13 * 1.2; // line-height de 1.2
-                                      const textHeight = lineHeight; // Altura de una línea
-                                      const totalTextHeight = textHeight * estimatedLines;
+                                      // Usar valores empíricos basados en la observación visual
+                                      const totalTextHeight = 17; // Altura aproximada de 2 líneas de 13px
                                       
-                                      // Calcular el offset para centrar el texto en la barra de actividad
-                                      const barCenter = startOffset + 16; // Centro de la barra de actividad
-                                      const textCenter = barCenter - (totalTextHeight / 2);
-                                      topPosition = Math.max(4, textCenter);
+                                      // Calcular el centro de la barra de actividad (32px de altura)
+                                      const barCenter = startOffset + 16; // Centro de la barra de 32px
+                                      
+                                      // Calcular el centro del texto de dos líneas
+                                      const textCenter = totalTextHeight / 2; // Centro del texto = 16px
+                                      
+                                      // Posicionar el texto para que su centro coincida con el centro de la barra
+                                      topPosition = barCenter - textCenter;
                                     }
                                     
                                     return (
