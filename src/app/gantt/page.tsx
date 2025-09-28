@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
+import { Slider } from '@/components/ui/slider';
 import { useState, useEffect } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
@@ -588,8 +589,7 @@ export default function GanttPage() {
     const visibleStartOffset = timelineOffset;
     const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
     
-    // Si la fecha está completamente fuera del rango visible, no mostrar la tarea
-    // Pero si está parcialmente visible, ajustarla al borde del rango
+    // Si la fecha está completamente fuera del rango visible, ajustarla al borde del rango
     if (dateOffset < visibleStartOffset) {
       return { month: 0, day: 1, left: 0 }; // Ajustar al inicio del rango
     } else if (dateOffset > visibleEndOffset) {
@@ -705,7 +705,7 @@ export default function GanttPage() {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Calcular los offsets de las fechas
+    // Calcular los offsets de las fechas desde enero 2025
     const startOffset = (start.getFullYear() - 2025) * 12 + start.getMonth();
     const endOffset = (end.getFullYear() - 2025) * 12 + end.getMonth();
     const visibleStartOffset = timelineOffset;
@@ -716,41 +716,19 @@ export default function GanttPage() {
       return 0; // No mostrar la tarea
     }
     
-    // Obtener las posiciones de inicio y fin (ajustadas al rango visible)
+    // Obtener las posiciones de inicio y fin
     const startPos = getDatePosition(startDate);
     const endPos = getDatePosition(endDate);
     
     // Calcular el ancho basado en la diferencia de posiciones
     let width = endPos.left - startPos.left;
     
-    // Si la tarea abarca todo el año (desde enero hasta diciembre de 2025)
-    if (start.getFullYear() === 2025 && end.getFullYear() === 2025 && 
-        start.getMonth() === 0 && start.getDate() === 1 && 
-        end.getMonth() === 11 && end.getDate() === 31) {
-      return 100; // Ocupar todo el ancho del calendario
-    }
-    
-    // Si la tarea comienza antes de 2025 y termina en 2025
-    if (start.getFullYear() < 2025 && end.getFullYear() === 2025) {
-      return endPos.left; // Desde el inicio del calendario hasta la fecha de fin
-    }
-    
-    // Si la tarea comienza en 2025 y termina después de 2025
-    if (start.getFullYear() === 2025 && end.getFullYear() > 2025) {
-      return 100 - startPos.left; // Desde la fecha de inicio hasta el final del calendario
-    }
-    
-    // Si la tarea está completamente fuera del rango de 2025
-    if (start.getFullYear() !== 2025 && end.getFullYear() !== 2025) {
-      return 0; // No mostrar
-    }
-    
     // Si la tarea se extiende más allá del rango visible, ajustar el ancho
     if (startPos.left >= 100) {
-      // La tarea comienza después de diciembre, no mostrar
+      // La tarea comienza después del rango visible, no mostrar
       return 0;
     } else if (endPos.left > 100) {
-      // La tarea se extiende más allá de diciembre, limitar al final del calendario
+      // La tarea se extiende más allá del rango visible, limitar al final del rango
       width = 100 - startPos.left;
     }
     
@@ -1395,46 +1373,41 @@ export default function GanttPage() {
             {/* Slider de navegación temporal */}
             <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-gray-700">Navegación:</span>
-              <input
-                type="range"
-                min="-24"
-                max="24"
-                value={timelineOffset}
-                onChange={(e) => setTimelineOffset(parseInt(e.target.value))}
-                className="w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, 
-                    #e5e7eb 0%, 
-                    #e5e7eb ${((timelineOffset + 24) / 48) * 100}%, 
-                    #3b82f6 ${((timelineOffset + 24) / 48) * 100}%, 
-                    #3b82f6 100%)`
-                }}
-              />
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => setTimelineOffset(prev => prev - 1)}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  ←
-                </Button>
-                <Button
-                  onClick={() => setTimelineOffset(0)}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3"
-                >
-                  Hoy
-                </Button>
-                <Button
-                  onClick={() => setTimelineOffset(prev => prev + 1)}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  →
-                </Button>
+              <div className="flex items-center space-x-4 w-80">
+                <Slider
+                  value={[timelineOffset]}
+                  onValueChange={(value) => setTimelineOffset(value[0])}
+                  min={-24}
+                  max={24}
+                  step={1}
+                  className="flex-1"
+                />
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={() => setTimelineOffset(prev => prev - 1)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    ←
+                  </Button>
+                  <Button
+                    onClick={() => setTimelineOffset(0)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3"
+                  >
+                    Hoy
+                  </Button>
+                  <Button
+                    onClick={() => setTimelineOffset(prev => prev + 1)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    →
+                  </Button>
+                </div>
               </div>
             </div>
             
