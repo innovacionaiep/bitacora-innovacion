@@ -52,6 +52,9 @@ export default function GanttPage() {
   const [showCreateActivity, setShowCreateActivity] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   
+  // Timer para ocultar el tooltip con delay
+  const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
+  
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
     name: '',
@@ -157,6 +160,15 @@ export default function GanttPage() {
   useEffect(() => {
     closeAllPopups();
   }, [selectedProject]);
+
+  // Limpiar timer cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+      }
+    };
+  }, [tooltipTimer]);
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -565,16 +577,24 @@ export default function GanttPage() {
     x: number;
     y: number;
     activityId: string;
+    isPersistent: boolean;
   }>({
     show: false,
     content: null,
     x: 0,
     y: 0,
-    activityId: ''
+    activityId: '',
+    isPersistent: false
   });
 
   // Manejar el hover del tooltip para posicionarlo correctamente
   const handleTooltipHover = (event: React.MouseEvent, show: boolean, activity: Activity) => {
+    // Limpiar timer anterior si existe
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer);
+      setTooltipTimer(null);
+    }
+
     if (show) {
       const rect = event.currentTarget.getBoundingClientRect();
       
@@ -589,17 +609,59 @@ export default function GanttPage() {
         content: getActivityTooltipContent(activity),
         x: left,
         y: top,
-        activityId: activity.id
+        activityId: activity.id,
+        isPersistent: false
       });
     } else {
+      // Si el tooltip está en modo persistente, no ocultarlo inmediatamente
+      if (tooltipState.isPersistent) {
+        return;
+      }
+      
+      // Agregar un pequeño delay antes de ocultar
+      const timer = setTimeout(() => {
+        setTooltipState(prev => ({
+          ...prev,
+          show: false,
+          content: null,
+          x: 0,
+          y: 0,
+          activityId: '',
+          isPersistent: false
+        }));
+      }, 300); // 300ms de delay
+      
+      setTooltipTimer(timer);
+    }
+  };
+
+  // Manejar cuando el mouse entra al tooltip
+  const handleTooltipMouseEnter = () => {
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer);
+      setTooltipTimer(null);
+    }
+    
+    setTooltipState(prev => ({
+      ...prev,
+      isPersistent: true
+    }));
+  };
+
+  // Manejar cuando el mouse sale del tooltip
+  const handleTooltipMouseLeave = () => {
+    const timer = setTimeout(() => {
       setTooltipState({
         show: false,
         content: null,
         x: 0,
         y: 0,
-        activityId: ''
+        activityId: '',
+        isPersistent: false
       });
-    }
+    }, 200); // 200ms de delay para salir del tooltip
+    
+    setTooltipTimer(timer);
   };
 
   // Calcular el rango de fechas de una actividad basado en sus tareas
@@ -1682,6 +1744,8 @@ export default function GanttPage() {
             top: tooltipState.y,
             transform: 'translateX(-50%) translateY(-100%)'
           }}
+          onMouseEnter={handleTooltipMouseEnter}
+          onMouseLeave={handleTooltipMouseLeave}
         >
           {tooltipState.content}
         </div>
