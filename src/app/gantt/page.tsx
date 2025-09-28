@@ -23,8 +23,7 @@ import {
   ChevronRight,
   Activity as ActivityIcon,
   CheckSquare,
-  TrendingUp,
-  Save
+  TrendingUp
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState, useEffect } from 'react';
@@ -44,8 +43,7 @@ export default function GanttPage() {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -101,8 +99,7 @@ export default function GanttPage() {
     createTask,
     deleteTask,
     toggleTaskCompletion,
-    calculateProjectProgress,
-    syncAllActivitiesProgress
+    calculateProjectProgress
   } = useGantt(selectedProject?.id || null);
 
   // Calcular estadísticas de actividades y tareas completadas
@@ -215,7 +212,7 @@ export default function GanttPage() {
     } else {
       setUnifiedActivityForm({ name: '', description: '' });
       setShowActivityPopup(false);
-      alert('Actividad creada exitosamente');
+      showSuccessMessage('Actividad creada exitosamente');
     }
   };
 
@@ -328,13 +325,14 @@ export default function GanttPage() {
       setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
       setShowAddTask(false);
       setSelectedActivity(null);
-      alert('Tarea creada exitosamente');
+      showSuccessMessage('Tarea creada exitosamente');
     }
   };
 
   // Toggle completar tarea
   const handleToggleTaskCompletion = (taskId: string) => {
     toggleTaskCompletion(taskId);
+    showSuccessMessage('Tarea actualizada exitosamente');
   };
 
   // Eliminar actividad
@@ -344,7 +342,7 @@ export default function GanttPage() {
       if (error) {
         alert('Error al eliminar la actividad: ' + error);
       } else {
-        alert('Actividad eliminada exitosamente');
+        showSuccessMessage('Actividad eliminada exitosamente');
       }
     }
   };
@@ -356,34 +354,15 @@ export default function GanttPage() {
       if (error) {
         alert('Error al eliminar la tarea: ' + error);
       } else {
-        alert('Tarea eliminada exitosamente');
+        showSuccessMessage('Tarea eliminada exitosamente');
       }
     }
   };
 
-  // Guardar cambios en el Gantt
-  const handleSaveGantt = async () => {
-    if (!selectedProject) return;
-    
-    setIsSaving(true);
-    setSaveMessage(null);
-    
-    try {
-      const result = await syncAllActivitiesProgress();
-      
-      if (result.success) {
-        setSaveMessage('Cambios guardados exitosamente');
-        setTimeout(() => setSaveMessage(null), 3000);
-      } else {
-        setSaveMessage('Error al guardar: ' + result.error);
-        setTimeout(() => setSaveMessage(null), 5000);
-      }
-    } catch (error) {
-      setSaveMessage('Error al guardar los cambios');
-      setTimeout(() => setSaveMessage(null), 5000);
-    } finally {
-      setIsSaving(false);
-    }
+  // Mostrar mensaje de éxito
+  const showSuccessMessage = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   // Manejar clic en agregar actividad
@@ -483,7 +462,7 @@ export default function GanttPage() {
         setTempTasks([]);
         setShowActivityPopup(false);
         setSelectedActivityForPopup(null);
-        alert('Actividad creada exitosamente con sus tareas');
+        showSuccessMessage('Actividad creada exitosamente con sus tareas');
       }
     } else if (activityPopupMode === 'edit' && selectedActivityForPopup) {
       // Editar actividad existente
@@ -505,11 +484,21 @@ export default function GanttPage() {
           });
         }
 
+        // Actualizar la actividad seleccionada con los nuevos datos
+        const updatedActivity = {
+          ...selectedActivityForPopup,
+          name: unifiedActivityForm.name,
+          description: unifiedActivityForm.description
+        };
+        setSelectedActivityForPopup(updatedActivity);
+
+        // Limpiar formulario y tareas temporales
         setUnifiedActivityForm({ name: '', description: '' });
         setTempTasks([]);
-        setShowActivityPopup(false);
-        setSelectedActivityForPopup(null);
-        alert('Actividad actualizada exitosamente con sus nuevas tareas');
+        
+        // Volver al modo de información en lugar de cerrar el popup
+        setActivityPopupMode('view');
+        showSuccessMessage('Actividad actualizada exitosamente con sus nuevas tareas');
       }
     }
   };
@@ -538,7 +527,7 @@ export default function GanttPage() {
       setEditActivityForm({ name: '', description: '' });
       setShowEditActivity(false);
       setEditingActivity(null);
-      alert('Actividad actualizada exitosamente');
+      showSuccessMessage('Actividad actualizada exitosamente');
     }
   };
 
@@ -829,10 +818,10 @@ export default function GanttPage() {
       {/* Header */}
       <div className="space-y-4">
         {/* Selector de proyecto */}
-        <div className="flex items-center space-x-4">
-          <FolderKanban className="h-6 w-6 text-gray-600" />
+        <div className="flex items-center space-x-5">
+          <FolderKanban className="h-7 w-7 text-gray-600" />
           <div>
-            <Label htmlFor="project-select" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="project-select" className="text-base font-medium text-gray-700">
               Seleccionar Proyecto
             </Label>
             <div className="relative">
@@ -844,20 +833,20 @@ export default function GanttPage() {
                 }}
                 disabled={ganttLoading}
               >
-                <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-80">
+                <SelectTrigger className="mt-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-88 h-12 px-4 text-base">
                   <SelectValue placeholder="Selecciona un proyecto" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="text-base">
                   {proyectos.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                    <SelectItem key={project.id} value={project.id} className="py-3">
                       {project.proyecto} - {project.sede}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {ganttLoading && selectedProject && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
                 </div>
               )}
             </div>
@@ -866,107 +855,65 @@ export default function GanttPage() {
 
         {/* Cards de resumen - Siempre visibles */}
         <div className="relative">
-          {/* Botón Guardar Cambios - Posicionado absolutamente a la derecha */}
-          {selectedProject && (
-            <div className="absolute top-0 right-0 z-10">
-              <Button
-                onClick={handleSaveGantt}
-                disabled={isSaving}
-                className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-sm hover:shadow-md"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Guardando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    <span>Guardar Cambios</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
           
-          {/* Contenedor de las tarjetas centrado respecto a toda la tabla Gantt */}
+          {/* Contenedor de las tarjetas alineado con el final de la tabla Gantt */}
           <div className="flex justify-center">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4" style={{ width: '1272px', justifyContent: 'flex-end' }}>
               {/* Card Actividades completadas */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-20 relative">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
                 <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-1.5 bg-gray-100 rounded-md">
-                      <ActivityIcon className="h-3.5 w-3.5 text-gray-600" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <ActivityIcon className="h-5 w-5 text-gray-700" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Actividades</p>
-                      <p className="text-xs text-gray-500">completas</p>
+                      <p className="text-sm font-semibold text-gray-800">Actividades</p>
+                      <p className="text-xs text-gray-500">Completadas</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end space-y-1">
-                    <div className="flex items-baseline space-x-1">
-                      <span className="text-xl font-bold text-gray-900">{stats.completedActivities}</span>
-                      <span className="text-sm text-gray-400">/</span>
-                      <span className="text-sm font-medium text-gray-600">{stats.totalActivities}</span>
-                    </div>
-                    <div className="w-20 bg-gray-100 rounded-full h-1">
-                      <div 
-                        className="bg-gray-600 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${stats.totalActivities > 0 ? (stats.completedActivities / stats.totalActivities) * 100 : 0}%` }}
-                      ></div>
-                    </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-gray-900">{stats.completedActivities}</div>
+                    <div className="text-sm text-gray-500">de {stats.totalActivities}</div>
                   </div>
                 </div>
               </div>
 
               {/* Card Tareas completadas */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-20 relative">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
                 <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-1.5 bg-gray-100 rounded-md">
-                      <CheckSquare className="h-3.5 w-3.5 text-gray-600" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <CheckSquare className="h-5 w-5 text-gray-700" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Tareas</p>
-                      <p className="text-xs text-gray-500">completas</p>
+                      <p className="text-sm font-semibold text-gray-800">Tareas</p>
+                      <p className="text-xs text-gray-500">Completadas</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end space-y-1">
-                    <div className="flex items-baseline space-x-1">
-                      <span className="text-xl font-bold text-gray-900">{stats.completedTasks}</span>
-                      <span className="text-sm text-gray-400">/</span>
-                      <span className="text-sm font-medium text-gray-600">{stats.totalTasks}</span>
-                    </div>
-                    <div className="w-20 bg-gray-100 rounded-full h-1">
-                      <div 
-                        className="bg-gray-600 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
-                      ></div>
-                    </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-gray-900">{stats.completedTasks}</div>
+                    <div className="text-sm text-gray-500">de {stats.totalTasks}</div>
                   </div>
                 </div>
               </div>
 
               {/* Sección de Progreso */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-20 relative">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-24 relative">
                 <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-1.5 bg-gray-100 rounded-md">
-                      <TrendingUp className="h-3.5 w-3.5 text-gray-600" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-gray-700" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Progreso</p>
+                      <p className="text-sm font-semibold text-gray-800">Progreso</p>
                       <p className="text-xs text-gray-500">del proyecto</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end space-y-1">
-                    <div className="flex items-baseline space-x-1">
-                      <span className="text-xl font-bold text-gray-900">{calculateProjectProgress()}%</span>
-                    </div>
-                    <div className="w-24 bg-gray-100 rounded-full h-1.5">
+                  <div className="flex flex-col items-end space-y-2">
+                    <div className="text-4xl font-bold text-gray-900">{calculateProjectProgress()}%</div>
+                    <div className="w-28 bg-gray-100 rounded-full h-2">
                       <div 
-                        className="bg-gray-600 h-1.5 rounded-full transition-all duration-300"
+                        className="bg-gray-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${calculateProjectProgress()}%` }}
                       ></div>
                     </div>
@@ -978,25 +925,15 @@ export default function GanttPage() {
         </div>
       </div>
 
-      {/* Mensaje de feedback compacto */}
-      {saveMessage && (
+      {/* Mensaje de éxito */}
+      {successMessage && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <div className={`px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2 ${
-            saveMessage.includes('exitosamente') 
-              ? 'bg-green-500 text-white' 
-              : 'bg-red-500 text-white'
-          }`}>
-            {saveMessage.includes('exitosamente') ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.818a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            )}
+          <div className="px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 bg-green-500 text-white">
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
             <span className="text-sm font-medium">
-              {saveMessage.includes('exitosamente') ? '¡Guardado!' : 'Error'}
+              ¡Guardado!
             </span>
           </div>
         </div>
@@ -1090,7 +1027,9 @@ export default function GanttPage() {
                         {/* Fila de la actividad con sus tareas en la misma línea */}
                         <div className="flex hover:bg-gray-50 group">
                           <div 
-                            className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-center justify-between overflow-hidden relative"
+                            className={`w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
+                              !expandedDescriptions.has(activity.id) ? 'items-center' : ''
+                            }`}
                             style={{ 
                               height: `${expandedDescriptions.has(activity.id) 
                                 ? Math.max(48, 16 + 40 + (activity.tasks.length * 33)) // Altura completa cuando expandido: 40 para barra de actividad + 33px por tarea
@@ -1099,7 +1038,9 @@ export default function GanttPage() {
                             }}
                           >
                             <div className="flex-1 min-w-0 max-w-full">
-                              <div className="flex items-center space-x-2">
+                              <div className={`flex space-x-2 ${
+                                !expandedDescriptions.has(activity.id) ? 'items-center' : 'items-start'
+                              }`}>
                                 {/* Columna de botones a la izquierda */}
                                 <div className="flex flex-col items-center space-y-1 flex-shrink-0">
                                   {/* Botón expandir/colapsar */}
@@ -1122,15 +1063,6 @@ export default function GanttPage() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={(e) => handleEditActivityClick(e, activity)}
-                                        className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
                                         onClick={() => handleDeleteActivity(activity.id)}
                                         className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
                                       >
@@ -1142,8 +1074,15 @@ export default function GanttPage() {
                                 
                                 {/* Contenido de la actividad - solo visible cuando NO está expandido */}
                                 {!expandedDescriptions.has(activity.id) && (
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-gray-900 break-words min-w-0 leading-tight" style={{ fontSize: '13px' }}>{activity.name}</h4>
+                                  <div className="flex-1 min-w-0 flex items-center">
+                                    <h4 
+                                      className="font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-gray-600 transition-colors duration-200" 
+                                      style={{ fontSize: '13px' }}
+                                      onClick={() => handleActivityBarClick(activity)}
+                                      title="Haz clic para ver detalles de la actividad"
+                                    >
+                                      {activity.name}
+                                    </h4>
                                   </div>
                                 )}
                               </div>
@@ -1187,7 +1126,7 @@ export default function GanttPage() {
                                     
                                     return (
                                       <div 
-                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto"
+                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto cursor-pointer hover:text-gray-600 transition-colors duration-200"
                                         style={{ 
                                           fontSize: '13px',
                                           lineHeight: '1.2',
@@ -1196,6 +1135,8 @@ export default function GanttPage() {
                                           right: '8px',
                                           zIndex: 10
                                         }}
+                                        onClick={() => handleActivityBarClick(activity)}
+                                        title="Haz clic para ver detalles de la actividad"
                                       >
                                         {activity.name}
                                       </div>
@@ -1698,34 +1639,32 @@ export default function GanttPage() {
                             <div key={task.id} className="flex items-start justify-between p-2 bg-white rounded border">
                               <div className="flex items-start space-x-2 flex-1 min-w-0">
                                 <span className="text-xs text-gray-500">{index + 1}.</span>
-                                {activityPopupMode !== 'view' && (
-                                  <input
-                                    type="checkbox"
-                                    checked={task.completed}
-                                    onChange={async () => {
-                                      if (task.id.startsWith('temp-')) {
-                                        // Actualizar tarea temporal
-                                        setTempTasks(prev => prev.map(t => 
-                                          t.id === task.id ? { ...t, completed: !t.completed } : t
-                                        ));
-                                      } else {
-                                        // Actualizar tarea existente en la base de datos
-                                        handleToggleTaskCompletion(task.id);
-                                        // Actualizar la actividad para reflejar el cambio
-                                        if (selectedActivityForPopup) {
-                                          const updatedActivity = {
-                                            ...selectedActivityForPopup,
-                                            tasks: selectedActivityForPopup.tasks?.map(t => 
-                                              t.id === task.id ? { ...t, completed: !t.completed } : t
-                                            ) || []
-                                          };
-                                          setSelectedActivityForPopup(updatedActivity);
-                                        }
+                                <input
+                                  type="checkbox"
+                                  checked={task.completed}
+                                  onChange={async () => {
+                                    if (task.id.startsWith('temp-')) {
+                                      // Actualizar tarea temporal
+                                      setTempTasks(prev => prev.map(t => 
+                                        t.id === task.id ? { ...t, completed: !t.completed } : t
+                                      ));
+                                    } else {
+                                      // Actualizar tarea existente en la base de datos
+                                      handleToggleTaskCompletion(task.id);
+                                      // Actualizar la actividad para reflejar el cambio
+                                      if (selectedActivityForPopup) {
+                                        const updatedActivity = {
+                                          ...selectedActivityForPopup,
+                                          tasks: selectedActivityForPopup.tasks?.map(t => 
+                                            t.id === task.id ? { ...t, completed: !t.completed } : t
+                                          ) || []
+                                        };
+                                        setSelectedActivityForPopup(updatedActivity);
                                       }
-                                    }}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                                  />
-                                )}
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                />
                                 <span className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'} break-words max-w-[200px]`}>
                                   {task.name}
                                 </span>
@@ -1791,13 +1730,42 @@ export default function GanttPage() {
 
                 {/* Botones de acción */}
                 <div className="flex justify-end space-x-2 pt-4">
+                  {activityPopupMode === 'view' && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Cambiar al modo de edición
+                        setActivityPopupMode('edit');
+                        setUnifiedActivityForm({
+                          name: selectedActivityForPopup?.name || '',
+                          description: selectedActivityForPopup?.description || ''
+                        });
+                        setTempTasks([]);
+                      }}
+                      size="sm"
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                  )}
+                  
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setShowActivityPopup(false);
-                      setSelectedActivityForPopup(null);
-                      setUnifiedActivityForm({ name: '', description: '' });
-                      setTempTasks([]);
+                      if (activityPopupMode === 'view') {
+                        // Si está en modo vista, cerrar el popup completamente
+                        setShowActivityPopup(false);
+                        setSelectedActivityForPopup(null);
+                        setUnifiedActivityForm({ name: '', description: '' });
+                        setTempTasks([]);
+                        setActivityPopupMode('view');
+                      } else {
+                        // Si está en modo edición, volver al modo vista
+                        setActivityPopupMode('view');
+                        setUnifiedActivityForm({ name: '', description: '' });
+                        setTempTasks([]);
+                      }
                     }}
                     size="sm"
                   >
@@ -1823,3 +1791,5 @@ export default function GanttPage() {
     </TooltipProvider>
   );
 }
+
+
