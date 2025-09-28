@@ -3,8 +3,6 @@ CREATE TABLE IF NOT EXISTS activities (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   description TEXT,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
   progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
   project_id UUID NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
   color VARCHAR(50) DEFAULT 'bg-blue-500',
@@ -17,8 +15,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
   progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
   activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -28,8 +24,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 -- Crear índices para mejorar el rendimiento
 CREATE INDEX IF NOT EXISTS idx_activities_project_id ON activities(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_activity_id ON tasks(activity_id);
-CREATE INDEX IF NOT EXISTS idx_activities_dates ON activities(start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_tasks_dates ON tasks(start_date, end_date);
 
 -- Crear función para actualizar updated_at automáticamente
 CREATE OR REPLACE FUNCTION update_updated_at_column()

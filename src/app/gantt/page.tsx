@@ -183,9 +183,7 @@ export default function GanttPage() {
 
     const { error } = await createActivity({
       name: createActivityForm.name,
-      description: createActivityForm.description,
-      start_date: null as any,
-      end_date: null as any
+      description: createActivityForm.description
     });
 
     if (error) {
@@ -511,6 +509,129 @@ export default function GanttPage() {
     const end = new Date(endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  // Formatear fecha para mostrar en tooltip
+  const formatDateForTooltip = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleDateString('es-ES', { month: 'long' }).toLowerCase();
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // Obtener información para el tooltip de la actividad
+  const getActivityTooltipContent = (activity: Activity) => {
+    const activityRange = getActivityDateRange(activity);
+    const sortedTasks = activity.tasks ? [...activity.tasks].sort((a, b) => 
+      new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    ) : [];
+
+    return (
+      <div className="space-y-2">
+        <div>
+          <div className="font-semibold text-sm text-gray-900">{activity.name}</div>
+        </div>
+        
+        {activityRange && (
+          <div className="text-xs text-gray-600">
+            <div><span className="font-medium">Inicio:</span> {formatDateForTooltip(activityRange.startDate)}</div>
+            <div><span className="font-medium">Término:</span> {formatDateForTooltip(activityRange.endDate)}</div>
+          </div>
+        )}
+        
+        {sortedTasks.length > 0 && (
+          <div className="text-xs">
+            <div className="font-medium text-gray-700 mb-1">Tareas involucradas:</div>
+            <div className="space-y-1">
+              {sortedTasks.map((task, index) => (
+                <div key={task.id} className="flex items-center space-x-2">
+                  <span className="text-gray-500">{index + 1}.</span>
+                  <span className="text-gray-600">{task.name}</span>
+                  <span className="text-gray-400">({formatDateForTooltip(task.start_date)} - {formatDateForTooltip(task.end_date)})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Estado para el tooltip global
+  const [tooltipState, setTooltipState] = useState<{
+    show: boolean;
+    content: React.ReactNode;
+    x: number;
+    y: number;
+    activityId: string;
+  }>({
+    show: false,
+    content: null,
+    x: 0,
+    y: 0,
+    activityId: ''
+  });
+
+  // Manejar el hover del tooltip para posicionarlo correctamente
+  const handleTooltipHover = (event: React.MouseEvent, show: boolean, activity: Activity) => {
+    if (show) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      
+      // Calcular posición vertical - justo encima de la barra
+      let top = rect.top - 10; // 10px de separación
+      
+      // Calcular posición horizontal - centrado sobre la barra
+      let left = rect.left + (rect.width / 2);
+      
+      setTooltipState({
+        show: true,
+        content: getActivityTooltipContent(activity),
+        x: left,
+        y: top,
+        activityId: activity.id
+      });
+    } else {
+      setTooltipState({
+        show: false,
+        content: null,
+        x: 0,
+        y: 0,
+        activityId: ''
+      });
+    }
+  };
+
+  // Calcular el rango de fechas de una actividad basado en sus tareas
+  const getActivityDateRange = (activity: Activity) => {
+    if (!activity.tasks || activity.tasks.length === 0) {
+      return null;
+    }
+
+    // Ordenar las tareas por fecha de inicio
+    const sortedTasks = [...activity.tasks].sort((a, b) => 
+      new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    );
+
+    const firstTask = sortedTasks[0];
+    const lastTask = sortedTasks[sortedTasks.length - 1];
+
+    return {
+      startDate: firstTask.start_date,
+      endDate: lastTask.end_date
+    };
+  };
+
+  // Calcular el progreso de una actividad basado en tareas completadas
+  const getActivityProgress = (activity: Activity) => {
+    if (!activity.tasks || activity.tasks.length === 0) {
+      return 0;
+    }
+
+    const completedTasks = activity.tasks.filter(task => task.completed).length;
+    const totalTasks = activity.tasks.length;
+    
+    return Math.round((completedTasks / totalTasks) * 100);
   };
 
   // Obtener ancho de la barra basado en la duración para tareas
@@ -855,7 +976,7 @@ export default function GanttPage() {
                 <div
                   className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
                   style={{
-                    left: `calc(392px + ${getTodayPositionPercent()}% * (100% - 392px) / 100%)`,
+                    left: `calc(320px + ${getTodayPositionPercent()}% * (100% - 320px) / 100%)`,
                     height: '100%'
                   }}
                 ></div>
@@ -870,8 +991,6 @@ export default function GanttPage() {
                         )}
                       </div>
                     </div>
-                  <div className="w-12 p-2 border-r border-gray-200 bg-gray-50">
-                  </div>
                   <div className="flex-1 flex relative">
                     {MONTHS.map((month, index) => (
                       <div key={month} className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center">
@@ -903,7 +1022,6 @@ export default function GanttPage() {
                         <p className="text-sm text-gray-500">Selecciona un proyecto</p>
                       </div>
                     </div>
-                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
                     <div className="flex-1 p-4 bg-gray-50 flex items-center justify-center">
                       <p className="text-sm text-gray-400">El calendario Gantt aparecerá aquí</p>
                     </div>
@@ -924,7 +1042,6 @@ export default function GanttPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
                     <div className="flex-1 p-4 bg-gray-50"></div>
                   </div>
                 ) : (
@@ -932,7 +1049,7 @@ export default function GanttPage() {
                     {activities.map((activity) => (
                       <div key={activity.id} className="border-b border-gray-200">
                         {/* Fila de la actividad con sus tareas en la misma línea */}
-                        <div className="flex hover:bg-gray-50">
+                        <div className="flex hover:bg-gray-50 group">
                           <div className="w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex items-start justify-between overflow-hidden relative">
                             <div className="flex-1 min-w-0 max-w-full">
                               <div className="flex items-start space-x-2">
@@ -987,25 +1104,25 @@ export default function GanttPage() {
                                 </div>
                               </div>
                             </div>
-                          </div>
-                          
-                          {/* Columna de acciones - Botón agregar tarea */}
-                          <div className="w-12 p-2 border-r border-gray-200 flex items-center justify-center">
-                            <div className="relative group">
-                              <Button
-                                onClick={(e) => {
-                                  setSelectedActivity(activity);
-                                  handleAddTaskClick(e);
-                                }}
-                                variant="outline"
-                                className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <div 
-                                className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
-                              >
-                                Agregar tarea
+                            
+                            {/* Botón flotante para agregar tarea - aparece al hacer hover */}
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <div className="relative group">
+                                <Button
+                                  onClick={(e) => {
+                                    setSelectedActivity(activity);
+                                    handleAddTaskClick(e);
+                                  }}
+                                  variant="outline"
+                                  className="border-2 border-blue-400 text-blue-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-600 rounded-full w-8 h-8 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <div 
+                                  className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]"
+                                >
+                                  Agregar tarea
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1014,36 +1131,106 @@ export default function GanttPage() {
                           <div 
                             className="flex-1 relative p-2"
                             style={{ 
-                              height: `${Math.max(48, 16 + (activity.tasks.length * 40))}px` // Altura dinámica: mínimo 48px, 16px para botón + 40px por cada tarea
+                              height: `${expandedDescriptions.has(activity.id) 
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 33)) // Altura completa cuando expandido: 40 para barra de actividad + 33px por tarea
+                                : Math.max(48, 16 + 40) // Solo barra de actividad cuando colapsado
+                              }px`
                             }}
                           >
                             
-                            {/* Barras de Gantt de las tareas apiladas verticalmente */}
-                            {activity.tasks.map((task, index) => {
-                              const containerHeight = Math.max(48, 16 + (activity.tasks.length * 40));
-                              const totalTasksHeight = activity.tasks.length * 40;
+                            {/* Barra de actividad - como primera "tarea" */}
+                            {(() => {
+                              const activityRange = getActivityDateRange(activity);
+                              if (!activityRange) return null;
+
+                              const startPos = getDatePosition(activityRange.startDate);
+                              const barWidth = getBarWidth(activityRange.startDate, activityRange.endDate);
+                              
+                              // Si la actividad no es visible (ancho 0), no renderizarla
+                              if (barWidth === 0) return null;
+
+                              const isExpanded = expandedDescriptions.has(activity.id);
+                              const taskSpacing = 33; // Espaciado reducido entre tareas (un poco menos que el de la barra de actividad)
+                              const containerHeight = isExpanded 
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
+                                : Math.max(48, 16 + 40);
+                              const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
                               const availableHeight = containerHeight - 16; // Restar padding
-                              const startOffset = (availableHeight - totalTasksHeight) / 2 + 4;
+                              const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
+
+                              const activityProgress = getActivityProgress(activity);
+
+                              return (
+                                <div key={`activity-${activity.id}`} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                                  <div 
+                                    className="relative h-8" 
+                                    style={{ 
+                                      top: `${startOffset}px`
+                                    }}
+                                  >
+                                    {/* Barra de fondo gris con tooltip */}
+                                    <div className="relative group h-8">
+                                      <div
+                                        className="absolute top-0 h-8 bg-gray-500 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
+                                        style={{
+                                          left: `${startPos.left}%`,
+                                          width: `${barWidth}%`
+                                        }}
+                                        onMouseEnter={(e) => handleTooltipHover(e, true, activity)}
+                                        onMouseLeave={(e) => handleTooltipHover(e, false, activity)}
+                                      >
+                                        {/* Barra de progreso verde - perfectamente alineada */}
+                                        <div
+                                          className="absolute bg-green-500 rounded transition-all duration-300 z-20"
+                                          style={{
+                                            width: `${activityProgress}%`,
+                                            top: '0px',
+                                            left: '0px',
+                                            height: '32px'
+                                          }}
+                                        ></div>
+                                        
+                                        {/* Porcentaje al final de la barra */}
+                                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white z-30">
+                                          {activityProgress}%
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Barras de Gantt de las tareas apiladas verticalmente - solo visibles cuando expandido */}
+                            {expandedDescriptions.has(activity.id) && activity.tasks.map((task, index) => {
+                              const isExpanded = expandedDescriptions.has(activity.id);
+                              const taskSpacing = 33; // Espaciado reducido entre tareas (un poco menos que el de la barra de actividad)
+                              const containerHeight = isExpanded 
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
+                                : Math.max(48, 16 + 40);
+                              const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
+                              const availableHeight = containerHeight - 16; // Restar padding
+                              const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
                               
                               // Verificar si la tarea está dentro del rango visible (enero a diciembre)
                               const startPos = getDatePosition(task.start_date);
                               const barWidth = getBarWidth(task.start_date, task.end_date);
                               
                               // Si la tarea no es visible (ancho 0), no renderizarla
-                              if (barWidth === 0) {
-                                return null;
-                              }
-                              
-                              return (
+                                if (barWidth === 0) {
+                                  return null;
+                                }
+                                
+                                return (
                                 <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
                                   <div 
-                                    className="relative h-8" 
+                                    className="relative h-6" 
                                     style={{ 
-                                      top: `${startOffset + (index * 40)}px`
+                                      top: `${startOffset + 40 + (index * taskSpacing) + 1}px` // 40 para la barra de actividad + espaciado reducido entre tareas
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-10`}
+                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-20`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
@@ -1064,7 +1251,7 @@ export default function GanttPage() {
                                       // Colocar el nombre dentro de la barra cuando hay desbordamiento
                                       return (
                                         <div 
-                                          className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-2 py-1 rounded shadow-sm border"
+                                          className="absolute text-xs font-medium text-gray-700 z-20 bg-white px-1.5 py-1 rounded shadow-sm border"
                                           style={{
                                             left: `${startPos.left + 2}%`,
                                             top: '50%', // Centrar verticalmente en la barra
@@ -1082,7 +1269,7 @@ export default function GanttPage() {
                                       // Posicionamiento normal a la izquierda de la barra
                                       return (
                                         <div 
-                                          className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-2 py-1 rounded shadow-sm border"
+                                          className="absolute top-1/2 text-xs font-medium text-gray-700 z-10 bg-white px-1.5 py-1 rounded shadow-sm border"
                                           style={{
                                             left: `${startPos.left - 2}%`,
                                             transform: 'translateY(-50%) translateX(-100%)'
@@ -1096,7 +1283,7 @@ export default function GanttPage() {
                                   
                                   {/* Controles al final de la barra */}
                                   <div 
-                                    className="absolute top-1/2 flex items-center space-x-2 bg-white/90 rounded px-2 py-1 shadow-sm border z-20"
+                                    className="absolute top-1/2 flex items-center space-x-1.5 bg-white/90 rounded px-1.5 py-1 shadow-sm border z-30"
                                     style={{
                                       left: `${startPos.left + barWidth + 1}%`,
                                       transform: 'translateY(-50%)'
@@ -1105,15 +1292,15 @@ export default function GanttPage() {
                                     <Checkbox
                                       checked={task.completed}
                                       onCheckedChange={() => handleToggleTaskCompletion(task.id)}
-                                      className="h-4 w-4"
+                                      className="h-3.5 w-3.5"
                                     />
                                     <Button
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleDeleteTask(task.id)}
-                                      className="h-4 w-4 p-0 text-red-500 hover:text-red-600"
+                                      className="h-3.5 w-3.5 p-0 text-red-500 hover:text-red-600"
                                     >
-                                      <Trash2 className="h-3 w-3" />
+                                      <Trash2 className="h-2.5 w-2.5" />
                                     </Button>
                                   </div>
                                 </div>
@@ -1144,7 +1331,6 @@ export default function GanttPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="w-12 p-2 border-r border-gray-200 bg-gray-50"></div>
                       <div className="flex-1 p-4 bg-gray-50"></div>
                     </div>
                   </>
@@ -1484,6 +1670,20 @@ export default function GanttPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Tooltip global - fuera del contenedor de la tabla */}
+      {tooltipState.show && (
+        <div
+          className="fixed z-[9999] max-w-sm px-3 py-2 bg-white text-gray-700 text-sm rounded-lg shadow-lg border border-gray-200"
+          style={{
+            left: tooltipState.x,
+            top: tooltipState.y,
+            transform: 'translateX(-50%) translateY(-100%)'
+          }}
+        >
+          {tooltipState.content}
         </div>
       )}
       </div>

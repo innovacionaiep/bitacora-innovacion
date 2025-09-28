@@ -17,8 +17,6 @@ export type Activity = {
   id: string;
   name: string;
   description: string;
-  start_date: string;
-  end_date: string;
   progress: number;
   project_id: string;
   color: string;
@@ -116,8 +114,6 @@ export function useGantt(projectId: string | null) {
   const createActivity = async (activityData: {
     name: string;
     description: string;
-    start_date: string;
-    end_date: string;
   }) => {
     if (!projectId) throw new Error('No hay proyecto seleccionado');
 
