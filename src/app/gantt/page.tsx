@@ -62,6 +62,19 @@ export default function GanttPage() {
   
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12); // 12 meses por defecto
+  
+  // Estado para las líneas de conexión externas
+  const [connectionLines, setConnectionLines] = useState<{
+    show: boolean;
+    from: { x: number; y: number } | null;
+    to: { x: number; y: number } | null;
+    type: 'activity' | 'task' | null;
+  }>({
+    show: false,
+    from: null,
+    to: null,
+    type: null
+  });
 
   // Generar los meses visibles basados en el offset y rango
   const getVisibleMonths = () => {
@@ -157,6 +170,81 @@ export default function GanttPage() {
   };
 
   const stats = getProjectStats();
+
+  // Función para manejar el hover en elementos específicos (BARRAS - NO TOCAR)
+  const handleElementHover = (event: React.MouseEvent, type: 'activity' | 'task', elementId: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    
+    // Calcular posición absoluta en la pantalla
+    const fromX = rect.right;
+    const fromY = rect.top + rect.height / 2;
+    
+    // Buscar el elemento correspondiente en el área de barras
+    const targetElement = document.querySelector(`[data-${type}-id="${elementId}"]`);
+    if (targetElement) {
+      const targetRect = targetElement.getBoundingClientRect();
+      const toX = targetRect.left;
+      const toY = targetRect.top + targetRect.height / 2;
+      
+      setConnectionLines({
+        show: true,
+        from: { x: fromX, y: fromY },
+        to: { x: toX, y: toY },
+        type: type
+      });
+    }
+  };
+
+  // Función para manejar el hover en TÍTULOS (replica la lógica de las barras)
+  const handleTitleHover = (event: React.MouseEvent, type: 'activity' | 'task', elementId: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    
+    // Buscar el contenedor de la tabla para obtener la posición del borde derecho de la columna
+    const ganttContainer = event.currentTarget.closest('.gantt-container');
+    if (!ganttContainer) return;
+    
+    const containerRect = ganttContainer.getBoundingClientRect();
+    
+    // Calcular la posición del borde derecho de la columna de actividades (416px desde el inicio del contenedor)
+    const fromX = containerRect.left + 416; // Borde derecho de la columna de actividades
+    const fromY = rect.top + rect.height / 2;
+    
+    // Buscar el elemento correspondiente en el área de barras
+    const targetElement = document.querySelector(`[data-${type}-id="${elementId}"]`);
+    if (targetElement) {
+      const targetRect = targetElement.getBoundingClientRect();
+      const toX = targetRect.left;
+      const toY = targetRect.top + targetRect.height / 2;
+      
+      console.log('Title hover:', {
+        type,
+        elementId,
+        from: { x: fromX, y: fromY },
+        to: { x: toX, y: toY },
+        rect: rect,
+        targetRect: targetRect,
+        containerRect: containerRect
+      });
+      
+      setConnectionLines({
+        show: true,
+        from: { x: fromX, y: fromY },
+        to: { x: toX, y: toY },
+        type: type
+      });
+    } else {
+      console.log('Target element not found:', `[data-${type}-id="${elementId}"]`);
+    }
+  };
+
+  const handleElementLeave = () => {
+    setConnectionLines({
+      show: false,
+      from: null,
+      to: null,
+      type: null
+    });
+  };
 
   // Función para cerrar todos los popups
   const closeAllPopups = () => {
@@ -846,6 +934,48 @@ export default function GanttPage() {
 
   return (
     <TooltipProvider>
+      <style jsx>{`
+        .connection-line-path {
+          stroke: #6b7280;
+          stroke-width: 1;
+          stroke-dasharray: 4 4;
+          fill: none;
+          opacity: 0.8;
+        }
+      `}</style>
+      
+      {/* Líneas de conexión superpuestas - AL NIVEL MÁS ALTO */}
+      {connectionLines.show && connectionLines.from && connectionLines.to && (
+        <div 
+          className="fixed pointer-events-none"
+          style={{
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 999999
+          }}
+        >
+          <svg
+            width="100%"
+            height="100%"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
+            <path
+              className="connection-line-path"
+              d={`M ${connectionLines.from.x} ${connectionLines.from.y} L ${connectionLines.to.x} ${connectionLines.to.y}`}
+              style={{
+                stroke: '#6b7280',
+                strokeWidth: 2,
+                strokeDasharray: '4 4',
+                fill: 'none',
+                opacity: 1
+              }}
+            />
+          </svg>
+        </div>
+      )}
+      
       <div className="pt-4 px-4 pb-4 space-y-4">
       {/* Header */}
       <div className="space-y-4">
@@ -933,7 +1063,7 @@ export default function GanttPage() {
       <div className="space-y-6 mt-12">
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto relative overflow-y-visible">
+            <div className="gantt-container overflow-x-auto relative overflow-y-visible">
               <div className="w-full min-w-[800px]">
                 
                 {/* Línea roja continua del día de hoy - atraviesa toda la tabla - Solo visible si estamos en el rango actual */}
@@ -1018,7 +1148,7 @@ export default function GanttPage() {
                     {activities.map((activity) => (
                       <div key={activity.id} className="border-b border-gray-200">
                         {/* Fila de la actividad con sus tareas en la misma línea */}
-                        <div className="flex hover:bg-gray-50 group">
+                        <div className="flex hover:bg-gray-50 group relative">
                           <div 
                             className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
                               !expandedDescriptions.has(activity.id) ? 'items-center' : ''
@@ -1067,14 +1197,17 @@ export default function GanttPage() {
                                 
                                 {/* Contenido de la actividad - solo visible cuando NO está expandido */}
                                 {!expandedDescriptions.has(activity.id) && (
-                                  <div className="flex-1 min-w-0 flex items-center">
+                                  <div className="flex-1 min-w-0 flex items-center relative">
                                     <h4 
-                                      className="font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200" 
+                                      className="activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200" 
                                       style={{ 
                                         fontSize: '15px',
                                         lineHeight: activity.name.length > 50 ? '1.1' : '1.3'
                                       }}
+                                      data-activity-id={activity.id}
                                       onClick={() => handleActivityBarClick(activity)}
+                                      onMouseEnter={(e) => handleTitleHover(e, 'activity', activity.id)}
+                                      onMouseLeave={handleElementLeave}
                                       title="Haz clic para ver detalles de la actividad"
                                     >
                                       {activity.name}
@@ -1134,7 +1267,14 @@ export default function GanttPage() {
                                         onClick={() => handleActivityBarClick(activity)}
                                         title="Haz clic para ver detalles de la actividad"
                                       >
-                                        {activity.name}
+                                        <span 
+                                          className="activity-title"
+                                          data-activity-id={activity.id}
+                                          onMouseEnter={(e) => handleTitleHover(e, 'activity', activity.id)}
+                                          onMouseLeave={handleElementLeave}
+                                        >
+                                          {activity.name}
+                                        </span>
                                       </div>
                                     );
                                   })()}
@@ -1198,7 +1338,12 @@ export default function GanttPage() {
                                           </label>
                                         </div>
                                         {/* Nombre de la tarea */}
-                                        <span className={`flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                                        <span 
+                                          className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}
+                                          data-task-id={task.id}
+                                          onMouseEnter={(e) => handleTitleHover(e, 'task', task.id)}
+                                          onMouseLeave={handleElementLeave}
+                                        >
                                           {task.name}
                                         </span>
                                       </div>
@@ -1254,12 +1399,15 @@ export default function GanttPage() {
                                     {/* Barra de fondo gris con popup */}
                                     <div className="relative group h-8">
                                       <div
-                                        className="absolute top-0 h-8 bg-gray-400 rounded-xl shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
+                                        className="activity-bar absolute top-0 h-8 bg-gray-400 rounded-xl shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
                                         style={{
                                           left: `${startPos.left}%`,
                                           width: `${barWidth}%`
                                         }}
+                                        data-activity-id={activity.id}
                                         onClick={() => handleActivityBarClick(activity)}
+                                        onMouseEnter={(e) => handleElementHover(e, 'activity', activity.id)}
+                                        onMouseLeave={handleElementLeave}
                                         title="Haz clic para ver detalles de la actividad"
                                       >
                                         {/* Barra de progreso verde - perfectamente alineada */}
@@ -1315,11 +1463,15 @@ export default function GanttPage() {
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20`}
+                                    className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-pointer hover:opacity-80 transition-opacity duration-200`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
                                     }}
+                                    data-task-id={task.id}
+                                    onMouseEnter={(e) => handleElementHover(e, 'task', task.id)}
+                                    onMouseLeave={handleElementLeave}
+                                    title={`Tarea: ${task.name}`}
                                   >
                                   </div>
                                   
@@ -1329,6 +1481,7 @@ export default function GanttPage() {
                               );
                             })}
                           </div>
+                          
                         </div>
                       </div>
                     ))}
@@ -1357,6 +1510,7 @@ export default function GanttPage() {
                   </>
                 )}
               </div>
+              
             </div>
           </CardContent>
         </Card>
