@@ -1085,7 +1085,7 @@ export default function GanttPage() {
                                 <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
                                   {(() => {
                                     const isExpanded = expandedDescriptions.has(activity.id);
-                                    const taskSpacing = 33; // Espaciado entre tareas
+                                    const taskSpacing = 22; // Espaciado entre tareas
                                     const containerHeight = isExpanded 
                                       ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
                                       : Math.max(48, 16 + 40);
@@ -1145,7 +1145,7 @@ export default function GanttPage() {
                                     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                                     .map((task, index) => {
                                     const isExpanded = expandedDescriptions.has(activity.id);
-                                    const taskSpacing = 33; // Espaciado entre tareas
+                                    const taskSpacing = 22; // Espaciado entre tareas
                                     const containerHeight = isExpanded 
                                       ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
                                       : Math.max(48, 16 + 40);
@@ -1156,9 +1156,9 @@ export default function GanttPage() {
                                     return (
                                       <div 
                                         key={task.id} 
-                                        className="absolute text-xs text-gray-600 bg-white px-2 py-1 rounded shadow-sm border border-gray-200 pointer-events-auto"
+                                        className="absolute text-xs text-gray-600 pointer-events-auto"
                                         style={{ 
-                                          top: `${startOffset + 40 + (index * taskSpacing) + 8}px`, // 40 para la barra de actividad + espaciado + offset
+                                          top: `${startOffset + 40 + (index * taskSpacing) + 13}px`, // 40 para la barra de actividad + espaciado + offset
                                           left: '60px', // Posición fija desde la izquierda
                                           right: '8px',
                                           zIndex: 10
@@ -1197,7 +1197,7 @@ export default function GanttPage() {
                               if (barWidth === 0) return null;
 
                               const isExpanded = expandedDescriptions.has(activity.id);
-                              const taskSpacing = 33; // Espaciado reducido entre tareas (un poco menos que el de la barra de actividad)
+                              const taskSpacing = 22; // Espaciado reducido entre tareas
                               const containerHeight = isExpanded 
                                 ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
                                 : Math.max(48, 16 + 40);
@@ -1253,7 +1253,7 @@ export default function GanttPage() {
                               .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                               .map((task, index) => {
                               const isExpanded = expandedDescriptions.has(activity.id);
-                              const taskSpacing = 33; // Espaciado reducido entre tareas (un poco menos que el de la barra de actividad)
+                              const taskSpacing = 22; // Espaciado reducido entre tareas
                               const containerHeight = isExpanded 
                                 ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
                                 : Math.max(48, 16 + 40);
