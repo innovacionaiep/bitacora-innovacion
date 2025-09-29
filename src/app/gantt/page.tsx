@@ -1025,7 +1025,7 @@ export default function GanttPage() {
                             }`}
                             style={{ 
                               height: `${expandedDescriptions.has(activity.id) 
-                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 33)) // Altura completa cuando expandido: 40 para barra de actividad + 33px por tarea
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 22) + 16) // Altura completa cuando expandido: 16px superior + 40px barra actividad + 22px por tarea + 16px inferior
                                 : Math.max(48, 16 + 40) // Solo barra de actividad cuando colapsado
                               }px`
                             }}
@@ -1090,7 +1090,7 @@ export default function GanttPage() {
                                     const isExpanded = expandedDescriptions.has(activity.id);
                                     const taskSpacing = 22; // Espaciado entre tareas
                                     const containerHeight = isExpanded 
-                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
+                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
                                       : Math.max(48, 16 + 40);
                                     const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
                                     const availableHeight = containerHeight - 16; // Restar padding
@@ -1150,7 +1150,7 @@ export default function GanttPage() {
                                     const isExpanded = expandedDescriptions.has(activity.id);
                                     const taskSpacing = 22; // Espaciado entre tareas
                                     const containerHeight = isExpanded 
-                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing))
+                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
                                       : Math.max(48, 16 + 40);
                                     const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
                                     const availableHeight = containerHeight - 16; // Restar padding
@@ -1215,7 +1215,7 @@ export default function GanttPage() {
                             className="flex-1 relative p-2"
                             style={{ 
                               height: `${expandedDescriptions.has(activity.id) 
-                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 33)) // Altura completa cuando expandido: 40 para barra de actividad + 33px por tarea
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * 22) + 16) // Altura completa cuando expandido: 16px superior + 40px barra actividad + 22px por tarea + 16px inferior
                                 : Math.max(48, 16 + 40) // Solo barra de actividad cuando colapsado
                               }px`
                             }}
@@ -1235,7 +1235,7 @@ export default function GanttPage() {
                               const isExpanded = expandedDescriptions.has(activity.id);
                               const taskSpacing = 22; // Espaciado reducido entre tareas
                               const containerHeight = isExpanded 
-                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16) // 16px superior + 40px barra actividad + 22px por tarea + 16px inferior
                                 : Math.max(48, 16 + 40);
                               const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
                               const availableHeight = containerHeight - 16; // Restar padding
@@ -1291,7 +1291,7 @@ export default function GanttPage() {
                               const isExpanded = expandedDescriptions.has(activity.id);
                               const taskSpacing = 22; // Espaciado reducido entre tareas
                               const containerHeight = isExpanded 
-                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing)) // 40 para barra de actividad + tareas con espaciado reducido
+                                ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16) // 16px superior + 40px barra actividad + 22px por tarea + 16px inferior
                                 : Math.max(48, 16 + 40);
                               const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
                               const availableHeight = containerHeight - 16; // Restar padding
@@ -1315,7 +1315,7 @@ export default function GanttPage() {
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl shadow-sm border border-white/20 z-20`}
+                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
