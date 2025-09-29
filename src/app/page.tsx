@@ -287,7 +287,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-end w-full">
         <Button 
           onClick={exportToExcel}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
         >
           <Download className="h-4 w-4" />
           <span>Exportar Excel</span>
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                   <TableCell>
                     <div className="flex items-center">
                       <div className="flex-1 bg-gray-200 rounded h-3 relative">
-                        <div className="bg-green-500 h-3 rounded" style={{ width: `${p.avance_gantt}%` }}></div>
+                        <div className="bg-emerald-500 h-3 rounded" style={{ width: `${p.avance_gantt}%` }}></div>
                       </div>
                       <span className="text-xs text-black ml-2">{p.avance_gantt}%</span>
                     </div>
@@ -411,7 +411,7 @@ export default function DashboardPage() {
                   <TableCell>
                     <div className="flex items-center">
                       <div className="flex-1 bg-gray-200 rounded h-3 relative">
-                        <div className="bg-green-500 h-3 rounded" style={{ width: `${p.objetivos}%` }}></div>
+                        <div className="bg-emerald-500 h-3 rounded" style={{ width: `${p.objetivos}%` }}></div>
                       </div>
                       <span className="text-xs text-black ml-2">{p.objetivos}%</span>
                     </div>

@@ -891,7 +891,7 @@ export default function GanttPage() {
           <div className="flex items-center justify-end pr-8">
             <div className="flex items-center space-x-8">
               <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg shadow-sm">
-                <TrendingUp className="h-8 w-8 text-green-600" />
+                <TrendingUp className="h-8 w-8 text-emerald-600" />
               </div>
               <div className="flex items-center space-x-6">
                 <div>
@@ -901,11 +901,11 @@ export default function GanttPage() {
                 <div className="flex items-center space-x-4">
                   <div className="w-80 min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
                     <div 
-                      className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
                       style={{ width: `${calculateProjectProgress()}%` }}
                     ></div>
                   </div>
-                  <div className="text-5xl font-bold text-green-600 drop-shadow-sm">{calculateProjectProgress()}%</div>
+                  <div className="text-5xl font-bold text-emerald-600 drop-shadow-sm">{calculateProjectProgress()}%</div>
                 </div>
               </div>
             </div>
@@ -916,7 +916,7 @@ export default function GanttPage() {
       {/* Mensaje de éxito */}
       {successMessage && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <div className="px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 bg-green-500 text-white">
+          <div className="px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 bg-emerald-500 text-white">
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
@@ -1141,7 +1141,9 @@ export default function GanttPage() {
                               {/* Nombres de tareas posicionados a la altura de sus barras */}
                               {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
                                 <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
-                                  {activity.tasks.map((task, index) => {
+                                  {activity.tasks
+                                    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                                    .map((task, index) => {
                                     const isExpanded = expandedDescriptions.has(activity.id);
                                     const taskSpacing = 33; // Espaciado entre tareas
                                     const containerHeight = isExpanded 
@@ -1226,7 +1228,7 @@ export default function GanttPage() {
                                       >
                                         {/* Barra de progreso verde - perfectamente alineada */}
                                         <div
-                                          className="absolute bg-green-500 rounded-xl transition-all duration-300 z-20"
+                                          className="absolute bg-emerald-500 rounded-xl transition-all duration-300 z-20"
                                           style={{
                                             width: `${activityProgress}%`,
                                             top: '0px',
@@ -1247,7 +1249,9 @@ export default function GanttPage() {
                             })()}
 
                             {/* Barras de Gantt de las tareas apiladas verticalmente - solo visibles cuando expandido */}
-                            {expandedDescriptions.has(activity.id) && activity.tasks.map((task, index) => {
+                            {expandedDescriptions.has(activity.id) && activity.tasks
+                              .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                              .map((task, index) => {
                               const isExpanded = expandedDescriptions.has(activity.id);
                               const taskSpacing = 33; // Espaciado reducido entre tareas (un poco menos que el de la barra de actividad)
                               const containerHeight = isExpanded 
@@ -1275,7 +1279,7 @@ export default function GanttPage() {
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-green-500' : 'bg-gray-300'} rounded-xl shadow-sm border border-white/20 z-20`}
+                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl shadow-sm border border-white/20 z-20`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
@@ -1489,7 +1493,7 @@ export default function GanttPage() {
                   </Button>
                   <Button
                     onClick={handleCreateTask}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     size="sm"
                   >
                     Crear
@@ -1622,7 +1626,7 @@ export default function GanttPage() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${getActivityProgress(selectedActivityForPopup)}%` }}
                         ></div>
                       </div>
@@ -1729,7 +1733,7 @@ export default function GanttPage() {
                                 <span className="text-xs text-gray-500">
                                   {formatDateForTooltip(task.start_date)} - {formatDateForTooltip(task.end_date)}
                                 </span>
-                                <div className={`w-2 h-2 rounded-full ${task.completed ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                <div className={`w-2 h-2 rounded-full ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
                                 {activityPopupMode !== 'view' && (
                 <Button
                   size="sm"

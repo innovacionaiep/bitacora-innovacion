@@ -581,7 +581,7 @@ export default function ProyectosPage() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <div 
-                          className="bg-green-500 h-3 rounded-full" 
+                          className="bg-emerald-500 h-3 rounded-full" 
                           style={{ width: `${selectedProject.avance_gantt}%` }}
                         ></div>
                       </div>
