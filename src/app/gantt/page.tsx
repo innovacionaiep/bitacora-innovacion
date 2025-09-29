@@ -1070,7 +1070,10 @@ export default function GanttPage() {
                                   <div className="flex-1 min-w-0 flex items-center">
                                     <h4 
                                       className="font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200" 
-                                      style={{ fontSize: '13px' }}
+                                      style={{ 
+                                        fontSize: '15px',
+                                        lineHeight: activity.name.length > 50 ? '1.1' : '1.3'
+                                      }}
                                       onClick={() => handleActivityBarClick(activity)}
                                       title="Haz clic para ver detalles de la actividad"
                                     >
@@ -1094,14 +1097,14 @@ export default function GanttPage() {
                                     const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
                                     
                                     // Estimar si el texto tendrá dos líneas basado en la longitud
-                                    // Usar un umbral más preciso para detectar títulos que realmente se envuelven en dos líneas
-                                    const estimatedLines = activity.name.length > 45 ? 2 : 1;
+                                    // Ajustar el umbral considerando el nuevo ancho de columna y tamaño de fuente
+                                    const estimatedLines = activity.name.length > 50 ? 2 : 1;
                                     
                                     let topPosition;
                                     
                                     if (estimatedLines === 1) {
                                       // Para títulos de una línea, usar la posición original que ya funcionaba bien
-                                      topPosition = startOffset + 16; // 16px para centrar en la barra de actividad
+                                      topPosition = startOffset + 14; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
                                     } else {
                                       // Para títulos de múltiples líneas, calcular el centrado especial
                                       // Usar valores empíricos basados en la observación visual
@@ -1121,11 +1124,11 @@ export default function GanttPage() {
                                       <div 
                                         className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto cursor-pointer hover:text-blue-600 transition-colors duration-200"
                                         style={{ 
-                                          fontSize: '13px',
-                                          lineHeight: '1.2',
+                                          fontSize: '15px',
+                                          lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
                                           top: `${topPosition}px`,
                                           left: '40px', // Posición más a la izquierda para coincidir con títulos colapsados
-                                          right: '8px',
+                                          right: '20px',
                                           zIndex: 10
                                         }}
                                         onClick={() => handleActivityBarClick(activity)}
@@ -1138,7 +1141,7 @@ export default function GanttPage() {
                                 </div>
                               )}
                               
-                              {/* Nombres de tareas posicionados a la altura de sus barras */}
+                              {/* Nombres de tareas con checkboxes posicionados a la altura de sus barras */}
                               {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
                                 <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
                                   {activity.tasks
@@ -1156,15 +1159,48 @@ export default function GanttPage() {
                                     return (
                                       <div 
                                         key={task.id} 
-                                        className="absolute text-xs text-gray-600 pointer-events-auto"
+                                        className="absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto"
                                         style={{ 
-                                          top: `${startOffset + 40 + (index * taskSpacing) + 13}px`, // 40 para la barra de actividad + espaciado + offset
+                                          top: `${startOffset + 40 + (index * taskSpacing) + 12}px`, // 40 para la barra de actividad + espaciado + offset
                                           left: '60px', // Posición fija desde la izquierda
                                           right: '8px',
                                           zIndex: 10
                                         }}
                                       >
-                                        {task.name}
+                                        {/* Checkbox moderno con color emerald-500 */}
+                                        <div className="flex items-center">
+                                          <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={task.completed}
+                                              onChange={() => handleToggleTaskCompletion(task.id)}
+                                              className="sr-only"
+                                            />
+                                            <div className={`w-4 h-4 border-2 rounded transition-all duration-200 ${
+                                              task.completed 
+                                                ? 'bg-emerald-500 border-emerald-500' 
+                                                : 'bg-white border-gray-300 hover:border-emerald-400'
+                                            }`}>
+                                              {task.completed && (
+                                                <svg 
+                                                  className="w-3 h-3 text-white absolute top-0.5 left-0.5" 
+                                                  fill="currentColor" 
+                                                  viewBox="0 0 20 20"
+                                                >
+                                                  <path 
+                                                    fillRule="evenodd" 
+                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                                                    clipRule="evenodd" 
+                                                  />
+                                                </svg>
+                                              )}
+                                            </div>
+                                          </label>
+                                        </div>
+                                        {/* Nombre de la tarea */}
+                                        <span className={`flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                                          {task.name}
+                                        </span>
                                       </div>
                                     );
                                   })}
