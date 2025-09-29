@@ -46,11 +46,12 @@ export default function SidebarNav() {
 
   return (
     <Sidebar 
-      collapsible="icon" 
+      collapsible="icon"
+      variant="sidebar"
       className="flex flex-col"
     >
       {/* Header con el título */}
-      <SidebarHeader className="flex items-center justify-center py-6 pl-4 pr-2 group-data-[collapsible=icon]:px-2">
+      <SidebarHeader className="flex items-center justify-center py-6 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
         <h1 className={`${inter.className} text-3xl font-bold tracking-tight group-data-[collapsible=icon]:hidden`}>
           BITACORA
         </h1>
@@ -61,7 +62,7 @@ export default function SidebarNav() {
       </SidebarHeader>
 
       {/* Menú de navegación */}
-      <SidebarContent className="flex flex-col mt-4 pl-4 pr-2 group-data-[collapsible=icon]:px-2">
+      <SidebarContent className="flex flex-col mt-4 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
         <SidebarMenu className="space-y-3">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -98,7 +99,7 @@ export default function SidebarNav() {
       </SidebarContent>
 
       {/* Footer con botón de colapso y copyright */}
-      <SidebarFooter className="flex flex-col items-center justify-center py-4 space-y-4 pl-4 pr-2 group-data-[collapsible=icon]:px-2">
+      <SidebarFooter className="flex flex-col items-center justify-center py-4 space-y-4 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
         {/* Botón de colapso más intuitivo */}
         <Button
           variant="outline"

@@ -1,7 +1,6 @@
 import "@/app/globals.css"
 import {
   SidebarProvider,
-  SidebarInset,
 } from "@/components/ui/sidebar"
 
 import {
@@ -17,6 +16,7 @@ import {
 
 import SidebarNav from "@/components/ui/SidebarNav" // 👈 ruta correcta
 import PageHeader from "@/components/PageHeader"
+import ResponsiveMain from "@/components/ResponsiveMain"
 
 // 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
 export const metadata = {
@@ -33,20 +33,20 @@ export default function RootLayout({
     <html lang="es">
       <body className="flex h-screen bg-background text-foreground">
         {/* Provider del sidebar */}
-        <SidebarProvider>
+        <SidebarProvider defaultOpen={true}>
           {/* 👇 Sidebar separado en su componente cliente */}
           <SidebarNav />
 
           {/* Contenedor derecho que se adapta al estado del sidebar */}
-          <SidebarInset>
+          <ResponsiveMain>
             {/* Header con menú */}
             <PageHeader />
 
             {/* Contenido principal */}
-            <main className="flex-1 overflow-y-auto p-6 pt-8">
+            <div className="flex-1 overflow-y-auto p-6 pt-8">
               <div className="w-full">{children}</div>
-            </main>
-          </SidebarInset>
+            </div>
+          </ResponsiveMain>
         </SidebarProvider>
       </body>
     </html>
