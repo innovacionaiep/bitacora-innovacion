@@ -284,7 +284,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 w-full">
       {/* Botón de exportar */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end w-full">
         <Button 
           onClick={exportToExcel}
           className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"

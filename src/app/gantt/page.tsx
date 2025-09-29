@@ -849,8 +849,8 @@ export default function GanttPage() {
       <div className="pt-4 px-4 pb-4 space-y-4">
       {/* Header */}
       <div className="space-y-4">
-        {/* Selector de proyecto y Cards de resumen alineados */}
-        <div className="flex items-start justify-between">
+        {/* Selector de proyecto y Progreso del proyecto alineados */}
+        <div className="flex items-start justify-between w-full">
           {/* Selector de proyecto */}
           <div className="flex items-center space-x-5">
             <FolderKanban className="h-7 w-7 text-gray-600" />
@@ -887,29 +887,25 @@ export default function GanttPage() {
             </div>
           </div>
 
-          {/* Elementos de Progreso del proyecto */}
-          <div className="flex items-center space-x-4" style={{ marginTop: '0.5rem' }}>
-            <div className="min-w-[700px] h-28 relative">
-              <div className="flex items-center h-full">
-                <div className="flex items-center space-x-8">
-                  <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
-                    <TrendingUp className="h-8 w-8 text-green-600" />
+          {/* Elementos de Progreso del proyecto - Alineados con el final de la tabla */}
+          <div className="flex items-center justify-end">
+            <div className="flex items-center space-x-8">
+              <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+                <TrendingUp className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="flex items-center space-x-6">
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">Progreso</p>
+                  <p className="text-base text-gray-600">del proyecto</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-80 min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                      style={{ width: `${calculateProjectProgress()}%` }}
+                    ></div>
                   </div>
-                  <div className="flex items-center space-x-6">
-                    <div>
-                      <p className="text-lg font-semibold text-gray-900">Progreso</p>
-                      <p className="text-base text-gray-600">del proyecto</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-80 bg-gray-200 rounded-full h-3 shadow-inner">
-                        <div 
-                          className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300 shadow-sm"
-                          style={{ width: `${calculateProjectProgress()}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-5xl font-bold text-green-600 drop-shadow-sm">{calculateProjectProgress()}%</div>
-                    </div>
-                  </div>
+                  <div className="text-5xl font-bold text-green-600 drop-shadow-sm">{calculateProjectProgress()}%</div>
                 </div>
               </div>
             </div>
@@ -938,7 +934,7 @@ export default function GanttPage() {
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto relative overflow-y-visible">
-              <div className="min-w-[1272px]">
+              <div className="w-full min-w-[800px]">
                 
                 {/* Línea roja continua del día de hoy - atraviesa toda la tabla - Solo visible si estamos en el rango actual */}
                 {getTodayPositionPercent() >= 0 && (
@@ -1327,14 +1323,14 @@ export default function GanttPage() {
         
         {/* Controles del timeline */}
         <div className="mt-4">
-          <div className="flex items-center">
+          <div className="flex items-center w-full">
             {/* Espaciador para alinear con la columna de actividades */}
-            <div className="w-[320px] flex items-center justify-end pr-2">
+            <div className="w-[320px] min-w-[200px] flex items-center justify-end pr-2">
               <span className="text-sm font-medium text-gray-700">Navegación:</span>
             </div>
             
             {/* Slider de navegación temporal - Alineado con el timeline */}
-            <div className="flex items-center space-x-4 w-[600px]">
+            <div className="flex items-center space-x-4 flex-1 min-w-[400px]">
               <Slider
                 value={[timelineOffset]}
                 onValueChange={(value) => setTimelineOffset(value[0])}
@@ -1393,6 +1389,7 @@ export default function GanttPage() {
             </div>
           </div>
         </div>
+
         
       </div>
 

@@ -1,18 +1,39 @@
-/* Estilos para eliminar el efecto rebote del sidebar */
+/* Eliminar el efecto rebote del sidebar */
 [data-sidebar="sidebar"] {
-  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: none !important;
 }
 
-/* Transiciones suaves para elementos específicos sin interferir con la responsividad */
+/* Eliminar todas las transiciones que causan rebote */
+[data-sidebar="sidebar"] * {
+  transition: none !important;
+}
+
+/* Eliminar transiciones del contenedor del sidebar */
+[data-sidebar="sidebar"] > * {
+  transition: none !important;
+}
+
+/* Eliminar transiciones de elementos internos */
 [data-sidebar="sidebar"] [data-sidebar="menu-button"] {
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: none !important;
 }
 
 [data-sidebar="sidebar"] [data-sidebar="group-label"] {
-  transition: margin 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: none !important;
 }
 
-/* Asegurar que el contenido principal se adapte correctamente */
-[data-sidebar="sidebar"] + * {
-  transition: margin-left 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+[data-sidebar="sidebar"] [data-sidebar="menu"] {
+  transition: none !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="content"] {
+  transition: none !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="header"] {
+  transition: none !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="footer"] {
+  transition: none !important;
 }
