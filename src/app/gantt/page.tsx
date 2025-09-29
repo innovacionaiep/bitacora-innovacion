@@ -899,7 +899,7 @@ export default function GanttPage() {
                   <p className="text-base text-gray-600">del proyecto</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <div className="w-80 min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
+                  <div className="w-[416px] min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
                     <div 
                       className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
                       style={{ width: `${calculateProjectProgress()}%` }}
@@ -941,7 +941,7 @@ export default function GanttPage() {
                   <div
                     className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
                     style={{
-                      left: `calc(320px + ${getTodayPositionPercent()}% * (100% - 320px) / 100%)`,
+                      left: `calc(416px + ${getTodayPositionPercent()}% * (100% - 416px) / 100%)`,
                       height: '100%'
                     }}
                   ></div>
@@ -949,7 +949,7 @@ export default function GanttPage() {
                 
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
-                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50">
                       <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
                         {ganttLoading && selectedProject && (
@@ -985,7 +985,7 @@ export default function GanttPage() {
                 {!selectedProject ? (
                   /* Mensaje cuando no hay proyecto seleccionado */
                   <div className="flex">
-                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center">
                       <div className="text-center">
                         <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                         <p className="text-sm text-gray-500">Selecciona un proyecto</p>
@@ -997,7 +997,7 @@ export default function GanttPage() {
                   </div>
                 ) : activities.length === 0 ? (
                   <div className="flex">
-                    <div className="w-80 p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
                       <div className="relative group">
                         <Button
                           onClick={handleAddActivityClick}
@@ -1020,7 +1020,7 @@ export default function GanttPage() {
                         {/* Fila de la actividad con sus tareas en la misma línea */}
                         <div className="flex hover:bg-gray-50 group">
                           <div 
-                            className={`w-80 pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
+                            className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
                               !expandedDescriptions.has(activity.id) ? 'items-center' : ''
                             }`}
                             style={{ 
@@ -1299,7 +1299,7 @@ export default function GanttPage() {
                     
                     {/* Botón para agregar actividad */}
                     <div className="flex">
-                      <div className="w-80 p-4 border-r border-gray-200 bg-gray-50">
+                      <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50">
                         <div className="flex justify-center">
                           {/* Botón agregar actividad */}
                           <div className="relative group">
@@ -1329,7 +1329,7 @@ export default function GanttPage() {
         <div className="mt-4">
           <div className="flex items-center w-full">
             {/* Espaciador para alinear con la columna de actividades */}
-            <div className="w-[320px] min-w-[200px] flex items-center justify-end pr-2">
+            <div className="w-[416px] min-w-[200px] flex items-center justify-end pr-2">
               <span className="text-sm font-medium text-gray-700">Navegación:</span>
             </div>
             
