@@ -1216,7 +1216,7 @@ export default function GanttPage() {
                                     {/* Barra de fondo gris con popup */}
                                     <div className="relative group h-8">
                                       <div
-                                        className="absolute top-0 h-8 bg-gray-400 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
+                                        className="absolute top-0 h-8 bg-gray-400 rounded-xl shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
                                         style={{
                                           left: `${startPos.left}%`,
                                           width: `${barWidth}%`
@@ -1226,7 +1226,7 @@ export default function GanttPage() {
                                       >
                                         {/* Barra de progreso verde - perfectamente alineada */}
                                         <div
-                                          className="absolute bg-green-500 rounded transition-all duration-300 z-20"
+                                          className="absolute bg-green-500 rounded-xl transition-all duration-300 z-20"
                                           style={{
                                             width: `${activityProgress}%`,
                                             top: '0px',
@@ -1275,7 +1275,7 @@ export default function GanttPage() {
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-gray-300'} rounded shadow-sm border border-white/20 z-20`}
+                                    className={`absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-green-500' : 'bg-gray-300'} rounded-xl shadow-sm border border-white/20 z-20`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
