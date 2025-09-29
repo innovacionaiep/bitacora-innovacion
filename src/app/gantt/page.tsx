@@ -1094,7 +1094,7 @@ export default function GanttPage() {
                                       : Math.max(48, 16 + 40);
                                     const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
                                     const availableHeight = containerHeight - 16; // Restar padding
-                                    const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
+                                    const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
                                     
                                     // Estimar si el texto tendrá dos líneas basado en la longitud
                                     // Ajustar el umbral considerando el nuevo ancho de columna y tamaño de fuente
@@ -1154,7 +1154,7 @@ export default function GanttPage() {
                                       : Math.max(48, 16 + 40);
                                     const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
                                     const availableHeight = containerHeight - 16; // Restar padding
-                                    const startOffset = (availableHeight - totalItemsHeight) / 2 + 4;
+                                    const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
                                     
                                     return (
                                       <div 
