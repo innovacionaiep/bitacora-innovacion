@@ -76,6 +76,7 @@ export default function GanttPage() {
     type: null
   });
 
+
   // Generar los meses visibles basados en el offset y rango
   const getVisibleMonths = () => {
     const months = [];
@@ -195,18 +196,13 @@ export default function GanttPage() {
     }
   };
 
-  // Función para manejar el hover en TÍTULOS (replica la lógica de las barras)
+
+  // Función simplificada para manejar el hover en TÍTULOS
   const handleTitleHover = (event: React.MouseEvent, type: 'activity' | 'task', elementId: string) => {
     const rect = event.currentTarget.getBoundingClientRect();
     
-    // Buscar el contenedor de la tabla para obtener la posición del borde derecho de la columna
-    const ganttContainer = event.currentTarget.closest('.gantt-container');
-    if (!ganttContainer) return;
-    
-    const containerRect = ganttContainer.getBoundingClientRect();
-    
-    // Calcular la posición del borde derecho de la columna de actividades (416px desde el inicio del contenedor)
-    const fromX = containerRect.left + 416; // Borde derecho de la columna de actividades
+    // Calcular posición simple: borde derecho del elemento actual
+    const fromX = rect.right;
     const fromY = rect.top + rect.height / 2;
     
     // Buscar el elemento correspondiente en el área de barras
@@ -216,14 +212,11 @@ export default function GanttPage() {
       const toX = targetRect.left;
       const toY = targetRect.top + targetRect.height / 2;
       
-      console.log('Title hover:', {
+      console.log('Title hover simplificado:', {
         type,
         elementId,
         from: { x: fromX, y: fromY },
-        to: { x: toX, y: toY },
-        rect: rect,
-        targetRect: targetRect,
-        containerRect: containerRect
+        to: { x: toX, y: toY }
       });
       
       setConnectionLines({
@@ -297,6 +290,7 @@ export default function GanttPage() {
       }
     };
   }, [tooltipTimer]);
+
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -937,14 +931,14 @@ export default function GanttPage() {
       <style jsx>{`
         .connection-line-path {
           stroke: #6b7280;
-          stroke-width: 1;
+          stroke-width: 2;
           stroke-dasharray: 4 4;
           fill: none;
-          opacity: 0.8;
+          opacity: 1;
         }
       `}</style>
       
-      {/* Líneas de conexión superpuestas - AL NIVEL MÁS ALTO */}
+      {/* Líneas de conexión superpuestas - IMPLEMENTACIÓN BASADA EN INVESTIGACIÓN */}
       {connectionLines.show && connectionLines.from && connectionLines.to && (
         <div 
           className="fixed pointer-events-none"
@@ -953,13 +947,19 @@ export default function GanttPage() {
             left: 0,
             width: '100vw',
             height: '100vh',
-            zIndex: 999999
+            zIndex: 999999,
+            position: 'fixed'
           }}
         >
           <svg
             width="100%"
             height="100%"
-            style={{ position: 'absolute', top: 0, left: 0 }}
+            style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0,
+              pointerEvents: 'none'
+            }}
           >
             <path
               className="connection-line-path"
@@ -1079,7 +1079,7 @@ export default function GanttPage() {
                 
                   {/* Header del calendario */}
                   <div className="flex border-b border-gray-200">
-                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50" data-column="activities">
                       <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
                         {ganttLoading && selectedProject && (
@@ -1115,7 +1115,7 @@ export default function GanttPage() {
                 {!selectedProject ? (
                   /* Mensaje cuando no hay proyecto seleccionado */
                   <div className="flex">
-                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center" data-column="activities">
                       <div className="text-center">
                         <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                         <p className="text-sm text-gray-500">Selecciona un proyecto</p>
@@ -1127,7 +1127,7 @@ export default function GanttPage() {
                   </div>
                 ) : activities.length === 0 ? (
                   <div className="flex">
-                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center">
+                    <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center" data-column="activities">
                       <div className="relative group">
                         <Button
                           onClick={handleAddActivityClick}
@@ -1153,6 +1153,7 @@ export default function GanttPage() {
                             className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
                               !expandedDescriptions.has(activity.id) ? 'items-center' : ''
                             }`}
+                            data-column="activities"
                             style={{ 
                               height: `${expandedDescriptions.has(activity.id) 
                                 ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 17) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
@@ -1488,7 +1489,7 @@ export default function GanttPage() {
                     
                     {/* Botón para agregar actividad */}
                     <div className="flex">
-                      <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50">
+                      <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50" data-column="activities">
                         <div className="flex justify-center">
                           {/* Botón agregar actividad */}
                           <div className="relative group">
