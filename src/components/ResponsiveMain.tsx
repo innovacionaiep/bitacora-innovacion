@@ -15,7 +15,7 @@ export default function ResponsiveMain({ children, className }: ResponsiveMainPr
     <main 
       className={cn(
         "relative flex w-full flex-1 flex-col bg-background",
-        state === 'collapsed' ? "ml-12" : "ml-44",
+        state === 'collapsed' ? "ml-16" : "ml-44",
         className
       )}
     >

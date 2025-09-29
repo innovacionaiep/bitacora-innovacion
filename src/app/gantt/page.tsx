@@ -888,9 +888,9 @@ export default function GanttPage() {
           </div>
 
           {/* Elementos de Progreso del proyecto - Alineados con el final de la tabla */}
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end pr-8">
             <div className="flex items-center space-x-8">
-              <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+              <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg shadow-sm">
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
               <div className="flex items-center space-x-6">
@@ -1330,7 +1330,7 @@ export default function GanttPage() {
             </div>
             
             {/* Slider de navegación temporal - Alineado con el timeline */}
-            <div className="flex items-center space-x-4 flex-1 min-w-[400px]">
+            <div className="flex items-center space-x-4 flex-1 min-w-[630px] max-w-[787px]">
               <Slider
                 value={[timelineOffset]}
                 onValueChange={(value) => setTimelineOffset(value[0])}
