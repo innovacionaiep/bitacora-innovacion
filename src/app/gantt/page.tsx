@@ -851,106 +851,103 @@ export default function GanttPage() {
       <div className="pt-0 px-4 pb-4 space-y-4">
       {/* Header */}
       <div className="space-y-4">
-        {/* Selector de proyecto */}
-        <div className="flex items-center space-x-5">
-          <FolderKanban className="h-7 w-7 text-gray-600" />
-          <div>
-            <Label htmlFor="project-select" className="text-base font-medium text-gray-700">
-              Seleccionar Proyecto
-            </Label>
-            <div className="relative">
-              <Select 
-                value={selectedProject?.id || ''} 
-                onValueChange={(value) => {
-                  const project = proyectos.find(p => p.id === value);
-                  setSelectedProject(project || null);
-                }}
-                disabled={ganttLoading}
-              >
-                <SelectTrigger className="mt-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-88 h-12 px-4 text-base">
-                  <SelectValue placeholder="Selecciona un proyecto" />
-                </SelectTrigger>
-                <SelectContent className="text-base">
-                  {proyectos.map((project) => (
-                    <SelectItem key={project.id} value={project.id} className="py-3">
-                      {project.proyecto} - {project.sede}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {ganttLoading && selectedProject && (
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-                </div>
-              )}
+        {/* Selector de proyecto y Cards de resumen alineados */}
+        <div className="flex items-center justify-between">
+          {/* Selector de proyecto */}
+          <div className="flex items-center space-x-5">
+            <FolderKanban className="h-7 w-7 text-gray-600" />
+            <div>
+              <Label htmlFor="project-select" className="text-base font-medium text-gray-700">
+                Seleccionar Proyecto
+              </Label>
+              <div className="relative">
+                <Select 
+                  value={selectedProject?.id || ''} 
+                  onValueChange={(value) => {
+                    const project = proyectos.find(p => p.id === value);
+                    setSelectedProject(project || null);
+                  }}
+                  disabled={ganttLoading}
+                >
+                  <SelectTrigger className="mt-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-88 h-12 px-4 text-base">
+                    <SelectValue placeholder="Selecciona un proyecto" />
+                  </SelectTrigger>
+                  <SelectContent className="text-base">
+                    {proyectos.map((project) => (
+                      <SelectItem key={project.id} value={project.id} className="py-3">
+                        {project.proyecto} - {project.sede}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {ganttLoading && selectedProject && (
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Cards de resumen - Siempre visibles */}
-        <div className="relative">
-          
-          {/* Contenedor de las tarjetas alineado con el final de la tabla Gantt */}
-          <div className="flex justify-center">
-            <div className="flex items-center space-x-4" style={{ width: '1272px', justifyContent: 'flex-end' }}>
-              {/* Card Actividades completadas */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <ActivityIcon className="h-5 w-5 text-gray-700" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">Actividades</p>
-                      <p className="text-xs text-gray-500">Completadas</p>
-                    </div>
+          {/* Cards de resumen - Alineadas verticalmente con el selector */}
+          <div className="flex items-center space-x-4">
+            {/* Card Actividades completadas */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
+              <div className="flex items-center justify-between h-full">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <ActivityIcon className="h-5 w-5 text-gray-700" />
                   </div>
-                  <div className="text-right">
-                    <div className="text-4xl font-bold text-gray-900">{stats.completedActivities}</div>
-                    <div className="text-sm text-gray-500">de {stats.totalActivities}</div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Actividades</p>
+                    <p className="text-xs text-gray-500">Completadas</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Card Tareas completadas */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <CheckSquare className="h-5 w-5 text-gray-700" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">Tareas</p>
-                      <p className="text-xs text-gray-500">Completadas</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-4xl font-bold text-gray-900">{stats.completedTasks}</div>
-                    <div className="text-sm text-gray-500">de {stats.totalTasks}</div>
-                  </div>
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-gray-900">{stats.completedActivities}</div>
+                  <div className="text-sm text-gray-500">de {stats.totalActivities}</div>
                 </div>
               </div>
+            </div>
 
-              {/* Sección de Progreso */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-24 relative">
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <TrendingUp className="h-5 w-5 text-gray-700" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">Progreso</p>
-                      <p className="text-xs text-gray-500">del proyecto</p>
-                    </div>
+            {/* Card Tareas completadas */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
+              <div className="flex items-center justify-between h-full">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <CheckSquare className="h-5 w-5 text-gray-700" />
                   </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <div className="text-4xl font-bold text-gray-900">{calculateProjectProgress()}%</div>
-                    <div className="w-28 bg-gray-100 rounded-full h-2">
-                      <div 
-                        className="bg-gray-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${calculateProjectProgress()}%` }}
-                      ></div>
-                    </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Tareas</p>
+                    <p className="text-xs text-gray-500">Completadas</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-gray-900">{stats.completedTasks}</div>
+                  <div className="text-sm text-gray-500">de {stats.totalTasks}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sección de Progreso */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-24 relative">
+              <div className="flex items-center justify-between h-full">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Progreso</p>
+                    <p className="text-xs text-gray-500">del proyecto</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end space-y-2">
+                  <div className="text-4xl font-bold text-gray-900">{calculateProjectProgress()}%</div>
+                  <div className="w-28 bg-gray-100 rounded-full h-2">
+                    <div 
+                      className="bg-gray-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${calculateProjectProgress()}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -1369,50 +1366,34 @@ export default function GanttPage() {
         
         {/* Controles del timeline */}
         <div className="mt-4">
-          <div className="flex items-center justify-center space-x-8">
-            {/* Slider de navegación temporal */}
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            {/* Espaciador para alinear con la columna de actividades */}
+            <div className="w-[320px] flex items-center justify-end pr-2">
               <span className="text-sm font-medium text-gray-700">Navegación:</span>
-              <div className="flex items-center space-x-4 w-80">
-                <Slider
-                  value={[timelineOffset]}
-                  onValueChange={(value) => setTimelineOffset(value[0])}
-                  min={-24}
-                  max={24}
-                  step={1}
-                  className="flex-1"
-                />
-                <div className="flex items-center space-x-2">
-                  <Button
-                    onClick={() => setTimelineOffset(prev => prev - 1)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    ←
-                  </Button>
-                  <Button
-                    onClick={() => setTimelineOffset(0)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    Hoy
-                  </Button>
-                  <Button
-                    onClick={() => setTimelineOffset(prev => prev + 1)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    →
-                  </Button>
-                </div>
-              </div>
             </div>
             
-            {/* Botones de rango de meses */}
-            <div className="flex items-center space-x-4">
+            {/* Slider de navegación temporal - Alineado con el timeline */}
+            <div className="flex items-center space-x-4 w-[600px]">
+              <Slider
+                value={[timelineOffset]}
+                onValueChange={(value) => setTimelineOffset(value[0])}
+                min={-24}
+                max={24}
+                step={1}
+                className="flex-1"
+              />
+              <Button
+                onClick={() => setTimelineOffset(0)}
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+              >
+                Hoy
+              </Button>
+            </div>
+            
+            {/* Botones de rango de meses - Extremo derecho */}
+            <div className="flex items-center space-x-4 ml-auto">
               <span className="text-sm font-medium text-gray-700">Rango:</span>
               <div className="flex items-center space-x-2">
                 <Button
