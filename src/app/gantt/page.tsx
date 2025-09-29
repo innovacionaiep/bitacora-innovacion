@@ -21,8 +21,6 @@ import {
   Target,
   ChevronDown,
   ChevronRight,
-  Activity as ActivityIcon,
-  CheckSquare,
   TrendingUp
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -848,11 +846,11 @@ export default function GanttPage() {
 
   return (
     <TooltipProvider>
-      <div className="pt-0 px-4 pb-4 space-y-4">
+      <div className="pt-4 px-4 pb-4 space-y-4">
       {/* Header */}
       <div className="space-y-4">
         {/* Selector de proyecto y Cards de resumen alineados */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           {/* Selector de proyecto */}
           <div className="flex items-center space-x-5">
             <FolderKanban className="h-7 w-7 text-gray-600" />
@@ -889,65 +887,28 @@ export default function GanttPage() {
             </div>
           </div>
 
-          {/* Cards de resumen - Alineadas verticalmente con el selector */}
-          <div className="flex items-center space-x-4">
-            {/* Card Actividades completadas */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
-              <div className="flex items-center justify-between h-full">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <ActivityIcon className="h-5 w-5 text-gray-700" />
+          {/* Elementos de Progreso del proyecto */}
+          <div className="flex items-center space-x-4" style={{ marginTop: '0.5rem' }}>
+            <div className="min-w-[700px] h-28 relative">
+              <div className="flex items-center h-full">
+                <div className="flex items-center space-x-8">
+                  <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+                    <TrendingUp className="h-8 w-8 text-green-600" />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Actividades</p>
-                    <p className="text-xs text-gray-500">Completadas</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl font-bold text-gray-900">{stats.completedActivities}</div>
-                  <div className="text-sm text-gray-500">de {stats.totalActivities}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card Tareas completadas */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[280px] h-24 relative">
-              <div className="flex items-center justify-between h-full">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <CheckSquare className="h-5 w-5 text-gray-700" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Tareas</p>
-                    <p className="text-xs text-gray-500">Completadas</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl font-bold text-gray-900">{stats.completedTasks}</div>
-                  <div className="text-sm text-gray-500">de {stats.totalTasks}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sección de Progreso */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200 min-w-[300px] h-24 relative">
-              <div className="flex items-center justify-between h-full">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-gray-700" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Progreso</p>
-                    <p className="text-xs text-gray-500">del proyecto</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end space-y-2">
-                  <div className="text-4xl font-bold text-gray-900">{calculateProjectProgress()}%</div>
-                  <div className="w-28 bg-gray-100 rounded-full h-2">
-                    <div 
-                      className="bg-gray-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${calculateProjectProgress()}%` }}
-                    ></div>
+                  <div className="flex items-center space-x-6">
+                    <div>
+                      <p className="text-lg font-semibold text-gray-900">Progreso</p>
+                      <p className="text-base text-gray-600">del proyecto</p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="w-80 bg-gray-200 rounded-full h-3 shadow-inner">
+                        <div 
+                          className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                          style={{ width: `${calculateProjectProgress()}%` }}
+                        ></div>
+                      </div>
+                      <div className="text-5xl font-bold text-green-600 drop-shadow-sm">{calculateProjectProgress()}%</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1259,7 +1220,7 @@ export default function GanttPage() {
                                     {/* Barra de fondo gris con popup */}
                                     <div className="relative group h-8">
                                       <div
-                                        className="absolute top-0 h-8 bg-gray-500 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-600 hover:shadow-md transition-all duration-200"
+                                        className="absolute top-0 h-8 bg-gray-400 rounded shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
                                         style={{
                                           left: `${startPos.left}%`,
                                           width: `${barWidth}%`
@@ -1318,7 +1279,7 @@ export default function GanttPage() {
                                     }}
                                   >
                                   <div
-                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-blue-500'} rounded shadow-sm border border-white/20 z-20`}
+                                    className={`absolute top-0 h-full ${task.completed ? 'bg-green-500' : 'bg-gray-300'} rounded shadow-sm border border-white/20 z-20`}
                                     style={{
                                       left: `${startPos.left}%`,
                                       width: `${barWidth}%`
