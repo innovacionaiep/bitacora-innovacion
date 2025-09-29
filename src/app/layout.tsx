@@ -1,6 +1,7 @@
 import "@/app/globals.css"
 import {
   SidebarProvider,
+  SidebarInset,
 } from "@/components/ui/sidebar"
 
 import {
@@ -36,8 +37,8 @@ export default function RootLayout({
           {/* 👇 Sidebar separado en su componente cliente */}
           <SidebarNav />
 
-          {/* Contenedor derecho desplazado por el ancho del sidebar */}
-          <div className="flex flex-col flex-1 ml-56">
+          {/* Contenedor derecho que se adapta al estado del sidebar */}
+          <SidebarInset>
             {/* Header con menú */}
             <PageHeader />
 
@@ -45,7 +46,7 @@ export default function RootLayout({
             <main className="flex-1 overflow-y-auto p-6 pt-8">
               <div className="w-full">{children}</div>
             </main>
-          </div>
+          </SidebarInset>
         </SidebarProvider>
       </body>
     </html>

@@ -1,0 +1,18 @@
+/* Estilos para eliminar el efecto rebote del sidebar */
+[data-sidebar="sidebar"] {
+  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Eliminar transiciones de elementos internos que causan rebote */
+[data-sidebar="sidebar"] * {
+  transition: none !important;
+}
+
+/* Transiciones suaves solo para elementos específicos */
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="group-label"] {
+  transition: margin 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
