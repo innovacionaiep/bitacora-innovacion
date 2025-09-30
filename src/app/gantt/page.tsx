@@ -62,20 +62,6 @@ export default function GanttPage() {
   
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12); // 12 meses por defecto
-  
-  // Estado para las líneas de conexión externas
-  const [connectionLines, setConnectionLines] = useState<{
-    show: boolean;
-    from: { x: number; y: number } | null;
-    to: { x: number; y: number } | null;
-    type: 'activity' | 'task' | null;
-  }>({
-    show: false,
-    from: null,
-    to: null,
-    type: null
-  });
-
 
   // Generar los meses visibles basados en el offset y rango
   const getVisibleMonths = () => {
@@ -172,72 +158,6 @@ export default function GanttPage() {
 
   const stats = getProjectStats();
 
-  // Función para manejar el hover en elementos específicos (BARRAS - NO TOCAR)
-  const handleElementHover = (event: React.MouseEvent, type: 'activity' | 'task', elementId: string) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    
-    // Calcular posición absoluta en la pantalla
-    const fromX = rect.right;
-    const fromY = rect.top + rect.height / 2;
-    
-    // Buscar el elemento correspondiente en el área de barras
-    const targetElement = document.querySelector(`[data-${type}-id="${elementId}"]`);
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const toX = targetRect.left;
-      const toY = targetRect.top + targetRect.height / 2;
-      
-      setConnectionLines({
-        show: true,
-        from: { x: fromX, y: fromY },
-        to: { x: toX, y: toY },
-        type: type
-      });
-    }
-  };
-
-
-  // Función simplificada para manejar el hover en TÍTULOS
-  const handleTitleHover = (event: React.MouseEvent, type: 'activity' | 'task', elementId: string) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    
-    // Calcular posición simple: borde derecho del elemento actual
-    const fromX = rect.right;
-    const fromY = rect.top + rect.height / 2;
-    
-    // Buscar el elemento correspondiente en el área de barras
-    const targetElement = document.querySelector(`[data-${type}-id="${elementId}"]`);
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const toX = targetRect.left;
-      const toY = targetRect.top + targetRect.height / 2;
-      
-      console.log('Title hover simplificado:', {
-        type,
-        elementId,
-        from: { x: fromX, y: fromY },
-        to: { x: toX, y: toY }
-      });
-      
-      setConnectionLines({
-        show: true,
-        from: { x: fromX, y: fromY },
-        to: { x: toX, y: toY },
-        type: type
-      });
-    } else {
-      console.log('Target element not found:', `[data-${type}-id="${elementId}"]`);
-    }
-  };
-
-  const handleElementLeave = () => {
-    setConnectionLines({
-      show: false,
-      from: null,
-      to: null,
-      type: null
-    });
-  };
 
   // Función para cerrar todos los popups
   const closeAllPopups = () => {
@@ -928,53 +848,6 @@ export default function GanttPage() {
 
   return (
     <TooltipProvider>
-      <style jsx>{`
-        .connection-line-path {
-          stroke: #6b7280;
-          stroke-width: 2;
-          stroke-dasharray: 4 4;
-          fill: none;
-          opacity: 1;
-        }
-      `}</style>
-      
-      {/* Líneas de conexión superpuestas - IMPLEMENTACIÓN BASADA EN INVESTIGACIÓN */}
-      {connectionLines.show && connectionLines.from && connectionLines.to && (
-        <div 
-          className="fixed pointer-events-none"
-          style={{
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 999999,
-            position: 'fixed'
-          }}
-        >
-          <svg
-            width="100%"
-            height="100%"
-            style={{ 
-              position: 'absolute', 
-              top: 0, 
-              left: 0,
-              pointerEvents: 'none'
-            }}
-          >
-            <path
-              className="connection-line-path"
-              d={`M ${connectionLines.from.x} ${connectionLines.from.y} L ${connectionLines.to.x} ${connectionLines.to.y}`}
-              style={{
-                stroke: '#6b7280',
-                strokeWidth: 2,
-                strokeDasharray: '4 4',
-                fill: 'none',
-                opacity: 1
-              }}
-            />
-          </svg>
-        </div>
-      )}
       
       <div className="pt-4 px-4 pb-4 space-y-4">
       {/* Header */}
@@ -1207,8 +1080,6 @@ export default function GanttPage() {
                                       }}
                                       data-activity-id={activity.id}
                                       onClick={() => handleActivityBarClick(activity)}
-                                      onMouseEnter={(e) => handleTitleHover(e, 'activity', activity.id)}
-                                      onMouseLeave={handleElementLeave}
                                       title="Haz clic para ver detalles de la actividad"
                                     >
                                       {activity.name}
@@ -1271,8 +1142,6 @@ export default function GanttPage() {
                                         <span 
                                           className="activity-title"
                                           data-activity-id={activity.id}
-                                          onMouseEnter={(e) => handleTitleHover(e, 'activity', activity.id)}
-                                          onMouseLeave={handleElementLeave}
                                         >
                                           {activity.name}
                                         </span>
@@ -1338,14 +1207,22 @@ export default function GanttPage() {
                                             </div>
                                           </label>
                                         </div>
-                                        {/* Nombre de la tarea */}
+                                        {/* Nombre de la tarea con punto al final del texto */}
                                         <span 
-                                          className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}
+                                          className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative`}
                                           data-task-id={task.id}
-                                          onMouseEnter={(e) => handleTitleHover(e, 'task', task.id)}
-                                          onMouseLeave={handleElementLeave}
+                                          style={{
+                                            display: 'inline-block'
+                                          }}
                                         >
                                           {task.name}
+                                          {/* Punto gris al final del texto */}
+                                          <span 
+                                            className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1"
+                                            style={{
+                                              verticalAlign: 'middle'
+                                            }}
+                                          ></span>
                                         </span>
                                       </div>
                                     );
@@ -1407,8 +1284,6 @@ export default function GanttPage() {
                                         }}
                                         data-activity-id={activity.id}
                                         onClick={() => handleActivityBarClick(activity)}
-                                        onMouseEnter={(e) => handleElementHover(e, 'activity', activity.id)}
-                                        onMouseLeave={handleElementLeave}
                                         title="Haz clic para ver detalles de la actividad"
                                       >
                                         {/* Barra de progreso verde - perfectamente alineada */}
@@ -1470,8 +1345,6 @@ export default function GanttPage() {
                                       width: `${barWidth}%`
                                     }}
                                     data-task-id={task.id}
-                                    onMouseEnter={(e) => handleElementHover(e, 'task', task.id)}
-                                    onMouseLeave={handleElementLeave}
                                     title={`Tarea: ${task.name}`}
                                   >
                                   </div>
