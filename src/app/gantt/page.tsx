@@ -1345,8 +1345,8 @@ export default function GanttPage() {
                                     style={{
                                       left: '0%',
                                       width: `${startPos.left}%`,
-                                      height: '2px',
-                                      backgroundColor: '#ef4444',
+                                      height: '0.1px',
+                                      backgroundColor: '#d1d5db',
                                       opacity: 1
                                     }}
                                   ></div>
