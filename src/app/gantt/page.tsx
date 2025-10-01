@@ -1218,11 +1218,24 @@ export default function GanttPage() {
                                           {task.name}
                                           {/* Punto gris al final del texto */}
                                           <span 
-                                            className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1"
+                                            className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 relative"
                                             style={{
                                               verticalAlign: 'middle'
                                             }}
-                                          ></span>
+                                          >
+                                            {/* Línea roja desde el punto gris hasta el borde derecho de la columna */}
+                                            <div
+                                              className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
+                                              style={{
+                                                left: 'calc(100% + 4px)', // Comienza justo después del punto gris
+                                                right: 'calc(-100vw + 416px - 8px)', // Termina en el borde derecho de la columna
+                                                height: '3px',
+                                                backgroundColor: '#ef4444',
+                                                opacity: 1,
+                                                zIndex: 9999
+                                              }}
+                                            ></div>
+                                          </span>
                                         </span>
                                       </div>
                                     );
@@ -1277,7 +1290,7 @@ export default function GanttPage() {
                                     {/* Barra de fondo gris con popup */}
                                     <div className="relative group h-8">
                                       <div
-                                        className="activity-bar absolute top-0 h-8 bg-gray-400 rounded-xl shadow-sm z-10 cursor-pointer hover:bg-gray-500 hover:shadow-md transition-all duration-200"
+                                        className="activity-bar absolute top-0 h-8 bg-gray-300 rounded-xl z-10 cursor-pointer hover:bg-gray-400 hover:shadow-md transition-all duration-200"
                                         style={{
                                           left: `${startPos.left}%`,
                                           width: `${barWidth}%`
