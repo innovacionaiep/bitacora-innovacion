@@ -1308,6 +1308,7 @@ export default function GanttPage() {
                               );
                             })()}
 
+
                             {/* Barras de Gantt de las tareas apiladas verticalmente - solo visibles cuando expandido */}
                             {expandedDescriptions.has(activity.id) && activity.tasks
                               .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
@@ -1331,13 +1332,25 @@ export default function GanttPage() {
                                 }
                                 
                                 return (
-                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '0px', right: '8px' }}>
                                   <div 
                                     className="relative h-6" 
                                     style={{ 
                                       top: `${startOffset + 40 + (index * taskSpacing) + 1}px` // 40 para la barra de actividad + espaciado reducido entre tareas
                                     }}
                                   >
+                                  {/* Línea de conexión desde el inicio hasta la barra */}
+                                  <div
+                                    className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
+                                    style={{
+                                      left: '0%',
+                                      width: `${startPos.left}%`,
+                                      height: '2px',
+                                      backgroundColor: '#ef4444',
+                                      opacity: 1
+                                    }}
+                                  ></div>
+                                  
                                   <div
                                     className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-pointer hover:opacity-80 transition-opacity duration-200`}
                                     style={{
