@@ -278,7 +278,7 @@ export function Calendar({
                   className={cn(
                     "h-8 w-8 text-sm inline-flex items-center justify-center rounded-md font-medium transition-colors select-none",
                     !day.isCurrentMonth && "text-gray-300 cursor-not-allowed",
-                    day.isCurrentMonth && "hover:bg-gray-100 cursor-pointer active:bg-gray-200",
+                    day.isCurrentMonth && "hover:bg-gray-100 cursor-default active:bg-gray-200",
                     day.isToday && day.isCurrentMonth && "bg-blue-100 text-blue-600 font-semibold",
                     day.isSelected && "bg-blue-600 text-white hover:bg-blue-700"
                   )}

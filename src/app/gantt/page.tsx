@@ -29,12 +29,461 @@ import { Slider } from '@/components/ui/slider';
 import { useState, useEffect } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Meses del año
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
+
+// Componente para actividad arrastrable
+interface SortableActivityProps {
+  activity: Activity;
+  expandedDescriptions: Set<string>;
+  toggleDescription: (activityId: string) => void;
+  handleActivityBarClick: (activity: Activity) => void;
+  handleDeleteActivity: (activityId: string) => void;
+  handleToggleTaskCompletion: (taskId: string) => void;
+  getActivityDateRange: (activity: Activity) => { startDate: string; endDate: string } | null;
+  getActivityProgress: (activity: Activity) => number;
+  getDatePosition: (date: string) => { month: number; day: number; left: number };
+  getBarWidth: (startDate: string, endDate: string) => number;
+  formatDateForTooltip: (dateString: string) => string;
+}
+
+function SortableActivity({
+  activity,
+  expandedDescriptions,
+  toggleDescription,
+  handleActivityBarClick,
+  handleDeleteActivity,
+  handleToggleTaskCompletion,
+  getActivityDateRange,
+  getActivityProgress,
+  getDatePosition,
+  getBarWidth,
+  formatDateForTooltip
+}: SortableActivityProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: activity.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-white ${isDragging ? 'z-50' : ''}`}
+    >
+      {/* Fila de la actividad con sus tareas en la misma línea */}
+      <div 
+        className="flex hover:bg-gray-50 group relative"
+        {...attributes}
+        {...listeners}
+        style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+        title="Arrastra para reordenar la actividad"
+      >
+        <div 
+          className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
+            !expandedDescriptions.has(activity.id) ? 'items-center' : ''
+          }`}
+          data-column="activities"
+          style={{ 
+            height: `${expandedDescriptions.has(activity.id) 
+              ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 17) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
+              : Math.max(48, 4 + 40 + 12) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
+            }px`
+          }}
+        >
+          {/* Indicador de arrastrar - esquina superior derecha */}
+          <div className="absolute top-2 right-2 text-gray-200 group-hover:text-gray-400 transition-colors duration-200 pointer-events-none opacity-0 group-hover:opacity-100">
+            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0 max-w-full">
+            <div className={`flex space-x-2 ${
+              !expandedDescriptions.has(activity.id) ? 'items-center' : 'items-start'
+            }`}>
+              {/* Columna de botones a la izquierda */}
+              <div className="flex flex-col items-center space-y-1 flex-shrink-0">
+                {/* Botón expandir/colapsar */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => toggleDescription(activity.id)}
+                  className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                >
+                  {expandedDescriptions.has(activity.id) ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+                
+                {/* Botones de acción - solo visibles cuando está expandido */}
+                {expandedDescriptions.has(activity.id) && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteActivity(activity.id)}
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              
+              {/* Contenido de la actividad - solo visible cuando NO está expandido */}
+              {!expandedDescriptions.has(activity.id) && (
+                <div className="flex-1 min-w-0 flex items-center relative">
+                  <h4 
+                    className="activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200" 
+                    style={{ 
+                      fontSize: '15px',
+                      lineHeight: activity.name.length > 50 ? '1.1' : '1.3'
+                    }}
+                    data-activity-id={activity.id}
+                    onClick={() => handleActivityBarClick(activity)}
+                    title="Haz clic para ver detalles de la actividad"
+                  >
+                    {activity.name}
+                  </h4>
+                </div>
+              )}
+            </div>
+            
+            {/* Título de actividad posicionado a la altura de su barra cuando está expandido */}
+            {expandedDescriptions.has(activity.id) && (
+              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+                {(() => {
+                  const isExpanded = expandedDescriptions.has(activity.id);
+                  const taskSpacing = 22; // Espaciado entre tareas
+                  const containerHeight = isExpanded 
+                    ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
+                    : Math.max(48, 16 + 40);
+                  const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
+                  const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
+                  const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+                  
+                  // Estimar si el texto tendrá dos líneas basado en la longitud
+                  // Ajustar el umbral considerando el nuevo ancho de columna y tamaño de fuente
+                  const estimatedLines = activity.name.length > 50 ? 2 : 1;
+                  
+                  let topPosition;
+                  
+                  if (estimatedLines === 1) {
+                    // Para títulos de una línea, usar la posición original que ya funcionaba bien
+                    topPosition = startOffset + 14; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
+                  } else {
+                    // Para títulos de múltiples líneas, calcular el centrado especial
+                    // Usar valores empíricos basados en la observación visual
+                    const totalTextHeight = 17; // Altura aproximada de 2 líneas de 13px
+                    
+                    // Calcular el centro de la barra de actividad (32px de altura)
+                    const barCenter = startOffset + 16; // Centro de la barra de 32px
+                    
+                    // Calcular el centro del texto de dos líneas
+                    const textCenter = totalTextHeight / 2; // Centro del texto = 16px
+                    
+                    // Posicionar el texto para que su centro coincida con el centro de la barra
+                    topPosition = barCenter - textCenter;
+                  }
+                  
+                  return (
+                    <div 
+                      className="absolute font-medium text-gray-900 break-words leading-tight cursor-default hover:text-blue-600 transition-colors duration-200"
+                      style={{ 
+                        fontSize: '15px',
+                        lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
+                        top: `${topPosition}px`,
+                        left: '40px', // Posición más a la izquierda para coincidir con títulos colapsados
+                        right: '20px',
+                        zIndex: 10
+                      }}
+                      onClick={() => handleActivityBarClick(activity)}
+                      title="Haz clic para ver detalles de la actividad"
+                    >
+                      <span 
+                        className="activity-title"
+                        data-activity-id={activity.id}
+                      >
+                        {activity.name}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+            
+            {/* Nombres de tareas con checkboxes posicionados a la altura de sus barras */}
+            {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
+              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+                {activity.tasks
+                  .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                  .map((task, index) => {
+                  const isExpanded = expandedDescriptions.has(activity.id);
+                  const taskSpacing = 22; // Espaciado entre tareas
+                  const containerHeight = isExpanded 
+                    ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
+                    : Math.max(48, 16 + 40);
+                  const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
+                  const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
+                  const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+                  
+                  return (
+                    <div 
+                      key={task.id} 
+                      className="absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto"
+                      style={{ 
+                        top: `${startOffset + 40 + (index * taskSpacing) + 12}px`, // 40 para la barra de actividad + espaciado + offset
+                        left: '60px', // Posición fija desde la izquierda
+                        right: '8px',
+                        zIndex: 10
+                      }}
+                    >
+                      {/* Checkbox moderno con color emerald-500 */}
+                      <div className="flex items-center">
+                        <label className="relative inline-flex items-center cursor-default">
+                                            <input
+                                              type="checkbox"
+                                              checked={task.completed}
+                                              onChange={() => handleToggleTaskCompletion(task.id)}
+                                              className="sr-only"
+                                            />
+                          <div className={`w-4 h-4 border-2 rounded transition-all duration-200 ${
+                            task.completed 
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-white border-gray-300 hover:border-emerald-400'
+                          }`}>
+                            {task.completed && (
+                              <svg 
+                                className="w-3 h-3 text-white absolute top-0.5 left-0.5" 
+                                fill="currentColor" 
+                                viewBox="0 0 20 20"
+                              >
+                                <path 
+                                  fillRule="evenodd" 
+                                  d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z" 
+                                  clipRule="evenodd" 
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        </label>
+                      </div>
+                      {/* Nombre de la tarea con punto al final del texto */}
+                      <span 
+                        className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative`}
+                        data-task-id={task.id}
+                        style={{
+                          display: 'inline-block'
+                        }}
+                      >
+                        {task.name}
+                        {/* Punto gris al final del texto */}
+                        <span 
+                          className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 relative"
+                          style={{
+                            verticalAlign: 'middle',
+                            transform: 'translateY(-36%)',
+                            top: '50%'
+                          }}
+                        >
+                          {/* Línea roja desde el punto gris hasta el borde derecho de la columna */}
+                          <div
+                            className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
+                            style={{
+                              left: 'calc(100% + 0px)', // Comienza justo después del punto gris
+                              right: 'calc(-100vw + 416px - 8px)', // Termina en el borde derecho de la columna
+                              height: '0.1px',
+                              backgroundColor: '#e5e7eb',
+                              opacity: 1,
+                              zIndex: 9999
+                            }}
+                          ></div>
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+        </div>
+        
+        {/* Área de Gantt con barras de tareas apiladas verticalmente */}
+        <div 
+          className="flex-1 relative p-2"
+          style={{ 
+            height: `${expandedDescriptions.has(activity.id) 
+              ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 8) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
+              : Math.max(48, 4 + 40 + 8) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
+            }px`
+          }}
+        >
+          
+          {/* Barra de actividad - como primera "tarea" */}
+          {(() => {
+            const activityRange = getActivityDateRange(activity);
+            if (!activityRange) return null;
+
+            const startPos = getDatePosition(activityRange.startDate);
+            const barWidth = getBarWidth(activityRange.startDate, activityRange.endDate);
+            
+            // Si la actividad no es visible (ancho 0), no renderizarla
+            if (barWidth === 0) return null;
+
+            const isExpanded = expandedDescriptions.has(activity.id);
+            const taskSpacing = 22; // Espaciado reducido entre tareas
+            const containerHeight = isExpanded 
+              ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
+              : Math.max(48, 16 + 40);
+            const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
+            const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
+            const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+
+            const activityProgress = getActivityProgress(activity);
+
+            return (
+              <div key={`activity-${activity.id}`} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
+                <div 
+                  className="relative h-8" 
+                  style={{ 
+                    top: `${startOffset}px`
+                  }}
+                >
+                  {/* Barra de fondo gris con popup */}
+                  <div className="relative group h-8">
+                    <div
+                      className="activity-bar absolute top-0 h-8 bg-gray-300 rounded-xl z-10 cursor-default hover:bg-gray-400 hover:shadow-md transition-all duration-200"
+                      style={{
+                        left: `${startPos.left}%`,
+                        width: `${barWidth}%`
+                      }}
+                      data-activity-id={activity.id}
+                      onClick={() => handleActivityBarClick(activity)}
+                      title="Haz clic para ver detalles de la actividad"
+                    >
+                      {/* Barra de progreso verde - perfectamente alineada */}
+                      <div
+                        className="absolute bg-emerald-500 rounded-xl transition-all duration-300 z-20"
+                        style={{
+                          width: `${activityProgress}%`,
+                          top: '0px',
+                          left: '0px',
+                          height: '32px'
+                        }}
+                      ></div>
+                      
+                      {/* Porcentaje al final de la barra */}
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white z-30">
+                        {activityProgress}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+
+          {/* Barras de Gantt de las tareas apiladas verticalmente - solo visibles cuando expandido */}
+          {expandedDescriptions.has(activity.id) && activity.tasks
+            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+            .map((task, index) => {
+            const isExpanded = expandedDescriptions.has(activity.id);
+            const taskSpacing = 22; // Espaciado reducido entre tareas
+            const containerHeight = isExpanded 
+              ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
+              : Math.max(48, 16 + 40);
+            const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
+            const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
+            const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+            
+            // Verificar si la tarea está dentro del rango visible (enero a diciembre)
+            const startPos = getDatePosition(task.start_date);
+            const barWidth = getBarWidth(task.start_date, task.end_date);
+            
+            // Si la tarea no es visible (ancho 0), no renderizarla
+              if (barWidth === 0) {
+                return null;
+              }
+              
+              return (
+              <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '0px', right: '8px' }}>
+                <div 
+                  className="relative h-6" 
+                  style={{ 
+                    top: `${startOffset + 40 + (index * taskSpacing) + 1}px` // 40 para la barra de actividad + espaciado reducido entre tareas
+                  }}
+                >
+                {/* Línea de conexión desde el inicio hasta la barra */}
+                <div
+                  className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
+                  style={{
+                    left: '0%',
+                    width: `${startPos.left}%`,
+                    height: '0.1px',
+                    backgroundColor: '#e5e7eb',
+                    opacity: 1
+                  }}
+                ></div>
+                
+                <div
+                  className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-default hover:opacity-80 transition-opacity duration-200`}
+                  style={{
+                    left: `${startPos.left}%`,
+                    width: `${barWidth}%`
+                  }}
+                  data-task-id={task.id}
+                  title={`Tarea: ${task.name}`}
+                >
+                </div>
+                
+                
+              </div>
+            </div>
+            );
+          })}
+        </div>
+        
+      </div>
+    </div>
+  );
+}
 
 export default function GanttPage() {
   const { proyectos, loading: proyectosLoading, error: proyectosError } = useProyectos();
@@ -62,6 +511,19 @@ export default function GanttPage() {
   
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12); // 12 meses por defecto
+
+  // Configuración de sensores para drag and drop con delay
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 150, // 200ms de delay antes de activar el drag
+        tolerance: 5, // 5px de tolerancia para el movimiento
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Generar los meses visibles basados en el offset y rango
   const getVisibleMonths = () => {
@@ -130,7 +592,8 @@ export default function GanttPage() {
     createTask,
     deleteTask,
     toggleTaskCompletion,
-    calculateProjectProgress
+    calculateProjectProgress,
+    reorderActivities
   } = useGantt(selectedProject?.id || null);
 
   // Calcular estadísticas de actividades y tareas completadas
@@ -667,6 +1130,25 @@ export default function GanttPage() {
     openActivityPopup('view', activity);
   };
 
+  // Manejar el final del drag and drop
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = activities.findIndex((activity) => activity.id === active.id);
+      const newIndex = activities.findIndex((activity) => activity.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const result = await reorderActivities(oldIndex, newIndex);
+        if (result?.success) {
+          showSuccessMessage('Actividades reordenadas exitosamente');
+        } else {
+          showSuccessMessage('Error al reordenar las actividades');
+        }
+      }
+    }
+  };
+
 
   // Calcular el rango de fechas de una actividad basado en sus tareas
   const getActivityDateRange = (activity: Activity) => {
@@ -951,7 +1433,7 @@ export default function GanttPage() {
                 )}
                 
                   {/* Header del calendario */}
-                  <div className="flex border-b border-gray-200">
+                  <div className="flex border-b border-white">
                     <div className="w-[416px] p-4 border-r border-gray-200 bg-gray-50" data-column="activities">
                       <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">Actividades</h3>
@@ -1017,376 +1499,32 @@ export default function GanttPage() {
                     <div className="flex-1 p-4 bg-gray-50"></div>
                   </div>
                 ) : (
-                  <>
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="border-b border-gray-200">
-                        {/* Fila de la actividad con sus tareas en la misma línea */}
-                        <div className="flex hover:bg-gray-50 group relative">
-                          <div 
-                            className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
-                              !expandedDescriptions.has(activity.id) ? 'items-center' : ''
-                            }`}
-                            data-column="activities"
-                            style={{ 
-                              height: `${expandedDescriptions.has(activity.id) 
-                                ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 17) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-                                : Math.max(48, 4 + 40 + 12) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
-                              }px`
-                            }}
-                          >
-                            <div className="flex-1 min-w-0 max-w-full">
-                              <div className={`flex space-x-2 ${
-                                !expandedDescriptions.has(activity.id) ? 'items-center' : 'items-start'
-                              }`}>
-                                {/* Columna de botones a la izquierda */}
-                                <div className="flex flex-col items-center space-y-1 flex-shrink-0">
-                                  {/* Botón expandir/colapsar */}
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => toggleDescription(activity.id)}
-                                    className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                                  >
-                                    {expandedDescriptions.has(activity.id) ? (
-                                      <ChevronDown className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                  
-                                  {/* Botones de acción - solo visibles cuando está expandido */}
-                                  {expandedDescriptions.has(activity.id) && (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteActivity(activity.id)}
-                                        className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                                
-                                {/* Contenido de la actividad - solo visible cuando NO está expandido */}
-                                {!expandedDescriptions.has(activity.id) && (
-                                  <div className="flex-1 min-w-0 flex items-center relative">
-                                    <h4 
-                                      className="activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200" 
-                                      style={{ 
-                                        fontSize: '15px',
-                                        lineHeight: activity.name.length > 50 ? '1.1' : '1.3'
-                                      }}
-                                      data-activity-id={activity.id}
-                                      onClick={() => handleActivityBarClick(activity)}
-                                      title="Haz clic para ver detalles de la actividad"
-                                    >
-                                      {activity.name}
-                                    </h4>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {/* Título de actividad posicionado a la altura de su barra cuando está expandido */}
-                              {expandedDescriptions.has(activity.id) && (
-                                <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
-                                  {(() => {
-                                    const isExpanded = expandedDescriptions.has(activity.id);
-                                    const taskSpacing = 22; // Espaciado entre tareas
-                                    const containerHeight = isExpanded 
-                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
-                                      : Math.max(48, 16 + 40);
-                                    const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
-                                    const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
-                                    const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
-                                    
-                                    // Estimar si el texto tendrá dos líneas basado en la longitud
-                                    // Ajustar el umbral considerando el nuevo ancho de columna y tamaño de fuente
-                                    const estimatedLines = activity.name.length > 50 ? 2 : 1;
-                                    
-                                    let topPosition;
-                                    
-                                    if (estimatedLines === 1) {
-                                      // Para títulos de una línea, usar la posición original que ya funcionaba bien
-                                      topPosition = startOffset + 14; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
-                                    } else {
-                                      // Para títulos de múltiples líneas, calcular el centrado especial
-                                      // Usar valores empíricos basados en la observación visual
-                                      const totalTextHeight = 17; // Altura aproximada de 2 líneas de 13px
-                                      
-                                      // Calcular el centro de la barra de actividad (32px de altura)
-                                      const barCenter = startOffset + 16; // Centro de la barra de 32px
-                                      
-                                      // Calcular el centro del texto de dos líneas
-                                      const textCenter = totalTextHeight / 2; // Centro del texto = 16px
-                                      
-                                      // Posicionar el texto para que su centro coincida con el centro de la barra
-                                      topPosition = barCenter - textCenter;
-                                    }
-                                    
-                                    return (
-                                      <div 
-                                        className="absolute font-medium text-gray-900 break-words leading-tight pointer-events-auto cursor-pointer hover:text-blue-600 transition-colors duration-200"
-                                        style={{ 
-                                          fontSize: '15px',
-                                          lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
-                                          top: `${topPosition}px`,
-                                          left: '40px', // Posición más a la izquierda para coincidir con títulos colapsados
-                                          right: '20px',
-                                          zIndex: 10
-                                        }}
-                                        onClick={() => handleActivityBarClick(activity)}
-                                        title="Haz clic para ver detalles de la actividad"
-                                      >
-                                        <span 
-                                          className="activity-title"
-                                          data-activity-id={activity.id}
-                                        >
-                                          {activity.name}
-                                        </span>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-                              
-                              {/* Nombres de tareas con checkboxes posicionados a la altura de sus barras */}
-                              {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
-                                <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
-                                  {activity.tasks
-                                    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
-                                    .map((task, index) => {
-                                    const isExpanded = expandedDescriptions.has(activity.id);
-                                    const taskSpacing = 22; // Espaciado entre tareas
-                                    const containerHeight = isExpanded 
-                                      ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
-                                      : Math.max(48, 16 + 40);
-                                    const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
-                                    const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
-                                    const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
-                                    
-                                    return (
-                                      <div 
-                                        key={task.id} 
-                                        className="absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto"
-                                        style={{ 
-                                          top: `${startOffset + 40 + (index * taskSpacing) + 12}px`, // 40 para la barra de actividad + espaciado + offset
-                                          left: '60px', // Posición fija desde la izquierda
-                                          right: '8px',
-                                          zIndex: 10
-                                        }}
-                                      >
-                                        {/* Checkbox moderno con color emerald-500 */}
-                                        <div className="flex items-center">
-                                          <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={task.completed}
-                                              onChange={() => handleToggleTaskCompletion(task.id)}
-                                              className="sr-only"
-                                            />
-                                            <div className={`w-4 h-4 border-2 rounded transition-all duration-200 ${
-                                              task.completed 
-                                                ? 'bg-emerald-500 border-emerald-500' 
-                                                : 'bg-white border-gray-300 hover:border-emerald-400'
-                                            }`}>
-                                              {task.completed && (
-                                                <svg 
-                                                  className="w-3 h-3 text-white absolute top-0.5 left-0.5" 
-                                                  fill="currentColor" 
-                                                  viewBox="0 0 20 20"
-                                                >
-                                                  <path 
-                                                    fillRule="evenodd" 
-                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                                                    clipRule="evenodd" 
-                                                  />
-                                                </svg>
-                                              )}
-                                            </div>
-                                          </label>
-                                        </div>
-                                        {/* Nombre de la tarea con punto al final del texto */}
-                                        <span 
-                                          className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative`}
-                                          data-task-id={task.id}
-                                          style={{
-                                            display: 'inline-block'
-                                          }}
-                                        >
-                                          {task.name}
-                                          {/* Punto gris al final del texto */}
-                                          <span 
-                                            className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 relative"
-                                            style={{
-                                              verticalAlign: 'middle',
-                                              transform: 'translateY(-36%)',
-                                              top: '50%'
-                                            }}
-                                          >
-                                            {/* Línea roja desde el punto gris hasta el borde derecho de la columna */}
-                                            <div
-                                              className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
-                                              style={{
-                                                left: 'calc(100% + 0px)', // Comienza justo después del punto gris
-                                                right: 'calc(-100vw + 416px - 8px)', // Termina en el borde derecho de la columna
-                                                height: '0.1px',
-                                                backgroundColor: '#e5e7eb',
-                                                opacity: 1,
-                                                zIndex: 9999
-                                              }}
-                                            ></div>
-                                          </span>
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                            
-                          </div>
-                          
-                          {/* Área de Gantt con barras de tareas apiladas verticalmente */}
-                          <div 
-                            className="flex-1 relative p-2"
-                            style={{ 
-                              height: `${expandedDescriptions.has(activity.id) 
-                                ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 8) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-                                : Math.max(48, 4 + 40 + 8) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
-                              }px`
-                            }}
-                          >
-                            
-                            {/* Barra de actividad - como primera "tarea" */}
-                            {(() => {
-                              const activityRange = getActivityDateRange(activity);
-                              if (!activityRange) return null;
-
-                              const startPos = getDatePosition(activityRange.startDate);
-                              const barWidth = getBarWidth(activityRange.startDate, activityRange.endDate);
-                              
-                              // Si la actividad no es visible (ancho 0), no renderizarla
-                              if (barWidth === 0) return null;
-
-                              const isExpanded = expandedDescriptions.has(activity.id);
-                              const taskSpacing = 22; // Espaciado reducido entre tareas
-                              const containerHeight = isExpanded 
-                                ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-                                : Math.max(48, 16 + 40);
-                              const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
-                              const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
-                              const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
-
-                              const activityProgress = getActivityProgress(activity);
-
-                              return (
-                                <div key={`activity-${activity.id}`} className="absolute" style={{ width: 'calc(100% - 16px)', left: '8px', right: '8px' }}>
-                                  <div 
-                                    className="relative h-8" 
-                                    style={{ 
-                                      top: `${startOffset}px`
-                                    }}
-                                  >
-                                    {/* Barra de fondo gris con popup */}
-                                    <div className="relative group h-8">
-                                      <div
-                                        className="activity-bar absolute top-0 h-8 bg-gray-300 rounded-xl z-10 cursor-pointer hover:bg-gray-400 hover:shadow-md transition-all duration-200"
-                                        style={{
-                                          left: `${startPos.left}%`,
-                                          width: `${barWidth}%`
-                                        }}
-                                        data-activity-id={activity.id}
-                                        onClick={() => handleActivityBarClick(activity)}
-                                        title="Haz clic para ver detalles de la actividad"
-                                      >
-                                        {/* Barra de progreso verde - perfectamente alineada */}
-                                        <div
-                                          className="absolute bg-emerald-500 rounded-xl transition-all duration-300 z-20"
-                                          style={{
-                                            width: `${activityProgress}%`,
-                                            top: '0px',
-                                            left: '0px',
-                                            height: '32px'
-                                          }}
-                                        ></div>
-                                        
-                                        {/* Porcentaje al final de la barra */}
-                                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white z-30">
-                                          {activityProgress}%
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })()}
-
-
-                            {/* Barras de Gantt de las tareas apiladas verticalmente - solo visibles cuando expandido */}
-                            {expandedDescriptions.has(activity.id) && activity.tasks
-                              .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
-                              .map((task, index) => {
-                              const isExpanded = expandedDescriptions.has(activity.id);
-                              const taskSpacing = 22; // Espaciado reducido entre tareas
-                              const containerHeight = isExpanded 
-                                ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-                                : Math.max(48, 16 + 40);
-                              const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
-                              const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
-                              const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
-                              
-                              // Verificar si la tarea está dentro del rango visible (enero a diciembre)
-                              const startPos = getDatePosition(task.start_date);
-                              const barWidth = getBarWidth(task.start_date, task.end_date);
-                              
-                              // Si la tarea no es visible (ancho 0), no renderizarla
-                                if (barWidth === 0) {
-                                  return null;
-                                }
-                                
-                                return (
-                                <div key={task.id} className="absolute" style={{ width: 'calc(100% - 16px)', left: '0px', right: '8px' }}>
-                                  <div 
-                                    className="relative h-6" 
-                                    style={{ 
-                                      top: `${startOffset + 40 + (index * taskSpacing) + 1}px` // 40 para la barra de actividad + espaciado reducido entre tareas
-                                    }}
-                                  >
-                                  {/* Línea de conexión desde el inicio hasta la barra */}
-                                  <div
-                                    className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
-                                    style={{
-                                      left: '0%',
-                                      width: `${startPos.left}%`,
-                                      height: '0.1px',
-                                      backgroundColor: '#e5e7eb',
-                                      opacity: 1
-                                    }}
-                                  ></div>
-                                  
-                                  <div
-                                    className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-pointer hover:opacity-80 transition-opacity duration-200`}
-                                    style={{
-                                      left: `${startPos.left}%`,
-                                      width: `${barWidth}%`
-                                    }}
-                                    data-task-id={task.id}
-                                    title={`Tarea: ${task.name}`}
-                                  >
-                                  </div>
-                                  
-                                  
-                                </div>
-                              </div>
-                              );
-                            })}
-                          </div>
-                          
-                        </div>
-                      </div>
-                    ))}
+                  <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={activities.map(activity => activity.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {activities.map((activity) => (
+                          <SortableActivity
+                            key={activity.id}
+                            activity={activity}
+                            expandedDescriptions={expandedDescriptions}
+                            toggleDescription={toggleDescription}
+                            handleActivityBarClick={handleActivityBarClick}
+                            handleDeleteActivity={handleDeleteActivity}
+                            handleToggleTaskCompletion={handleToggleTaskCompletion}
+                            getActivityDateRange={getActivityDateRange}
+                            getActivityProgress={getActivityProgress}
+                            getDatePosition={getDatePosition}
+                            getBarWidth={getBarWidth}
+                            formatDateForTooltip={formatDateForTooltip}
+                          />
+                        ))}
+                      </SortableContext>
                     
                     {/* Botón para agregar actividad */}
                     <div className="flex">
@@ -1409,7 +1547,7 @@ export default function GanttPage() {
                       </div>
                       <div className="flex-1 p-4 bg-gray-50"></div>
                     </div>
-                  </>
+                  </DndContext>
                 )}
               </div>
               
@@ -1753,6 +1891,7 @@ export default function GanttPage() {
                             tasks: tempTasks,
                             project_id: selectedProject?.id || '',
                             color: '#3B82F6',
+                            order_index: 0,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString()
                           };

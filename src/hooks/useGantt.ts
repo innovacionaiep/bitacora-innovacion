@@ -21,6 +21,7 @@ export type Activity = {
   progress: number;
   project_id: string;
   color: string;
+  order_index: number;
   created_at: string;
   updated_at: string;
   tasks: Task[];
@@ -47,12 +48,12 @@ export function useGantt(projectId: string | null) {
     setError(null);
 
     try {
-      // Cargar actividades
+      // Cargar actividades ordenadas por order_index
       const { data: activitiesData, error: activitiesError } = await supabase
         .from('activities')
         .select('*')
         .eq('project_id', projectId)
-        .order('created_at', { ascending: true });
+        .order('order_index', { ascending: true });
 
       if (activitiesError) throw activitiesError;
 
@@ -83,6 +84,7 @@ export function useGantt(projectId: string | null) {
           return {
             ...activity,
             color: 'bg-gray-700', // Forzar color gris oscuro para todas las actividades
+            order_index: activity.order_index || 0, // Asegurar que order_index existe
             tasks,
             progress: correctProgress // Usar el progreso calculado, no el de la DB
           };
@@ -134,12 +136,14 @@ export function useGantt(projectId: string | null) {
       }
 
       const color = ACTIVITY_COLORS[activities.length % ACTIVITY_COLORS.length];
+      const orderIndex = activities.length; // Nuevas actividades van al final
       
       console.log('Creating activity with data:', {
         ...activityData,
         project_id: projectId,
         color,
-        progress: 0
+        progress: 0,
+        order_index: orderIndex
       });
       
       const { data, error } = await supabase
@@ -148,7 +152,8 @@ export function useGantt(projectId: string | null) {
           ...activityData,
           project_id: projectId,
           color,
-          progress: 0
+          progress: 0,
+          order_index: orderIndex
         })
         .select()
         .single();
@@ -589,6 +594,50 @@ export function useGantt(projectId: string | null) {
     }
   };
 
+  // Reordenar actividades
+  const reorderActivities = async (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Crear una copia del array de actividades
+      const reorderedActivities = [...activities];
+      const [movedActivity] = reorderedActivities.splice(startIndex, 1);
+      reorderedActivities.splice(endIndex, 0, movedActivity);
+
+      // Actualizar los order_index en el array local
+      const updatedActivities = reorderedActivities.map((activity, index) => ({
+        ...activity,
+        order_index: index
+      }));
+
+      // Actualizar el estado local inmediatamente para una mejor UX
+      setActivities(updatedActivities);
+
+      // Actualizar en la base de datos
+      const updatePromises = updatedActivities.map((activity, index) =>
+        supabase
+          .from('activities')
+          .update({ order_index: index })
+          .eq('id', activity.id)
+      );
+
+      await Promise.all(updatePromises);
+
+      return { success: true, error: null };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al reordenar las actividades';
+      setError(errorMessage);
+      // Recargar actividades para restaurar el estado original
+      await loadActivities();
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Cargar actividades cuando cambie el proyecto
   useEffect(() => {
     loadActivities();
@@ -608,6 +657,7 @@ export function useGantt(projectId: string | null) {
     calculateProjectProgress,
     updateProjectProgress,
     syncAllActivitiesProgress,
-    loadActivities
+    loadActivities,
+    reorderActivities
   };
 }

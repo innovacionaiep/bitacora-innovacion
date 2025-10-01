@@ -230,7 +230,7 @@ export default function ProyectosPage() {
             {filteredProjects.map((project, index) => (
               <Card
                 key={index}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                className={`cursor-default transition-all duration-200 hover:shadow-md ${
                   selectedProject?.proyecto === project.proyecto
                     ? 'ring-2 ring-blue-500 bg-blue-50'
                     : 'hover:bg-gray-50'
