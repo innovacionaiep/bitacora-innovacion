@@ -141,4 +141,11 @@
   .clickable {
     cursor: default !important;
   }
+  
+  /* Solución simple para mantener texto nítido durante drag */
+  .dragging-text {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
 }

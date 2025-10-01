@@ -26,7 +26,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import {
@@ -95,14 +95,13 @@ function SortableActivity({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`border-b border-white ${isDragging ? 'z-50' : ''}`}
+      className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`} // Z-index diferenciado por estado
     >
       {/* Fila de la actividad con sus tareas en la misma línea */}
       <div 
@@ -169,7 +168,7 @@ function SortableActivity({
               {!expandedDescriptions.has(activity.id) && (
                 <div className="flex-1 min-w-0 flex items-center relative">
                   <h4 
-                    className="activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200" 
+                    className={`activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 ${isDragging ? 'dragging-text' : ''}`}
                     style={{ 
                       fontSize: '15px',
                       lineHeight: activity.name.length > 50 ? '1.1' : '1.3'
@@ -223,7 +222,7 @@ function SortableActivity({
                   
                   return (
                     <div 
-                      className="absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto"
+                      className={`absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto ${isDragging ? 'dragging-text' : ''}`}
                       style={{ 
                         fontSize: '15px',
                         lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
@@ -305,7 +304,7 @@ function SortableActivity({
                       </div>
                       {/* Nombre de la tarea con punto al final del texto */}
                       <span 
-                        className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative`}
+                        className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative ${isDragging ? 'dragging-text' : ''}`}
                         data-task-id={task.id}
                         style={{
                           display: 'inline-block'
