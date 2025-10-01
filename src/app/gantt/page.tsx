@@ -1220,17 +1220,19 @@ export default function GanttPage() {
                                           <span 
                                             className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 relative"
                                             style={{
-                                              verticalAlign: 'middle'
+                                              verticalAlign: 'middle',
+                                              transform: 'translateY(-36%)',
+                                              top: '50%'
                                             }}
                                           >
                                             {/* Línea roja desde el punto gris hasta el borde derecho de la columna */}
                                             <div
                                               className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
                                               style={{
-                                                left: 'calc(100% + 4px)', // Comienza justo después del punto gris
+                                                left: 'calc(100% + 0px)', // Comienza justo después del punto gris
                                                 right: 'calc(-100vw + 416px - 8px)', // Termina en el borde derecho de la columna
-                                                height: '3px',
-                                                backgroundColor: '#ef4444',
+                                                height: '0.1px',
+                                                backgroundColor: '#e5e7eb',
                                                 opacity: 1,
                                                 zIndex: 9999
                                               }}
@@ -1359,7 +1361,7 @@ export default function GanttPage() {
                                       left: '0%',
                                       width: `${startPos.left}%`,
                                       height: '0.1px',
-                                      backgroundColor: '#d1d5db',
+                                      backgroundColor: '#e5e7eb',
                                       opacity: 1
                                     }}
                                   ></div>
