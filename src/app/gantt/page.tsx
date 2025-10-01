@@ -223,7 +223,7 @@ function SortableActivity({
                   
                   return (
                     <div 
-                      className="absolute font-medium text-gray-900 break-words leading-tight cursor-default hover:text-blue-600 transition-colors duration-200"
+                      className="absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto"
                       style={{ 
                         fontSize: '15px',
                         lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
