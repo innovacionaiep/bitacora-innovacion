@@ -185,7 +185,7 @@ function SortableActivity({
             
             {/* Título de actividad posicionado a la altura de su barra cuando está expandido */}
             {expandedDescriptions.has(activity.id) && (
-              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+              <div className={`absolute left-0 right-0 top-0 bottom-0 pointer-events-none ${isDragging ? 'dragging-absolute' : ''}`}>
                 {(() => {
                   const isExpanded = expandedDescriptions.has(activity.id);
                   const taskSpacing = 22; // Espaciado entre tareas
@@ -248,7 +248,7 @@ function SortableActivity({
             
             {/* Nombres de tareas con checkboxes posicionados a la altura de sus barras */}
             {expandedDescriptions.has(activity.id) && activity.tasks && activity.tasks.length > 0 && (
-              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none">
+              <div className={`absolute left-0 right-0 top-0 bottom-0 pointer-events-none ${isDragging ? 'dragging-absolute' : ''}`}>
                 {activity.tasks
                   .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                   .map((task, index) => {
@@ -264,7 +264,7 @@ function SortableActivity({
                   return (
                     <div 
                       key={task.id} 
-                      className="absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto"
+                      className={`absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto ${isDragging ? 'dragging-absolute' : ''}`}
                       style={{ 
                         top: `${startOffset + 40 + (index * taskSpacing) + 12}px`, // 40 para la barra de actividad + espaciado + offset
                         left: '60px', // Posición fija desde la izquierda
@@ -825,9 +825,14 @@ export default function GanttPage() {
   };
 
   // Toggle completar tarea
-  const handleToggleTaskCompletion = (taskId: string) => {
-    toggleTaskCompletion(taskId);
-    showSuccessMessage('Tarea actualizada exitosamente');
+  const handleToggleTaskCompletion = async (taskId: string) => {
+    try {
+      await toggleTaskCompletion(taskId);
+      showSuccessMessage('Tarea actualizada exitosamente');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      showSuccessMessage('Error al actualizar la tarea');
+    }
   };
 
   // Eliminar actividad
@@ -1940,7 +1945,7 @@ export default function GanttPage() {
                                       ));
                                     } else {
                                       // Actualizar tarea existente en la base de datos
-                                      handleToggleTaskCompletion(task.id);
+                                      await handleToggleTaskCompletion(task.id);
                                       // Actualizar la actividad para reflejar el cambio
                                       if (selectedActivityForPopup) {
                                         const updatedActivity = {

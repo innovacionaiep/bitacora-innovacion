@@ -408,76 +408,125 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Toggle completar tarea (solo estado local)
-  const toggleTaskCompletion = (taskId: string) => {
-    setActivities(prev => {
-      console.log('=== TOGGLE TASK COMPLETION ===');
-      console.log('Task ID:', taskId);
-      console.log('Current activities:', prev);
-      
-      // Encontrar la tarea y la actividad que la contiene
-      let targetActivity = null;
-      let targetTask = null;
-      
-      for (const activity of prev) {
-        const task = activity.tasks.find(t => t.id === taskId);
-        if (task) {
-          targetActivity = activity;
-          targetTask = task;
-          break;
-        }
+  // Toggle completar tarea (actualiza base de datos)
+  const toggleTaskCompletion = async (taskId: string) => {
+    console.log('=== TOGGLE TASK COMPLETION ===');
+    console.log('Task ID:', taskId);
+    
+    // Encontrar la tarea y la actividad que la contiene
+    let targetActivity = null;
+    let targetTask = null;
+    
+    for (const activity of activities) {
+      const task = activity.tasks.find(t => t.id === taskId);
+      if (task) {
+        targetActivity = activity;
+        targetTask = task;
+        break;
+      }
+    }
+
+    if (!targetActivity || !targetTask) {
+      console.log('Task or activity not found');
+      return;
+    }
+
+    console.log('Found task:', targetTask.name, 'completed:', targetTask.completed);
+    console.log('Found activity:', targetActivity.name, 'progress:', targetActivity.progress);
+
+    // Crear la tarea actualizada
+    const updatedTask = {
+      ...targetTask,
+      completed: !targetTask.completed,
+      progress: !targetTask.completed ? 100 : 0
+    };
+
+    console.log('Updated task:', updatedTask.name, 'completed:', updatedTask.completed);
+
+    try {
+      // Actualizar la tarea en la base de datos
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .update({
+          completed: updatedTask.completed,
+          progress: updatedTask.progress
+        })
+        .eq('id', taskId);
+
+      if (taskError) {
+        console.error('Error updating task:', taskError);
+        throw taskError;
       }
 
-      if (!targetActivity || !targetTask) {
-        console.log('Task or activity not found');
-        return prev;
-      }
+      // Actualizar el estado local
+      setActivities(prev => {
+        const updatedActivity = {
+          ...targetActivity,
+          tasks: targetActivity.tasks.map(t => 
+            t.id === taskId ? updatedTask : t
+          )
+        };
 
-      console.log('Found task:', targetTask.name, 'completed:', targetTask.completed);
-      console.log('Found activity:', targetActivity.name, 'progress:', targetActivity.progress);
+        // Recalcular el progreso de la actividad
+        const completedTasks = updatedActivity.tasks.filter(task => task.completed).length;
+        const newProgress = updatedActivity.tasks.length > 0 
+          ? Math.round((completedTasks / updatedActivity.tasks.length) * 100) 
+          : 0;
 
-      // Crear la tarea actualizada
-      const updatedTask = {
-        ...targetTask,
-        completed: !targetTask.completed,
-        progress: !targetTask.completed ? 100 : 0
-      };
+        console.log('Activity progress calculation:', completedTasks, '/', updatedActivity.tasks.length, '=', newProgress + '%');
 
-      console.log('Updated task:', updatedTask.name, 'completed:', updatedTask.completed);
+        const finalActivity = {
+          ...updatedActivity,
+          progress: newProgress
+        };
 
-      // Actualizar la actividad con la tarea modificada
-      const updatedActivity = {
-        ...targetActivity,
-        tasks: targetActivity.tasks.map(t => 
-          t.id === taskId ? updatedTask : t
-        )
-      };
+        console.log('Final activity:', finalActivity.name, 'progress:', finalActivity.progress);
 
-      // Recalcular el progreso de la actividad
-      const completedTasks = updatedActivity.tasks.filter(task => task.completed).length;
-      const newProgress = updatedActivity.tasks.length > 0 
-        ? Math.round((completedTasks / updatedActivity.tasks.length) * 100) 
+        // Actualizar el array de actividades
+        const result = prev.map(activity => 
+          activity.id === targetActivity.id ? finalActivity : activity
+        );
+
+        console.log('Final activities:', result);
+        console.log('=== END TOGGLE ===');
+        
+        return result;
+      });
+
+      // Actualizar el progreso de la actividad en la base de datos
+      const completedTasks = targetActivity.tasks.map(t => 
+        t.id === taskId ? updatedTask : t
+      ).filter(task => task.completed).length;
+      const newProgress = targetActivity.tasks.length > 0 
+        ? Math.round((completedTasks / targetActivity.tasks.length) * 100) 
         : 0;
 
-      console.log('Activity progress calculation:', completedTasks, '/', updatedActivity.tasks.length, '=', newProgress + '%');
+      const { error: activityError } = await supabase
+        .from('activities')
+        .update({ progress: newProgress })
+        .eq('id', targetActivity.id);
 
-      const finalActivity = {
-        ...updatedActivity,
-        progress: newProgress
-      };
+      if (activityError) {
+        console.error('Error updating activity progress:', activityError);
+      }
 
-      console.log('Final activity:', finalActivity.name, 'progress:', finalActivity.progress);
+      // Actualizar el progreso del proyecto
+      if (projectId) {
+        const updatedActivities = activities.map(activity => 
+          activity.id === targetActivity.id 
+            ? { ...activity, progress: newProgress }
+            : activity
+        );
+        const projectProgress = Math.round(
+          updatedActivities.reduce((sum, act) => sum + act.progress, 0) / updatedActivities.length
+        );
+        await updateProjectProgress(projectId, projectProgress);
+      }
 
-      // Actualizar el array de actividades
-      const result = prev.map(activity => 
-        activity.id === targetActivity.id ? finalActivity : activity
-      );
-
-      console.log('Final activities:', result);
-      console.log('=== END TOGGLE ===');
-      
-      return result;
-    });
+    } catch (err) {
+      console.error('Error toggling task completion:', err);
+      setError(err instanceof Error ? err.message : 'Error al actualizar la tarea');
+    }
   };
 
   // Calcular progreso de una actividad
