@@ -3,5 +3,5 @@ export default function IndicadoresPage() {
     <div className="p-6">
       <p>Indicadores</p>
     </div>
-  )
+  );
 }

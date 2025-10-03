@@ -120,20 +120,20 @@
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Solución robusta para cursores nítidos */
   * {
     cursor: inherit;
   }
-  
+
   /* Elementos clickeables con cursor por defecto (sin mano) */
   button,
-  [role="button"],
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"],
-  input[type="checkbox"],
-  input[type="radio"],
+  [role='button'],
+  input[type='button'],
+  input[type='submit'],
+  input[type='reset'],
+  input[type='checkbox'],
+  input[type='radio'],
   select,
   a[href],
   [onclick],
@@ -141,13 +141,13 @@
   .clickable {
     cursor: default !important;
   }
-  
+
   /* Solución simple para mantener texto nítido durante drag */
   .dragging-text {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   /* Solución específica para elementos posicionados absolutamente durante drag */
   .dragging-absolute {
     transform: translateZ(0);
@@ -157,5 +157,4 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
 }

@@ -9,7 +9,7 @@ import {
   NavigationMenuLink,
   NavigationMenuIndicator,
   NavigationMenuViewport,
-} from "@/components/ui/navigation-menu";
+} from '@/components/ui/navigation-menu';
 
 export default function PageHeader() {
   return (
@@ -27,14 +27,18 @@ export default function PageHeader() {
             <NavigationMenuItem>
               <NavigationMenuTrigger>Proyectos</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <NavigationMenuLink href="/proyectos">Ver proyectos</NavigationMenuLink>
+                <NavigationMenuLink href="/proyectos">
+                  Ver proyectos
+                </NavigationMenuLink>
               </NavigationMenuContent>
             </NavigationMenuItem>
 
             <NavigationMenuItem>
               <NavigationMenuTrigger>Configuración</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <NavigationMenuLink href="/configuracion">Preferencias</NavigationMenuLink>
+                <NavigationMenuLink href="/configuracion">
+                  Preferencias
+                </NavigationMenuLink>
               </NavigationMenuContent>
             </NavigationMenuItem>
           </NavigationMenuList>

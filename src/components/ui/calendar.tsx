@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CalendarProps {
@@ -17,20 +21,30 @@ interface CalendarProps {
 // Configuración para Chile
 const CHILE_LOCALE = {
   months: [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
   ],
-  weekDays: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá']
+  weekDays: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
 };
 
 export function Calendar({
   value,
   onChange,
-  placeholder = "Seleccionar fecha",
+  placeholder = 'Seleccionar fecha',
   className,
   disabled = false,
   minDate,
-  maxDate
+  maxDate,
 }: CalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -42,7 +56,7 @@ export function Calendar({
     return date.toLocaleDateString('es-CL', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -71,14 +85,18 @@ export function Calendar({
   // Cerrar calendario al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      if (
+        calendarRef.current &&
+        !calendarRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      return () =>
+        document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
 
@@ -92,13 +110,13 @@ export function Calendar({
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Días del mes anterior
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       const prevDate = new Date(year, month, -i);
       days.push({
         date: prevDate,
-        isCurrentMonth: false
+        isCurrentMonth: false,
       });
     }
 
@@ -107,13 +125,15 @@ export function Calendar({
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const isToday = date.toDateString() === today.toDateString();
-      const isSelected = selectedDate ? date.toDateString() === selectedDate.toDateString() : false;
-      
+      const isSelected = selectedDate
+        ? date.toDateString() === selectedDate.toDateString()
+        : false;
+
       days.push({
         date,
         isCurrentMonth: true,
         isToday,
-        isSelected
+        isSelected,
       });
     }
 
@@ -123,7 +143,7 @@ export function Calendar({
       const nextDate = new Date(year, month + 1, day);
       days.push({
         date: nextDate,
-        isCurrentMonth: false
+        isCurrentMonth: false,
       });
     }
 
@@ -133,7 +153,7 @@ export function Calendar({
   // Manejar selección de fecha - CORREGIDO
   const handleDateClick = (date: Date, isCurrentMonth: boolean) => {
     console.log('Click detectado en:', date, 'isCurrentMonth:', isCurrentMonth);
-    
+
     // Solo permitir selección de días del mes actual
     if (!isCurrentMonth) {
       console.log('Día de otro mes, ignorando');
@@ -157,19 +177,19 @@ export function Calendar({
     }
 
     console.log('Seleccionando fecha:', date);
-    
+
     // Formatear la fecha ANTES de actualizar el estado
     const formattedDate = formatDate(date);
     console.log('Fecha formateada:', formattedDate);
-    
+
     // Notificar cambio PRIMERO
     if (onChange) {
       onChange(formattedDate);
     }
-    
+
     // Luego actualizar el estado local
     setSelectedDate(date);
-    
+
     // Cerrar calendario después de un pequeño delay para asegurar que el estado se actualice
     setTimeout(() => {
       setIsOpen(false);
@@ -178,7 +198,7 @@ export function Calendar({
 
   // Navegar entre meses
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth(prev => {
+    setCurrentMonth((prev) => {
       const newMonth = new Date(prev);
       if (direction === 'prev') {
         newMonth.setMonth(prev.getMonth() - 1);
@@ -199,8 +219,8 @@ export function Calendar({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full justify-start text-left font-normal h-10 px-2 py-2 inline-flex items-center gap-2 whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-          !selectedDate && "text-muted-foreground",
+          'w-full justify-start text-left font-normal h-10 px-2 py-2 inline-flex items-center gap-2 whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+          !selectedDate && 'text-muted-foreground',
           className
         )}
       >
@@ -212,12 +232,14 @@ export function Calendar({
 
       {/* Calendar dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-80 rounded-lg border bg-white shadow-lg" 
-             style={{
-               left: 'calc(100% + 20px)',
-               top: '50%',
-               transform: 'translateY(-50%)'
-             }}>
+        <div
+          className="absolute z-50 w-80 rounded-lg border bg-white shadow-lg"
+          style={{
+            left: 'calc(100% + 20px)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <button
@@ -227,7 +249,7 @@ export function Calendar({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            
+
             <div className="text-center">
               <h3 className="text-lg font-semibold text-gray-900">
                 {CHILE_LOCALE.months[currentMonth.getMonth()]}
@@ -236,7 +258,7 @@ export function Calendar({
                 {currentMonth.getFullYear()}
               </div>
             </div>
-            
+
             <button
               type="button"
               onClick={() => navigateMonth('next')}
@@ -262,25 +284,33 @@ export function Calendar({
           <div className="grid grid-cols-7 gap-1 p-2">
             {days.map((day, index) => {
               const isClickable = day.isCurrentMonth;
-              
+
               const handleClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Div clickeado:', day.date, 'isCurrentMonth:', day.isCurrentMonth);
+                console.log(
+                  'Div clickeado:',
+                  day.date,
+                  'isCurrentMonth:',
+                  day.isCurrentMonth
+                );
                 handleDateClick(day.date, day.isCurrentMonth);
               };
-              
+
               return (
                 <div
                   key={`${day.date.getFullYear()}-${day.date.getMonth()}-${day.date.getDate()}-${index}`}
                   onClick={handleClick}
                   onMouseDown={(e) => e.preventDefault()}
                   className={cn(
-                    "h-8 w-8 text-sm inline-flex items-center justify-center rounded-md font-medium transition-colors select-none",
-                    !day.isCurrentMonth && "text-gray-300 cursor-not-allowed",
-                    day.isCurrentMonth && "hover:bg-gray-100 cursor-default active:bg-gray-200",
-                    day.isToday && day.isCurrentMonth && "bg-blue-100 text-blue-600 font-semibold",
-                    day.isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                    'h-8 w-8 text-sm inline-flex items-center justify-center rounded-md font-medium transition-colors select-none',
+                    !day.isCurrentMonth && 'text-gray-300 cursor-not-allowed',
+                    day.isCurrentMonth &&
+                      'hover:bg-gray-100 cursor-default active:bg-gray-200',
+                    day.isToday &&
+                      day.isCurrentMonth &&
+                      'bg-blue-100 text-blue-600 font-semibold',
+                    day.isSelected && 'bg-blue-600 text-white hover:bg-blue-700'
                   )}
                 >
                   {day.date.getDate()}

@@ -3,5 +3,5 @@ export default function PresupuestoPage() {
     <div className="p-6">
       <p>Presupuesto</p>
     </div>
-  )
+  );
 }

@@ -27,8 +27,8 @@ export function DateRangePicker({
   onRangeChange,
   className,
   disabled = false,
-  placeholder = "Seleccionar rango de fechas",
-  showLabels = true
+  placeholder = 'Seleccionar rango de fechas',
+  showLabels = true,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -50,12 +50,12 @@ export function DateRangePicker({
 
   const formatRange = () => {
     if (!startDate && !endDate) return placeholder;
-    
+
     const formatDate = (date: string) => {
       return new Date(date).toLocaleDateString('es-CL', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
       });
     };
 
@@ -66,20 +66,20 @@ export function DateRangePicker({
     } else if (endDate) {
       return `Hasta ${formatDate(endDate)}`;
     }
-    
+
     return placeholder;
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn('space-y-3', className)}>
       {/* Trigger button */}
       <Button
         variant="outline"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full justify-start text-left font-normal",
-          (!startDate && !endDate) && "text-muted-foreground"
+          'w-full justify-start text-left font-normal',
+          !startDate && !endDate && 'text-muted-foreground'
         )}
       >
         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -132,7 +132,7 @@ export function DateRangePicker({
               />
             </div>
           </div>
-          
+
           {/* Quick actions */}
           <div className="flex items-center justify-between mt-4 pt-3 border-t">
             <Button

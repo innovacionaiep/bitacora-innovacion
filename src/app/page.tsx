@@ -2,15 +2,15 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  BarChart3, 
-  FolderKanban, 
-  DollarSign, 
-  CalendarDays, 
+import {
+  BarChart3,
+  FolderKanban,
+  DollarSign,
+  CalendarDays,
   LineChart,
   User,
   ChevronDown,
-  Download
+  Download,
 } from 'lucide-react';
 
 import {
@@ -61,15 +61,17 @@ export default function DashboardPage() {
   // ====== Estados ======
   const [filters, setFilters] = useState<{ [key: string]: string[] }>({});
   const [searchTerm, setSearchTerm] = useState<{ [key: string]: string }>({});
-  const [sort, setSort] = useState<{ key: string | null; dir: 'asc' | 'desc' }>({
-    key: null,
-    dir: 'asc',
-  });
-
+  const [sort, setSort] = useState<{ key: string | null; dir: 'asc' | 'desc' }>(
+    {
+      key: null,
+      dir: 'asc',
+    }
+  );
 
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
   const getDisplayValue = (col: string, p: Project): string | number => {
-    if (col === 'reuniones') return `${p.reuniones_hechas}/${p.reuniones_totales}`;
+    if (col === 'reuniones')
+      return `${p.reuniones_hechas}/${p.reuniones_totales}`;
     if (col === 'avanceGantt') return p.avance_gantt;
     if (col === 'presupuestoUsado') return p.presupuesto_usado;
     return (p as any)[col];
@@ -122,7 +124,9 @@ export default function DashboardPage() {
         return selected.includes(val);
       })
     );
-    return Array.from(new Set(rows.map((p) => getDisplayValue(columna as string, p))));
+    return Array.from(
+      new Set(rows.map((p) => getDisplayValue(columna as string, p)))
+    );
   };
 
   // ====== Acciones de menú ======
@@ -138,12 +142,12 @@ export default function DashboardPage() {
   // ====== Exportar a Excel ======
   const exportToExcel = () => {
     const filteredData = getFilteredProjects();
-    
+
     // Preparar los datos para Excel
-    const excelData = filteredData.map(project => ({
+    const excelData = filteredData.map((project) => ({
       'Nombre del Proyecto': project.proyecto,
-      'Fondo': project.fondo,
-      'Sede': project.sede,
+      Fondo: project.fondo,
+      Sede: project.sede,
       'Escuela Líder': project.escuela,
       'Avance Gantt (%)': project.avance_gantt,
       'Indicadores (%)': project.objetivos,
@@ -151,13 +155,13 @@ export default function DashboardPage() {
       'Presupuesto Total': project.presupuesto_total,
       'Reuniones Realizadas': project.reuniones_hechas,
       'Reuniones Totales': project.reuniones_totales,
-      'Participantes': project.participantes
+      Participantes: project.participantes,
     }));
 
     // Crear el libro de trabajo
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
-    
+
     // Ajustar el ancho de las columnas
     const colWidths = [
       { wch: 50 }, // Nombre del Proyecto
@@ -170,13 +174,13 @@ export default function DashboardPage() {
       { wch: 18 }, // Presupuesto Total
       { wch: 20 }, // Reuniones Realizadas
       { wch: 18 }, // Reuniones Totales
-      { wch: 15 }  // Participantes
+      { wch: 15 }, // Participantes
     ];
     ws['!cols'] = colWidths;
 
     // Agregar la hoja al libro
     XLSX.utils.book_append_sheet(wb, ws, 'Proyectos');
-    
+
     // Generar y descargar el archivo
     const fileName = `proyectos_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
@@ -190,7 +194,9 @@ export default function DashboardPage() {
     align: 'start' | 'center' = 'center'
   ) => (
     <TableHead className={className}>
-      <div className={`flex items-center gap-1 ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
+      <div
+        className={`flex items-center gap-1 ${align === 'center' ? 'justify-center' : 'justify-start'}`}
+      >
         <span>{titulo}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -199,8 +205,16 @@ export default function DashboardPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => handleAction(columna, 'Ordenar ASC')}>Ordenar ASC</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleAction(columna, 'Ordenar DESC')}>Ordenar DESC</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleAction(columna, 'Ordenar ASC')}
+            >
+              Ordenar ASC
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleAction(columna, 'Ordenar DESC')}
+            >
+              Ordenar DESC
+            </DropdownMenuItem>
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>Filtrar</DropdownMenuSubTrigger>
@@ -210,26 +224,40 @@ export default function DashboardPage() {
                   placeholder="Buscar..."
                   className="w-full border rounded px-2 py-1 text-sm mb-2"
                   value={searchTerm[columna] || ''}
-                  onChange={(e) => setSearchTerm({ ...searchTerm, [columna]: e.target.value })}
+                  onChange={(e) =>
+                    setSearchTerm({ ...searchTerm, [columna]: e.target.value })
+                  }
                 />
 
                 <div className="max-h-48 overflow-y-auto pr-1">
                   {getUniqueValues(columna as any)
                     .filter((val) =>
-                      String(val).toLowerCase().includes((searchTerm[columna] || '').toLowerCase())
+                      String(val)
+                        .toLowerCase()
+                        .includes((searchTerm[columna] || '').toLowerCase())
                     )
                     .map((val) => (
-                      <label key={`${columna}-${val}`} className="flex items-center gap-2 text-sm py-1">
+                      <label
+                        key={`${columna}-${val}`}
+                        className="flex items-center gap-2 text-sm py-1"
+                      >
                         <input
                           type="checkbox"
-                          checked={filters[columna]?.includes(String(val)) || false}
+                          checked={
+                            filters[columna]?.includes(String(val)) || false
+                          }
                           onChange={(e) => {
                             const newFilters = { ...filters };
                             const v = String(val);
                             if (e.target.checked) {
-                              newFilters[columna] = [...(newFilters[columna] || []), v];
+                              newFilters[columna] = [
+                                ...(newFilters[columna] || []),
+                                v,
+                              ];
                             } else {
-                              newFilters[columna] = newFilters[columna]?.filter((f) => f !== v) || [];
+                              newFilters[columna] =
+                                newFilters[columna]?.filter((f) => f !== v) ||
+                                [];
                             }
                             setFilters(newFilters);
                           }}
@@ -248,12 +276,36 @@ export default function DashboardPage() {
 
   // Calcular métricas dinámicas
   const totalProyectos = proyectosIniciales.length;
-  const avancePromedio = totalProyectos > 0 ? Math.round(proyectosIniciales.reduce((sum, p) => sum + p.avance_gantt, 0) / totalProyectos) : 0;
-  const indicadoresPromedio = totalProyectos > 0 ? Math.round(proyectosIniciales.reduce((sum, p) => sum + p.objetivos, 0) / totalProyectos) : 0;
-  const presupuestoUsado = proyectosIniciales.reduce((sum, p) => sum + p.presupuesto_usado, 0);
-  const presupuestoTotal = proyectosIniciales.reduce((sum, p) => sum + p.presupuesto_total, 0);
-  const reunionesRealizadas = proyectosIniciales.reduce((sum, p) => sum + p.reuniones_hechas, 0);
-  const totalParticipantes = proyectosIniciales.reduce((sum, p) => sum + p.participantes, 0);
+  const avancePromedio =
+    totalProyectos > 0
+      ? Math.round(
+          proyectosIniciales.reduce((sum, p) => sum + p.avance_gantt, 0) /
+            totalProyectos
+        )
+      : 0;
+  const indicadoresPromedio =
+    totalProyectos > 0
+      ? Math.round(
+          proyectosIniciales.reduce((sum, p) => sum + p.objetivos, 0) /
+            totalProyectos
+        )
+      : 0;
+  const presupuestoUsado = proyectosIniciales.reduce(
+    (sum, p) => sum + p.presupuesto_usado,
+    0
+  );
+  const presupuestoTotal = proyectosIniciales.reduce(
+    (sum, p) => sum + p.presupuesto_total,
+    0
+  );
+  const reunionesRealizadas = proyectosIniciales.reduce(
+    (sum, p) => sum + p.reuniones_hechas,
+    0
+  );
+  const totalParticipantes = proyectosIniciales.reduce(
+    (sum, p) => sum + p.participantes,
+    0
+  );
 
   if (loading) {
     return (
@@ -273,7 +325,9 @@ export default function DashboardPage() {
       <div className="space-y-6 w-full">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <p className="text-red-500 mb-4">Error al cargar los proyectos: {error}</p>
+            <p className="text-red-500 mb-4">
+              Error al cargar los proyectos: {error}
+            </p>
             <Button onClick={() => window.location.reload()}>Reintentar</Button>
           </div>
         </div>
@@ -285,7 +339,7 @@ export default function DashboardPage() {
     <div className="space-y-6 w-full">
       {/* Botón de exportar */}
       <div className="flex items-center justify-end w-full">
-        <Button 
+        <Button
           onClick={exportToExcel}
           className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
         >
@@ -302,7 +356,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">Proyectos activos</p>
                 <div className="text-2xl font-bold">{totalProyectos}</div>
-                <p className="text-xs text-muted-foreground">Proyectos en la base de datos</p>
+                <p className="text-xs text-muted-foreground">
+                  Proyectos en la base de datos
+                </p>
               </div>
               <FolderKanban className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -314,7 +370,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">Avance promedio</p>
                 <div className="text-2xl font-bold">{avancePromedio}%</div>
-                <p className="text-xs text-muted-foreground">Avance promedio de las cartas Gantt</p>
+                <p className="text-xs text-muted-foreground">
+                  Avance promedio de las cartas Gantt
+                </p>
               </div>
               <LineChart className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -326,7 +384,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">Indicadores</p>
                 <div className="text-2xl font-bold">{indicadoresPromedio}%</div>
-                <p className="text-xs text-muted-foreground">Objetivos cumplidos</p>
+                <p className="text-xs text-muted-foreground">
+                  Objetivos cumplidos
+                </p>
               </div>
               <BarChart3 className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -337,8 +397,12 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Presupuesto usado</p>
-                <div className="text-2xl font-bold">${(presupuestoUsado / 1000000).toFixed(1)}M</div>
-                <p className="text-xs text-muted-foreground">de ${(presupuestoTotal / 1000000).toFixed(1)}M disponibles</p>
+                <div className="text-2xl font-bold">
+                  ${(presupuestoUsado / 1000000).toFixed(1)}M
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  de ${(presupuestoTotal / 1000000).toFixed(1)}M disponibles
+                </p>
               </div>
               <DollarSign className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -350,7 +414,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">Reuniones realizadas</p>
                 <div className="text-2xl font-bold">{reunionesRealizadas}</div>
-                <p className="text-xs text-muted-foreground">Asociadas al seguimiento</p>
+                <p className="text-xs text-muted-foreground">
+                  Asociadas al seguimiento
+                </p>
               </div>
               <CalendarDays className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -362,7 +428,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">Participantes</p>
                 <div className="text-2xl font-bold">{totalParticipantes}</div>
-                <p className="text-xs text-muted-foreground">Miembros activos en proyectos</p>
+                <p className="text-xs text-muted-foreground">
+                  Miembros activos en proyectos
+                </p>
               </div>
               <User className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -376,54 +444,121 @@ export default function DashboardPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-100">
-                {renderHeadWithButton("Nombre del proyecto", "proyecto", "pl-7 w-[400px]", "start")}
-                {renderHeadWithButton("Fondo", "fondo", "text-center w-[100px]")}
-                {renderHeadWithButton("Sede", "sede", "text-center w-[100px]")}
-                {renderHeadWithButton("Escuela líder", "escuela", "text-center w-[150px]")}
-                {renderHeadWithButton("Avance Gantt", "avanceGantt", "text-center w-40")}
-                {renderHeadWithButton("Indicadores", "objetivos", "text-center w-40")}
-                {renderHeadWithButton("Presupuesto", "presupuestoUsado", "pl-8 text-center w-30")}
-                {renderHeadWithButton("Reuniones", "reuniones", "text-center w-28")}
-                {renderHeadWithButton("Participantes", "participantes", "text-center w-28")}
+                {renderHeadWithButton(
+                  'Nombre del proyecto',
+                  'proyecto',
+                  'pl-7 w-[400px]',
+                  'start'
+                )}
+                {renderHeadWithButton(
+                  'Fondo',
+                  'fondo',
+                  'text-center w-[100px]'
+                )}
+                {renderHeadWithButton('Sede', 'sede', 'text-center w-[100px]')}
+                {renderHeadWithButton(
+                  'Escuela líder',
+                  'escuela',
+                  'text-center w-[150px]'
+                )}
+                {renderHeadWithButton(
+                  'Avance Gantt',
+                  'avanceGantt',
+                  'text-center w-40'
+                )}
+                {renderHeadWithButton(
+                  'Indicadores',
+                  'objetivos',
+                  'text-center w-40'
+                )}
+                {renderHeadWithButton(
+                  'Presupuesto',
+                  'presupuestoUsado',
+                  'pl-8 text-center w-30'
+                )}
+                {renderHeadWithButton(
+                  'Reuniones',
+                  'reuniones',
+                  'text-center w-28'
+                )}
+                {renderHeadWithButton(
+                  'Participantes',
+                  'participantes',
+                  'text-center w-28'
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {getFilteredProjects().map((p, i) => (
                 <TableRow key={i}>
-                  <TableCell className="font-medium pl-7">{p.proyecto}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className="text-gray-600 whitespace-nowrap">{p.fondo}</Badge>
+                  <TableCell className="font-medium pl-7">
+                    {p.proyecto}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline" className="text-gray-600 whitespace-nowrap">{p.sede}</Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-gray-600 whitespace-nowrap"
+                    >
+                      {p.fondo}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline" className="text-gray-600 whitespace-nowrap">{p.escuela}</Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-gray-600 whitespace-nowrap"
+                    >
+                      {p.sede}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge
+                      variant="outline"
+                      className="text-gray-600 whitespace-nowrap"
+                    >
+                      {p.escuela}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <div className="flex-1 bg-gray-200 rounded h-3 relative">
-                        <div className="bg-emerald-500 h-3 rounded" style={{ width: `${p.avance_gantt}%` }}></div>
+                        <div
+                          className="bg-emerald-500 h-3 rounded"
+                          style={{ width: `${p.avance_gantt}%` }}
+                        ></div>
                       </div>
-                      <span className="text-xs text-black ml-2">{p.avance_gantt}%</span>
+                      <span className="text-xs text-black ml-2">
+                        {p.avance_gantt}%
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <div className="flex-1 bg-gray-200 rounded h-3 relative">
-                        <div className="bg-emerald-500 h-3 rounded" style={{ width: `${p.objetivos}%` }}></div>
+                        <div
+                          className="bg-emerald-500 h-3 rounded"
+                          style={{ width: `${p.objetivos}%` }}
+                        ></div>
                       </div>
-                      <span className="text-xs text-black ml-2">{p.objetivos}%</span>
+                      <span className="text-xs text-black ml-2">
+                        {p.objetivos}%
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="pl-8 text-center">
-                    <span className="font-bold">${p.presupuesto_usado.toLocaleString("es-CL")}</span><br />
-                    <span className="text-gray-500">de ${p.presupuesto_total.toLocaleString("es-CL")}</span>
+                    <span className="font-bold">
+                      ${p.presupuesto_usado.toLocaleString('es-CL')}
+                    </span>
+                    <br />
+                    <span className="text-gray-500">
+                      de ${p.presupuesto_total.toLocaleString('es-CL')}
+                    </span>
                   </TableCell>
                   <TableCell className="text-center">
                     {p.reuniones_hechas}/{p.reuniones_totales}
                   </TableCell>
-                  <TableCell className="text-center">{p.participantes}</TableCell>
+                  <TableCell className="text-center">
+                    {p.participantes}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

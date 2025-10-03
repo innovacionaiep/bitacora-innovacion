@@ -3,5 +3,5 @@ export default function SeguimientoPage() {
     <div className="p-6">
       <p>Seguimiento</p>
     </div>
-  )
+  );
 }

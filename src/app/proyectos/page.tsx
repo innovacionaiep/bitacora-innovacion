@@ -5,8 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, FolderKanban, MapPin, GraduationCap, DollarSign, BarChart3, FileText, Plus, Trash2, Save, X, Edit } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Search,
+  FolderKanban,
+  MapPin,
+  GraduationCap,
+  DollarSign,
+  BarChart3,
+  FileText,
+  Plus,
+  Trash2,
+  Save,
+  X,
+  Edit,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 
@@ -28,7 +47,14 @@ type Project = {
 };
 
 export default function ProyectosPage() {
-  const { proyectos: proyectosIniciales, loading, error, createProyecto, updateProyecto, deleteProyecto } = useProyectos();
+  const {
+    proyectos: proyectosIniciales,
+    loading,
+    error,
+    createProyecto,
+    updateProyecto,
+    deleteProyecto,
+  } = useProyectos();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -47,30 +73,36 @@ export default function ProyectosPage() {
     presupuesto_total: 0,
     reuniones_hechas: 0,
     reuniones_totales: 0,
-    participantes: 0
+    participantes: 0,
   });
 
-  const filteredProjects = proyectosIniciales.filter(project =>
-    project.proyecto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.sede.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.escuela.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = proyectosIniciales.filter(
+    (project) =>
+      project.proyecto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.sede.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.escuela.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (proyectosIniciales.length > 0 && !selectedProject && !showAddForm && !showEditForm) {
+  if (
+    proyectosIniciales.length > 0 &&
+    !selectedProject &&
+    !showAddForm &&
+    !showEditForm
+  ) {
     setSelectedProject(proyectosIniciales[0]);
   }
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       if (showEditForm && selectedProject) {
         const { error } = await updateProyecto(selectedProject.id, formData);
@@ -96,7 +128,7 @@ export default function ProyectosPage() {
             presupuesto_total: 0,
             reuniones_hechas: 0,
             reuniones_totales: 0,
-            participantes: 0
+            participantes: 0,
           });
           setShowAddForm(false);
           alert('Proyecto creado exitosamente');
@@ -111,8 +143,12 @@ export default function ProyectosPage() {
 
   const handleDeleteProject = async () => {
     if (!selectedProject) return;
-    
-    if (confirm(`¿Estás seguro de que quieres eliminar el proyecto "${selectedProject.proyecto}"?`)) {
+
+    if (
+      confirm(
+        `¿Estás seguro de que quieres eliminar el proyecto "${selectedProject.proyecto}"?`
+      )
+    ) {
       const { error } = await deleteProyecto(selectedProject.id);
       if (error) {
         alert('Error al eliminar el proyecto: ' + error);
@@ -131,10 +167,10 @@ export default function ProyectosPage() {
 
   const handleEditProject = () => {
     if (!selectedProject) return;
-    
+
     setShowEditForm(true);
     setShowAddForm(false);
-    
+
     setFormData({
       proyecto: selectedProject.proyecto,
       fondo: selectedProject.fondo,
@@ -146,7 +182,7 @@ export default function ProyectosPage() {
       presupuesto_total: selectedProject.presupuesto_total,
       reuniones_hechas: selectedProject.reuniones_hechas,
       reuniones_totales: selectedProject.reuniones_totales,
-      participantes: selectedProject.participantes
+      participantes: selectedProject.participantes,
     });
   };
 
@@ -164,21 +200,28 @@ export default function ProyectosPage() {
       presupuesto_total: 0,
       reuniones_hechas: 0,
       reuniones_totales: 0,
-      participantes: 0
+      participantes: 0,
     });
   };
 
   const generateProjectSummary = (project: Project) => {
     const summaries = {
-      "AntofaSuena 2025. Música-Industria-Territorio": "Este proyecto busca fortalecer la industria musical de Antofagasta mediante la creación de espacios de encuentro entre artistas locales, productores y la comunidad. Incluye la organización de festivales, talleres de producción musical y el desarrollo de una plataforma digital para promover el talento regional.",
-      "Laboratorio de Innovación Gastronómico": "Iniciativa que combina la tradición culinaria local con técnicas modernas de gastronomía. El laboratorio servirá como espacio de experimentación para chefs emergentes, promoviendo el uso de ingredientes locales y sostenibles, además de generar nuevas propuestas gastronómicas que impulsen el turismo culinario.",
-      "Aqua Terra: Estética Consciente": "Proyecto enfocado en desarrollar una línea de productos de estética y cuidado personal utilizando ingredientes naturales y sostenibles. Busca crear conciencia sobre el impacto ambiental de la industria cosmética y ofrecer alternativas más saludables para el consumidor y el planeta.",
-      "Renacer en Azul": "Iniciativa artística que utiliza el color azul como elemento unificador para explorar temas de identidad, memoria y futuro. A través de diversas disciplinas artísticas, el proyecto busca crear un diálogo sobre la relación entre el ser humano y el océano, promoviendo la conservación marina.",
-      "Upcycling Intercultural": "Proyecto que combina técnicas de reciclaje creativo con elementos culturales de diferentes comunidades. Busca crear productos únicos que representen la diversidad cultural de la región, promoviendo la sostenibilidad y el respeto por las tradiciones locales."
+      'AntofaSuena 2025. Música-Industria-Territorio':
+        'Este proyecto busca fortalecer la industria musical de Antofagasta mediante la creación de espacios de encuentro entre artistas locales, productores y la comunidad. Incluye la organización de festivales, talleres de producción musical y el desarrollo de una plataforma digital para promover el talento regional.',
+      'Laboratorio de Innovación Gastronómico':
+        'Iniciativa que combina la tradición culinaria local con técnicas modernas de gastronomía. El laboratorio servirá como espacio de experimentación para chefs emergentes, promoviendo el uso de ingredientes locales y sostenibles, además de generar nuevas propuestas gastronómicas que impulsen el turismo culinario.',
+      'Aqua Terra: Estética Consciente':
+        'Proyecto enfocado en desarrollar una línea de productos de estética y cuidado personal utilizando ingredientes naturales y sostenibles. Busca crear conciencia sobre el impacto ambiental de la industria cosmética y ofrecer alternativas más saludables para el consumidor y el planeta.',
+      'Renacer en Azul':
+        'Iniciativa artística que utiliza el color azul como elemento unificador para explorar temas de identidad, memoria y futuro. A través de diversas disciplinas artísticas, el proyecto busca crear un diálogo sobre la relación entre el ser humano y el océano, promoviendo la conservación marina.',
+      'Upcycling Intercultural':
+        'Proyecto que combina técnicas de reciclaje creativo con elementos culturales de diferentes comunidades. Busca crear productos únicos que representen la diversidad cultural de la región, promoviendo la sostenibilidad y el respeto por las tradiciones locales.',
     };
-    
-    return summaries[project.proyecto as keyof typeof summaries] || 
-      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuesto_total.toLocaleString("es-CL")} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de la ${project.escuela.toLowerCase()}.`;
+
+    return (
+      summaries[project.proyecto as keyof typeof summaries] ||
+      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuesto_total.toLocaleString('es-CL')} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de la ${project.escuela.toLowerCase()}.`
+    );
   };
 
   if (loading) {
@@ -199,8 +242,13 @@ export default function ProyectosPage() {
       <div className="flex h-full">
         <div className="flex items-center justify-center w-full h-64">
           <div className="text-center">
-            <p className="text-red-500 mb-4">Error al cargar los proyectos: {error}</p>
-            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-500 text-white rounded">
+            <p className="text-red-500 mb-4">
+              Error al cargar los proyectos: {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
               Reintentar
             </button>
           </div>
@@ -261,7 +309,7 @@ export default function ProyectosPage() {
         {/* Botones de acción */}
         <div className="flex justify-between items-center mb-6">
           <div className="flex space-x-3">
-            <Button 
+            <Button
               onClick={handleAddProject}
               className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
             >
@@ -270,7 +318,7 @@ export default function ProyectosPage() {
             </Button>
             {selectedProject && !showAddForm && !showEditForm && (
               <>
-                <Button 
+                <Button
                   onClick={handleEditProject}
                   variant="outline"
                   className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
@@ -278,7 +326,7 @@ export default function ProyectosPage() {
                   <Edit className="h-4 w-4" />
                   <span>Editar proyecto</span>
                 </Button>
-                <Button 
+                <Button
                   onClick={handleDeleteProject}
                   variant="outline"
                   className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
@@ -291,7 +339,7 @@ export default function ProyectosPage() {
           </div>
         </div>
 
-        {(showAddForm || showEditForm) ? (
+        {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
           <Card className="border-2 border-gray-200">
             <CardContent className="p-6">
@@ -308,19 +356,28 @@ export default function ProyectosPage() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Información básica */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Información Básica</h3>
-                    
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                      Información Básica
+                    </h3>
+
                     <div>
-                      <Label htmlFor="proyecto" className="text-sm font-medium text-gray-700">Nombre del Proyecto *</Label>
+                      <Label
+                        htmlFor="proyecto"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Nombre del Proyecto *
+                      </Label>
                       <Input
                         id="proyecto"
                         value={formData.proyecto}
-                        onChange={(e) => handleInputChange('proyecto', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange('proyecto', e.target.value)
+                        }
                         placeholder="Ej: Mi Proyecto Innovador"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         required
@@ -328,8 +385,18 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="fondo" className="text-sm font-medium text-gray-700">Fondo *</Label>
-                      <Select value={formData.fondo} onValueChange={(value) => handleInputChange('fondo', value)}>
+                      <Label
+                        htmlFor="fondo"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Fondo *
+                      </Label>
+                      <Select
+                        value={formData.fondo}
+                        onValueChange={(value) =>
+                          handleInputChange('fondo', value)
+                        }
+                      >
                         <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500">
                           <SelectValue placeholder="Selecciona el fondo" />
                         </SelectTrigger>
@@ -344,31 +411,63 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="sede" className="text-sm font-medium text-gray-700">Sede *</Label>
-                      <Select value={formData.sede} onValueChange={(value) => handleInputChange('sede', value)}>
+                      <Label
+                        htmlFor="sede"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Sede *
+                      </Label>
+                      <Select
+                        value={formData.sede}
+                        onValueChange={(value) =>
+                          handleInputChange('sede', value)
+                        }
+                      >
                         <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500">
                           <SelectValue placeholder="Selecciona la sede" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Antofagasta">Antofagasta</SelectItem>
+                          <SelectItem value="Antofagasta">
+                            Antofagasta
+                          </SelectItem>
                           <SelectItem value="La Serena">La Serena</SelectItem>
-                          <SelectItem value="Los Ángeles">Los Ángeles</SelectItem>
-                          <SelectItem value="Barrio Universitario">Barrio Universitario</SelectItem>
+                          <SelectItem value="Los Ángeles">
+                            Los Ángeles
+                          </SelectItem>
+                          <SelectItem value="Barrio Universitario">
+                            Barrio Universitario
+                          </SelectItem>
                           <SelectItem value="Santiago">Santiago</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="escuela" className="text-sm font-medium text-gray-700">Escuela *</Label>
-                      <Select value={formData.escuela} onValueChange={(value) => handleInputChange('escuela', value)}>
+                      <Label
+                        htmlFor="escuela"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Escuela *
+                      </Label>
+                      <Select
+                        value={formData.escuela}
+                        onValueChange={(value) =>
+                          handleInputChange('escuela', value)
+                        }
+                      >
                         <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500">
                           <SelectValue placeholder="Selecciona la escuela" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Artes e Industrias Creativas">Artes e Industrias Creativas</SelectItem>
-                          <SelectItem value="Gastronomía, Hotelería y Turismo">Gastronomía, Hotelería y Turismo</SelectItem>
-                          <SelectItem value="Estética Integral">Estética Integral</SelectItem>
+                          <SelectItem value="Artes e Industrias Creativas">
+                            Artes e Industrias Creativas
+                          </SelectItem>
+                          <SelectItem value="Gastronomía, Hotelería y Turismo">
+                            Gastronomía, Hotelería y Turismo
+                          </SelectItem>
+                          <SelectItem value="Estética Integral">
+                            Estética Integral
+                          </SelectItem>
                           <SelectItem value="Tecnología">Tecnología</SelectItem>
                           <SelectItem value="Negocios">Negocios</SelectItem>
                         </SelectContent>
@@ -378,15 +477,27 @@ export default function ProyectosPage() {
 
                   {/* Presupuesto y métricas */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Presupuesto y Métricas</h3>
-                    
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                      Presupuesto y Métricas
+                    </h3>
+
                     <div>
-                      <Label htmlFor="presupuesto_total" className="text-sm font-medium text-gray-700">Presupuesto Total *</Label>
+                      <Label
+                        htmlFor="presupuesto_total"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Presupuesto Total *
+                      </Label>
                       <Input
                         id="presupuesto_total"
                         type="number"
                         value={formData.presupuesto_total}
-                        onChange={(e) => handleInputChange('presupuesto_total', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'presupuesto_total',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         required
@@ -395,12 +506,22 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="presupuesto_usado" className="text-sm font-medium text-gray-700">Presupuesto Usado</Label>
+                      <Label
+                        htmlFor="presupuesto_usado"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Presupuesto Usado
+                      </Label>
                       <Input
                         id="presupuesto_usado"
                         type="number"
                         value={formData.presupuesto_usado}
-                        onChange={(e) => handleInputChange('presupuesto_usado', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'presupuesto_usado',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         min="0"
@@ -408,12 +529,22 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="participantes" className="text-sm font-medium text-gray-700">Número de Participantes *</Label>
+                      <Label
+                        htmlFor="participantes"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Número de Participantes *
+                      </Label>
                       <Input
                         id="participantes"
                         type="number"
                         value={formData.participantes}
-                        onChange={(e) => handleInputChange('participantes', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'participantes',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         required
@@ -422,12 +553,22 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="reuniones_totales" className="text-sm font-medium text-gray-700">Reuniones Totales</Label>
+                      <Label
+                        htmlFor="reuniones_totales"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Reuniones Totales
+                      </Label>
                       <Input
                         id="reuniones_totales"
                         type="number"
                         value={formData.reuniones_totales}
-                        onChange={(e) => handleInputChange('reuniones_totales', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'reuniones_totales',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         min="0"
@@ -435,12 +576,22 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="reuniones_hechas" className="text-sm font-medium text-gray-700">Reuniones Realizadas</Label>
+                      <Label
+                        htmlFor="reuniones_hechas"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Reuniones Realizadas
+                      </Label>
                       <Input
                         id="reuniones_hechas"
                         type="number"
                         value={formData.reuniones_hechas}
-                        onChange={(e) => handleInputChange('reuniones_hechas', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'reuniones_hechas',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         min="0"
@@ -451,15 +602,27 @@ export default function ProyectosPage() {
 
                 {/* Avances */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Avances del Proyecto</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                    Avances del Proyecto
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="avance_gantt" className="text-sm font-medium text-gray-700">Avance Gantt (%)</Label>
+                      <Label
+                        htmlFor="avance_gantt"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Avance Gantt (%)
+                      </Label>
                       <Input
                         id="avance_gantt"
                         type="number"
                         value={formData.avance_gantt}
-                        onChange={(e) => handleInputChange('avance_gantt', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'avance_gantt',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         min="0"
@@ -468,12 +631,22 @@ export default function ProyectosPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="objetivos" className="text-sm font-medium text-gray-700">Avance Objetivos (%)</Label>
+                      <Label
+                        htmlFor="objetivos"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Avance Objetivos (%)
+                      </Label>
                       <Input
                         id="objetivos"
                         type="number"
                         value={formData.objetivos}
-                        onChange={(e) => handleInputChange('objetivos', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'objetivos',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         placeholder="0"
                         className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
                         min="0"
@@ -500,10 +673,13 @@ export default function ProyectosPage() {
                   >
                     <Save className="h-4 w-4" />
                     <span>
-                      {isSubmitting 
-                        ? (showEditForm ? 'Actualizando...' : 'Guardando...') 
-                        : (showEditForm ? 'Actualizar Proyecto' : 'Guardar Proyecto')
-                      }
+                      {isSubmitting
+                        ? showEditForm
+                          ? 'Actualizando...'
+                          : 'Guardando...'
+                        : showEditForm
+                          ? 'Actualizar Proyecto'
+                          : 'Guardar Proyecto'}
                     </span>
                   </Button>
                 </div>
@@ -522,7 +698,9 @@ export default function ProyectosPage() {
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4" />
-                      <span className="font-medium">{selectedProject.fondo}</span>
+                      <span className="font-medium">
+                        {selectedProject.fondo}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <MapPin className="h-4 w-4" />
@@ -542,28 +720,47 @@ export default function ProyectosPage() {
               {/* Presupuesto */}
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">PRESUPUESTO</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                    PRESUPUESTO
+                  </h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-gray-600 mb-1">PRESUPUESTO CONSUMIDO</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        PRESUPUESTO CONSUMIDO
+                      </p>
                       <p className="text-2xl font-bold text-gray-900">
-                        ${selectedProject.presupuesto_usado.toLocaleString("es-CL")}
+                        $
+                        {selectedProject.presupuesto_usado.toLocaleString(
+                          'es-CL'
+                        )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 mb-1">PRESUPUESTO TOTAL</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        PRESUPUESTO TOTAL
+                      </p>
                       <p className="text-xl font-semibold text-gray-700">
-                        ${selectedProject.presupuesto_total.toLocaleString("es-CL")}
+                        $
+                        {selectedProject.presupuesto_total.toLocaleString(
+                          'es-CL'
+                        )}
                       </p>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
-                        style={{ width: `${(selectedProject.presupuesto_usado / selectedProject.presupuesto_total) * 100}%` }}
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
+                        style={{
+                          width: `${(selectedProject.presupuesto_usado / selectedProject.presupuesto_total) * 100}%`,
+                        }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {Math.round((selectedProject.presupuesto_usado / selectedProject.presupuesto_total) * 100)}% utilizado
+                      {Math.round(
+                        (selectedProject.presupuesto_usado /
+                          selectedProject.presupuesto_total) *
+                          100
+                      )}
+                      % utilizado
                     </p>
                   </div>
                 </CardContent>
@@ -572,28 +769,38 @@ export default function ProyectosPage() {
               {/* Avances */}
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">AVANCES</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                    AVANCES
+                  </h3>
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">AVANCE GANTT</span>
-                        <span className="text-sm font-bold text-gray-900">{selectedProject.avance_gantt}%</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          AVANCE GANTT
+                        </span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {selectedProject.avance_gantt}%
+                        </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-emerald-500 h-3 rounded-full" 
+                        <div
+                          className="bg-emerald-500 h-3 rounded-full"
                           style={{ width: `${selectedProject.avance_gantt}%` }}
                         ></div>
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">INDICADORES</span>
-                        <span className="text-sm font-bold text-gray-900">{selectedProject.objetivos}%</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          INDICADORES
+                        </span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {selectedProject.objetivos}%
+                        </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-blue-500 h-3 rounded-full" 
+                        <div
+                          className="bg-blue-500 h-3 rounded-full"
                           style={{ width: `${selectedProject.objetivos}%` }}
                         ></div>
                       </div>
@@ -608,7 +815,9 @@ export default function ProyectosPage() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-2 mb-4">
                   <FileText className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">RESUMEN DEL PROYECTO</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    RESUMEN DEL PROYECTO
+                  </h3>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-gray-700 leading-relaxed">
@@ -620,7 +829,9 @@ export default function ProyectosPage() {
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">Selecciona un proyecto para ver sus detalles</p>
+            <p className="text-gray-500">
+              Selecciona un proyecto para ver sus detalles
+            </p>
           </div>
         )}
       </div>

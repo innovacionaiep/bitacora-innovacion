@@ -1,49 +1,56 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { Database } from '@/lib/supabase'
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/supabase';
 
-type Project = Database['public']['Tables']['proyectos']['Row']
+type Project = Database['public']['Tables']['proyectos']['Row'];
 
 export function useProyectos() {
-  const [proyectos, setProyectos] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [proyectos, setProyectos] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Cargar proyectos
   const fetchProyectos = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const { data, error } = await supabase
         .from('proyectos')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (error) throw error
-      setProyectos(data || [])
+      if (error) throw error;
+      setProyectos(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar proyectos')
+      setError(
+        err instanceof Error ? err.message : 'Error al cargar proyectos'
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Crear proyecto
-  const createProyecto = async (proyecto: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+  const createProyecto = async (
+    proyecto: Omit<Project, 'id' | 'created_at' | 'updated_at'>
+  ) => {
     try {
       const { data, error } = await supabase
         .from('proyectos')
         .insert([proyecto])
-        .select()
+        .select();
 
-      if (error) throw error
+      if (error) throw error;
       if (data) {
-        setProyectos(prev => [data[0], ...prev])
+        setProyectos((prev) => [data[0], ...prev]);
       }
-      return { data, error: null }
+      return { data, error: null };
     } catch (err) {
-      return { data: null, error: err instanceof Error ? err.message : 'Error al crear proyecto' }
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : 'Error al crear proyecto',
+      };
     }
-  }
+  };
 
   // Actualizar proyecto
   const updateProyecto = async (id: string, updates: Partial<Project>) => {
@@ -52,37 +59,41 @@ export function useProyectos() {
         .from('proyectos')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select()
+        .select();
 
-      if (error) throw error
+      if (error) throw error;
       if (data) {
-        setProyectos(prev => prev.map(p => p.id === id ? data[0] : p))
+        setProyectos((prev) => prev.map((p) => (p.id === id ? data[0] : p)));
       }
-      return { data, error: null }
+      return { data, error: null };
     } catch (err) {
-      return { data: null, error: err instanceof Error ? err.message : 'Error al actualizar proyecto' }
+      return {
+        data: null,
+        error:
+          err instanceof Error ? err.message : 'Error al actualizar proyecto',
+      };
     }
-  }
+  };
 
   // Eliminar proyecto
   const deleteProyecto = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('proyectos')
-        .delete()
-        .eq('id', id)
+      const { error } = await supabase.from('proyectos').delete().eq('id', id);
 
-      if (error) throw error
-      setProyectos(prev => prev.filter(p => p.id !== id))
-      return { error: null }
+      if (error) throw error;
+      setProyectos((prev) => prev.filter((p) => p.id !== id));
+      return { error: null };
     } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Error al eliminar proyecto' }
+      return {
+        error:
+          err instanceof Error ? err.message : 'Error al eliminar proyecto',
+      };
     }
-  }
+  };
 
   useEffect(() => {
-    fetchProyectos()
-  }, [])
+    fetchProyectos();
+  }, []);
 
   return {
     proyectos,
@@ -91,6 +102,6 @@ export function useProyectos() {
     fetchProyectos,
     createProyecto,
     updateProyecto,
-    deleteProyecto
-  }
+    deleteProyecto,
+  };
 }

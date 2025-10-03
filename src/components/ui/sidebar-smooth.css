@@ -1,39 +1,39 @@
 /* Eliminar el efecto rebote del sidebar */
-[data-sidebar="sidebar"] {
+[data-sidebar='sidebar'] {
   transition: none !important;
 }
 
 /* Eliminar todas las transiciones que causan rebote */
-[data-sidebar="sidebar"] * {
+[data-sidebar='sidebar'] * {
   transition: none !important;
 }
 
 /* Eliminar transiciones del contenedor del sidebar */
-[data-sidebar="sidebar"] > * {
+[data-sidebar='sidebar'] > * {
   transition: none !important;
 }
 
 /* Eliminar transiciones de elementos internos */
-[data-sidebar="sidebar"] [data-sidebar="menu-button"] {
+[data-sidebar='sidebar'] [data-sidebar='menu-button'] {
   transition: none !important;
 }
 
-[data-sidebar="sidebar"] [data-sidebar="group-label"] {
+[data-sidebar='sidebar'] [data-sidebar='group-label'] {
   transition: none !important;
 }
 
-[data-sidebar="sidebar"] [data-sidebar="menu"] {
+[data-sidebar='sidebar'] [data-sidebar='menu'] {
   transition: none !important;
 }
 
-[data-sidebar="sidebar"] [data-sidebar="content"] {
+[data-sidebar='sidebar'] [data-sidebar='content'] {
   transition: none !important;
 }
 
-[data-sidebar="sidebar"] [data-sidebar="header"] {
+[data-sidebar='sidebar'] [data-sidebar='header'] {
   transition: none !important;
 }
 
-[data-sidebar="sidebar"] [data-sidebar="footer"] {
+[data-sidebar='sidebar'] [data-sidebar='footer'] {
   transition: none !important;
 }

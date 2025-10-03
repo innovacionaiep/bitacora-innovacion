@@ -33,9 +33,7 @@ export function useGantt(projectId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   // Color gris oscuro para todas las actividades
-  const ACTIVITY_COLORS = [
-    'bg-gray-700'
-  ];
+  const ACTIVITY_COLORS = ['bg-gray-700'];
 
   // Cargar actividades del proyecto
   const loadActivities = async () => {
@@ -69,24 +67,30 @@ export function useGantt(projectId: string | null) {
           if (tasksError) throw tasksError;
 
           const tasks = tasksData || [];
-          
+
           // Recalcular el progreso basado en las tareas reales
-          const completedTasks = tasks.filter(task => task.completed).length;
-          const correctProgress = tasks.length > 0 
-            ? Math.round((completedTasks / tasks.length) * 100) 
-            : 0;
+          const completedTasks = tasks.filter((task) => task.completed).length;
+          const correctProgress =
+            tasks.length > 0
+              ? Math.round((completedTasks / tasks.length) * 100)
+              : 0;
 
           console.log(`Loading activity ${activity.name}:`);
-          console.log(`  Tasks:`, tasks.map(t => ({ name: t.name, completed: t.completed })));
+          console.log(
+            `  Tasks:`,
+            tasks.map((t) => ({ name: t.name, completed: t.completed }))
+          );
           console.log(`  Completed tasks: ${completedTasks}/${tasks.length}`);
-          console.log(`  DB progress: ${activity.progress}%, Calculated progress: ${correctProgress}%`);
+          console.log(
+            `  DB progress: ${activity.progress}%, Calculated progress: ${correctProgress}%`
+          );
 
           return {
             ...activity,
             color: 'bg-gray-700', // Forzar color gris oscuro para todas las actividades
             order_index: activity.order_index || 0, // Asegurar que order_index existe
             tasks,
-            progress: correctProgress // Usar el progreso calculado, no el de la DB
+            progress: correctProgress, // Usar el progreso calculado, no el de la DB
           };
         })
       );
@@ -95,19 +99,25 @@ export function useGantt(projectId: string | null) {
 
       // Sincronizar automáticamente el progreso y color en la base de datos si hay inconsistencias
       for (const activity of activitiesWithTasks) {
-        const dbActivity = activitiesData.find(a => a.id === activity.id);
+        const dbActivity = activitiesData.find((a) => a.id === activity.id);
         const dbProgress = dbActivity?.progress || 0;
         const dbColor = dbActivity?.color || 'bg-blue-500';
-        
+
         if (dbProgress !== activity.progress || dbColor !== 'bg-gray-700') {
-          console.log(`Syncing activity ${activity.name} progress: ${dbProgress}% -> ${activity.progress}% and color: ${dbColor} -> bg-gray-700`);
-          updateActivity(activity.id, { progress: activity.progress, color: 'bg-gray-700' });
+          console.log(
+            `Syncing activity ${activity.name} progress: ${dbProgress}% -> ${activity.progress}% and color: ${dbColor} -> bg-gray-700`
+          );
+          updateActivity(activity.id, {
+            progress: activity.progress,
+            color: 'bg-gray-700',
+          });
         }
       }
-
     } catch (err) {
       console.error('Error loading activities:', err);
-      setError(err instanceof Error ? err.message : 'Error al cargar las actividades');
+      setError(
+        err instanceof Error ? err.message : 'Error al cargar las actividades'
+      );
     } finally {
       setLoading(false);
     }
@@ -137,15 +147,15 @@ export function useGantt(projectId: string | null) {
 
       const color = ACTIVITY_COLORS[activities.length % ACTIVITY_COLORS.length];
       const orderIndex = activities.length; // Nuevas actividades van al final
-      
+
       console.log('Creating activity with data:', {
         ...activityData,
         project_id: projectId,
         color,
         progress: 0,
-        order_index: orderIndex
+        order_index: orderIndex,
       });
-      
+
       const { data, error } = await supabase
         .from('activities')
         .insert({
@@ -153,7 +163,7 @@ export function useGantt(projectId: string | null) {
           project_id: projectId,
           color,
           progress: 0,
-          order_index: orderIndex
+          order_index: orderIndex,
         })
         .select()
         .single();
@@ -167,14 +177,15 @@ export function useGantt(projectId: string | null) {
 
       const newActivity = {
         ...data,
-        tasks: []
+        tasks: [],
       };
 
-      setActivities(prev => [...prev, newActivity]);
+      setActivities((prev) => [...prev, newActivity]);
       return { data: newActivity, error: null };
     } catch (err) {
       console.error('Error creating activity:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Error al crear la actividad';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al crear la actividad';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     } finally {
@@ -183,7 +194,10 @@ export function useGantt(projectId: string | null) {
   };
 
   // Actualizar actividad
-  const updateActivity = async (activityId: string, updates: Partial<Activity>) => {
+  const updateActivity = async (
+    activityId: string,
+    updates: Partial<Activity>
+  ) => {
     setLoading(true);
     setError(null);
 
@@ -197,17 +211,16 @@ export function useGantt(projectId: string | null) {
 
       if (error) throw error;
 
-      setActivities(prev => 
-        prev.map(activity => 
-          activity.id === activityId 
-            ? { ...activity, ...data }
-            : activity
+      setActivities((prev) =>
+        prev.map((activity) =>
+          activity.id === activityId ? { ...activity, ...data } : activity
         )
       );
 
       return { data, error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar la actividad';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al actualizar la actividad';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     } finally {
@@ -237,10 +250,13 @@ export function useGantt(projectId: string | null) {
 
       if (error) throw error;
 
-      setActivities(prev => prev.filter(activity => activity.id !== activityId));
+      setActivities((prev) =>
+        prev.filter((activity) => activity.id !== activityId)
+      );
       return { error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar la actividad';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al eliminar la actividad';
       setError(errorMessage);
       return { error: errorMessage };
     } finally {
@@ -249,12 +265,15 @@ export function useGantt(projectId: string | null) {
   };
 
   // Crear nueva tarea
-  const createTask = async (activityId: string, taskData: {
-    name: string;
-    description: string;
-    start_date: string;
-    end_date: string;
-  }) => {
+  const createTask = async (
+    activityId: string,
+    taskData: {
+      name: string;
+      description: string;
+      start_date: string;
+      end_date: string;
+    }
+  ) => {
     setLoading(true);
     setError(null);
 
@@ -269,7 +288,7 @@ export function useGantt(projectId: string | null) {
         end_date: taskData.end_date,
         activity_id: activityId,
         completed: false,
-        progress: 0
+        progress: 0,
       };
 
       console.log('Datos a insertar en Supabase:', insertData);
@@ -288,9 +307,9 @@ export function useGantt(projectId: string | null) {
       }
 
       // Actualizar la actividad con la nueva tarea
-      setActivities(prev => 
-        prev.map(activity => 
-          activity.id === activityId 
+      setActivities((prev) =>
+        prev.map((activity) =>
+          activity.id === activityId
             ? { ...activity, tasks: [...activity.tasks, data] }
             : activity
         )
@@ -301,7 +320,8 @@ export function useGantt(projectId: string | null) {
 
       return { data, error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al crear la tarea';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al crear la tarea';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     } finally {
@@ -325,42 +345,46 @@ export function useGantt(projectId: string | null) {
       if (error) throw error;
 
       // Actualizar la tarea en el estado local y recalcular progreso
-      setActivities(prev => {
-        const updatedActivities = prev.map(activity => ({
+      setActivities((prev) => {
+        const updatedActivities = prev.map((activity) => ({
           ...activity,
-          tasks: activity.tasks.map(task => 
+          tasks: activity.tasks.map((task) =>
             task.id === taskId ? { ...task, ...data } : task
-          )
+          ),
         }));
-        
+
         // Encontrar la actividad actualizada y recalcular su progreso
-        const activity = updatedActivities.find(a => a.tasks.some(t => t.id === taskId));
+        const activity = updatedActivities.find((a) =>
+          a.tasks.some((t) => t.id === taskId)
+        );
         if (activity) {
           const newProgress = calculateActivityProgress(activity);
           if (newProgress !== activity.progress) {
             // Actualizar el progreso de la actividad
-            const finalActivities = updatedActivities.map(a => 
+            const finalActivities = updatedActivities.map((a) =>
               a.id === activity.id ? { ...a, progress: newProgress } : a
             );
-            
+
             // Actualizar el progreso del proyecto en la base de datos
             if (projectId) {
               const projectProgress = Math.round(
-                finalActivities.reduce((sum, act) => sum + act.progress, 0) / finalActivities.length
+                finalActivities.reduce((sum, act) => sum + act.progress, 0) /
+                  finalActivities.length
               );
               updateProjectProgress(projectId, projectProgress);
             }
-            
+
             return finalActivities;
           }
         }
-        
+
         return updatedActivities;
       });
 
       return { data, error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar la tarea';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al actualizar la tarea';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     } finally {
@@ -374,22 +398,21 @@ export function useGantt(projectId: string | null) {
     setError(null);
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
 
       if (error) throw error;
 
       // Encontrar la actividad de la tarea
-      const activity = activities.find(a => a.tasks.some(t => t.id === taskId));
-      
+      const activity = activities.find((a) =>
+        a.tasks.some((t) => t.id === taskId)
+      );
+
       if (activity) {
         // Actualizar el estado local
-        setActivities(prev => 
-          prev.map(a => 
-            a.id === activity.id 
-              ? { ...a, tasks: a.tasks.filter(t => t.id !== taskId) }
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activity.id
+              ? { ...a, tasks: a.tasks.filter((t) => t.id !== taskId) }
               : a
           )
         );
@@ -400,7 +423,8 @@ export function useGantt(projectId: string | null) {
 
       return { error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar la tarea';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al eliminar la tarea';
       setError(errorMessage);
       return { error: errorMessage };
     } finally {
@@ -412,13 +436,13 @@ export function useGantt(projectId: string | null) {
   const toggleTaskCompletion = async (taskId: string) => {
     console.log('=== TOGGLE TASK COMPLETION ===');
     console.log('Task ID:', taskId);
-    
+
     // Encontrar la tarea y la actividad que la contiene
     let targetActivity = null;
     let targetTask = null;
-    
+
     for (const activity of activities) {
-      const task = activity.tasks.find(t => t.id === taskId);
+      const task = activity.tasks.find((t) => t.id === taskId);
       if (task) {
         targetActivity = activity;
         targetTask = task;
@@ -431,17 +455,32 @@ export function useGantt(projectId: string | null) {
       return;
     }
 
-    console.log('Found task:', targetTask.name, 'completed:', targetTask.completed);
-    console.log('Found activity:', targetActivity.name, 'progress:', targetActivity.progress);
+    console.log(
+      'Found task:',
+      targetTask.name,
+      'completed:',
+      targetTask.completed
+    );
+    console.log(
+      'Found activity:',
+      targetActivity.name,
+      'progress:',
+      targetActivity.progress
+    );
 
     // Crear la tarea actualizada
     const updatedTask = {
       ...targetTask,
       completed: !targetTask.completed,
-      progress: !targetTask.completed ? 100 : 0
+      progress: !targetTask.completed ? 100 : 0,
     };
 
-    console.log('Updated task:', updatedTask.name, 'completed:', updatedTask.completed);
+    console.log(
+      'Updated task:',
+      updatedTask.name,
+      'completed:',
+      updatedTask.completed
+    );
 
     try {
       // Actualizar la tarea en la base de datos
@@ -449,7 +488,7 @@ export function useGantt(projectId: string | null) {
         .from('tasks')
         .update({
           completed: updatedTask.completed,
-          progress: updatedTask.progress
+          progress: updatedTask.progress,
         })
         .eq('id', taskId);
 
@@ -459,47 +498,63 @@ export function useGantt(projectId: string | null) {
       }
 
       // Actualizar el estado local
-      setActivities(prev => {
+      setActivities((prev) => {
         const updatedActivity = {
           ...targetActivity,
-          tasks: targetActivity.tasks.map(t => 
+          tasks: targetActivity.tasks.map((t) =>
             t.id === taskId ? updatedTask : t
-          )
+          ),
         };
 
         // Recalcular el progreso de la actividad
-        const completedTasks = updatedActivity.tasks.filter(task => task.completed).length;
-        const newProgress = updatedActivity.tasks.length > 0 
-          ? Math.round((completedTasks / updatedActivity.tasks.length) * 100) 
-          : 0;
+        const completedTasks = updatedActivity.tasks.filter(
+          (task) => task.completed
+        ).length;
+        const newProgress =
+          updatedActivity.tasks.length > 0
+            ? Math.round((completedTasks / updatedActivity.tasks.length) * 100)
+            : 0;
 
-        console.log('Activity progress calculation:', completedTasks, '/', updatedActivity.tasks.length, '=', newProgress + '%');
+        console.log(
+          'Activity progress calculation:',
+          completedTasks,
+          '/',
+          updatedActivity.tasks.length,
+          '=',
+          newProgress + '%'
+        );
 
         const finalActivity = {
           ...updatedActivity,
-          progress: newProgress
+          progress: newProgress,
         };
 
-        console.log('Final activity:', finalActivity.name, 'progress:', finalActivity.progress);
+        console.log(
+          'Final activity:',
+          finalActivity.name,
+          'progress:',
+          finalActivity.progress
+        );
 
         // Actualizar el array de actividades
-        const result = prev.map(activity => 
+        const result = prev.map((activity) =>
           activity.id === targetActivity.id ? finalActivity : activity
         );
 
         console.log('Final activities:', result);
         console.log('=== END TOGGLE ===');
-        
+
         return result;
       });
 
       // Actualizar el progreso de la actividad en la base de datos
-      const completedTasks = targetActivity.tasks.map(t => 
-        t.id === taskId ? updatedTask : t
-      ).filter(task => task.completed).length;
-      const newProgress = targetActivity.tasks.length > 0 
-        ? Math.round((completedTasks / targetActivity.tasks.length) * 100) 
-        : 0;
+      const completedTasks = targetActivity.tasks
+        .map((t) => (t.id === taskId ? updatedTask : t))
+        .filter((task) => task.completed).length;
+      const newProgress =
+        targetActivity.tasks.length > 0
+          ? Math.round((completedTasks / targetActivity.tasks.length) * 100)
+          : 0;
 
       const { error: activityError } = await supabase
         .from('activities')
@@ -512,59 +567,64 @@ export function useGantt(projectId: string | null) {
 
       // Actualizar el progreso del proyecto
       if (projectId) {
-        const updatedActivities = activities.map(activity => 
-          activity.id === targetActivity.id 
+        const updatedActivities = activities.map((activity) =>
+          activity.id === targetActivity.id
             ? { ...activity, progress: newProgress }
             : activity
         );
         const projectProgress = Math.round(
-          updatedActivities.reduce((sum, act) => sum + act.progress, 0) / updatedActivities.length
+          updatedActivities.reduce((sum, act) => sum + act.progress, 0) /
+            updatedActivities.length
         );
         await updateProjectProgress(projectId, projectProgress);
       }
-
     } catch (err) {
       console.error('Error toggling task completion:', err);
-      setError(err instanceof Error ? err.message : 'Error al actualizar la tarea');
+      setError(
+        err instanceof Error ? err.message : 'Error al actualizar la tarea'
+      );
     }
   };
 
   // Calcular progreso de una actividad
   const calculateActivityProgress = (activity: Activity): number => {
     if (activity.tasks.length === 0) return 0;
-    const completedTasks = activity.tasks.filter(task => task.completed).length;
+    const completedTasks = activity.tasks.filter(
+      (task) => task.completed
+    ).length;
     return Math.round((completedTasks / activity.tasks.length) * 100);
   };
 
   // Actualizar progreso de una actividad
   const updateActivityProgress = async (activityId: string) => {
-    setActivities(prev => {
-      const activity = prev.find(a => a.id === activityId);
+    setActivities((prev) => {
+      const activity = prev.find((a) => a.id === activityId);
       if (!activity) return prev;
 
       const newProgress = calculateActivityProgress(activity);
-      
+
       if (newProgress !== activity.progress) {
         // Actualizar la actividad en la base de datos
         updateActivity(activityId, { progress: newProgress });
-        
+
         // Actualizar el progreso del proyecto en la base de datos
         if (projectId) {
-          const updatedActivities = prev.map(a => 
+          const updatedActivities = prev.map((a) =>
             a.id === activityId ? { ...a, progress: newProgress } : a
           );
           const projectProgress = Math.round(
-            updatedActivities.reduce((sum, act) => sum + act.progress, 0) / updatedActivities.length
+            updatedActivities.reduce((sum, act) => sum + act.progress, 0) /
+              updatedActivities.length
           );
           updateProjectProgress(projectId, projectProgress);
         }
 
         // Actualizar el estado local
-        return prev.map(a => 
+        return prev.map((a) =>
           a.id === activityId ? { ...a, progress: newProgress } : a
         );
       }
-      
+
       return prev;
     });
   };
@@ -572,7 +632,10 @@ export function useGantt(projectId: string | null) {
   // Calcular progreso general del proyecto
   const calculateProjectProgress = (): number => {
     if (activities.length === 0) return 0;
-    const totalProgress = activities.reduce((sum, activity) => sum + activity.progress, 0);
+    const totalProgress = activities.reduce(
+      (sum, activity) => sum + activity.progress,
+      0
+    );
     return Math.round(totalProgress / activities.length);
   };
 
@@ -594,7 +657,6 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-
   // Sincronizar progreso de todas las actividades (función manual)
   const syncAllActivitiesProgress = async () => {
     setLoading(true);
@@ -603,13 +665,13 @@ export function useGantt(projectId: string | null) {
     try {
       // Obtener el estado actual de las actividades
       const currentActivities = activities;
-      
+
       // Actualizar cada tarea en la base de datos
       for (const activity of currentActivities) {
         for (const task of activity.tasks) {
           await updateTask(task.id, {
             completed: task.completed,
-            progress: task.completed ? 100 : 0
+            progress: task.completed ? 100 : 0,
           });
         }
       }
@@ -625,7 +687,10 @@ export function useGantt(projectId: string | null) {
       // Actualizar el progreso del proyecto
       if (projectId) {
         const projectProgress = Math.round(
-          currentActivities.reduce((sum, act) => sum + calculateActivityProgress(act), 0) / currentActivities.length
+          currentActivities.reduce(
+            (sum, act) => sum + calculateActivityProgress(act),
+            0
+          ) / currentActivities.length
         );
         await updateProjectProgress(projectId, projectProgress);
       }
@@ -635,7 +700,8 @@ export function useGantt(projectId: string | null) {
 
       return { success: true, error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al sincronizar el progreso';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al sincronizar el progreso';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -659,7 +725,7 @@ export function useGantt(projectId: string | null) {
       // Actualizar los order_index en el array local
       const updatedActivities = reorderedActivities.map((activity, index) => ({
         ...activity,
-        order_index: index
+        order_index: index,
       }));
 
       // Actualizar el estado local inmediatamente para una mejor UX
@@ -677,7 +743,10 @@ export function useGantt(projectId: string | null) {
 
       return { success: true, error: null };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al reordenar las actividades';
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Error al reordenar las actividades';
       setError(errorMessage);
       // Recargar actividades para restaurar el estado original
       await loadActivities();
@@ -707,6 +776,6 @@ export function useGantt(projectId: string | null) {
     updateProjectProgress,
     syncAllActivitiesProgress,
     loadActivities,
-    reorderActivities
+    reorderActivities,
   };
 }

@@ -1,7 +1,5 @@
-import "@/app/globals.css"
-import {
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+import '@/app/globals.css';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 import {
   NavigationMenu,
@@ -12,22 +10,22 @@ import {
   NavigationMenuLink,
   NavigationMenuIndicator,
   NavigationMenuViewport,
-} from "@/components/ui/navigation-menu"
+} from '@/components/ui/navigation-menu';
 
-import SidebarNav from "@/components/ui/SidebarNav" // 👈 ruta correcta
-import PageHeader from "@/components/PageHeader"
-import ResponsiveMain from "@/components/ResponsiveMain"
+import SidebarNav from '@/components/ui/SidebarNav'; // 👈 ruta correcta
+import PageHeader from '@/components/PageHeader';
+import ResponsiveMain from '@/components/ResponsiveMain';
 
 // 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
 export const metadata = {
-  title: "Gestor de Proyectos",
-  description: "App SaaS con Next.js + Shadcn + Supabase",
-}
+  title: 'Gestor de Proyectos',
+  description: 'App SaaS con Next.js + Shadcn + Supabase',
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="es">
@@ -50,5 +48,5 @@ export default function RootLayout({
         </SidebarProvider>
       </body>
     </html>
-  )
+  );
 }
