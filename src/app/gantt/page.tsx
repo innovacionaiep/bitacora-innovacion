@@ -150,10 +150,12 @@ function SortableActivity({
       className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`} // Z-index diferenciado por estado
     >
       {/* Fila de la actividad con sus tareas en la misma línea */}
-      <div
-        className="flex hover:bg-gray-50 group relative"
-        style={{ cursor: isDragging ? 'grabbing' : 'default' }}
-      >
+        <div
+          className="flex hover:bg-gray-50 group relative"
+          style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+          {...attributes}
+          {...listeners}
+        >
         <div
           className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
             !expandedDescriptions.has(activity.id) ? 'items-center' : ''
@@ -163,18 +165,6 @@ function SortableActivity({
             height: `${rowHeight}px`,
           }}
         >
-          {/* Handle de arrastrar - esquina superior derecha */}
-          <button
-            className="absolute top-2 right-2 text-gray-200 group-hover:text-gray-400 transition-colors duration-200 pointer-events-auto opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded p-1"
-            {...attributes}
-            {...listeners}
-            aria-label="Reordenar"
-            title="Arrastra para reordenar la actividad"
-          >
-            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-            </svg>
-          </button>
           <div className="flex-1 min-w-0 max-w-full">
             <div
               className={`flex space-x-2 ${
@@ -190,6 +180,7 @@ function SortableActivity({
                   size="sm"
                   variant="ghost"
                   onClick={() => toggleDescription(activity.id)}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
                 >
                   {expandedDescriptions.has(activity.id) ? (
@@ -206,6 +197,7 @@ function SortableActivity({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteActivity(activity.id)}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -334,7 +326,10 @@ function SortableActivity({
                         >
                           {/* Checkbox moderno con color emerald-500 */}
                           <div className="flex items-center">
-                            <label className="relative inline-flex items-center cursor-default">
+                            <label 
+                              className="relative inline-flex items-center cursor-default"
+                              onPointerDown={(e) => e.stopPropagation()}
+                            >
                               <input
                                 type="checkbox"
                                 checked={task.completed}
