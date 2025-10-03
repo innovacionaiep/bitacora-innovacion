@@ -48,12 +48,13 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  rectSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -123,15 +124,6 @@ function SortableActivity({
     isDragging,
   } = useSortable({ id: activity.id });
 
-  const normalized = transform
-    ? { ...transform, scaleX: 1, scaleY: 1 }
-    : transform;
-  const style = {
-    transform: CSS.Transform.toString(normalized),
-    transition,
-    willChange: 'transform',
-  };
-
   // Función unificada para calcular altura de fila
   const getRowHeight = (isExpanded: boolean, taskCount: number) => {
     const baseHeight = 4 + 40; // padding superior + altura barra actividad
@@ -143,18 +135,28 @@ function SortableActivity({
   const isExpanded = expandedDescriptions.has(activity.id);
   const rowHeight = getRowHeight(isExpanded, activity.tasks.length);
 
+  const normalized = transform
+    ? { ...transform, scaleX: 1, scaleY: 1 }
+    : transform;
+  const style = {
+    transform: CSS.Transform.toString(normalized),
+    transition,
+    willChange: 'transform',
+    height: rowHeight,
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`} // Z-index diferenciado por estado
+      {...attributes}
+      {...listeners}
     >
       {/* Fila de la actividad con sus tareas en la misma línea */}
         <div
           className="flex hover:bg-gray-50 group relative"
           style={{ cursor: isDragging ? 'grabbing' : 'default' }}
-          {...attributes}
-          {...listeners}
         >
         <div
           className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
@@ -1683,11 +1685,12 @@ export default function GanttPage() {
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
+                      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
                         items={activities.map((activity) => activity.id)}
-                        strategy={rectSortingStrategy}
+                        strategy={verticalListSortingStrategy}
                       >
                         {activities.map((activity) => (
                           <SortableActivity
