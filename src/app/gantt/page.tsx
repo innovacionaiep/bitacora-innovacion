@@ -42,7 +42,7 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
   useSortable,
@@ -92,10 +92,23 @@ function SortableActivity({
     isDragging,
   } = useSortable({ id: activity.id });
 
+  const normalized = transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform;
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(normalized),
     transition,
+    willChange: 'transform'
   };
+
+  // Función unificada para calcular altura de fila
+  const getRowHeight = (isExpanded: boolean, taskCount: number) => {
+    const baseHeight = 4 + 40; // padding superior + altura barra actividad
+    const taskHeight = isExpanded ? taskCount * 22 : 0; // altura por tarea
+    const bottomPadding = 8; // padding inferior unificado
+    return Math.max(48, baseHeight + taskHeight + bottomPadding);
+  };
+
+  const isExpanded = expandedDescriptions.has(activity.id);
+  const rowHeight = getRowHeight(isExpanded, activity.tasks.length);
 
   return (
     <div
@@ -117,10 +130,7 @@ function SortableActivity({
           }`}
           data-column="activities"
           style={{ 
-            height: `${expandedDescriptions.has(activity.id) 
-              ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 17) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-              : Math.max(48, 4 + 40 + 12) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
-            }px`
+            height: `${rowHeight}px`
           }}
         >
           {/* Indicador de arrastrar - esquina superior derecha */}
@@ -187,13 +197,7 @@ function SortableActivity({
             {expandedDescriptions.has(activity.id) && (
               <div className={`absolute left-0 right-0 top-0 bottom-0 pointer-events-none ${isDragging ? 'dragging-absolute' : ''}`}>
                 {(() => {
-                  const isExpanded = expandedDescriptions.has(activity.id);
                   const taskSpacing = 22; // Espaciado entre tareas
-                  const containerHeight = isExpanded 
-                    ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
-                    : Math.max(48, 16 + 40);
-                  const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
-                  const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
                   const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
                   
                   // Estimar si el texto tendrá dos líneas basado en la longitud
@@ -252,13 +256,7 @@ function SortableActivity({
                 {activity.tasks
                   .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                   .map((task, index) => {
-                  const isExpanded = expandedDescriptions.has(activity.id);
                   const taskSpacing = 22; // Espaciado entre tareas
-                  const containerHeight = isExpanded 
-                    ? Math.max(48, 16 + 40 + (activity.tasks.length * taskSpacing) + 16)
-                    : Math.max(48, 16 + 40);
-                  const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40;
-                  const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
                   const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
                   
                   return (
@@ -347,10 +345,7 @@ function SortableActivity({
         <div 
           className="flex-1 relative p-2"
           style={{ 
-            height: `${expandedDescriptions.has(activity.id) 
-              ? Math.max(48, 4 + 40 + (activity.tasks.length * 22) + 8) // Altura completa cuando expandido: 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-              : Math.max(48, 4 + 40 + 8) // Solo barra de actividad cuando colapsado: 4px superior + 40px barra + 8px inferior
-            }px`
+            height: `${rowHeight}px`
           }}
         >
           
@@ -365,13 +360,7 @@ function SortableActivity({
             // Si la actividad no es visible (ancho 0), no renderizarla
             if (barWidth === 0) return null;
 
-            const isExpanded = expandedDescriptions.has(activity.id);
             const taskSpacing = 22; // Espaciado reducido entre tareas
-            const containerHeight = isExpanded 
-              ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-              : Math.max(48, 16 + 40);
-            const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
-            const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
             const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
 
             const activityProgress = getActivityProgress(activity);
@@ -423,13 +412,7 @@ function SortableActivity({
           {expandedDescriptions.has(activity.id) && activity.tasks
             .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
             .map((task, index) => {
-            const isExpanded = expandedDescriptions.has(activity.id);
             const taskSpacing = 22; // Espaciado reducido entre tareas
-            const containerHeight = isExpanded 
-              ? Math.max(48, 4 + 40 + (activity.tasks.length * taskSpacing) + 8) // 4px superior + 40px barra actividad + 22px por tarea + 8px inferior
-              : Math.max(48, 16 + 40);
-            const totalItemsHeight = isExpanded ? 40 + (activity.tasks.length * taskSpacing) : 40; // Solo barra de actividad cuando colapsado
-            const availableHeight = containerHeight - 12; // Restar padding (4px superior + 8px inferior)
             const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
             
             // Verificar si la tarea está dentro del rango visible (enero a diciembre)
@@ -1510,7 +1493,7 @@ export default function GanttPage() {
                     >
                       <SortableContext
                         items={activities.map(activity => activity.id)}
-                        strategy={verticalListSortingStrategy}
+                        strategy={rectSortingStrategy}
                       >
                         {activities.map((activity) => (
                           <SortableActivity
