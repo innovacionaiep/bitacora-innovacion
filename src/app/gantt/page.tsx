@@ -26,6 +26,7 @@ import {
   Clock,
   Target,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   TrendingUp,
 } from 'lucide-react';
@@ -126,9 +127,9 @@ function SortableActivity({
 
   // Función unificada para calcular altura de fila
   const getRowHeight = (isExpanded: boolean, taskCount: number) => {
-    const baseHeight = 4 + 40; // padding superior + altura barra actividad
+    const baseHeight = 3 + 50; // padding superior + altura barra actividad
     const taskHeight = isExpanded ? taskCount * 22 : 0; // altura por tarea
-    const bottomPadding = 8; // padding inferior unificado
+    const bottomPadding = 10; // padding inferior unificado
     return Math.max(48, baseHeight + taskHeight + bottomPadding);
   };
 
@@ -154,10 +155,10 @@ function SortableActivity({
       {...listeners}
     >
       {/* Fila de la actividad con sus tareas en la misma línea */}
-        <div
-          className="flex hover:bg-gray-50 group relative"
-          style={{ cursor: isDragging ? 'grabbing' : 'default' }}
-        >
+      <div
+        className="flex hover:bg-gray-50 group relative"
+        style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+      >
         <div
           className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
             !expandedDescriptions.has(activity.id) ? 'items-center' : ''
@@ -250,14 +251,14 @@ function SortableActivity({
 
                   if (estimatedLines === 1) {
                     // Para títulos de una línea, usar la posición original que ya funcionaba bien
-                    topPosition = startOffset + 14; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
+                    topPosition = startOffset + 18; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
                   } else {
                     // Para títulos de múltiples líneas, calcular el centrado especial
                     // Usar valores empíricos basados en la observación visual
                     const totalTextHeight = 17; // Altura aproximada de 2 líneas de 13px
 
                     // Calcular el centro de la barra de actividad (32px de altura)
-                    const barCenter = startOffset + 16; // Centro de la barra de 32px
+                    const barCenter = startOffset + 19; // Centro de la barra de 32px
 
                     // Calcular el centro del texto de dos líneas
                     const textCenter = totalTextHeight / 2; // Centro del texto = 16px
@@ -287,7 +288,7 @@ function SortableActivity({
                       title="Haz clic para ver detalles de la actividad"
                     >
                       <span
-                        className="activity-title"
+                        className={`activity-title ${activity.name.length > 50 ? 'activity-title-multiline' : ''}`}
                         data-activity-id={activity.id}
                       >
                         {activity.name}
@@ -312,7 +313,7 @@ function SortableActivity({
                         new Date(b.start_date).getTime()
                     )
                     .map((task, index) => {
-                      const taskSpacing = 22; // Espaciado entre tareas
+                      const taskSpacing = 25; // Espaciado entre tareas
                       const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
 
                       return (
@@ -328,7 +329,7 @@ function SortableActivity({
                         >
                           {/* Checkbox moderno con color emerald-500 */}
                           <div className="flex items-center">
-                            <label 
+                            <label
                               className="relative inline-flex items-center cursor-default"
                               onPointerDown={(e) => e.stopPropagation()}
                             >
@@ -448,7 +449,7 @@ function SortableActivity({
                   {/* Barra de fondo gris con popup */}
                   <div className="relative group h-8">
                     <div
-                      className="activity-bar absolute top-0 h-8 bg-gray-300 rounded-xl z-10 cursor-default hover:bg-gray-400 hover:shadow-md transition-all duration-200"
+                      className={`activity-bar absolute top-0 h-8 bg-gray-300 rounded-xl z-10 cursor-default hover:bg-gray-400 hover:shadow-md ${expandedDescriptions.has(activity.id) ? 'invisible pointer-events-none' : 'transition-all duration-200'}`}
                       style={{
                         left: `${startPos.left}%`,
                         width: `${barWidth}%`,
@@ -465,7 +466,7 @@ function SortableActivity({
                     >
                       {/* Barra de progreso verde - perfectamente alineada */}
                       <div
-                        className="absolute bg-emerald-500 rounded-xl transition-all duration-300 z-20"
+                        className={`absolute bg-emerald-500 rounded-xl z-20 ${expandedDescriptions.has(activity.id) ? '' : 'transition-all duration-300'}`}
                         style={{
                           width: `${activityProgress}%`,
                           top: '0px',
@@ -494,7 +495,7 @@ function SortableActivity({
                   new Date(b.start_date).getTime()
               )
               .map((task, index) => {
-                const taskSpacing = 22; // Espaciado reducido entre tareas
+                const taskSpacing = 25; // Espaciado reducido entre tareas
                 const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
 
                 // Verificar si la tarea está dentro del rango visible (enero a diciembre)
@@ -535,7 +536,7 @@ function SortableActivity({
                       ></div>
 
                       <div
-                        className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-default hover:opacity-80 transition-opacity duration-200`}
+                        className={`task-bar absolute top-1/2 transform -translate-y-1/2 h-3.5 ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'} rounded-xl z-20 cursor-default hover:opacity-80 transition-opacity duration-200`}
                         style={{
                           left: `${startPos.left}%`,
                           width: `${barWidth}%`,
@@ -679,6 +680,19 @@ export default function GanttPage() {
     calculateProjectProgress,
     reorderActivities,
   } = useGantt(selectedProject?.id || null);
+
+  // Estado derivado para determinar si todas las actividades están expandidas
+  const allExpanded =
+    activities.length > 0 && expandedDescriptions.size === activities.length;
+
+  // Handler para expandir/contraer todas las actividades
+  const toggleAllDescriptions = () => {
+    setExpandedDescriptions((prev) =>
+      prev.size === activities.length
+        ? new Set()
+        : new Set(activities.map((a) => a.id))
+    );
+  };
 
   // Calcular estadísticas de actividades y tareas completadas
   const getProjectStats = () => {
@@ -1597,9 +1611,29 @@ export default function GanttPage() {
                   {/* Header del calendario */}
                   <div className="flex border-b border-white">
                     <div
-                      className="w-[416px] p-4 border-r border-gray-200 bg-gray-50"
+                      className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative"
                       data-column="activities"
                     >
+                       <Button
+                         type="button"
+                         onClick={toggleAllDescriptions}
+                         disabled={activities.length === 0 || ganttLoading}
+                         variant="ghost"
+                         size="sm"
+                         aria-pressed={allExpanded}
+                         aria-label={
+                           allExpanded
+                             ? 'Contraer todas las actividades'
+                             : 'Expandir todas las actividades'
+                         }
+                         className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                       >
+                         {allExpanded ? (
+                           <ChevronDown className="h-4 w-4" />
+                         ) : (
+                           <ChevronRight className="h-4 w-4" />
+                         )}
+                       </Button>
                       <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">
                           Actividades
@@ -1670,7 +1704,8 @@ export default function GanttPage() {
                           <Button
                             onClick={handleAddActivityClick}
                             variant="outline"
-                            className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                            className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                            aria-label="Agregar actividad"
                           >
                             <Plus className="h-6 w-6" />
                           </Button>
@@ -1685,7 +1720,9 @@ export default function GanttPage() {
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
-                      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+                      measuring={{
+                        droppable: { strategy: MeasuringStrategy.Always },
+                      }}
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
@@ -1727,7 +1764,8 @@ export default function GanttPage() {
                               <Button
                                 onClick={handleAddActivityClick}
                                 variant="outline"
-                                className="border-2 border-gray-400 text-gray-500 hover:bg-blue-100 hover:border-blue-500 hover:text-blue-500 rounded-full w-10 h-10 p-0 shadow-2xl hover:shadow-2xl transition-all duration-300"
+                                className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                aria-label="Agregar actividad"
                               >
                                 <Plus className="h-6 w-6" />
                               </Button>

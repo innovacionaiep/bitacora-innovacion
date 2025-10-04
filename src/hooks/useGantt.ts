@@ -31,6 +31,7 @@ export function useGantt(projectId: string | null) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [togglingTasks, setTogglingTasks] = useState<Set<string>>(new Set());
 
   // Color gris oscuro para todas las actividades
   const ACTIVITY_COLORS = ['bg-gray-700'];
@@ -432,10 +433,15 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Toggle completar tarea (actualiza base de datos)
+  // Toggle completar tarea (actualización optimista)
   const toggleTaskCompletion = async (taskId: string) => {
-    console.log('=== TOGGLE TASK COMPLETION ===');
-    console.log('Task ID:', taskId);
+    // Prevenir doble toggles mientras hay una operación en progreso
+    if (togglingTasks.has(taskId)) {
+      return;
+    }
+
+    // Marcar esta tarea como en proceso de toggle
+    setTogglingTasks(prev => new Set(prev).add(taskId));
 
     // Encontrar la tarea y la actividad que la contiene
     let targetActivity = null;
@@ -455,19 +461,6 @@ export function useGantt(projectId: string | null) {
       return;
     }
 
-    console.log(
-      'Found task:',
-      targetTask.name,
-      'completed:',
-      targetTask.completed
-    );
-    console.log(
-      'Found activity:',
-      targetActivity.name,
-      'progress:',
-      targetActivity.progress
-    );
-
     // Crear la tarea actualizada
     const updatedTask = {
       ...targetTask,
@@ -475,114 +468,103 @@ export function useGantt(projectId: string | null) {
       progress: !targetTask.completed ? 100 : 0,
     };
 
-    console.log(
-      'Updated task:',
-      updatedTask.name,
-      'completed:',
-      updatedTask.completed
-    );
+    // Capturar el estado anterior para rollback en caso de error
+    const prevActivities = activities;
 
     try {
-      // Actualizar la tarea en la base de datos
-      const { error: taskError } = await supabase
-        .from('tasks')
-        .update({
-          completed: updatedTask.completed,
-          progress: updatedTask.progress,
-        })
-        .eq('id', taskId);
+      // Actualización optimista del estado local
+      const { updatedActivities, newProgress } = await new Promise<{
+        updatedActivities: Activity[];
+        newProgress: number;
+      }>((resolve) => {
+        setActivities((prev) => {
+          const updatedActivity = {
+            ...targetActivity,
+            tasks: targetActivity.tasks.map((t) =>
+              t.id === taskId ? updatedTask : t
+            ),
+          };
 
-      if (taskError) {
-        console.error('Error updating task:', taskError);
-        throw taskError;
-      }
+          // Recalcular el progreso de la actividad
+          const completedTasks = updatedActivity.tasks.filter(
+            (task) => task.completed
+          ).length;
+          const newProgress =
+            updatedActivity.tasks.length > 0
+              ? Math.round((completedTasks / updatedActivity.tasks.length) * 100)
+              : 0;
 
-      // Actualizar el estado local
-      setActivities((prev) => {
-        const updatedActivity = {
-          ...targetActivity,
-          tasks: targetActivity.tasks.map((t) =>
-            t.id === taskId ? updatedTask : t
-          ),
-        };
+          const finalActivity = {
+            ...updatedActivity,
+            progress: newProgress,
+          };
 
-        // Recalcular el progreso de la actividad
-        const completedTasks = updatedActivity.tasks.filter(
-          (task) => task.completed
-        ).length;
-        const newProgress =
-          updatedActivity.tasks.length > 0
-            ? Math.round((completedTasks / updatedActivity.tasks.length) * 100)
-            : 0;
+          const result = prev.map((activity) =>
+            activity.id === targetActivity.id ? finalActivity : activity
+          );
 
-        console.log(
-          'Activity progress calculation:',
-          completedTasks,
-          '/',
-          updatedActivity.tasks.length,
-          '=',
-          newProgress + '%'
-        );
-
-        const finalActivity = {
-          ...updatedActivity,
-          progress: newProgress,
-        };
-
-        console.log(
-          'Final activity:',
-          finalActivity.name,
-          'progress:',
-          finalActivity.progress
-        );
-
-        // Actualizar el array de actividades
-        const result = prev.map((activity) =>
-          activity.id === targetActivity.id ? finalActivity : activity
-        );
-
-        console.log('Final activities:', result);
-        console.log('=== END TOGGLE ===');
-
-        return result;
+          resolve({ updatedActivities: result, newProgress });
+          return result;
+        });
       });
 
-      // Actualizar el progreso de la actividad en la base de datos
-      const completedTasks = targetActivity.tasks
-        .map((t) => (t.id === taskId ? updatedTask : t))
-        .filter((task) => task.completed).length;
-      const newProgress =
-        targetActivity.tasks.length > 0
-          ? Math.round((completedTasks / targetActivity.tasks.length) * 100)
-          : 0;
+      // Persistir en background
+      const persistencePromises = [
+        // Actualizar la tarea en la base de datos
+        supabase
+          .from('tasks')
+          .update({
+            completed: updatedTask.completed,
+            progress: updatedTask.progress,
+          })
+          .eq('id', taskId),
+        
+        // Actualizar el progreso de la actividad en la base de datos
+        supabase
+          .from('activities')
+          .update({ progress: newProgress })
+          .eq('id', targetActivity.id)
+      ];
 
-      const { error: activityError } = await supabase
-        .from('activities')
-        .update({ progress: newProgress })
-        .eq('id', targetActivity.id);
-
-      if (activityError) {
-        console.error('Error updating activity progress:', activityError);
-      }
-
-      // Actualizar el progreso del proyecto
+      // Actualizar el progreso del proyecto si es necesario
       if (projectId) {
-        const updatedActivities = activities.map((activity) =>
-          activity.id === targetActivity.id
-            ? { ...activity, progress: newProgress }
-            : activity
-        );
         const projectProgress = Math.round(
           updatedActivities.reduce((sum, act) => sum + act.progress, 0) /
             updatedActivities.length
         );
-        await updateProjectProgress(projectId, projectProgress);
+        persistencePromises.push(
+          updateProjectProgress(projectId, projectProgress)
+        );
       }
+
+      // Ejecutar todas las persistences en paralelo
+      const results = await Promise.all(persistencePromises);
+
+      // Verificar errores en las primeras dos operaciones (Supabase)
+      const [taskResult, activityResult] = results;
+      if (taskResult.error) {
+        throw taskResult.error;
+      }
+      if (activityResult.error) {
+        throw activityResult.error;
+      }
+
     } catch (err) {
-      console.error('Error toggling task completion:', err);
+      console.error('Error persisting task completion:', err);
+      
+      // Rollback: restaurar el estado anterior
+      setActivities(prevActivities);
+      
       setError(
         err instanceof Error ? err.message : 'Error al actualizar la tarea'
       );
+    } finally {
+      // Limpiar el estado de toggle en progreso
+      setTogglingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
   };
 
