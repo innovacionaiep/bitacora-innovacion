@@ -431,15 +431,15 @@ function SortableActivity({
             const activityProgress = getActivityProgress(activity);
 
             return (
-              <div
-                key={`activity-${activity.id}`}
-                className="absolute"
-                style={{
-                  width: 'calc(100% - 16px)',
-                  left: '8px',
-                  right: '8px',
-                }}
-              >
+                <div
+                  key={`activity-${activity.id}`}
+                  className="absolute"
+                  style={{
+                    width: 'calc(100% - 16px)',
+                    left: '0px',
+                    right: '8px',
+                  }}
+                >
                 <div
                   className="relative h-8"
                   style={{
@@ -1503,45 +1503,46 @@ export default function GanttPage() {
           {/* Selector de proyecto y Progreso del proyecto alineados */}
           <div className="flex items-start justify-between w-full">
             {/* Selector de proyecto */}
-            <div className="flex items-center space-x-5">
-              <FolderKanban className="h-7 w-7 text-gray-600" />
-              <div>
-                <Label
-                  htmlFor="project-select"
-                  className="text-base font-medium text-gray-700"
+            <div className="rounded-xl border bg-muted/40 backdrop-blur-sm shadow-sm px-4 py-3">
+              <Label
+                htmlFor="project-select"
+                className="text-base font-medium text-gray-700"
+              >
+                Seleccionar Proyecto
+              </Label>
+              <div className="relative mt-2">
+                <FolderKanban className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+                <Select
+                  value={selectedProject?.id || ''}
+                  onValueChange={(value) => {
+                    const project = proyectos.find((p) => p.id === value);
+                    setSelectedProject(project || null);
+                  }}
+                  disabled={ganttLoading}
                 >
-                  Seleccionar Proyecto
-                </Label>
-                <div className="relative">
-                  <Select
-                    value={selectedProject?.id || ''}
-                    onValueChange={(value) => {
-                      const project = proyectos.find((p) => p.id === value);
-                      setSelectedProject(project || null);
-                    }}
-                    disabled={ganttLoading}
-                  >
-                    <SelectTrigger className="mt-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 w-88 h-12 px-4 text-base">
-                      <SelectValue placeholder="Selecciona un proyecto" />
-                    </SelectTrigger>
-                    <SelectContent className="text-base">
-                      {proyectos.map((project) => (
-                        <SelectItem
-                          key={project.id}
-                          value={project.id}
-                          className="py-3"
-                        >
-                          {project.proyecto} - {project.sede}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {ganttLoading && selectedProject && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-                    </div>
-                  )}
-                </div>
+                  <SelectTrigger className="h-11 md:h-12 pl-10 pr-10 w-[22rem] md:w-[26rem] rounded-xl border-2 border-border bg-background/80 hover:bg-accent/20 text-base shadow-sm transition focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500">
+                    <SelectValue placeholder="Selecciona un proyecto" />
+                  </SelectTrigger>
+                  <SelectContent className="text-base">
+                    {proyectos.map((project) => (
+                      <SelectItem
+                        key={project.id}
+                        value={project.id}
+                        className="py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium truncate">{project.proyecto}</span>
+                          <Badge variant="secondary" className="shrink-0">{project.sede}</Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {ganttLoading && selectedProject && (
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald-500 border-t-transparent"></div>
+                  </div>
+                )}
               </div>
             </div>
 
