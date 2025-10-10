@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 export type Task = {
   id: string;
@@ -35,6 +35,9 @@ export function useGantt(projectId: string | null) {
 
   // Color gris oscuro para todas las actividades
   const ACTIVITY_COLORS = ['bg-gray-700'];
+  
+  // Crear cliente de Supabase
+  const supabase = createClient();
 
   // Cargar actividades del proyecto
   const loadActivities = async () => {

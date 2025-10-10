@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase';
 
 type Project = Database['public']['Tables']['proyectos']['Row'];
@@ -8,6 +8,8 @@ export function useProyectos() {
   const [proyectos, setProyectos] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const supabase = createClient();
 
   // Cargar proyectos
   const fetchProyectos = async () => {

@@ -1,11 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Tipos para TypeScript
+// Tipos para TypeScript - Los clientes ahora están en archivos separados
 export type Database = {
   public: {
     Tables: {
