@@ -8,7 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ArrowLeft, Check, X } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { User, ArrowLeft, Check, X, Camera } from 'lucide-react';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -19,6 +28,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Inicializar valores del perfil
   useEffect(() => {
@@ -35,6 +45,7 @@ export default function ProfilePage() {
 
   const handleAvatarSelect = (avatar: PredefinedAvatar) => {
     setSelectedAvatar(avatar);
+    setIsDialogOpen(false); // Cerrar el dialog después de seleccionar
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,10 +102,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+      <div className="max-w-2xl w-full">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <Button
             variant="ghost"
             onClick={handleCancel}
@@ -104,7 +115,7 @@ export default function ProfilePage() {
             Volver al dashboard
           </Button>
           <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 mt-1">
             Actualiza tu información personal y selecciona tu avatar
           </p>
         </div>
@@ -120,7 +131,7 @@ export default function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email (readonly) */}
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -149,13 +160,12 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Galería de Avatares */}
+              {/* Avatar Selection */}
               <div>
-                <Label>Seleccionar Avatar</Label>
-                
-                {/* Preview del avatar seleccionado */}
-                <div className="mt-2 mb-4">
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100">
+                <Label>Foto de Perfil</Label>
+                <div className="mt-2 flex items-center space-x-4">
+                  {/* Preview del avatar actual */}
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100 flex-shrink-0">
                     {selectedAvatar ? (
                       <img
                         src={selectedAvatar.url}
@@ -164,44 +174,69 @@ export default function ProfilePage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <User className="h-8 w-8" />
+                        <User className="h-6 w-6" />
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {selectedAvatar ? selectedAvatar.name : 'Ningún avatar seleccionado'}
-                  </p>
+                  
+                  {/* Botón para cambiar avatar */}
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex items-center space-x-2"
+                        disabled={isLoading}
+                      >
+                        <Camera className="h-4 w-4" />
+                        <span>Cambiar Avatar</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Seleccionar Avatar</DialogTitle>
+                        <DialogDescription>
+                          Elige tu avatar favorito de la galería
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      {/* Grid de avatares en el Dialog */}
+                      <div className="grid grid-cols-5 gap-3 max-h-60 overflow-y-auto">
+                        {PREDEFINED_AVATARS.map((avatar) => (
+                          <button
+                            key={avatar.id}
+                            type="button"
+                            onClick={() => handleAvatarSelect(avatar)}
+                            className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                              selectedAvatar?.id === avatar.id
+                                ? 'border-blue-500 ring-2 ring-blue-200'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <img
+                              src={avatar.url}
+                              alt={avatar.name}
+                              className="w-full h-full object-cover"
+                            />
+                            {selectedAvatar?.id === avatar.id && (
+                              <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                                <Check className="h-4 w-4 text-blue-600" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button onClick={() => setIsDialogOpen(false)}>
+                          Cerrar
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-
-                {/* Grid de avatares */}
-                <div className="grid grid-cols-5 gap-3">
-                  {PREDEFINED_AVATARS.map((avatar) => (
-                    <button
-                      key={avatar.id}
-                      type="button"
-                      onClick={() => handleAvatarSelect(avatar)}
-                      className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
-                        selectedAvatar?.id === avatar.id
-                          ? 'border-blue-500 ring-2 ring-blue-200'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      disabled={isLoading}
-                    >
-                      <img
-                        src={avatar.url}
-                        alt={avatar.name}
-                        className="w-full h-full object-cover"
-                      />
-                      {selectedAvatar?.id === avatar.id && (
-                        <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                          <Check className="h-5 w-5 text-blue-600" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Haz clic en un avatar para seleccionarlo
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedAvatar ? `Avatar seleccionado: ${selectedAvatar.name}` : 'Ningún avatar seleccionado'}
                 </p>
               </div>
 
@@ -221,7 +256,7 @@ export default function ProfilePage() {
               )}
 
               {/* Botones */}
-              <div className="flex space-x-4 pt-4">
+              <div className="flex space-x-3 pt-2">
                 <Button
                   type="submit"
                   disabled={isLoading}

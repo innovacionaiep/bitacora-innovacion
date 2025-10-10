@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import PageHeader from '@/components/PageHeader';
+import PageHeaderSimple from '@/components/PageHeaderSimple';
 import ResponsiveMain from '@/components/ResponsiveMain';
 
 interface ConditionalLayoutProps {
@@ -17,9 +18,24 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
+  // Ruta de perfil - solo header simplificado sin sidebar
+  const isProfileRoute = pathname === '/perfil';
+
   // Si es una ruta de autenticación, mostrar solo el contenido
   if (isAuthRoute) {
     return <>{children}</>;
+  }
+
+  // Si es la página de perfil, mostrar header simplificado sin sidebar
+  if (isProfileRoute) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <PageHeaderSimple />
+        <div className="overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    );
   }
 
   // Para todas las demás rutas, mostrar el layout completo con sidebar y header

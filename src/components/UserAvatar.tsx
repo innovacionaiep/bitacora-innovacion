@@ -20,7 +20,7 @@ export function UserAvatar() {
   if (loading) {
     return (
       <div className="flex items-center space-x-2">
-        <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse border-2 border-white shadow-sm" />
+        <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse border-2 border-white shadow-sm" />
         <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
       </div>
     );
@@ -52,25 +52,32 @@ export function UserAvatar() {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          className="relative h-9 w-9 rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shadow-sm border-2 border-white">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name || profile.email}
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              initials
-            )}
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
+    <div className="flex items-center space-x-5">
+      {/* Nombre de usuario */}
+      <span className="text-sm font-medium text-gray-700">
+        {profile.full_name || profile.email.split('@')[0]}
+      </span>
+      
+      {/* Avatar con dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="relative h-8 w-8 rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-base font-medium shadow-sm border-2 border-white">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || profile.email}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                initials
+              )}
+            </div>
+          </Button>
+        </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
@@ -104,5 +111,6 @@ export function UserAvatar() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </div>
   );
 }
