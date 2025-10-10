@@ -67,7 +67,40 @@ Puedes crear usuarios de prueba de dos formas:
 1. **Desde la página de login:** Usa el formulario de registro (si está habilitado)
 2. **Desde Supabase Dashboard:** Ve a Authentication > Users > "Add user"
 
-### 6. Funcionalidades Implementadas
+### 6. Configuración de Avatares Predefinidos
+
+Para que la funcionalidad de perfil funcione correctamente, necesitas agregar avatares predefinidos:
+
+1. **Crear carpeta de avatares:**
+
+   - La carpeta `public/avatars/` ya está creada en el proyecto
+   - Debes agregar 20 imágenes de avatar en esta carpeta
+
+2. **Especificaciones de los archivos:**
+
+   - **Formato**: PNG, JPG o JPEG
+   - **Tamaño recomendado**: 200x200px o 512x512px
+   - **Tamaño máximo**: 1MB por archivo
+   - **Nomenclatura**: `avatar-1.png`, `avatar-2.png`, ..., `avatar-20.png`
+
+3. **Fuentes recomendadas para avatares:**
+
+   - [Flaticon](https://www.flaticon.com/packs/avatar) - Avatares ilustrados
+   - [Freepik](https://www.freepik.com/search?query=avatar) - Avatares profesionales
+   - [UI Faces](https://uifaces.co/) - Fotos reales
+   - [Boring Avatars](https://boringavatars.com/) - Avatares geométricos
+
+4. **Estructura final:**
+   ```
+   public/
+   └── avatars/
+       ├── avatar-1.png
+       ├── avatar-2.png
+       ├── avatar-3.png
+       └── ... (hasta avatar-20.png)
+   ```
+
+### 7. Funcionalidades Implementadas
 
 - ✅ Login con email y contraseña
 - ✅ Login con Google OAuth
@@ -75,10 +108,14 @@ Puedes crear usuarios de prueba de dos formas:
 - ✅ Protección automática de rutas
 - ✅ Avatar de usuario en el header
 - ✅ Menú desplegable con opciones de perfil
+- ✅ **Página de perfil funcional**
+- ✅ **Galería de 20 avatares predefinidos**
+- ✅ **Edición de nombre completo**
+- ✅ **Selección visual de avatar**
 - ✅ Logout funcional
 - ✅ Redirección automática según estado de autenticación
 
-### 7. Próximos Pasos (Opcional)
+### 8. Próximos Pasos (Opcional)
 
 - Configurar roles de usuario en la base de datos
 - Implementar sistema de permisos

@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   console.log('Middleware - path:', request.nextUrl.pathname)
   console.log('Middleware - session:', session?.user?.id || 'NO SESSION')
 
-  const protectedRoutes = ['/proyectos', '/gantt', '/indicadores', '/presupuesto', '/seguimiento']
+  const protectedRoutes = ['/proyectos', '/gantt', '/indicadores', '/presupuesto', '/seguimiento', '/perfil']
   const authRoutes = ['/auth/login', '/auth/register']
   const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route))
   const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route))

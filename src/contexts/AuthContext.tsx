@@ -21,6 +21,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithMicrosoft: () => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
+  updateProfile: (updates: { full_name?: string; avatar_url?: string }) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -186,6 +187,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (updates: { full_name?: string; avatar_url?: string }) => {
+    try {
+      setLoading(true);
+      
+      // Actualizar user_metadata en Supabase Auth
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          full_name: updates.full_name,
+          avatar_url: updates.avatar_url,
+        }
+      });
+
+      if (error) {
+        setLoading(false);
+        return { error };
+      }
+
+      // Actualizar el estado local del perfil
+      if (data.user) {
+        const updatedProfile = createUserProfile(data.user);
+        setProfile(updatedProfile);
+        setUser(data.user);
+      }
+
+      return { error: undefined };
+    } catch (error) {
+      setLoading(false);
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -196,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGoogle,
     signInWithMicrosoft,
     signOut,
+    updateProfile,
   };
 
   return (

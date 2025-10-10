@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,11 +15,12 @@ import { User, LogOut, Settings } from 'lucide-react';
 
 export function UserAvatar() {
   const { profile, signOut, loading } = useAuth();
+  const router = useRouter();
 
   if (loading) {
     return (
       <div className="flex items-center space-x-2">
-        <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+        <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse border-2 border-white shadow-sm" />
         <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
       </div>
     );
@@ -52,13 +54,16 @@ export function UserAvatar() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+        <Button 
+          variant="ghost" 
+          className="relative h-9 w-9 rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shadow-sm border-2 border-white">
             {profile.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt={profile.full_name || profile.email}
-                className="h-8 w-8 rounded-full object-cover"
+                className="h-full w-full rounded-full object-cover"
               />
             ) : (
               initials
@@ -78,7 +83,10 @@ export function UserAvatar() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem 
+          className="cursor-pointer"
+          onClick={() => router.push('/perfil')}
+        >
           <User className="mr-2 h-4 w-4" />
           <span>Perfil</span>
         </DropdownMenuItem>
