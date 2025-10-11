@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  Newspaper,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -32,6 +33,7 @@ import { Button } from '@/components/ui/button';
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
 const navItems = [
+  { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
   { href: '/gantt', label: 'Gantt', icon: GanttChart },
