@@ -189,8 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: { full_name?: string; avatar_url?: string }) => {
     try {
-      setLoading(true);
-      
       // Actualizar user_metadata en Supabase Auth
       const { data, error } = await supabase.auth.updateUser({
         data: {
@@ -200,7 +198,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        setLoading(false);
         return { error };
       }
 
@@ -213,10 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: undefined };
     } catch (error) {
-      setLoading(false);
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 

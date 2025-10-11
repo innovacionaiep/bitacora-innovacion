@@ -29,11 +29,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Si es la página de perfil, mostrar header simplificado sin sidebar
   if (isProfileRoute) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="h-screen flex flex-col bg-background text-foreground">
         <PageHeaderSimple />
-        <div className="overflow-y-auto">
-          {children}
-        </div>
+        {children}
       </div>
     );
   }

@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el t√
 
 export default function PageHeaderSimple() {
   return (
-    <div className="relative flex w-full flex-1 flex-col bg-background">
+    <div className="relative w-full bg-background">
       <header className="border-b shadow-sm">
         <div className="px-4 py-2 flex justify-between items-center">
           {/* T√≠tulo BITACORA en el extremo izquierdo */}

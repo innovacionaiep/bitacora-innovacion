@@ -6,18 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PREDEFINED_AVATARS, type PredefinedAvatar } from '@/lib/avatars';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { User, ArrowLeft, Check, X, Camera } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { User, ArrowLeft, Check, X, Pencil } from 'lucide-react';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -25,15 +15,19 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<PredefinedAvatar | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingName, setIsLoadingName] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempFullName, setTempFullName] = useState('');
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+  const [tempSelectedAvatar, setTempSelectedAvatar] = useState<PredefinedAvatar | null>(null);
 
   // Inicializar valores del perfil
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
+      setTempFullName(profile.full_name || '');
       
       // Buscar el avatar actual en la lista de avatares predefinidos
       if (profile.avatar_url) {
@@ -43,39 +37,100 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
-  const handleAvatarSelect = (avatar: PredefinedAvatar) => {
-    setSelectedAvatar(avatar);
-    setIsDialogOpen(false); // Cerrar el dialog después de seleccionar
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleAvatarChange = async (avatar: PredefinedAvatar) => {
     setError('');
     setSuccess('');
 
     try {
-      // Actualizar el perfil
       const { error } = await updateProfile({
-        full_name: fullName.trim(),
-        avatar_url: selectedAvatar?.url || undefined,
+        avatar_url: avatar.url,
       });
 
       if (error) {
-        setError(error.message || 'Error al actualizar el perfil');
+        setError(error.message || 'Error al actualizar el avatar');
       } else {
-        setSuccess('Perfil actualizado correctamente');
+        setSelectedAvatar(avatar);
+        setShowAvatarSelector(false);
+        setTempSelectedAvatar(null);
+        setSuccess('Avatar actualizado correctamente');
+        // Limpiar mensaje de éxito después de 2 segundos
+        setTimeout(() => setSuccess(''), 2000);
       }
     } catch (err) {
-      setError('Error inesperado al actualizar el perfil');
-    } finally {
-      setIsLoading(false);
+      setError('Error inesperado al actualizar el avatar');
     }
   };
+
+  const handleAvatarPreview = (avatar: PredefinedAvatar) => {
+    setTempSelectedAvatar(avatar);
+  };
+
+  const handleAvatarSelectorToggle = () => {
+    setShowAvatarSelector(!showAvatarSelector);
+    if (!showAvatarSelector) {
+      setTempSelectedAvatar(selectedAvatar);
+    } else {
+      setTempSelectedAvatar(null);
+    }
+  };
+
+  const handleAvatarSave = async () => {
+    if (tempSelectedAvatar) {
+      await handleAvatarChange(tempSelectedAvatar);
+    }
+  };
+
+  const handleAvatarCancel = () => {
+    setTempSelectedAvatar(selectedAvatar);
+    setShowAvatarSelector(false);
+  };
+
 
   const handleCancel = () => {
     router.push('/');
   };
+
+  const handleNameEditStart = () => {
+    setTempFullName(fullName);
+    setIsEditingName(true);
+  };
+
+  const handleNameEditCancel = () => {
+    setTempFullName(fullName);
+    setIsEditingName(false);
+  };
+
+  const handleNameSave = async () => {
+    if (tempFullName.trim() === fullName) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setIsLoadingName(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { error } = await updateProfile({
+        full_name: tempFullName.trim(),
+      });
+
+      if (error) {
+        setError(error.message || 'Error al actualizar el nombre');
+      } else {
+        setFullName(tempFullName.trim());
+        setIsEditingName(false);
+        setSuccess('Nombre actualizado correctamente');
+        // Limpiar mensaje de éxito después de 2 segundos
+        setTimeout(() => setSuccess(''), 2000);
+      }
+    } catch (err) {
+      setError('Error inesperado al actualizar el nombre');
+    } finally {
+      setIsLoadingName(false);
+    }
+  };
+
 
   if (authLoading) {
     return (
@@ -102,181 +157,190 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-      <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={handleCancel}
-            className="mb-4 p-0 h-auto text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al dashboard
-          </Button>
-          <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
-          <p className="text-gray-600 mt-1">
-            Actualiza tu información personal y selecciona tu avatar
-          </p>
-        </div>
+    <div className="flex-1 bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={handleCancel}
+          className="mb-4 p-0 h-auto text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Volver al dashboard
+        </Button>
+      </div>
+
+      <div className="flex justify-center">
+        <div className="max-w-4xl w-full">
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <User className="h-5 w-5 mr-2" />
+            <CardTitle className="flex items-center text-gray-500 mb-6">
+              <User className="h-5 w-5 mr-2 text-gray-500" />
               Información del Perfil
             </CardTitle>
-            <CardDescription>
-              Mantén tu información actualizada para una mejor experiencia
-            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email (readonly) */}
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="bg-gray-50 text-gray-500"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  El email no se puede modificar
+          <CardContent className="space-y-8">
+            {/* Sección superior: Avatar y nombre */}
+            <div className="flex items-start space-x-6">
+              {/* Avatar actual grande */}
+              <div className="relative flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleAvatarSelectorToggle}
+                  className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-gray-200 bg-gray-100 group transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  {tempSelectedAvatar ? (
+                    <img
+                      src={tempSelectedAvatar.url}
+                      alt={tempSelectedAvatar.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : selectedAvatar ? (
+                    <img
+                      src={selectedAvatar.url}
+                      alt={selectedAvatar.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <User className="h-16 w-16" />
+                    </div>
+                  )}
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 rounded-full transition-colors duration-200"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-white text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Pencil className="h-8 w-8 mx-auto mb-1" />
+                        <span className="text-sm font-medium">Cambiar avatar</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+              
+              {/* Información del usuario */}
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  {isEditingName ? (
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="text"
+                        placeholder="Tu nombre completo"
+                        value={tempFullName}
+                        onChange={(e) => setTempFullName(e.target.value)}
+                        disabled={isLoadingName}
+                        className="text-3xl font-bold h-auto py-2 border-gray-300"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleNameSave}
+                        disabled={isLoadingName}
+                        className="h-8"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleNameEditCancel}
+                        disabled={isLoadingName}
+                        className="h-8"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-3xl font-bold text-gray-900">
+                        {fullName || 'Sin nombre'}
+                      </h2>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleNameEditStart}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <p className="text-gray-600 text-lg">
+                  {profile?.email}
                 </p>
               </div>
+            </div>
 
-              {/* Nombre completo */}
-              <div>
-                <Label htmlFor="fullName">Nombre Completo</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Tu nombre completo"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={isLoading}
-                />
+            {/* Mensajes de estado */}
+            {error && (
+              <div className="flex items-center p-3 text-sm text-red-600 bg-red-50 rounded-md">
+                <X className="h-4 w-4 mr-2" />
+                {error}
               </div>
+            )}
 
-              {/* Avatar Selection */}
-              <div>
-                <Label>Foto de Perfil</Label>
-                <div className="mt-2 flex items-center space-x-4">
-                  {/* Preview del avatar actual */}
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100 flex-shrink-0">
-                    {selectedAvatar ? (
+            {success && (
+              <div className="flex items-center p-3 text-sm text-green-600 bg-green-50 rounded-md">
+                <Check className="h-4 w-4 mr-2" />
+                {success}
+              </div>
+            )}
+
+            {/* Sección de avatares disponibles */}
+            {showAvatarSelector && (
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Seleccionar Avatar
+                </h3>
+                <div className="grid grid-cols-10 gap-3 mb-6">
+                  {PREDEFINED_AVATARS.map((avatar) => (
+                    <button
+                      key={avatar.id}
+                      type="button"
+                      onClick={() => handleAvatarPreview(avatar)}
+                      className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                        tempSelectedAvatar?.id === avatar.id
+                          ? 'border-blue-500 ring-2 ring-blue-200'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
                       <img
-                        src={selectedAvatar.url}
-                        alt={selectedAvatar.name}
+                        src={avatar.url}
+                        alt={avatar.name}
                         className="w-full h-full object-cover"
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <User className="h-6 w-6" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Botón para cambiar avatar */}
-                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex items-center space-x-2"
-                        disabled={isLoading}
-                      >
-                        <Camera className="h-4 w-4" />
-                        <span>Cambiar Avatar</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Seleccionar Avatar</DialogTitle>
-                        <DialogDescription>
-                          Elige tu avatar favorito de la galería
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      {/* Grid de avatares en el Dialog */}
-                      <div className="grid grid-cols-5 gap-3 max-h-60 overflow-y-auto">
-                        {PREDEFINED_AVATARS.map((avatar) => (
-                          <button
-                            key={avatar.id}
-                            type="button"
-                            onClick={() => handleAvatarSelect(avatar)}
-                            className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
-                              selectedAvatar?.id === avatar.id
-                                ? 'border-blue-500 ring-2 ring-blue-200'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <img
-                              src={avatar.url}
-                              alt={avatar.name}
-                              className="w-full h-full object-cover"
-                            />
-                            {selectedAvatar?.id === avatar.id && (
-                              <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                                <Check className="h-4 w-4 text-blue-600" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      
-                      <DialogFooter>
-                        <Button onClick={() => setIsDialogOpen(false)}>
-                          Cerrar
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                      {tempSelectedAvatar?.id === avatar.id && (
+                        <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                          <Check className="h-4 w-4 text-blue-600" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {selectedAvatar ? `Avatar seleccionado: ${selectedAvatar.name}` : 'Ningún avatar seleccionado'}
-                </p>
+                
+                {/* Botones de acción */}
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleAvatarCancel}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleAvatarSave}
+                    disabled={!tempSelectedAvatar || tempSelectedAvatar.id === selectedAvatar?.id}
+                  >
+                    Guardar Avatar
+                  </Button>
+                </div>
               </div>
-
-              {/* Mensajes de estado */}
-              {error && (
-                <div className="flex items-center p-3 text-sm text-red-600 bg-red-50 rounded-md">
-                  <X className="h-4 w-4 mr-2" />
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="flex items-center p-3 text-sm text-green-600 bg-green-50 rounded-md">
-                  <Check className="h-4 w-4 mr-2" />
-                  {success}
-                </div>
-              )}
-
-              {/* Botones */}
-              <div className="flex space-x-3 pt-2">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  {isLoading ? 'Guardando...' : 'Guardar Cambios'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
+            )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
