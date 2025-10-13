@@ -72,7 +72,7 @@ export default function DashboardPage() {
   const getDisplayValue = (col: string, p: Project): string | number => {
     if (col === 'reuniones')
       return `${p.reuniones_hechas}/${p.reuniones_totales}`;
-    if (col === 'avanceGantt') return p.avance_gantt;
+    if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') return p.presupuesto_usado;
     return (p as any)[col];
   };
@@ -81,7 +81,7 @@ export default function DashboardPage() {
     if (col === 'reuniones') {
       return p.reuniones_totales ? p.reuniones_hechas / p.reuniones_totales : 0;
     }
-    if (col === 'avanceGantt') return p.avance_gantt;
+    if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') return p.presupuesto_usado;
     return (p as any)[col];
   };
@@ -279,7 +279,7 @@ export default function DashboardPage() {
   const avancePromedio =
     totalProyectos > 0
       ? Math.round(
-          proyectosIniciales.reduce((sum, p) => sum + p.avance_gantt, 0) /
+          proyectosIniciales.reduce((sum, p) => sum + p.avanceGantt, 0) /
             totalProyectos
         )
       : 0;
@@ -291,15 +291,15 @@ export default function DashboardPage() {
         )
       : 0;
   const presupuestoUsado = proyectosIniciales.reduce(
-    (sum, p) => sum + p.presupuesto_usado,
+    (sum, p) => sum + p.presupuestoUsado,
     0
   );
   const presupuestoTotal = proyectosIniciales.reduce(
-    (sum, p) => sum + p.presupuesto_total,
+    (sum, p) => sum + p.presupuestoTotal,
     0
   );
   const reunionesRealizadas = proyectosIniciales.reduce(
-    (sum, p) => sum + p.reuniones_hechas,
+    (sum, p) => sum + p.reunionesHechas,
     0
   );
   const totalParticipantes = proyectosIniciales.reduce(
@@ -523,11 +523,11 @@ export default function DashboardPage() {
                       <div className="flex-1 bg-gray-200 rounded h-3 relative">
                         <div
                           className="bg-emerald-500 h-3 rounded"
-                          style={{ width: `${p.avance_gantt}%` }}
+                          style={{ width: `${p.avanceGantt}%` }}
                         ></div>
                       </div>
                       <span className="text-xs text-black ml-2">
-                        {p.avance_gantt}%
+                        {p.avanceGantt}%
                       </span>
                     </div>
                   </TableCell>
@@ -546,15 +546,15 @@ export default function DashboardPage() {
                   </TableCell>
                   <TableCell className="pl-8 text-center">
                     <span className="font-bold">
-                      ${p.presupuesto_usado.toLocaleString('es-CL')}
+                      ${p.presupuestoUsado.toLocaleString('es-CL')}
                     </span>
                     <br />
                     <span className="text-gray-500">
-                      de ${p.presupuesto_total.toLocaleString('es-CL')}
+                      de ${p.presupuestoTotal.toLocaleString('es-CL')}
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    {p.reuniones_hechas}/{p.reuniones_totales}
+                    {p.reunionesHechas}/{p.reunionesTotales}
                   </TableCell>
                   <TableCell className="text-center">
                     {p.participantes}

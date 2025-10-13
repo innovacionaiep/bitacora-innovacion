@@ -2,6 +2,55 @@
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          active_role: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          active_role?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          active_role?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      user_account_types: {
+        Row: {
+          id: string;
+          user_id: string;
+          account_type: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          account_type: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          account_type?: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          created_at?: string;
+        };
+      };
       proyectos: {
         Row: {
           id: string;
@@ -52,6 +101,90 @@ export type Database = {
           updated_at?: string;
         };
       };
+      activities: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          progress: number;
+          project_id: string;
+          color: string;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description: string;
+          progress?: number;
+          project_id: string;
+          color: string;
+          order_index: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          progress?: number;
+          project_id?: string;
+          color?: string;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      tasks: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          completed: boolean;
+          start_date: string;
+          end_date: string;
+          progress: number;
+          activity_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          completed?: boolean;
+          start_date: string;
+          end_date: string;
+          progress?: number;
+          activity_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          completed?: boolean;
+          start_date?: string;
+          end_date?: string;
+          progress?: number;
+          activity_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
+
+// Tipos de cuenta disponibles
+export type AccountType = Database['public']['Tables']['user_account_types']['Row']['account_type'];
+
+// Roles disponibles para registro (sin Admin)
+export const REGISTER_ROLES: Exclude<AccountType, 'Admin'>[] = [
+  'Evaluador',
+  'Coordinador',
+  'Encargado',
+  'Participante',
+];

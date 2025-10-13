@@ -309,8 +309,8 @@ function SortableActivity({
                   {activity.tasks
                     .sort(
                       (a, b) =>
-                        new Date(a.start_date).getTime() -
-                        new Date(b.start_date).getTime()
+                        new Date(a.startDate).getTime() -
+                        new Date(b.startDate).getTime()
                     )
                     .map((task, index) => {
                       const taskSpacing = 25; // Espaciado entre tareas
@@ -491,16 +491,16 @@ function SortableActivity({
             activity.tasks
               .sort(
                 (a, b) =>
-                  new Date(a.start_date).getTime() -
-                  new Date(b.start_date).getTime()
+                  new Date(a.startDate).getTime() -
+                  new Date(b.startDate).getTime()
               )
               .map((task, index) => {
                 const taskSpacing = 25; // Espaciado reducido entre tareas
                 const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
 
                 // Verificar si la tarea está dentro del rango visible (enero a diciembre)
-                const startPos = getDatePosition(task.start_date);
-                const barWidth = getBarWidth(task.start_date, task.end_date);
+                const startPos = getDatePosition(task.startDate);
+                const barWidth = getBarWidth(task.startDate, task.endDate);
 
                 // Si la tarea no es visible (ancho 0), no renderizarla
                 if (barWidth === 0) {
@@ -899,10 +899,10 @@ export default function GanttPage() {
         id: `temp-${Date.now()}`, // ID temporal
         name: taskForm.name,
         description: taskForm.description,
-        start_date: convertedStartDate,
-        end_date: convertedEndDate,
+        startDate: convertedStartDate,
+        endDate: convertedEndDate,
         completed: false,
-        activity_id: selectedActivity.id,
+        activityId: selectedActivity.id,
         progress: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -919,8 +919,8 @@ export default function GanttPage() {
     const { error } = await createTask(selectedActivity.id, {
       name: taskForm.name,
       description: taskForm.description,
-      start_date: convertedStartDate,
-      end_date: convertedEndDate,
+      startDate: convertedStartDate,
+      endDate: convertedEndDate,
     });
 
     if (error) {
@@ -1071,8 +1071,8 @@ export default function GanttPage() {
           await createTask(newActivity.id, {
             name: task.name,
             description: '',
-            start_date: task.start_date,
-            end_date: task.end_date,
+            startDate: task.startDate,
+            endDate: task.endDate,
           });
         }
 
@@ -1097,8 +1097,8 @@ export default function GanttPage() {
           await createTask(selectedActivityForPopup.id, {
             name: task.name,
             description: task.description,
-            start_date: task.start_date,
-            end_date: task.end_date,
+            startDate: task.startDate,
+            endDate: task.endDate,
           });
         }
 
@@ -1305,15 +1305,15 @@ export default function GanttPage() {
     // Ordenar las tareas por fecha de inicio
     const sortedTasks = [...activity.tasks].sort(
       (a, b) =>
-        new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
     const firstTask = sortedTasks[0];
     const lastTask = sortedTasks[sortedTasks.length - 1];
 
     return {
-      startDate: firstTask.start_date,
-      endDate: lastTask.end_date,
+      startDate: firstTask.startDate,
+      endDate: lastTask.endDate,
     };
   };
 
@@ -2184,9 +2184,9 @@ export default function GanttPage() {
                                   unifiedActivityForm.description || '',
                                 progress: 0,
                                 tasks: tempTasks,
-                                project_id: selectedProject?.id || '',
+                                projectId: selectedProject?.id || '',
                                 color: '#3B82F6',
-                                order_index: 0,
+                                orderIndex: 0,
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString(),
                               };
@@ -2223,8 +2223,8 @@ export default function GanttPage() {
                             {tasksToShow
                               .sort(
                                 (a, b) =>
-                                  new Date(a.start_date).getTime() -
-                                  new Date(b.start_date).getTime()
+                                  new Date(a.startDate).getTime() -
+                                  new Date(b.startDate).getTime()
                               )
                               .map((task, index) => (
                                 <div
@@ -2288,8 +2288,8 @@ export default function GanttPage() {
                                   </div>
                                   <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
                                     <span className="text-xs text-gray-500">
-                                      {formatDateForTooltip(task.start_date)} -{' '}
-                                      {formatDateForTooltip(task.end_date)}
+                                      {formatDateForTooltip(task.startDate)} -{' '}
+                                      {formatDateForTooltip(task.endDate)}
                                     </span>
                                     <div
                                       className={`w-2 h-2 rounded-full ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'}`}

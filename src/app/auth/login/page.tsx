@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,52 +15,36 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  const { signIn, user, loading } = useAuth();
-
-  // Redirigir si ya está autenticado - ahora manejado por middleware
-  useEffect(() => {
-    if (!loading && user && user.id) {
-      // El middleware detectará la sesión y redirigirá automáticamente
-      // No necesitamos hacer nada aquí para evitar loops infinitos
-    }
-  }, [user, loading]);
+  const router = useRouter();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    setSuccess('');
 
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error.message || 'Error al iniciar sesión');
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      // Login exitoso
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      console.error('Error en login:', err);
+      setError('Error inesperado al iniciar sesión');
       setIsLoading(false);
-    } else {
-      setError('');
-      setSuccess('¡Login exitoso! Redirigiendo...');
-      setIsLoading(false);
-      
-      // Dar tiempo para que las cookies se sincronicen con el servidor
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
     }
   };
-
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -72,7 +57,7 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle>Iniciar Sesión</CardTitle>
             <CardDescription>
-              Ingresa tus credenciales o usa una cuenta externa
+              Ingresa tus credenciales para acceder
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -132,12 +117,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {success && (
-                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">
-                  {success}
-                </div>
-              )}
-
               <Button
                 type="submit"
                 className="w-full"
@@ -146,7 +125,6 @@ export default function LoginPage() {
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
             </form>
-
           </CardContent>
         </Card>
 

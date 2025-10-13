@@ -1,0 +1,341 @@
+'use server';
+
+import prisma from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
+import { Activity, Task } from '@prisma/client';
+
+export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
+export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
+
+export type ActivityWithTasks = Activity & {
+  tasks: Task[];
+};
+
+/**
+ * Obtener actividades de un proyecto
+ */
+export async function getActivities(projectId: string) {
+  try {
+    const activities = await prisma.activity.findMany({
+      where: { projectId },
+      include: {
+        tasks: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        orderIndex: 'asc',
+      },
+    });
+
+    return { success: true, data: activities };
+  } catch (error) {
+    console.error('Error getting activities:', error);
+    return { success: false, error: 'Error al obtener actividades' };
+  }
+}
+
+/**
+ * Crear una nueva actividad
+ */
+export async function createActivity(data: ActivityData) {
+  try {
+    // Verificar que el proyecto existe
+    const project = await prisma.proyecto.findUnique({
+      where: { id: data.projectId },
+    });
+
+    if (!project) {
+      return { success: false, error: 'Proyecto no encontrado' };
+    }
+
+    const activity = await prisma.activity.create({
+      data: {
+        name: data.name,
+        description: data.description || '',
+        progress: 0,
+        projectId: data.projectId,
+        color: data.color || 'bg-gray-700',
+        orderIndex: data.orderIndex || 0,
+      },
+      include: {
+        tasks: true,
+      },
+    });
+
+    revalidatePath('/gantt');
+    return { success: true, data: activity };
+  } catch (error) {
+    console.error('Error creating activity:', error);
+    return { success: false, error: 'Error al crear actividad' };
+  }
+}
+
+/**
+ * Actualizar una actividad
+ */
+export async function updateActivity(
+  id: string,
+  data: Partial<ActivityData>
+) {
+  try {
+    const activity = await prisma.activity.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.progress !== undefined && { progress: data.progress }),
+        ...(data.color !== undefined && { color: data.color }),
+        ...(data.orderIndex !== undefined && { orderIndex: data.orderIndex }),
+      },
+      include: {
+        tasks: true,
+      },
+    });
+
+    revalidatePath('/gantt');
+    return { success: true, data: activity };
+  } catch (error) {
+    console.error('Error updating activity:', error);
+    return { success: false, error: 'Error al actualizar actividad' };
+  }
+}
+
+/**
+ * Eliminar una actividad
+ */
+export async function deleteActivity(id: string) {
+  try {
+    // Las tareas se eliminan automáticamente por el onDelete: Cascade
+    await prisma.activity.delete({
+      where: { id },
+    });
+
+    revalidatePath('/gantt');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    return { success: false, error: 'Error al eliminar actividad' };
+  }
+}
+
+/**
+ * Reordenar actividades
+ */
+export async function reorderActivities(updates: { id: string; orderIndex: number }[]) {
+  try {
+    await prisma.$transaction(
+      updates.map((update) =>
+        prisma.activity.update({
+          where: { id: update.id },
+          data: { orderIndex: update.orderIndex },
+        })
+      )
+    );
+
+    revalidatePath('/gantt');
+    return { success: true };
+  } catch (error) {
+    console.error('Error reordering activities:', error);
+    return { success: false, error: 'Error al reordenar actividades' };
+  }
+}
+
+/**
+ * Crear una nueva tarea
+ */
+export async function createTask(data: TaskData) {
+  try {
+    const task = await prisma.task.create({
+      data: {
+        name: data.name,
+        description: data.description || '',
+        completed: false,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        progress: 0,
+        activityId: data.activityId,
+      },
+    });
+
+    // Recalcular progreso de la actividad
+    await recalculateActivityProgress(data.activityId);
+
+    revalidatePath('/gantt');
+    return { success: true, data: task };
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return { success: false, error: 'Error al crear tarea' };
+  }
+}
+
+/**
+ * Actualizar una tarea
+ */
+export async function updateTask(id: string, data: Partial<TaskData>) {
+  try {
+    const task = await prisma.task.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.completed !== undefined && { completed: data.completed }),
+        ...(data.startDate !== undefined && { startDate: data.startDate }),
+        ...(data.endDate !== undefined && { endDate: data.endDate }),
+        ...(data.progress !== undefined && { progress: data.progress }),
+      },
+    });
+
+    // Recalcular progreso de la actividad
+    await recalculateActivityProgress(task.activityId);
+
+    revalidatePath('/gantt');
+    return { success: true, data: task };
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return { success: false, error: 'Error al actualizar tarea' };
+  }
+}
+
+/**
+ * Eliminar una tarea
+ */
+export async function deleteTask(id: string) {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: { activityId: true },
+    });
+
+    if (!task) {
+      return { success: false, error: 'Tarea no encontrada' };
+    }
+
+    await prisma.task.delete({
+      where: { id },
+    });
+
+    // Recalcular progreso de la actividad
+    await recalculateActivityProgress(task.activityId);
+
+    revalidatePath('/gantt');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return { success: false, error: 'Error al eliminar tarea' };
+  }
+}
+
+/**
+ * Toggle completar tarea
+ */
+export async function toggleTaskCompletion(id: string) {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: { completed: true, activityId: true },
+    });
+
+    if (!task) {
+      return { success: false, error: 'Tarea no encontrada' };
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id },
+      data: {
+        completed: !task.completed,
+        progress: !task.completed ? 100 : 0,
+      },
+    });
+
+    // Recalcular progreso de la actividad
+    await recalculateActivityProgress(task.activityId);
+
+    revalidatePath('/gantt');
+    return { success: true, data: updatedTask };
+  } catch (error) {
+    console.error('Error toggling task completion:', error);
+    return { success: false, error: 'Error al actualizar tarea' };
+  }
+}
+
+/**
+ * Recalcular el progreso de una actividad basado en sus tareas
+ */
+async function recalculateActivityProgress(activityId: string) {
+  try {
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        tasks: true,
+        project: true,
+      },
+    });
+
+    if (!activity) return;
+
+    // Calcular progreso
+    const totalTasks = activity.tasks.length;
+    const completedTasks = activity.tasks.filter((t) => t.completed).length;
+    const newProgress =
+      totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    // Actualizar progreso de la actividad
+    await prisma.activity.update({
+      where: { id: activityId },
+      data: { progress: newProgress },
+    });
+
+    // Recalcular progreso del proyecto
+    const projectActivities = await prisma.activity.findMany({
+      where: { projectId: activity.projectId },
+    });
+
+    const totalProgress = projectActivities.reduce((sum, act) => {
+      if (act.id === activityId) {
+        return sum + newProgress;
+      }
+      return sum + act.progress;
+    }, 0);
+
+    const projectProgress =
+      projectActivities.length > 0
+        ? Math.round(totalProgress / projectActivities.length)
+        : 0;
+
+    // Actualizar progreso del proyecto
+    await prisma.proyecto.update({
+      where: { id: activity.projectId },
+      data: { avanceGantt: projectProgress },
+    });
+  } catch (error) {
+    console.error('Error recalculating activity progress:', error);
+  }
+}
+
+/**
+ * Calcular progreso general del proyecto
+ */
+export async function calculateProjectProgress(projectId: string) {
+  try {
+    const activities = await prisma.activity.findMany({
+      where: { projectId },
+      select: { progress: true },
+    });
+
+    if (activities.length === 0) {
+      return { success: true, progress: 0 };
+    }
+
+    const totalProgress = activities.reduce((sum, act) => sum + act.progress, 0);
+    const progress = Math.round(totalProgress / activities.length);
+
+    return { success: true, progress };
+  } catch (error) {
+    console.error('Error calculating project progress:', error);
+    return { success: false, error: 'Error al calcular progreso' };
+  }
+}
+

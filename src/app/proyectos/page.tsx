@@ -35,15 +35,15 @@ type Project = {
   fondo: string;
   sede: string;
   escuela: string;
-  avance_gantt: number;
+  avanceGantt: number;
   objetivos: number;
-  presupuesto_usado: number;
-  presupuesto_total: number;
-  reuniones_hechas: number;
-  reuniones_totales: number;
+  presupuestoUsado: number;
+  presupuestoTotal: number;
+  reunionesHechas: number;
+  reunionesTotales: number;
   participantes: number;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function ProyectosPage() {
@@ -67,12 +67,12 @@ export default function ProyectosPage() {
     fondo: '',
     sede: '',
     escuela: '',
-    avance_gantt: 0,
+    avanceGantt: 0,
     objetivos: 0,
-    presupuesto_usado: 0,
-    presupuesto_total: 0,
-    reuniones_hechas: 0,
-    reuniones_totales: 0,
+    presupuestoUsado: 0,
+    presupuestoTotal: 0,
+    reunionesHechas: 0,
+    reunionesTotales: 0,
     participantes: 0,
   });
 
@@ -122,12 +122,12 @@ export default function ProyectosPage() {
             fondo: '',
             sede: '',
             escuela: '',
-            avance_gantt: 0,
+            avanceGantt: 0,
             objetivos: 0,
-            presupuesto_usado: 0,
-            presupuesto_total: 0,
-            reuniones_hechas: 0,
-            reuniones_totales: 0,
+            presupuestoUsado: 0,
+            presupuestoTotal: 0,
+            reunionesHechas: 0,
+            reunionesTotales: 0,
             participantes: 0,
           });
           setShowAddForm(false);
@@ -176,12 +176,12 @@ export default function ProyectosPage() {
       fondo: selectedProject.fondo,
       sede: selectedProject.sede,
       escuela: selectedProject.escuela,
-      avance_gantt: selectedProject.avance_gantt,
+      avanceGantt: selectedProject.avanceGantt,
       objetivos: selectedProject.objetivos,
-      presupuesto_usado: selectedProject.presupuesto_usado,
-      presupuesto_total: selectedProject.presupuesto_total,
-      reuniones_hechas: selectedProject.reuniones_hechas,
-      reuniones_totales: selectedProject.reuniones_totales,
+      presupuestoUsado: selectedProject.presupuestoUsado,
+      presupuestoTotal: selectedProject.presupuestoTotal,
+      reunionesHechas: selectedProject.reunionesHechas,
+      reunionesTotales: selectedProject.reunionesTotales,
       participantes: selectedProject.participantes,
     });
   };
@@ -194,12 +194,12 @@ export default function ProyectosPage() {
       fondo: '',
       sede: '',
       escuela: '',
-      avance_gantt: 0,
+      avanceGantt: 0,
       objetivos: 0,
-      presupuesto_usado: 0,
-      presupuesto_total: 0,
-      reuniones_hechas: 0,
-      reuniones_totales: 0,
+      presupuestoUsado: 0,
+      presupuestoTotal: 0,
+      reunionesHechas: 0,
+      reunionesTotales: 0,
       participantes: 0,
     });
   };
@@ -220,7 +220,7 @@ export default function ProyectosPage() {
 
     return (
       summaries[project.proyecto as keyof typeof summaries] ||
-      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuesto_total.toLocaleString('es-CL')} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de la ${project.escuela.toLowerCase()}.`
+      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuestoTotal.toLocaleString('es-CL')} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de la ${project.escuela.toLowerCase()}.`
     );
   };
 
@@ -483,18 +483,18 @@ export default function ProyectosPage() {
 
                     <div>
                       <Label
-                        htmlFor="presupuesto_total"
+                        htmlFor="presupuestoTotal"
                         className="text-sm font-medium text-gray-700"
                       >
                         Presupuesto Total *
                       </Label>
                       <Input
-                        id="presupuesto_total"
+                        id="presupuestoTotal"
                         type="number"
-                        value={formData.presupuesto_total}
+                        value={formData.presupuestoTotal}
                         onChange={(e) =>
                           handleInputChange(
-                            'presupuesto_total',
+                            'presupuestoTotal',
                             parseInt(e.target.value) || 0
                           )
                         }
@@ -507,18 +507,18 @@ export default function ProyectosPage() {
 
                     <div>
                       <Label
-                        htmlFor="presupuesto_usado"
+                        htmlFor="presupuestoUsado"
                         className="text-sm font-medium text-gray-700"
                       >
                         Presupuesto Usado
                       </Label>
                       <Input
-                        id="presupuesto_usado"
+                        id="presupuestoUsado"
                         type="number"
-                        value={formData.presupuesto_usado}
+                        value={formData.presupuestoUsado}
                         onChange={(e) =>
                           handleInputChange(
-                            'presupuesto_usado',
+                            'presupuestoUsado',
                             parseInt(e.target.value) || 0
                           )
                         }
@@ -554,18 +554,18 @@ export default function ProyectosPage() {
 
                     <div>
                       <Label
-                        htmlFor="reuniones_totales"
+                        htmlFor="reunionesTotales"
                         className="text-sm font-medium text-gray-700"
                       >
                         Reuniones Totales
                       </Label>
                       <Input
-                        id="reuniones_totales"
+                        id="reunionesTotales"
                         type="number"
-                        value={formData.reuniones_totales}
+                        value={formData.reunionesTotales}
                         onChange={(e) =>
                           handleInputChange(
-                            'reuniones_totales',
+                            'reunionesTotales',
                             parseInt(e.target.value) || 0
                           )
                         }
@@ -577,18 +577,18 @@ export default function ProyectosPage() {
 
                     <div>
                       <Label
-                        htmlFor="reuniones_hechas"
+                        htmlFor="reunionesHechas"
                         className="text-sm font-medium text-gray-700"
                       >
                         Reuniones Realizadas
                       </Label>
                       <Input
-                        id="reuniones_hechas"
+                        id="reunionesHechas"
                         type="number"
-                        value={formData.reuniones_hechas}
+                        value={formData.reunionesHechas}
                         onChange={(e) =>
                           handleInputChange(
-                            'reuniones_hechas',
+                            'reunionesHechas',
                             parseInt(e.target.value) || 0
                           )
                         }
@@ -608,18 +608,18 @@ export default function ProyectosPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label
-                        htmlFor="avance_gantt"
+                        htmlFor="avanceGantt"
                         className="text-sm font-medium text-gray-700"
                       >
                         Avance Gantt (%)
                       </Label>
                       <Input
-                        id="avance_gantt"
+                        id="avanceGantt"
                         type="number"
-                        value={formData.avance_gantt}
+                        value={formData.avanceGantt}
                         onChange={(e) =>
                           handleInputChange(
-                            'avance_gantt',
+                            'avanceGantt',
                             parseInt(e.target.value) || 0
                           )
                         }
@@ -730,7 +730,7 @@ export default function ProyectosPage() {
                       </p>
                       <p className="text-2xl font-bold text-gray-900">
                         $
-                        {selectedProject.presupuesto_usado.toLocaleString(
+                        {selectedProject.presupuestoUsado.toLocaleString(
                           'es-CL'
                         )}
                       </p>
@@ -741,7 +741,7 @@ export default function ProyectosPage() {
                       </p>
                       <p className="text-xl font-semibold text-gray-700">
                         $
-                        {selectedProject.presupuesto_total.toLocaleString(
+                        {selectedProject.presupuestoTotal.toLocaleString(
                           'es-CL'
                         )}
                       </p>
@@ -750,14 +750,14 @@ export default function ProyectosPage() {
                       <div
                         className="bg-blue-500 h-2 rounded-full"
                         style={{
-                          width: `${(selectedProject.presupuesto_usado / selectedProject.presupuesto_total) * 100}%`,
+                          width: `${(selectedProject.presupuestoUsado / selectedProject.presupuestoTotal) * 100}%`,
                         }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500">
                       {Math.round(
-                        (selectedProject.presupuesto_usado /
-                          selectedProject.presupuesto_total) *
+                        (selectedProject.presupuestoUsado /
+                          selectedProject.presupuestoTotal) *
                           100
                       )}
                       % utilizado
@@ -779,13 +779,13 @@ export default function ProyectosPage() {
                           AVANCE GANTT
                         </span>
                         <span className="text-sm font-bold text-gray-900">
-                          {selectedProject.avance_gantt}%
+                          {selectedProject.avanceGantt}%
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <div
                           className="bg-emerald-500 h-3 rounded-full"
-                          style={{ width: `${selectedProject.avance_gantt}%` }}
+                          style={{ width: `${selectedProject.avanceGantt}%` }}
                         ></div>
                       </div>
                     </div>
