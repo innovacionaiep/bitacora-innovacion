@@ -178,9 +178,31 @@ export default function ProfilePage() {
 
   const currentAvatar = tempSelectedAvatar || selectedAvatar;
 
+  // Función para obtener colores de rol
+  const getRoleColors = (role: string, isActive: boolean) => {
+    if (!isActive) {
+      return 'bg-gray-200 text-gray-600 hover:bg-gray-300';
+    }
+    
+    switch (role.toLowerCase()) {
+      case 'evaluador':
+        return 'bg-purple-500 text-white hover:bg-purple-600';
+      case 'coordinador':
+        return 'bg-blue-500 text-white hover:bg-blue-600';
+      case 'encargado':
+        return 'bg-orange-500 text-white hover:bg-orange-600';
+      case 'participante':
+        return 'bg-green-500 text-white hover:bg-green-600';
+      case 'admin':
+        return 'bg-yellow-500 text-white hover:bg-yellow-600';
+      default:
+        return 'bg-gray-500 text-white hover:bg-gray-600';
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
-      {/* Header */}
+      {/* Botón Volver */}
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -190,10 +212,6 @@ export default function ProfilePage() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver
         </Button>
-        <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
-        <p className="text-gray-600 mt-2">
-          Gestiona tu información personal y preferencias
-        </p>
       </div>
 
       {/* Mensajes de feedback */}
@@ -209,209 +227,143 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tarjeta de Avatar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
-              <span>Avatar</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col items-center space-y-4">
-              {/* Avatar actual */}
-              <div className="relative">
+      {/* Tarjeta principal centrada */}
+      <Card className="max-w-4xl mx-auto">
+        <CardContent className="p-8">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Avatar a la izquierda */}
+            <div className="flex-shrink-0 flex justify-center lg:justify-start">
+              <div className="relative group">
                 <img
                   src={currentAvatar?.url || '/avatars/avatar-1.png'}
                   alt="Avatar"
-                  className="w-32 h-32 rounded-full border-4 border-gray-200"
+                  className="w-52 h-52 rounded-full border-4 border-gray-200"
                 />
+                {/* Overlay hover para editar avatar */}
+                <div 
+                  className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer"
+                  onClick={handleAvatarSelectorToggle}
+                >
+                  <Pencil className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Información del usuario a la derecha */}
+            <div className="flex-1 space-y-6 pt-8">
+              {/* Nombre y email */}
+              <div className="space-y-2">
+                {/* Nombre con edición */}
+                <div className="flex items-center gap-3">
+                  {!isEditingName ? (
+                    <>
+                      <h2 className="text-3xl font-bold text-gray-900">{fullName}</h2>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleNameEdit}
+                        className="p-1"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={tempFullName}
+                        onChange={(e) => setTempFullName(e.target.value)}
+                        placeholder="Tu nombre completo"
+                        className="text-3xl font-bold h-auto py-2"
+                      />
+                      <Button
+                        onClick={handleNameSave}
+                        size="sm"
+                        disabled={isLoadingName}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={handleNameCancel}
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoadingName}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Email (solo lectura) */}
+                <p className="text-lg text-gray-600">{session.user.email}</p>
               </div>
 
-              {/* Botón para cambiar avatar */}
-              {!showAvatarSelector && (
-                <Button onClick={handleAvatarSelectorToggle} variant="outline">
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Cambiar Avatar
-                </Button>
-              )}
-
-              {/* Selector de avatares */}
-              {showAvatarSelector && (
-                <div className="w-full space-y-4">
-                  <div className="grid grid-cols-4 gap-3">
-                    {PREDEFINED_AVATARS.map((avatar) => (
-                      <button
-                        key={avatar.id}
-                        onClick={() => handleAvatarPreview(avatar)}
-                        className={`relative rounded-full border-2 transition-all ${
-                          tempSelectedAvatar?.id === avatar.id
-                            ? 'border-blue-500 ring-2 ring-blue-300'
-                            : 'border-gray-200 hover:border-blue-300'
-                        }`}
-                      >
-                        <img
-                          src={avatar.url}
-                          alt={avatar.name}
-                          className="w-full h-full rounded-full"
-                        />
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={handleAvatarSave}
-                      className="flex-1"
-                      disabled={!tempSelectedAvatar}
+              {/* Roles disponibles */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900">Roles Disponibles</h3>
+                <div className="flex flex-wrap gap-2">
+                  {session.user.availableRoles.map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => handleRoleChange(role)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${getRoleColors(role, role === session.user.activeRole)}`}
                     >
-                      <Check className="h-4 w-4 mr-2" />
-                      Guardar
-                    </Button>
-                    <Button
-                      onClick={handleAvatarSelectorToggle}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Cancelar
-                    </Button>
-                  </div>
+                      {role}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Tarjeta de Información Personal */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
-              <span>Información Personal</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Email (solo lectura) */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Email
-              </label>
-              <Input value={session.user.email} disabled className="bg-gray-50" />
-              <p className="text-xs text-gray-500 mt-1">
-                El email no se puede modificar
-              </p>
-            </div>
+          {/* Grid de avatares al final de la tarjeta */}
+          {showAvatarSelector && (
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Seleccionar Avatar</h3>
+                <div className="grid grid-cols-10 gap-2">
+                  {PREDEFINED_AVATARS.map((avatar) => (
+                    <button
+                      key={avatar.id}
+                      onClick={() => handleAvatarPreview(avatar)}
+                      className={`w-12 h-12 p-0 rounded-full border-2 transition-all ${
+                        tempSelectedAvatar?.id === avatar.id
+                          ? 'border-blue-500 ring-2 ring-blue-300'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <img
+                        src={avatar.url}
+                        alt={avatar.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
 
-            {/* Nombre completo */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Nombre Completo
-              </label>
-              {!isEditingName ? (
-                <div className="flex items-center space-x-2">
-                  <Input value={fullName} disabled className="bg-gray-50 flex-1" />
+                <div className="flex space-x-2">
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNameEdit}
+                    onClick={handleAvatarSave}
+                    className="flex-1"
+                    disabled={!tempSelectedAvatar}
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Check className="h-4 w-4 mr-2" />
+                    Guardar
+                  </Button>
+                  <Button
+                    onClick={handleAvatarSelectorToggle}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Input
-                    value={tempFullName}
-                    onChange={(e) => setTempFullName(e.target.value)}
-                    placeholder="Tu nombre completo"
-                  />
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={handleNameSave}
-                      size="sm"
-                      className="flex-1"
-                      disabled={isLoadingName}
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      {isLoadingName ? 'Guardando...' : 'Guardar'}
-                    </Button>
-                    <Button
-                      onClick={handleNameCancel}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      disabled={isLoadingName}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tarjeta de Roles */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Shield className="h-5 w-5" />
-              <span>Gestión de Roles</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Rol Activo
-              </label>
-              <Select
-                value={session.user.activeRole || ''}
-                onValueChange={handleRoleChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {session.user.availableRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                El rol activo determina tus permisos en la plataforma
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Roles Disponibles
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {session.user.availableRoles.map((role) => (
-                  <span
-                    key={role}
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      role === session.user.activeRole
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {role}
-                  </span>
-                ))}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Tienes acceso a {session.user.availableRoles.length} rol(es)
-              </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
