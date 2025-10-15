@@ -1,19 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { updateUserProfile } from '@/lib/auth-actions';
 import { PREDEFINED_AVATARS, type PredefinedAvatar } from '@/lib/avatars';
-import { type Role } from '@/lib/auth-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, ArrowLeft, Check, X, Pencil, Shield } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Pencil, Check, X, LogOut } from 'lucide-react';
 
-export default function ProfilePage() {
-  const router = useRouter();
+interface ProfileSidebarProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
   const { data: session, update } = useSession();
 
   const [fullName, setFullName] = useState('');
@@ -48,26 +54,31 @@ export default function ProfilePage() {
 
     if (!session?.user?.id) return;
 
+    // Optimistic update - update UI immediately
+    setSelectedAvatar(avatar);
+    setShowAvatarSelector(false);
+    setTempSelectedAvatar(null);
+
     try {
       const result = await updateUserProfile(session.user.id, {
         image: avatar.url,
       });
 
       if (!result.success) {
+        // Revert optimistic update on error
+        setSelectedAvatar(selectedAvatar);
+        setShowAvatarSelector(true);
+        setTempSelectedAvatar(avatar);
         setError(result.error || 'Error al actualizar el avatar');
       } else {
-        setSelectedAvatar(avatar);
-        setShowAvatarSelector(false);
-        setTempSelectedAvatar(null);
-        setSuccess('Avatar actualizado correctamente');
-
-        // Actualizar la sesión
-        await update({ image: avatar.url });
-
-        // Limpiar mensaje de éxito después de 2 segundos
-        setTimeout(() => setSuccess(''), 2000);
+        // Update session in background without awaiting
+        update({ image: avatar.url }).catch(console.error);
       }
     } catch (err) {
+      // Revert optimistic update on error
+      setSelectedAvatar(selectedAvatar);
+      setShowAvatarSelector(true);
+      setTempSelectedAvatar(avatar);
       setError('Error inesperado al actualizar el avatar');
     }
   };
@@ -109,9 +120,12 @@ export default function ProfilePage() {
 
     if (!session?.user?.id) return;
 
-    setIsLoadingName(true);
+    const previousName = fullName;
+    
+    // Optimistic update - update UI immediately
+    setFullName(tempFullName);
+    setIsEditingName(false);
     setError('');
-    setSuccess('');
 
     try {
       const result = await updateUserProfile(session.user.id, {
@@ -119,120 +133,56 @@ export default function ProfilePage() {
       });
 
       if (!result.success) {
+        // Revert optimistic update on error
+        setFullName(previousName);
+        setIsEditingName(true);
         setError(result.error || 'Error al actualizar el nombre');
       } else {
-        setFullName(tempFullName);
-        setIsEditingName(false);
-        setSuccess('Nombre actualizado correctamente');
-
-        // Actualizar la sesión
-        await update({ name: tempFullName });
-
-        // Limpiar mensaje de éxito después de 2 segundos
-        setTimeout(() => setSuccess(''), 2000);
+        // Update session in background without awaiting
+        update({ name: tempFullName }).catch(console.error);
       }
     } catch (err) {
+      // Revert optimistic update on error
+      setFullName(previousName);
+      setIsEditingName(true);
       setError('Error inesperado al actualizar el nombre');
-    } finally {
-      setIsLoadingName(false);
     }
   };
 
-  const handleRoleChange = async (newRole: string) => {
-    if (!session?.user?.id) return;
-
-    setError('');
-    setSuccess('');
-
-    try {
-      const result = await updateUserProfile(session.user.id, {
-        activeRole: newRole,
-      });
-
-      if (!result.success) {
-        setError(result.error || 'Error al cambiar el rol activo');
-      } else {
-        setSuccess('Rol activo actualizado correctamente');
-
-        // Actualizar la sesión
-        await update({ activeRole: newRole });
-
-        // Limpiar mensaje de éxito después de 2 segundos
-        setTimeout(() => setSuccess(''), 2000);
-      }
-    } catch (err) {
-      setError('Error inesperado al cambiar el rol');
-    }
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/auth/login' });
   };
 
   if (!session) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando perfil...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const currentAvatar = tempSelectedAvatar || selectedAvatar;
 
-  // Función para obtener colores de rol
-  const getRoleColors = (role: string, isActive: boolean) => {
-    if (!isActive) {
-      return 'bg-gray-200 text-gray-600 hover:bg-gray-300';
-    }
-    
-    switch (role.toLowerCase()) {
-      case 'evaluador':
-        return 'bg-purple-500 text-white hover:bg-purple-600';
-      case 'coordinador':
-        return 'bg-blue-500 text-white hover:bg-blue-600';
-      case 'encargado':
-        return 'bg-orange-500 text-white hover:bg-orange-600';
-      case 'participante':
-        return 'bg-green-500 text-white hover:bg-green-600';
-      case 'admin':
-        return 'bg-yellow-500 text-white hover:bg-yellow-600';
-      default:
-        return 'bg-gray-500 text-white hover:bg-gray-600';
-    }
-  };
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      {/* Botón Volver */}
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
-      </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[400px]">
+        <SheetHeader>
+          <SheetTitle>Mi Cuenta</SheetTitle>
+        </SheetHeader>
 
-      {/* Mensajes de feedback */}
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+        <div className="flex flex-col h-full px-6">
+          {/* Mensajes de feedback */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
-      {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {success}
-        </div>
-      )}
+          {success && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm">
+              {success}
+            </div>
+          )}
 
-      {/* Tarjeta principal centrada */}
-      <Card className="max-w-4xl mx-auto">
-        <CardContent className="p-8">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Avatar a la izquierda */}
-            <div className="flex-shrink-0 flex justify-center lg:justify-start">
+          <div className="flex-1 space-y-6">
+            {/* Avatar con hover edit */}
+            <div className="flex flex-col items-center">
               <div className="relative group">
                 <img
                   src={currentAvatar?.url || '/avatars/avatar-1.png'}
@@ -249,15 +199,14 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Información del usuario a la derecha */}
-            <div className="flex-1 space-y-6 pt-8">
-              {/* Nombre y email */}
+            {/* Información del usuario */}
+            <div className="space-y-4 text-center">
+              {/* Nombre con edición */}
               <div className="space-y-2">
-                {/* Nombre con edición */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center gap-3">
                   {!isEditingName ? (
                     <>
-                      <h2 className="text-3xl font-bold text-gray-900">{fullName}</h2>
+                      <h2 className="text-2xl font-bold text-gray-900">{fullName}</h2>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -273,7 +222,7 @@ export default function ProfilePage() {
                         value={tempFullName}
                         onChange={(e) => setTempFullName(e.target.value)}
                         placeholder="Tu nombre completo"
-                        className="text-3xl font-bold h-auto py-2"
+                        className="text-2xl font-bold h-auto py-2"
                       />
                       <Button
                         onClick={handleNameSave}
@@ -297,31 +246,14 @@ export default function ProfilePage() {
                 {/* Email (solo lectura) */}
                 <p className="text-lg text-gray-600">{session.user.email}</p>
               </div>
-
-              {/* Roles disponibles */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-900">Roles Disponibles</h3>
-                <div className="flex flex-wrap gap-2">
-                  {session.user.availableRoles.map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => handleRoleChange(role)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${getRoleColors(role, role === session.user.activeRole)}`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
-          </div>
 
-          {/* Grid de avatares al final de la tarjeta */}
-          {showAvatarSelector && (
-            <div className="mt-8 pt-8 border-t border-gray-200">
+
+            {/* Grid de avatares */}
+            {showAvatarSelector && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Seleccionar Avatar</h3>
-                <div className="grid grid-cols-10 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {PREDEFINED_AVATARS.map((avatar) => (
                     <button
                       key={avatar.id}
@@ -344,26 +276,42 @@ export default function ProfilePage() {
                 <div className="flex space-x-2">
                   <Button
                     onClick={handleAvatarSave}
-                    className="flex-1"
+                    size="sm"
+                    className="flex-1 text-sm px-3"
                     disabled={!tempSelectedAvatar}
                   >
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="h-3 w-3 mr-1" />
                     Guardar
                   </Button>
                   <Button
                     onClick={handleAvatarSelectorToggle}
                     variant="outline"
-                    className="flex-1"
+                    size="sm"
+                    className="flex-1 text-sm px-3"
                   >
-                    <X className="h-4 w-4 mr-2" />
+                    <X className="h-3 w-3 mr-1" />
                     Cancelar
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            )}
+          </div>
+
+          {/* Botón cerrar sesión posicionado en 3/4 del sidebar */}
+          <div className="flex-1 flex items-end justify-center pb-12">
+            <Button
+              onClick={handleSignOut}
+              size="sm"
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-6"
+            >
+              <LogOut className="h-3 w-3 mr-1" />
+              Cerrar Sesión
+            </Button>
+          </div>
+
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
+

@@ -18,22 +18,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  // Ruta de perfil - solo header simplificado sin sidebar
-  const isProfileRoute = pathname === '/perfil';
-
   // Si es una ruta de autenticación, mostrar solo el contenido
   if (isAuthRoute) {
     return <>{children}</>;
-  }
-
-  // Si es la página de perfil, mostrar header simplificado sin sidebar
-  if (isProfileRoute) {
-    return (
-      <div className="h-screen flex flex-col bg-background text-foreground">
-        <PageHeaderSimple />
-        {children}
-      </div>
-    );
   }
 
   // Para todas las demás rutas, mostrar el layout completo con sidebar y header
