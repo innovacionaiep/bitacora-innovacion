@@ -13,6 +13,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Search,
   FolderKanban,
   MapPin,
@@ -25,6 +37,7 @@ import {
   Save,
   X,
   Edit,
+  RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -61,6 +74,7 @@ export default function ProyectosPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -204,6 +218,11 @@ export default function ProyectosPage() {
     });
   };
 
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+    setIsSheetOpen(false);
+  };
+
   const generateProjectSummary = (project: Project) => {
     const summaries = {
       'AntofaSuena 2025. Música-Industria-Territorio':
@@ -258,86 +277,71 @@ export default function ProyectosPage() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Panel izquierdo - Lista de proyectos */}
-      <div className="w-1/3 border-r border-gray-200 p-6">
-        <div className="space-y-4">
-          {/* Buscador */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="buscador..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-2 border-gray-900 rounded-lg"
-            />
-          </div>
+    <>
+      {/* Sheet Panel - Project Selector */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+          <div className="flex flex-col h-full">
+            <SheetHeader className="px-6 py-4 border-b">
+              <SheetTitle className="text-xl font-bold text-gray-900">
+                Seleccionar Proyecto
+              </SheetTitle>
+            </SheetHeader>
 
-          {/* Lista de proyectos */}
-          <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {filteredProjects.map((project, index) => (
-              <Card
-                key={index}
-                className={`cursor-default transition-all duration-200 hover:shadow-md ${
-                  selectedProject?.proyecto === project.proyecto
-                    ? 'ring-2 ring-blue-500 bg-blue-50'
-                    : 'hover:bg-gray-50'
-                }`}
-                onClick={() => setSelectedProject(project)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <FolderKanban className="h-5 w-5 text-gray-600" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm text-gray-900 truncate">
-                        {project.proyecto}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {project.sede} • {project.escuela}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
+            {/* Search Input */}
+            <div className="px-6 py-4 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar por nombre, sede o escuela..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                />
+              </div>
+            </div>
 
-      {/* Panel derecho - Detalles del proyecto */}
-      <div className="flex-1 p-6">
-        {/* Botones de acción */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex space-x-3">
-            <Button
-              onClick={handleAddProject}
-              className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Agregar proyecto</span>
-            </Button>
-            {selectedProject && !showAddForm && !showEditForm && (
-              <>
-                <Button
-                  onClick={handleEditProject}
-                  variant="outline"
-                  className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span>Editar proyecto</span>
-                </Button>
-                <Button
-                  onClick={handleDeleteProject}
-                  variant="outline"
-                  className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Borrar proyecto</span>
-                </Button>
-              </>
-            )}
+            {/* Project List */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+              {filteredProjects.length > 0 ? (
+                filteredProjects.map((project, index) => (
+                  <Card
+                    key={index}
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      selectedProject?.proyecto === project.proyecto
+                        ? 'ring-2 ring-blue-500 bg-blue-50'
+                        : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleSelectProject(project)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm text-gray-900 truncate">
+                            {project.proyecto}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {project.sede} • {project.escuela}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FolderKanban className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>No se encontraron proyectos</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content - Full Width */}
+      <div className="p-6 h-full">
 
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
@@ -692,9 +696,31 @@ export default function ProyectosPage() {
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {selectedProject.proyecto}
-                  </h1>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    Proyecto
+                  </p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {selectedProject.proyecto}
+                    </h1>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={() => setIsSheetOpen(true)}
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Cambiar proyecto</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4" />
@@ -829,12 +855,23 @@ export default function ProyectosPage() {
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">
-              Selecciona un proyecto para ver sus detalles
-            </p>
+            <div className="text-center">
+              <FolderKanban className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500 mb-4">
+                Selecciona un proyecto para ver sus detalles
+              </p>
+              <Button
+                onClick={() => setIsSheetOpen(true)}
+                variant="outline"
+                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 mx-auto"
+              >
+                <Search className="h-4 w-4" />
+                <span>Buscar proyecto</span>
+              </Button>
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

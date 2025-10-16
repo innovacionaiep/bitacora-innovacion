@@ -20,7 +20,7 @@ export default function PageHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="border-b shadow-sm bg-white">
+    <header className="border-b shadow-sm bg-sidebar">
       <div className="px-4 py-2.5 flex justify-between items-center">
         {/* Left side: Action icons */}
         <TooltipProvider>
