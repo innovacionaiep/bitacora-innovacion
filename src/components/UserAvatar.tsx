@@ -16,6 +16,7 @@ export function UserAvatar() {
   const { data: session, status, update } = useSession();
   const [profileOpen, setProfileOpen] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(false);
+  const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
 
   // Track if we have initial user data to prevent loading state during updates
   useEffect(() => {
@@ -23,6 +24,16 @@ export function UserAvatar() {
       setHasInitialData(true);
     }
   }, [session?.user, hasInitialData]);
+
+  // Clear optimistic state when session catches up
+  useEffect(() => {
+    if (optimisticRole && session?.user?.activeRole === optimisticRole) {
+      setOptimisticRole(null);
+    }
+  }, [session?.user?.activeRole, optimisticRole]);
+
+  // Get the current role (optimistic or from session)
+  const currentRole = optimisticRole || session?.user?.activeRole || 'Sin rol';
 
   // Only show loading skeleton on initial mount, not during session updates
   if (status === 'loading' && !hasInitialData) {
@@ -59,35 +70,40 @@ export function UserAvatar() {
   const getRoleColors = (role: string) => {
     switch (role.toLowerCase()) {
       case 'evaluador':
-        return 'bg-purple-100 text-purple-700 border-purple-300';
+        return 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200 hover:text-purple-800 hover:border-purple-400';
       case 'coordinador':
-        return 'bg-blue-100 text-blue-700 border-blue-300';
+        return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200 hover:text-blue-800 hover:border-blue-400';
       case 'encargado':
-        return 'bg-orange-100 text-orange-700 border-orange-300';
+        return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:text-orange-800 hover:border-orange-400';
       case 'participante':
-        return 'bg-green-100 text-green-700 border-green-300';
+        return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200 hover:text-green-800 hover:border-green-400';
       case 'admin':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200 hover:text-yellow-800 hover:border-yellow-400';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800 hover:border-gray-400';
     }
   };
 
   const handleRoleChange = async (newRole: string) => {
     if (!session?.user?.id) return;
 
-    try {
-      const result = await updateUserProfile(session.user.id, {
-        activeRole: newRole,
-      });
+    const previousRole = session.user.activeRole;
+    
+    // INSTANT UI update - update optimistic state immediately
+    setOptimisticRole(newRole);
 
-      if (result.success) {
-        // Actualizar la sesión
-        await update({ activeRole: newRole });
-      }
-    } catch (err) {
+    // Update session in background
+    update({ activeRole: newRole }).catch(console.error);
+
+    // Update database in background
+    updateUserProfile(session.user.id, {
+      activeRole: newRole,
+    }).catch((err) => {
+      // Revert optimistic state on error
+      setOptimisticRole(null);
+      update({ activeRole: previousRole }).catch(console.error);
       console.error('Error al cambiar el rol:', err);
-    }
+    });
   };
 
   return (
@@ -98,9 +114,9 @@ export function UserAvatar() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className={`h-6 px-2 text-xs font-medium border w-24 ${getRoleColors(user.activeRole || '')} hover:opacity-80`}
+              className={`h-6 px-2 text-xs font-medium border w-24 transition-colors duration-200 ${getRoleColors(currentRole)}`}
             >
-              {user.activeRole || 'Sin rol'}
+              {currentRole}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -34,7 +34,7 @@ const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el t√
 
 const navItems = [
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
   { href: '/gantt', label: 'Gantt', icon: GanttChart },
   { href: '/indicadores', label: 'Indicadores', icon: BarChart3 },
