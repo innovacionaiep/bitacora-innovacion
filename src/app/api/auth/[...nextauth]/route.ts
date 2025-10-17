@@ -75,8 +75,11 @@ export const authOptions: NextAuthOptions = {
 
       // Update session (cuando se llama update() desde el cliente)
       if (trigger === 'update' && session) {
+        console.log('JWT callback - trigger update:', session);
+        
         if (session.activeRole !== undefined) {
           token.activeRole = session.activeRole;
+          console.log('Updated activeRole to:', session.activeRole);
         }
         if (session.name !== undefined) {
           token.name = session.name;
@@ -87,8 +90,14 @@ export const authOptions: NextAuthOptions = {
 
         // Refrescar roles disponibles
         if (token.id) {
-          const roles = await getUserRoles(token.id as string);
-          token.availableRoles = roles;
+          try {
+            const roles = await getUserRoles(token.id as string);
+            token.availableRoles = roles;
+            console.log('Refreshed availableRoles:', roles);
+          } catch (error) {
+            console.error('Error refreshing roles:', error);
+            // Mantener los roles existentes si hay error
+          }
         }
       }
 
@@ -99,6 +108,12 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.activeRole = token.activeRole as string | null;
         session.user.availableRoles = token.availableRoles as string[];
+        
+        console.log('Session callback - User data:', {
+          id: session.user.id,
+          activeRole: session.user.activeRole,
+          availableRoles: session.user.availableRoles
+        });
       }
       return session;
     },

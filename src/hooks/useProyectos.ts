@@ -6,18 +6,25 @@ import {
   deleteProyecto,
   type ProyectoData,
 } from '@/lib/actions/proyectos';
-import { Proyecto } from '@prisma/client';
+import { ProyectoWithRelations } from '@/types/proyecto';
 
 export function useProyectos() {
-  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [proyectos, setProyectos] = useState<ProyectoWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Cargar proyectos
   const fetchProyectos = async () => {
     try {
+      console.log('🔄 [useProyectos] Iniciando carga de proyectos...');
       setLoading(true);
       const result = await getProyectos();
+
+      console.log('📥 [useProyectos] Resultado de getProyectos:', {
+        success: result.success,
+        dataLength: result.data?.length || 0,
+        error: result.error
+      });
 
       if (!result.success) {
         throw new Error(result.error);
@@ -25,7 +32,9 @@ export function useProyectos() {
 
       setProyectos(result.data || []);
       setError(null);
+      console.log('✅ [useProyectos] Proyectos cargados exitosamente:', result.data?.length || 0);
     } catch (err) {
+      console.error('❌ [useProyectos] Error:', err);
       setError(
         err instanceof Error ? err.message : 'Error al cargar proyectos'
       );

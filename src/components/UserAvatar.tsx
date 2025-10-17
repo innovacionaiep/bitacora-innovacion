@@ -85,25 +85,45 @@ export function UserAvatar() {
   };
 
   const handleRoleChange = async (newRole: string) => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) {
+      console.error('No hay sesión de usuario disponible');
+      return;
+    }
 
     const previousRole = session.user.activeRole;
+    
+    console.log('Cambiando rol de', previousRole, 'a', newRole);
+    console.log('Roles disponibles:', session.user.availableRoles);
     
     // INSTANT UI update - update optimistic state immediately
     setOptimisticRole(newRole);
 
-    // Update session in background
-    update({ activeRole: newRole }).catch(console.error);
+    try {
+      // Update database first
+      const result = await updateUserProfile(session.user.id, {
+        activeRole: newRole,
+      });
 
-    // Update database in background
-    updateUserProfile(session.user.id, {
-      activeRole: newRole,
-    }).catch((err) => {
+      if (!result.success) {
+        throw new Error(result.error || 'Error al actualizar el rol');
+      }
+
+      // Update session after successful database update
+      await update({ activeRole: newRole });
+      
+      // Force session refresh to get updated availableRoles
+      setTimeout(() => {
+        update();
+      }, 100);
+      
+      console.log('Rol cambiado exitosamente');
+    } catch (err) {
       // Revert optimistic state on error
       setOptimisticRole(null);
-      update({ activeRole: previousRole }).catch(console.error);
+      await update({ activeRole: previousRole });
       console.error('Error al cambiar el rol:', err);
-    });
+      alert('Error al cambiar el rol: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+    }
   };
 
   return (
@@ -120,15 +140,21 @@ export function UserAvatar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {user.availableRoles?.map((role) => (
-              <DropdownMenuItem
-                key={role}
-                className="cursor-pointer"
-                onClick={() => handleRoleChange(role)}
-              >
-                {role}
+            {user.availableRoles && user.availableRoles.length > 0 ? (
+              user.availableRoles.map((role) => (
+                <DropdownMenuItem
+                  key={role}
+                  className="cursor-pointer"
+                  onClick={() => handleRoleChange(role)}
+                >
+                  {role}
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <DropdownMenuItem disabled className="text-gray-500">
+                No hay roles disponibles
               </DropdownMenuItem>
-            ))}
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

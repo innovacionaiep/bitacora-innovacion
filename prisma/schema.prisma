@@ -57,6 +57,7 @@ model User {
   accounts Account[]
   sessions Session[]
   roles    UserRole[]
+  proyectos ProyectoParticipante[]
 
   @@map("users")
 }
@@ -88,7 +89,7 @@ model Proyecto {
   proyecto           String
   fondo              String
   sede               String
-  escuela            String
+  focalizacion       String?    // Social|Productiva|Ambiental|null
   avanceGantt        Int        @default(0) @map("avance_gantt")
   objetivos          Int        @default(0)
   presupuestoUsado   Int        @default(0) @map("presupuesto_usado")
@@ -99,9 +100,158 @@ model Proyecto {
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
+  // Relaciones
   activities Activity[]
+  participantes_rel ProyectoParticipante[]
+  escuelas ProyectoEscuela[]
+  carreras ProyectoCarrera[]
+  comunas ProyectoComuna[]
+  gruposInteres ProyectoGrupoInteres[]
+  sociosComunitarios ProyectoSocioComunitario[]
+  objetivos_rel ObjetivoProyecto[]
 
   @@map("proyectos")
+}
+
+// Participación en Proyectos (many-to-many con roles)
+model ProyectoParticipante {
+  id         String   @id @default(cuid())
+  proyectoId String   @map("proyecto_id")
+  userId     String   @map("user_id")
+  rol        String   // Encargado|Coordinador|Participante
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proyectoId, userId])
+  @@map("proyecto_participantes")
+}
+
+// Escuelas del Proyecto (many-to-many)
+model Escuela {
+  id     String @id @default(cuid())
+  nombre String
+  codigo String @unique
+
+  proyectos ProyectoEscuela[]
+  carreras  Carrera[]
+
+  @@map("escuelas")
+}
+
+model ProyectoEscuela {
+  proyectoId String @map("proyecto_id")
+  escuelaId  String @map("escuela_id")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  escuela  Escuela  @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, escuelaId])
+  @@map("proyecto_escuelas")
+}
+
+// Carreras del Proyecto (many-to-many)
+model Carrera {
+  id       String  @id @default(cuid())
+  nombre   String
+  escuelaId String? @map("escuela_id")
+
+  escuela   Escuela? @relation(fields: [escuelaId], references: [id])
+  proyectos ProyectoCarrera[]
+
+  @@map("carreras")
+}
+
+model ProyectoCarrera {
+  proyectoId String @map("proyecto_id")
+  carreraId  String @map("carrera_id")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  carrera  Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, carreraId])
+  @@map("proyecto_carreras")
+}
+
+// Comunas del Proyecto (many-to-many)
+model Comuna {
+  id     String @id @default(cuid())
+  nombre String
+  region String
+
+  proyectos ProyectoComuna[]
+
+  @@map("comunas")
+}
+
+model ProyectoComuna {
+  proyectoId String @map("proyecto_id")
+  comunaId   String @map("comuna_id")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  comuna   Comuna   @relation(fields: [comunaId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, comunaId])
+  @@map("proyecto_comunas")
+}
+
+// Grupos de Interés (many-to-many)
+model GrupoInteres {
+  id          String @id @default(cuid())
+  nombre      String
+  descripcion String?
+
+  proyectos ProyectoGrupoInteres[]
+
+  @@map("grupos_interes")
+}
+
+model ProyectoGrupoInteres {
+  proyectoId     String @map("proyecto_id")
+  grupoInteresId String @map("grupo_interes_id")
+
+  proyecto     Proyecto     @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  grupoInteres GrupoInteres @relation(fields: [grupoInteresId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, grupoInteresId])
+  @@map("proyecto_grupos_interes")
+}
+
+// Socios Comunitarios (many-to-many, texto libre)
+model SocioComunitario {
+  id          String @id @default(cuid())
+  nombre      String
+  descripcion String?
+
+  proyectos ProyectoSocioComunitario[]
+
+  @@map("socios_comunitarios")
+}
+
+model ProyectoSocioComunitario {
+  proyectoId         String @map("proyecto_id")
+  socioComunitarioId String @map("socio_comunitario_id")
+
+  proyecto         Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  socioComunitario SocioComunitario @relation(fields: [socioComunitarioId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, socioComunitarioId])
+  @@map("proyecto_socios_comunitarios")
+}
+
+// Objetivos del Proyecto
+model ObjetivoProyecto {
+  id          String @id @default(cuid())
+  proyectoId  String @map("proyecto_id")
+  tipo        String // General|Especifico
+  descripcion String
+  orden       Int    @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@map("objetivos_proyecto")
 }
 
 model Activity {

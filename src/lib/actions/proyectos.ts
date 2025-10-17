@@ -3,28 +3,78 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Proyecto } from '@prisma/client';
+import { ProyectoFormData, ProyectoWithRelations, CatalogoResponse } from '@/types/proyecto';
 
 export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
- * Obtener todos los proyectos
+ * Obtener todos los proyectos con relaciones
  */
 export async function getProyectos() {
   try {
+    console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
+    
     const proyectos = await prisma.proyecto.findMany({
+      include: {
+        participantes_rel: {
+          include: {
+            user: true,
+          },
+        },
+        escuelas: {
+          include: {
+            escuela: true,
+          },
+        },
+        carreras: {
+          include: {
+            carrera: true,
+          },
+        },
+        comunas: {
+          include: {
+            comuna: true,
+          },
+        },
+        gruposInteres: {
+          include: {
+            grupoInteres: true,
+          },
+        },
+        sociosComunitarios: {
+          include: {
+            socioComunitario: true,
+          },
+        },
+        objetivos_rel: {
+          orderBy: {
+            orden: 'asc',
+          },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
     });
-    return { success: true, data: proyectos };
+    
+    console.log(`✅ [getProyectos] Encontrados ${proyectos.length} proyectos`);
+    console.log('📊 [getProyectos] Primer proyecto:', proyectos[0] ? {
+      id: proyectos[0].id,
+      proyecto: proyectos[0].proyecto,
+      escuelas: proyectos[0].escuelas?.length || 0,
+      carreras: proyectos[0].carreras?.length || 0,
+      objetivos: proyectos[0].objetivos_rel?.length || 0,
+    } : 'No hay proyectos');
+    
+    return { success: true, data: proyectos as ProyectoWithRelations[] };
   } catch (error) {
-    console.error('Error getting proyectos:', error);
+    console.error('❌ [getProyectos] Error:', error);
     return { success: false, error: 'Error al obtener proyectos' };
   }
 }
 
 /**
- * Obtener un proyecto por ID
+ * Obtener un proyecto por ID con todas las relaciones
  */
 export async function getProyecto(id: string) {
   try {
@@ -39,6 +89,41 @@ export async function getProyecto(id: string) {
             orderIndex: 'asc',
           },
         },
+        participantes_rel: {
+          include: {
+            user: true,
+          },
+        },
+        escuelas: {
+          include: {
+            escuela: true,
+          },
+        },
+        carreras: {
+          include: {
+            carrera: true,
+          },
+        },
+        comunas: {
+          include: {
+            comuna: true,
+          },
+        },
+        gruposInteres: {
+          include: {
+            grupoInteres: true,
+          },
+        },
+        sociosComunitarios: {
+          include: {
+            socioComunitario: true,
+          },
+        },
+        objetivos_rel: {
+          orderBy: {
+            orden: 'asc',
+          },
+        },
       },
     });
 
@@ -46,7 +131,7 @@ export async function getProyecto(id: string) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
-    return { success: true, data: proyecto };
+    return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error getting proyecto:', error);
     return { success: false, error: 'Error al obtener proyecto' };
@@ -54,16 +139,16 @@ export async function getProyecto(id: string) {
 }
 
 /**
- * Crear un nuevo proyecto
+ * Crear un nuevo proyecto con todas las relaciones
  */
-export async function createProyecto(data: ProyectoData) {
+export async function createProyecto(data: ProyectoFormData) {
   try {
     const proyecto = await prisma.proyecto.create({
       data: {
         proyecto: data.proyecto,
         fondo: data.fondo,
         sede: data.sede,
-        escuela: data.escuela,
+        focalizacion: data.focalizacion,
         avanceGantt: data.avanceGantt || 0,
         objetivos: data.objetivos || 0,
         presupuestoUsado: data.presupuestoUsado || 0,
@@ -71,11 +156,95 @@ export async function createProyecto(data: ProyectoData) {
         reunionesHechas: data.reunionesHechas || 0,
         reunionesTotales: data.reunionesTotales || 0,
         participantes: data.participantes,
+        
+        // Crear relaciones
+        escuelas: {
+          create: data.escuelasIds.map(escuelaId => ({
+            escuelaId,
+          })),
+        },
+        carreras: {
+          create: data.carrerasIds.map(carreraId => ({
+            carreraId,
+          })),
+        },
+        comunas: {
+          create: data.comunasIds.map(comunaId => ({
+            comunaId,
+          })),
+        },
+        gruposInteres: {
+          create: data.gruposInteresIds.map(grupoId => ({
+            grupoInteresId: grupoId,
+          })),
+        },
+        sociosComunitarios: {
+          create: data.sociosComunitariosIds.map(socioId => ({
+            socioComunitarioId: socioId,
+          })),
+        },
+        participantes_rel: {
+          create: data.participantes_rel.map(participante => ({
+            userId: participante.userId,
+            rol: participante.rol,
+          })),
+        },
+        objetivos_rel: {
+          create: [
+            {
+              tipo: 'General',
+              descripcion: data.objetivoGeneral,
+              orden: 0,
+            },
+            ...data.objetivosEspecificos.map((objetivo, index) => ({
+              tipo: 'Especifico' as const,
+              descripcion: objetivo,
+              orden: index + 1,
+            })),
+          ],
+        },
+      },
+      include: {
+        participantes_rel: {
+          include: {
+            user: true,
+          },
+        },
+        escuelas: {
+          include: {
+            escuela: true,
+          },
+        },
+        carreras: {
+          include: {
+            carrera: true,
+          },
+        },
+        comunas: {
+          include: {
+            comuna: true,
+          },
+        },
+        gruposInteres: {
+          include: {
+            grupoInteres: true,
+          },
+        },
+        sociosComunitarios: {
+          include: {
+            socioComunitario: true,
+          },
+        },
+        objetivos_rel: {
+          orderBy: {
+            orden: 'asc',
+          },
+        },
       },
     });
 
     revalidatePath('/proyectos');
-    return { success: true, data: proyecto };
+    return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error creating proyecto:', error);
     return { success: false, error: 'Error al crear proyecto' };
@@ -140,6 +309,104 @@ export async function deleteProyecto(id: string) {
   } catch (error) {
     console.error('Error deleting proyecto:', error);
     return { success: false, error: 'Error al eliminar proyecto' };
+  }
+}
+
+// ===== FUNCIONES PARA CATÁLOGOS =====
+
+/**
+ * Obtener todas las escuelas
+ */
+export async function getEscuelas(): Promise<CatalogoResponse<any>> {
+  try {
+    const escuelas = await prisma.escuela.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: escuelas };
+  } catch (error) {
+    console.error('Error getting escuelas:', error);
+    return { success: false, error: 'Error al obtener escuelas' };
+  }
+}
+
+/**
+ * Obtener todas las carreras
+ */
+export async function getCarreras(): Promise<CatalogoResponse<any>> {
+  try {
+    const carreras = await prisma.carrera.findMany({
+      include: {
+        escuela: true,
+      },
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: carreras };
+  } catch (error) {
+    console.error('Error getting carreras:', error);
+    return { success: false, error: 'Error al obtener carreras' };
+  }
+}
+
+/**
+ * Obtener todas las comunas
+ */
+export async function getComunas(): Promise<CatalogoResponse<any>> {
+  try {
+    const comunas = await prisma.comuna.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: comunas };
+  } catch (error) {
+    console.error('Error getting comunas:', error);
+    return { success: false, error: 'Error al obtener comunas' };
+  }
+}
+
+/**
+ * Obtener todos los grupos de interés
+ */
+export async function getGruposInteres(): Promise<CatalogoResponse<any>> {
+  try {
+    const grupos = await prisma.grupoInteres.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: grupos };
+  } catch (error) {
+    console.error('Error getting grupos interes:', error);
+    return { success: false, error: 'Error al obtener grupos de interés' };
+  }
+}
+
+/**
+ * Obtener todos los socios comunitarios
+ */
+export async function getSociosComunitarios(): Promise<CatalogoResponse<any>> {
+  try {
+    const socios = await prisma.socioComunitario.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: socios };
+  } catch (error) {
+    console.error('Error getting socios comunitarios:', error);
+    return { success: false, error: 'Error al obtener socios comunitarios' };
+  }
+}
+
+/**
+ * Crear un nuevo socio comunitario
+ */
+export async function createSocioComunitario(nombre: string, descripcion?: string) {
+  try {
+    const socio = await prisma.socioComunitario.create({
+      data: {
+        nombre,
+        descripcion,
+      },
+    });
+    return { success: true, data: socio };
+  } catch (error) {
+    console.error('Error creating socio comunitario:', error);
+    return { success: false, error: 'Error al crear socio comunitario' };
   }
 }
 

@@ -38,26 +38,16 @@ import {
   X,
   Edit,
   RefreshCw,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
-
-type Project = {
-  id: string;
-  proyecto: string;
-  fondo: string;
-  sede: string;
-  escuela: string;
-  avanceGantt: number;
-  objetivos: number;
-  presupuestoUsado: number;
-  presupuestoTotal: number;
-  reunionesHechas: number;
-  reunionesTotales: number;
-  participantes: number;
-  createdAt: string;
-  updatedAt: string;
-};
+import { ProyectoWithRelations } from '@/types/proyecto';
+import { ProgressCard } from '@/components/proyectos/ProgressCard';
+import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
+import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
+import { StakeholdersCard } from '@/components/proyectos/StakeholdersCard';
+import { EquipoCard } from '@/components/proyectos/EquipoCard';
 
 export default function ProyectosPage() {
   const {
@@ -70,7 +60,7 @@ export default function ProyectosPage() {
   } = useProyectos();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProyectoWithRelations | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,7 +84,9 @@ export default function ProyectosPage() {
     (project) =>
       project.proyecto.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.sede.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.escuela.toLowerCase().includes(searchTerm.toLowerCase())
+      project.escuelas?.some(escuelaRel => 
+        escuelaRel.escuela.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      ) || false
   );
 
   if (
@@ -189,7 +181,7 @@ export default function ProyectosPage() {
       proyecto: selectedProject.proyecto,
       fondo: selectedProject.fondo,
       sede: selectedProject.sede,
-      escuela: selectedProject.escuela,
+      escuela: '', // No direct escuela field in model
       avanceGantt: selectedProject.avanceGantt,
       objetivos: selectedProject.objetivos,
       presupuestoUsado: selectedProject.presupuestoUsado,
@@ -218,12 +210,12 @@ export default function ProyectosPage() {
     });
   };
 
-  const handleSelectProject = (project: Project) => {
+  const handleSelectProject = (project: ProyectoWithRelations) => {
     setSelectedProject(project);
     setIsSheetOpen(false);
   };
 
-  const generateProjectSummary = (project: Project) => {
+  const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
       'AntofaSuena 2025. Música-Industria-Territorio':
         'Este proyecto busca fortalecer la industria musical de Antofagasta mediante la creación de espacios de encuentro entre artistas locales, productores y la comunidad. Incluye la organización de festivales, talleres de producción musical y el desarrollo de una plataforma digital para promover el talento regional.',
@@ -237,9 +229,11 @@ export default function ProyectosPage() {
         'Proyecto que combina técnicas de reciclaje creativo con elementos culturales de diferentes comunidades. Busca crear productos únicos que representen la diversidad cultural de la región, promoviendo la sostenibilidad y el respeto por las tradiciones locales.',
     };
 
+    const escuelaNombre = project.escuelas?.[0]?.escuela.nombre || 'la escuela correspondiente';
+    
     return (
       summaries[project.proyecto as keyof typeof summaries] ||
-      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuestoTotal.toLocaleString('es-CL')} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de la ${project.escuela.toLowerCase()}.`
+      `El proyecto ${project.proyecto} forma parte del programa IMPULSA y se desarrolla en la sede de ${project.sede}. Con un presupuesto de $${project.presupuestoTotal.toLocaleString('es-CL')} y ${project.participantes} participantes, busca generar impacto positivo en la comunidad a través de ${escuelaNombre}.`
     );
   };
 
@@ -322,7 +316,7 @@ export default function ProyectosPage() {
                             {project.proyecto}
                           </h3>
                           <p className="text-xs text-gray-500 mt-1">
-                            {project.sede} • {project.escuela}
+                            {project.sede} • {project.escuelas?.map(e => e.escuela.nombre).join(', ') || 'Sin escuela'}
                           </p>
                         </div>
                       </div>
@@ -710,9 +704,9 @@ export default function ProyectosPage() {
                             onClick={() => setIsSheetOpen(true)}
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
+                            className="h-12 w-12 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <ArrowLeftRight size={50} strokeWidth={2} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -732,126 +726,49 @@ export default function ProyectosPage() {
                       <MapPin className="h-4 w-4" />
                       <span>{selectedProject.sede}</span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <GraduationCap className="h-4 w-4" />
-                      <span>{selectedProject.escuela}</span>
-                    </div>
+                    {selectedProject.focalizacion && (
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                          {selectedProject.focalizacion}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Información presupuestaria y avances */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Presupuesto */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                    PRESUPUESTO
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        PRESUPUESTO CONSUMIDO
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        $
-                        {selectedProject.presupuestoUsado.toLocaleString(
-                          'es-CL'
-                        )}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        PRESUPUESTO TOTAL
-                      </p>
-                      <p className="text-xl font-semibold text-gray-700">
-                        $
-                        {selectedProject.presupuestoTotal.toLocaleString(
-                          'es-CL'
-                        )}
-                      </p>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{
-                          width: `${(selectedProject.presupuestoUsado / selectedProject.presupuestoTotal) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {Math.round(
-                        (selectedProject.presupuestoUsado /
-                          selectedProject.presupuestoTotal) *
-                          100
-                      )}
-                      % utilizado
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Card consolidada de avances y presupuesto */}
+            <ProgressCard
+              avanceGantt={selectedProject.avanceGantt}
+              avanceIndicadores={selectedProject.objetivos}
+              presupuestoUsado={selectedProject.presupuestoUsado}
+              presupuestoTotal={selectedProject.presupuestoTotal}
+            />
 
-              {/* Avances */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                    AVANCES
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
-                          AVANCE GANTT
-                        </span>
-                        <span className="text-sm font-bold text-gray-900">
-                          {selectedProject.avanceGantt}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-emerald-500 h-3 rounded-full"
-                          style={{ width: `${selectedProject.avanceGantt}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
-                          INDICADORES
-                        </span>
-                        <span className="text-sm font-bold text-gray-900">
-                          {selectedProject.objetivos}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-blue-500 h-3 rounded-full"
-                          style={{ width: `${selectedProject.objetivos}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Información y Equipo */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ProjectInfoCard
+                sede={selectedProject.sede}
+                escuelas={selectedProject.escuelas || []}
+                carreras={selectedProject.carreras || []}
+                comunas={selectedProject.comunas || []}
+                focalizacion={selectedProject.focalizacion}
+              />
+              <EquipoCard
+                participantes={selectedProject.participantes_rel || []}
+                canEdit={false} // Por ahora sin edición
+              />
             </div>
 
-            {/* Resumen del proyecto */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <FileText className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    RESUMEN DEL PROYECTO
-                  </h3>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 leading-relaxed">
-                    {generateProjectSummary(selectedProject)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Objetivos del proyecto */}
+            <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+
+            {/* Grupos de interés y socios */}
+            <StakeholdersCard
+              gruposInteres={selectedProject.gruposInteres || []}
+              sociosComunitarios={selectedProject.sociosComunitarios || []}
+            />
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
