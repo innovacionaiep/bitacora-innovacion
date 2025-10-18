@@ -15,12 +15,12 @@ export function StakeholdersCard({
 }: StakeholdersCardProps) {
   return (
     <Card>
-      <CardContent className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">
+      <CardContent className="p-4">
+        <h3 className="text-sm font-semibold mb-3 text-gray-900">
           GRUPOS DE INTERÉS Y SOCIOS
         </h3>
         
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Grupos de Interés */}
           <div>
             <div className="flex items-center space-x-2 mb-3">

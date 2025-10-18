@@ -12,6 +12,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Pencil, Check, X, LogOut } from 'lucide-react';
 
 interface ProfileSidebarProps {
@@ -31,6 +37,7 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
   const [tempFullName, setTempFullName] = useState('');
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
   const [tempSelectedAvatar, setTempSelectedAvatar] = useState<PredefinedAvatar | null>(null);
+  const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
 
   // Inicializar valores del perfil
   useEffect(() => {
@@ -47,6 +54,94 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
       }
     }
   }, [session]);
+
+  // Clear optimistic state when session catches up
+  useEffect(() => {
+    if (optimisticRole && session?.user?.activeRole === optimisticRole) {
+      setOptimisticRole(null);
+    }
+  }, [session?.user?.activeRole, optimisticRole]);
+
+  // Get the current role (optimistic or from session)
+  const currentRole = optimisticRole || session?.user?.activeRole || 'Sin rol';
+
+  // Función para obtener colores de rol
+  const getRoleColors = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'evaluador':
+        return 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200 hover:text-purple-800 hover:border-purple-400';
+      case 'coordinador':
+        return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200 hover:text-blue-800 hover:border-blue-400';
+      case 'encargado':
+        return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:text-orange-800 hover:border-orange-400';
+      case 'participante':
+        return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200 hover:text-green-800 hover:border-green-400';
+      case 'admin':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200 hover:text-yellow-800 hover:border-yellow-400';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800 hover:border-gray-400';
+    }
+  };
+
+  // Get circle color for role indicators
+  const getRoleCircleColor = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'evaluador':
+        return 'bg-purple-500';
+      case 'coordinador':
+        return 'bg-blue-500';
+      case 'encargado':
+        return 'bg-orange-500';
+      case 'participante':
+        return 'bg-green-500';
+      case 'admin':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const handleRoleChange = async (newRole: string) => {
+    if (!session?.user?.id) {
+      console.error('No hay sesión de usuario disponible');
+      return;
+    }
+
+    const previousRole = session.user.activeRole;
+    
+    console.log('Cambiando rol de', previousRole, 'a', newRole);
+    console.log('Roles disponibles:', session.user.availableRoles);
+    
+    // INSTANT UI update - update optimistic state immediately
+    setOptimisticRole(newRole);
+
+    try {
+      // Update database first
+      const result = await updateUserProfile(session.user.id, {
+        activeRole: newRole,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al actualizar el rol');
+      }
+
+      // Update session after successful database update
+      await update({ activeRole: newRole });
+      
+      // Force session refresh to get updated availableRoles
+      setTimeout(() => {
+        update();
+      }, 100);
+      
+      console.log('Rol cambiado exitosamente');
+    } catch (err) {
+      // Revert optimistic state on error
+      setOptimisticRole(null);
+      await update({ activeRole: previousRole });
+      console.error('Error al cambiar el rol:', err);
+      setError('Error al cambiar el rol: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+    }
+  };
 
   const handleAvatarChange = async (avatar: PredefinedAvatar) => {
     setError('');
@@ -181,6 +276,42 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
           )}
 
           <div className="flex-1 space-y-6">
+            {/* Role selector above avatar */}
+            <div className="flex flex-col items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`h-8 px-4 text-sm font-medium border transition-colors duration-200 mb-4 ${getRoleColors(currentRole)}`}
+                  >
+                    {currentRole}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  {session?.user?.availableRoles && session.user.availableRoles.length > 0 ? (
+                    session.user.availableRoles.map((role) => {
+                      const isActive = role === currentRole;
+                      return (
+                        <DropdownMenuItem
+                          key={role}
+                          className={`cursor-pointer flex items-center gap-2 ${isActive ? 'bg-accent font-semibold' : ''}`}
+                          onClick={() => handleRoleChange(role)}
+                        >
+                          <div className={`w-3 h-3 rounded-full ${getRoleCircleColor(role)}`} />
+                          <span className="flex-1">{role}</span>
+                          {isActive && <Check className="h-4 w-4 ml-2" />}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem disabled className="text-gray-500">
+                      No hay roles disponibles
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             {/* Avatar con hover edit */}
             <div className="flex flex-col items-center">
               <div className="relative group">

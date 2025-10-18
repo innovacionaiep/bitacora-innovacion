@@ -34,11 +34,11 @@ export function ProjectInfoCard({
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">
+      <CardContent className="p-4">
+        <h3 className="text-sm font-semibold mb-3 text-gray-900">
           INFORMACIÓN
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Sede */}
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4 text-gray-500" />
@@ -59,7 +59,7 @@ export function ProjectInfoCard({
 
           {/* Escuelas */}
           <div>
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2 mb-1">
               <GraduationCap className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Escuelas:</span>
             </div>
@@ -76,7 +76,7 @@ export function ProjectInfoCard({
 
           {/* Carreras */}
           <div>
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2 mb-1">
               <Building className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Carreras:</span>
             </div>
@@ -93,7 +93,7 @@ export function ProjectInfoCard({
 
           {/* Comunas */}
           <div>
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2 mb-1">
               <MapPin className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Comunas:</span>
             </div>

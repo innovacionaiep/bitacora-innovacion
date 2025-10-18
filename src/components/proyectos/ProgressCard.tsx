@@ -21,24 +21,24 @@ export function ProgressCard({
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">
+      <CardContent className="p-4">
+        <h3 className="text-sm font-semibold mb-3 text-gray-900">
           AVANCES Y PRESUPUESTO
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Avance Gantt */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
                 AVANCE GANTT
               </span>
-              <span className="text-sm font-bold text-gray-900">
+              <span className="text-xs font-bold text-gray-900">
                 {avanceGantt}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-emerald-500 h-3 rounded-full transition-all duration-300"
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${avanceGantt}%` }}
               />
             </div>
@@ -46,17 +46,17 @@ export function ProgressCard({
 
           {/* Avance Indicadores */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
                 INDICADORES
               </span>
-              <span className="text-sm font-bold text-gray-900">
+              <span className="text-xs font-bold text-gray-900">
                 {avanceIndicadores}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${avanceIndicadores}%` }}
               />
             </div>
@@ -64,21 +64,21 @@ export function ProgressCard({
 
           {/* Presupuesto */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
                 PRESUPUESTO
               </span>
-              <span className="text-sm font-bold text-gray-900">
+              <span className="text-xs font-bold text-gray-900">
                 {presupuestoPorcentaje}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-orange-500 h-3 rounded-full transition-all duration-300"
+                className="bg-orange-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${presupuestoPorcentaje}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
               <span>${presupuestoUsado.toLocaleString('es-CL')}</span>
               <span>${presupuestoTotal.toLocaleString('es-CL')}</span>
             </div>

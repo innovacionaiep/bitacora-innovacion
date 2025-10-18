@@ -73,18 +73,18 @@ export function EquipoCard({
           {lista.map((participante) => (
             <div
               key={participante.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-sm">
+                <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center text-sm">
                   {participante.user.image ? (
                     <img
                       src={participante.user.image}
                       alt={participante.user.name || 'Usuario'}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-7 h-7 rounded-full object-cover"
                     />
                   ) : (
-                    <User className="h-4 w-4 text-gray-600" />
+                    <User className="h-3.5 w-3.5 text-gray-600" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -135,9 +135,9 @@ export function EquipoCard({
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">EQUIPO</h3>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">EQUIPO</h3>
           {canEdit && onAddParticipante && (
             <Button
               size="sm"
@@ -150,7 +150,7 @@ export function EquipoCard({
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {renderParticipantes(encargados, 'Encargados')}
           {renderParticipantes(coordinadores, 'Coordinadores')}
           {renderParticipantes(participantes_rol, 'Participantes')}

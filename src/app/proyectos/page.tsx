@@ -39,6 +39,8 @@ import {
   Edit,
   RefreshCw,
   ArrowLeftRight,
+  Users,
+  Calendar,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -685,7 +687,7 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header del proyecto */}
             <div className="space-y-4">
               <div className="flex items-start justify-between">
@@ -715,7 +717,7 @@ export default function ProyectosPage() {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4" />
                       <span className="font-medium">
@@ -733,6 +735,18 @@ export default function ProyectosPage() {
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-4 w-4" />
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.participantes} participantes
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -747,7 +761,7 @@ export default function ProyectosPage() {
             />
 
             {/* Información y Equipo */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ProjectInfoCard
                 sede={selectedProject.sede}
                 escuelas={selectedProject.escuelas || []}

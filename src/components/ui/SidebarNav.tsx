@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import './sidebar-smooth.css';
 import {
+  Home,
   LayoutDashboard,
   FolderKanban,
   GanttChart,
@@ -20,8 +21,8 @@ import {
   ClipboardCheck,
   ChevronLeft,
   ChevronRight,
-  Menu,
-  X,
+  ChevronsLeft,
+  ChevronsRight,
   Newspaper,
 } from 'lucide-react';
 
@@ -29,10 +30,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Inter } from 'next/font/google';
 import { Button } from '@/components/ui/button';
+import { SidebarUserInfo } from '@/components/SidebarUserInfo';
 
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
 const navItems = [
+  { href: '/', label: 'Inicio', icon: Home },
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
@@ -102,37 +105,24 @@ export default function SidebarNav() {
         </SidebarMenu>
       </SidebarContent>
 
-      {/* Footer con botón de colapso y copyright */}
-      <SidebarFooter className="flex flex-col items-center justify-center py-4 space-y-4 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
+      {/* Footer con información de usuario, botón de colapso y copyright */}
+      <SidebarFooter className="flex flex-col items-center justify-center py-4 space-y-1 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
+        {/* User info section */}
+        <SidebarUserInfo />
+
         {/* Botón de colapso más intuitivo */}
         <Button
           variant="outline"
           size="sm"
           onClick={toggleSidebar}
-          className="w-full max-w-[200px] group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:px-0 transition-all duration-200 group-data-[collapsible=icon]:mx-0"
+          className="h-10 w-10 rounded-full p-0 transition-all duration-200 mb-3"
         >
-          <div className="flex items-center justify-center gap-2 group-data-[collapsible=icon]:gap-0">
-            {state === 'collapsed' ? (
-              <>
-                <Menu className="h-4 w-4" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  Expandir
-                </span>
-              </>
-            ) : (
-              <>
-                <X className="h-4 w-4" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  Comprimir
-                </span>
-              </>
-            )}
-          </div>
+          {state === 'collapsed' ? (
+            <ChevronsRight className="h-4 w-4" />
+          ) : (
+            <ChevronsLeft className="h-4 w-4" />
+          )}
         </Button>
-
-        <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          © 2025 Paul Guitard
-        </p>
       </SidebarFooter>
     </Sidebar>
   );
