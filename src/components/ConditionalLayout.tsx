@@ -3,8 +3,6 @@
 import { usePathname } from 'next/navigation';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
-import PageHeader from '@/components/PageHeader';
-import PageHeaderSimple from '@/components/PageHeaderSimple';
 import ResponsiveMain from '@/components/ResponsiveMain';
 
 interface ConditionalLayoutProps {
@@ -14,7 +12,7 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
   
-  // Rutas que NO deben mostrar sidebar y header
+  // Rutas que NO deben mostrar sidebar
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
@@ -23,13 +21,12 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return <>{children}</>;
   }
 
-  // Para todas las demás rutas, mostrar el layout completo con sidebar y header
+  // Para todas las demás rutas, mostrar el layout completo con sidebar
   return (
     <div className="flex h-screen bg-background text-foreground">
       <SidebarProvider defaultOpen={true}>
         <SidebarNav />
         <ResponsiveMain>
-          <PageHeader />
           <div className="flex-1 overflow-y-auto p-6 pt-8">
             <div className="w-full">{children}</div>
           </div>

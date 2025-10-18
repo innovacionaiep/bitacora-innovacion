@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Check } from 'lucide-react';
+import { Check, Bell } from 'lucide-react';
 import { updateUserProfile } from '@/lib/auth-actions';
 import { ProfileSidebar } from '@/components/ProfileSidebar';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -203,6 +203,27 @@ export function SidebarUserInfo() {
   return (
     <>
       <div className="flex flex-col items-center gap-1 py-0">
+        {/* Notification icon */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3"
+          onClick={() => console.log('Notificaciones clicked')}
+        >
+          <Bell className="h-4 w-4" />
+          {/* Badge de notificaciones - actualmente estático para visualización */}
+          <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full">
+            <span className="absolute text-white text-[10px] font-medium" style={{ 
+              top: '50%', 
+              left: '50%', 
+              transform: isCollapsed ? 'translate(-48%, -50%)' : 'translate(-50%, -50%)',
+              lineHeight: '1'
+            }}>
+              10
+            </span>
+          </span>
+        </Button>
+
         {/* User name - first word only, hidden when collapsed */}
         {!isCollapsed && (
           <span className="text-xs font-medium text-gray-700 text-center px-2 mb-1">
