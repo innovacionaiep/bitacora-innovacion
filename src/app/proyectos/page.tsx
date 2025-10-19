@@ -881,143 +881,170 @@ export default function ProyectosPage() {
                         <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
                           Información Básica
                         </h3>
-                      </div>
-                    </div>
+                  </div>
+                </div>
                     <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
                       <div className="space-y-6">
-                        {/* Sede */}
-                        <div className="border-l-4 border-blue-500 pl-4 py-1">
-                          <div className="flex items-center gap-2 mb-3">
-                            <MapPin className="h-4 w-4 text-blue-600" />
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                              Sede
-                            </h3>
+                        {/* Sección 1: Contribución Local */}
+                        <div className="mb-8">
+                          <div className="flex items-center gap-3 mb-6">
+                            <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Local</span>
+                            <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary" className="text-sm font-normal bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
-                              {selectedProject.sede}
-                            </Badge>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Sedes */}
+                          <div className="border-l-4 border-cyan-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <MapPin className="h-4 w-4 text-cyan-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Sedes
+                              </h3>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200">
+                                {selectedProject.sede}
+                              </Badge>
+              </div>
+            </div>
+
+                          {/* Comunas */}
+                          {selectedProject.comunas && selectedProject.comunas.length > 0 && (
+                            <div className="border-l-4 border-cyan-500 pl-4 py-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Building2 className="h-4 w-4 text-cyan-600" />
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  Comunas
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedProject.comunas.map((comunaRel, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-300">
+                                    {comunaRel.comuna.nombre}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           </div>
                         </div>
 
-                        {/* Escuelas */}
-                        {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                          <div className="border-l-4 border-cyan-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <GraduationCap className="h-4 w-4 text-cyan-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Escuelas
-                              </h3>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject.escuelas.map((escuelaRel, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200">
-                                  {escuelaRel.escuela.nombre}
-                                </Badge>
-                              ))}
-                            </div>
+                        {/* Sección 2: Contribución Disciplinar */}
+                        <div className="mb-8">
+                          <div className="flex items-center gap-3 mb-6">
+                            <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Disciplinar</span>
+                            <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                        )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Escuelas */}
+                          {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
+                            <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <GraduationCap className="h-4 w-4 text-indigo-600" />
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  Escuelas
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedProject.escuelas.map((escuelaRel, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+                                    {escuelaRel.escuela.nombre}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-                        {/* Carreras */}
-                        {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                          <div className="border-l-4 border-indigo-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <BookOpen className="h-4 w-4 text-indigo-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Carreras
-                              </h3>
+                          {/* Carreras */}
+                          {selectedProject.carreras && selectedProject.carreras.length > 0 && (
+                            <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <BookOpen className="h-4 w-4 text-indigo-600" />
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  Carreras
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedProject.carreras.map((carreraRel, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-300">
+                                    {carreraRel.carrera.nombre}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject.carreras.map((carreraRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-300">
-                                  {carreraRel.carrera.nombre}
-                                </Badge>
-                              ))}
-                            </div>
+                          )}
                           </div>
-                        )}
+                        </div>
 
-                        {/* Comunas */}
-                        {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                          <div className="border-l-4 border-red-800 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Building2 className="h-4 w-4 text-red-800" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Comunas
-                              </h3>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject.comunas.map((comunaRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-red-50 text-red-800 hover:bg-red-100 border-red-300">
-                                  {comunaRel.comuna.nombre}
-                                </Badge>
-                              ))}
-                            </div>
+                        {/* Sección 3: Contribución Comunitaria */}
+                        <div className="mb-8">
+                          <div className="flex items-center gap-3 mb-6">
+                            <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Comunitaria</span>
+                            <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                        )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Grupos de Interés */}
+                          {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
+                            <div className="border-l-4 border-purple-500 pl-4 py-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <UsersRound className="h-4 w-4 text-purple-600" />
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  Grupos de Interés
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedProject.gruposInteres.map((grupoRel, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-300">
+                                    {grupoRel.grupoInteres.nombre}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-                        {/* Grupos de Interés */}
-                        {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                          <div className="border-l-4 border-red-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <UsersRound className="h-4 w-4 text-red-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Grupos de Interés
-                              </h3>
+                          {/* Socios Comunitarios */}
+                          {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
+                            <div className="border-l-4 border-purple-500 pl-4 py-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Handshake className="h-4 w-4 text-purple-600" />
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  Socios Comunitarios
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedProject.sociosComunitarios.map((socioRel, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200">
+                                    {socioRel.socioComunitario.nombre}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-red-50 text-red-700 hover:bg-red-100 border-red-300">
-                                  {grupoRel.grupoInteres.nombre}
-                                </Badge>
-                              ))}
-                            </div>
+                          )}
                           </div>
-                        )}
+                        </div>
 
-                        {/* Socios Comunitarios */}
-                        {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                          <div className="border-l-4 border-violet-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Handshake className="h-4 w-4 text-violet-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Socios Comunitarios
-                              </h3>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-sm font-normal bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200">
-                                  {socioRel.socioComunitario.nombre}
-                                </Badge>
-                              ))}
-                            </div>
+                        {/* Sección 4: Encargados del Proyecto */}
+                        <div className="mb-8">
+                          <div className="flex items-center gap-3 mb-6">
+                            <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Encargados del Proyecto</span>
+                            <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                        )}
-
-                        {/* Encargados del proyecto */}
+                          {/* Encargados del proyecto */}
                         {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                          <div className="border-l-4 border-indigo-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Users className="h-4 w-4 text-indigo-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Encargados del Proyecto
-                              </h3>
-                            </div>
-                            <div className="space-y-3">
+                          <div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {selectedProject.participantes_rel
                                 .filter(p => p.rol === 'Encargado')
                                 .map((participante) => (
-                                  <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-indigo-50 to-transparent rounded-lg border border-indigo-100 hover:border-indigo-200 transition-all">
+                                  <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
                                     {participante.user.image ? (
                                       <img
                                         src={participante.user.image}
                                         alt={participante.user.name || 'Usuario'}
-                                        className="h-11 w-11 rounded-full ring-2 ring-indigo-200"
+                                        className="h-11 w-11 rounded-full ring-2 ring-gray-200"
                                       />
                                     ) : (
-                                      <div className="h-11 w-11 rounded-full bg-indigo-100 flex items-center justify-center ring-2 ring-indigo-200">
-                                        <Users className="h-5 w-5 text-indigo-600" />
+                                      <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                        <Users className="h-5 w-5 text-gray-600" />
                                       </div>
                                     )}
                                     <div className="flex-1 min-w-0">
@@ -1031,6 +1058,7 @@ export default function ProyectosPage() {
                             </div>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
