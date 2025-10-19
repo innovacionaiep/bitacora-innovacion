@@ -226,7 +226,7 @@ export function SidebarUserInfo() {
 
         {/* User name - first word only, hidden when collapsed */}
         {!isCollapsed && (
-          <span className="text-xs font-medium text-gray-700 text-center px-2 mb-1">
+          <span className="text-sm font-medium text-gray-700 text-center px-2 mb-1">
             {firstName}
           </span>
         )}

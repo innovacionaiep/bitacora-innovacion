@@ -89,6 +89,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'General' | 'Objetivos' | 'Equipo' | 'Gantt' | 'Indicadores' | 'Presupuesto'>('General');
   
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
@@ -393,7 +394,7 @@ export default function ProyectosPage() {
       </Sheet>
 
       {/* Main Content - Full Width */}
-      <div className="px-8 pt-6 pb-4 h-full">
+      <div className="px-8 pt-6 pb-6 h-full flex flex-col">
 
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
@@ -743,74 +744,81 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="space-y-8">
-            {/* Header del proyecto */}
-            <div>
+          <div className="flex flex-col h-full">
+            {/* Header del proyecto - Fixed, no scroll */}
+            <div className="flex-shrink-0 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <h1 className="text-4xl font-bold text-gray-900">
                     {selectedProject.proyecto}
                   </h1>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => setIsSheetOpen(true)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-12 w-12 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
-                        >
-                          <ArrowLeftRight size={50} strokeWidth={2} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Cambiar proyecto</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </div>
                 
                 {/* Botones de navegación */}
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('General')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'General'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     General
                   </Button>
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('Objetivos')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'Objetivos'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     Objetivos
                   </Button>
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('Equipo')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'Equipo'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     Equipo
                   </Button>
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('Gantt')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'Gantt'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     Gantt
                   </Button>
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('Indicadores')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'Indicadores'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     Indicadores
                   </Button>
                   <Button
-                    variant="outline"
+                    onClick={() => setSelectedTab('Presupuesto')}
                     size="sm"
-                    className="text-sm font-medium"
+                    className={`text-sm font-medium ${
+                      selectedTab === 'Presupuesto'
+                        ? 'bg-black text-white hover:bg-black'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                    }`}
                   >
                     Presupuesto
                   </Button>
@@ -855,21 +863,150 @@ export default function ProyectosPage() {
               </div>
             </div>
 
-            {/* Layout principal: 2 columnas */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Columna izquierda: Información básica y video */}
-              <div className="flex flex-col gap-4">
-                <ProjectInfoCard
-                  sede={selectedProject.sede}
-                  escuelas={selectedProject.escuelas || []}
-                  carreras={selectedProject.carreras || []}
-                  comunas={selectedProject.comunas || []}
-                  gruposInteres={selectedProject.gruposInteres || []}
-                  sociosComunitarios={selectedProject.sociosComunitarios || []}
-                />
-                
-                {/* Video de YouTube */}
-                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* Contenido condicional según tab seleccionado - Scrollable */}
+            <div className="flex-1 overflow-auto mt-8">
+              {selectedTab === 'General' && (
+              <Card className="h-full shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Información General</h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Información de ubicación y entidades */}
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Sede
+                        </h3>
+                        <p className="text-base text-gray-900">{selectedProject.sede}</p>
+                      </div>
+
+                      {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                            <GraduationCap className="h-4 w-4 mr-2" />
+                            Escuelas
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.escuelas.map((escuelaRel, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-sm">
+                                {escuelaRel.escuela.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProject.carreras && selectedProject.carreras.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                            Carreras
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.carreras.map((carreraRel, idx) => (
+                              <Badge key={idx} variant="outline" className="text-sm">
+                                {carreraRel.carrera.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProject.comunas && selectedProject.comunas.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                            Comunas
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.comunas.map((comunaRel, idx) => (
+                              <Badge key={idx} variant="outline" className="text-sm">
+                                {comunaRel.comuna.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Grupos de interés y socios */}
+                    <div className="space-y-4">
+                      {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                            Grupos de Interés
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.gruposInteres.map((grupoRel, idx) => (
+                              <Badge key={idx} variant="outline" className="text-sm">
+                                {grupoRel.grupoInteres.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                            Socios Comunitarios
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.sociosComunitarios.map((socioRel, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-sm">
+                                {socioRel.socioComunitario.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Encargados del proyecto */}
+                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center">
+                            <Users className="h-4 w-4 mr-2" />
+                            Encargados del Proyecto
+                          </h3>
+                          <div className="space-y-2">
+                            {selectedProject.participantes_rel
+                              .filter(p => p.rol === 'Encargado')
+                              .map((participante) => (
+                                <div key={participante.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                                  {participante.user.image ? (
+                                    <img
+                                      src={participante.user.image}
+                                      alt={participante.user.name || 'Usuario'}
+                                      className="h-10 w-10 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                      <Users className="h-5 w-5 text-gray-600" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {participante.user.name || 'Sin nombre'}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{participante.user.email}</p>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedTab === 'Objetivos' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                {/* Columna izquierda: Objetivos */}
+                <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+
+                {/* Columna derecha: Video */}
+                <Card className="h-full shadow-md">
                   <CardContent className="p-0">
                     <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
                       <div className="flex items-center space-x-2">
@@ -880,50 +1017,198 @@ export default function ProyectosPage() {
                       </div>
                     </div>
                     <div className="p-6">
-                    <div className="flex items-center justify-end gap-2 mb-3">
-                      <Input
-                        value={tempVideoUrl}
-                        onChange={(e) => setTempVideoUrl(e.target.value)}
-                        placeholder="URL de YouTube"
-                        className="w-64 h-8 text-xs"
-                      />
-                      <Button
-                        onClick={handleSaveVideo}
-                        size="sm"
-                        className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Save className="h-3 w-3 mr-1" />
-                        Guardar
-                      </Button>
-                    </div>
-                    {selectedProject && projectVideos[selectedProject.id] ? (
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full rounded-lg"
-                          src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
-                          title="Video del Proyecto"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
+                      <div className="flex items-center justify-end gap-2 mb-3">
+                        <Input
+                          value={tempVideoUrl}
+                          onChange={(e) => setTempVideoUrl(e.target.value)}
+                          placeholder="URL de YouTube"
+                          className="w-64 h-8 text-xs"
                         />
+                        <Button
+                          onClick={handleSaveVideo}
+                          size="sm"
+                          className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Save className="h-3 w-3 mr-1" />
+                          Guardar
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <div className="text-center">
-                          <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">
-                            Ingresa una URL de YouTube y haz clic en Guardar
-                          </p>
+                      {selectedProject && projectVideos[selectedProject.id] ? (
+                        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                          <iframe
+                            className="absolute top-0 left-0 w-full h-full rounded-lg"
+                            src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
+                            title="Video del Proyecto"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                          <div className="text-center">
+                            <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500">
+                              Ingresa una URL de YouTube y haz clic en Guardar
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
+            )}
 
-              {/* Columna derecha: Objetivos con altura completa */}
-              <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+            {selectedTab === 'Equipo' && (
+              <Card className="h-full shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Equipo del Proyecto</h2>
+                  
+                  <div className="space-y-6">
+                    {/* Encargados */}
+                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                          <Users className="h-5 w-5 mr-2" />
+                          Encargados
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {selectedProject.participantes_rel
+                            .filter(p => p.rol === 'Encargado')
+                            .map((participante) => (
+                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                {participante.user.image ? (
+                                  <img
+                                    src={participante.user.image}
+                                    alt={participante.user.name || 'Usuario'}
+                                    className="h-12 w-12 rounded-full"
+                                  />
+                                ) : (
+                                  <div className="h-12 w-12 rounded-full bg-blue-200 flex items-center justify-center">
+                                    <Users className="h-6 w-6 text-blue-600" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {participante.user.name || 'Sin nombre'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{participante.user.email}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Coordinadores */}
+                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                          <Users className="h-5 w-5 mr-2" />
+                          Coordinadores
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {selectedProject.participantes_rel
+                            .filter(p => p.rol === 'Coordinador')
+                            .map((participante) => (
+                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                {participante.user.image ? (
+                                  <img
+                                    src={participante.user.image}
+                                    alt={participante.user.name || 'Usuario'}
+                                    className="h-12 w-12 rounded-full"
+                                  />
+                                ) : (
+                                  <div className="h-12 w-12 rounded-full bg-green-200 flex items-center justify-center">
+                                    <Users className="h-6 w-6 text-green-600" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {participante.user.name || 'Sin nombre'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{participante.user.email}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Participantes */}
+                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Participante').length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                          <Users className="h-5 w-5 mr-2" />
+                          Participantes
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {selectedProject.participantes_rel
+                            .filter(p => p.rol === 'Participante')
+                            .map((participante) => (
+                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                {participante.user.image ? (
+                                  <img
+                                    src={participante.user.image}
+                                    alt={participante.user.name || 'Usuario'}
+                                    className="h-10 w-10 rounded-full"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                    <Users className="h-5 w-5 text-gray-600" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {participante.user.name || 'Sin nombre'}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mensaje si no hay participantes */}
+                    {(!selectedProject.participantes_rel || selectedProject.participantes_rel.length === 0) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No hay miembros asignados a este proyecto</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedTab === 'Gantt' && (
+              <Card className="h-full shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Diagrama de Gantt</h2>
+                  <p className="text-gray-500">Contenido del diagrama de Gantt próximamente...</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedTab === 'Indicadores' && (
+              <Card className="h-full shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Indicadores</h2>
+                  <p className="text-gray-500">Contenido de indicadores próximamente...</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedTab === 'Presupuesto' && (
+              <Card className="h-full shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Presupuesto</h2>
+                  <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
+                </CardContent>
+              </Card>
+            )}
             </div>
           </div>
         ) : (
@@ -945,6 +1230,25 @@ export default function ProyectosPage() {
           </div>
         )}
       </div>
+
+      {/* Botón flotante de cambiar proyecto */}
+      {selectedProject && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setIsSheetOpen(true)}
+                className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 hover:scale-110 z-50"
+              >
+                <ArrowLeftRight size={28} strokeWidth={2.5} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Cambiar proyecto</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </>
   );
 }
