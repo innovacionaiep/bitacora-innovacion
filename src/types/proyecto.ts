@@ -1,4 +1,4 @@
-import { Proyecto, Escuela, Carrera, Comuna, GrupoInteres, SocioComunitario, ObjetivoProyecto, User } from '@prisma/client';
+import { Proyecto, Escuela, Carrera, Comuna, GrupoInteres, SocioComunitario, ObjetivoProyecto, User, DesarrolloTecnico } from '@prisma/client';
 
 // Tipos base para relaciones
 export type ProyectoWithRelations = Proyecto & {
@@ -21,6 +21,7 @@ export type ProyectoWithRelations = Proyecto & {
     socioComunitario: SocioComunitario;
   })[];
   objetivos_rel: ObjetivoProyecto[];
+  desarrolloTecnico?: DesarrolloTecnico | null;
 };
 
 // Tipos para formularios

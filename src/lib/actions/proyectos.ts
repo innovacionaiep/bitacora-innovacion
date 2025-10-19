@@ -51,6 +51,7 @@ export async function getProyectos() {
             orden: 'asc',
           },
         },
+        desarrolloTecnico: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -124,6 +125,7 @@ export async function getProyecto(id: string) {
             orden: 'asc',
           },
         },
+        desarrolloTecnico: true,
       },
     });
 

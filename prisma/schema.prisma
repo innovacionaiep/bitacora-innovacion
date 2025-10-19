@@ -109,6 +109,7 @@ model Proyecto {
   gruposInteres ProyectoGrupoInteres[]
   sociosComunitarios ProyectoSocioComunitario[]
   objetivos_rel ObjetivoProyecto[]
+  desarrolloTecnico DesarrolloTecnico?
 
   @@map("proyectos")
 }
@@ -286,4 +287,27 @@ model Task {
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@map("tasks")
+}
+
+model DesarrolloTecnico {
+  id                        String   @id @default(cuid())
+  proyectoId               String   @unique @map("proyecto_id")
+  continuidadFasesAnteriores String? @db.Text @map("continuidad_fases_anteriores")
+  pertinenciaLocal         String? @db.Text @map("pertinencia_local")
+  pertinenciaDisciplinar   String? @db.Text @map("pertinencia_disciplinar")
+  necesidadProblema        String? @db.Text @map("necesidad_problema")
+  publicoObjetivo          String? @db.Text @map("publico_objetivo")
+  solucionAvance           String? @db.Text @map("solucion_avance")
+  perspectiveGenero        String? @db.Text @map("perspective_genero")
+  resultadosContribucion   String? @db.Text @map("resultados_contribucion")
+  metodologiaMedicion      String? @db.Text @map("metodologia_medicion")
+  ejesImpacto              String? @db.Text @map("ejes_impacto")
+  factorInnovador          String? @db.Text @map("factor_innovador")
+  escalabilidad            String? @db.Text
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@map("desarrollo_tecnico")
 }

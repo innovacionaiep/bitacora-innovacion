@@ -55,6 +55,7 @@ import { ProyectoWithRelations } from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
+import { DesarrolloTecnicoCard } from '@/components/proyectos/DesarrolloTecnicoCard';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -1036,24 +1037,7 @@ export default function ProyectosPage() {
                 </Card>
 
                 {/* Columna derecha: Desarrollo Técnico */}
-                <Card className="h-full shadow-md flex flex-col min-h-0">
-                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
-                      <div className="flex items-center space-x-2">
-                        <Target className="h-5 w-5 text-gray-700" />
-                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
-                          Desarrollo Técnico
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
-                      <div className="text-center py-8 text-gray-500">
-                        <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                        <p>Contenido de desarrollo técnico próximamente...</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DesarrolloTecnicoCard desarrolloTecnico={selectedProject.desarrolloTecnico} />
               </div>
             )}
 
