@@ -394,7 +394,7 @@ export default function ProyectosPage() {
       </Sheet>
 
       {/* Main Content - Full Width */}
-      <div className="px-8 pt-6 pb-6 h-full flex flex-col">
+      <div className="h-full flex flex-col">
 
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
@@ -744,21 +744,21 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full px-8 pt-6 pb-6">
             {/* Header del proyecto - Fixed, no scroll */}
             <div className="flex-shrink-0 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <h1 className="text-4xl font-bold text-gray-900">
-                    {selectedProject.proyecto}
-                  </h1>
+                      {selectedProject.proyecto}
+                    </h1>
                 </div>
                 
                 {/* Botones de navegación */}
                 <div className="flex items-center gap-2">
-                  <Button
+                          <Button
                     onClick={() => setSelectedTab('General')}
-                    size="sm"
+                            size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'General'
                         ? 'bg-black text-white hover:bg-black'
@@ -766,7 +766,7 @@ export default function ProyectosPage() {
                     }`}
                   >
                     General
-                  </Button>
+                          </Button>
                   <Button
                     onClick={() => setSelectedTab('Objetivos')}
                     size="sm"
@@ -822,68 +822,68 @@ export default function ProyectosPage() {
                   >
                     Presupuesto
                   </Button>
-                </div>
+                  </div>
               </div>
               
-              <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
-                <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                  <HandCoins className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    Fondo {selectedProject.fondo}
-                  </span>
-                </div>
-                {selectedProject.focalizacion && (
-                  <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                    <Target className="h-4 w-4 text-gray-600" />
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${
-                      selectedProject.focalizacion === 'Ambiental' 
-                        ? 'bg-green-100 text-green-700'
-                        : selectedProject.focalizacion === 'Social'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : selectedProject.focalizacion === 'Productiva'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      Foco {selectedProject.focalizacion}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                  <Users className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    {selectedProject.participantes} participantes
-                  </span>
-                </div>
+                  <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
+                    <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                      <HandCoins className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        Fondo {selectedProject.fondo}
+                      </span>
+                    </div>
+                    {selectedProject.focalizacion && (
+                      <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                        <Target className="h-4 w-4 text-gray-600" />
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                          selectedProject.focalizacion === 'Ambiental' 
+                            ? 'bg-green-100 text-green-700'
+                            : selectedProject.focalizacion === 'Social'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : selectedProject.focalizacion === 'Productiva'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          Foco {selectedProject.focalizacion}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                      <Users className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.participantes} participantes
+                      </span>
+                    </div>
                 <div className="flex items-center space-x-1">
-                  <Calendar className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
-                  </span>
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
+                      </span>
                 </div>
               </div>
-            </div>
-
+                    </div>
+                    
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-auto mt-8">
               {selectedTab === 'General' && (
-              <Card className="h-full shadow-md">
-                <CardContent className="p-6">
+              <Card className="h-full shadow-md flex flex-col">
+                <CardContent className="p-6 flex-1 overflow-auto">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Información General</h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Información de ubicación y entidades */}
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                    <div className="space-y-24">
+                      <div className="py-16">
+                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4 flex items-center">
                           <MapPin className="h-4 w-4 mr-2" />
                           Sede
                         </h3>
                         <p className="text-base text-gray-900">{selectedProject.sede}</p>
-                      </div>
+                  </div>
 
                       {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8 flex items-center">
                             <GraduationCap className="h-4 w-4 mr-2" />
                             Escuelas
                           </h3>
@@ -893,13 +893,13 @@ export default function ProyectosPage() {
                                 {escuelaRel.escuela.nombre}
                               </Badge>
                             ))}
-                          </div>
-                        </div>
+                </div>
+              </div>
                       )}
 
                       {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
                             Carreras
                           </h3>
                           <div className="flex flex-wrap gap-2">
@@ -908,13 +908,13 @@ export default function ProyectosPage() {
                                 {carreraRel.carrera.nombre}
                               </Badge>
                             ))}
-                          </div>
+            </div>
                         </div>
                       )}
 
                       {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
                             Comunas
                           </h3>
                           <div className="flex flex-wrap gap-2">
@@ -929,10 +929,10 @@ export default function ProyectosPage() {
                     </div>
 
                     {/* Grupos de interés y socios */}
-                    <div className="space-y-4">
+                    <div className="space-y-24">
                       {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
                             Grupos de Interés
                           </h3>
                           <div className="flex flex-wrap gap-2">
@@ -946,8 +946,8 @@ export default function ProyectosPage() {
                       )}
 
                       {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
                             Socios Comunitarios
                           </h3>
                           <div className="flex flex-wrap gap-2">
@@ -962,16 +962,16 @@ export default function ProyectosPage() {
 
                       {/* Encargados del proyecto */}
                       {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center">
+                        <div className="py-16">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8 flex items-center">
                             <Users className="h-4 w-4 mr-2" />
                             Encargados del Proyecto
                           </h3>
-                          <div className="space-y-2">
+                          <div className="space-y-12">
                             {selectedProject.participantes_rel
                               .filter(p => p.rol === 'Encargado')
                               .map((participante) => (
-                                <div key={participante.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                                <div key={participante.id} className="flex items-center space-x-3 p-12 bg-gray-50 rounded-lg">
                                   {participante.user.image ? (
                                     <img
                                       src={participante.user.image}
@@ -991,6 +991,52 @@ export default function ProyectosPage() {
                                   </div>
                                 </div>
                               ))}
+                            {/* Contenido adicional para probar scroll */}
+                            <div className="flex items-center space-x-3 p-12 bg-blue-50 rounded-lg">
+                              <div className="h-10 w-10 rounded-full bg-blue-300 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 1</p>
+                                <p className="text-xs text-gray-500">encargado1@test.com</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 p-12 bg-green-50 rounded-lg">
+                              <div className="h-10 w-10 rounded-full bg-green-300 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 2</p>
+                                <p className="text-xs text-gray-500">encargado2@test.com</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 p-12 bg-purple-50 rounded-lg">
+                              <div className="h-10 w-10 rounded-full bg-purple-300 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-purple-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 3</p>
+                                <p className="text-xs text-gray-500">encargado3@test.com</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 p-12 bg-yellow-50 rounded-lg">
+                              <div className="h-10 w-10 rounded-full bg-yellow-300 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-yellow-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 4</p>
+                                <p className="text-xs text-gray-500">encargado4@test.com</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 p-12 bg-red-50 rounded-lg">
+                              <div className="h-10 w-10 rounded-full bg-red-300 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-red-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 5</p>
+                                <p className="text-xs text-gray-500">encargado5@test.com</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1006,8 +1052,8 @@ export default function ProyectosPage() {
                 <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
 
                 {/* Columna derecha: Video */}
-                <Card className="h-full shadow-md">
-                  <CardContent className="p-0">
+                <Card className="h-full shadow-md flex flex-col">
+                  <CardContent className="p-0 flex-1 overflow-auto">
                     <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
                       <div className="flex items-center space-x-2">
                         <Video className="h-5 w-5 text-gray-700" />
@@ -1017,43 +1063,43 @@ export default function ProyectosPage() {
                       </div>
                     </div>
                     <div className="p-6">
-                      <div className="flex items-center justify-end gap-2 mb-3">
-                        <Input
-                          value={tempVideoUrl}
-                          onChange={(e) => setTempVideoUrl(e.target.value)}
-                          placeholder="URL de YouTube"
-                          className="w-64 h-8 text-xs"
+                    <div className="flex items-center justify-end gap-2 mb-3">
+                      <Input
+                        value={tempVideoUrl}
+                        onChange={(e) => setTempVideoUrl(e.target.value)}
+                        placeholder="URL de YouTube"
+                        className="w-64 h-8 text-xs"
+                      />
+                      <Button
+                        onClick={handleSaveVideo}
+                        size="sm"
+                        className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Guardar
+                      </Button>
+                    </div>
+                    {selectedProject && projectVideos[selectedProject.id] ? (
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full rounded-lg"
+                          src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
+                          title="Video del Proyecto"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
                         />
-                        <Button
-                          onClick={handleSaveVideo}
-                          size="sm"
-                          className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Save className="h-3 w-3 mr-1" />
-                          Guardar
-                        </Button>
                       </div>
-                      {selectedProject && projectVideos[selectedProject.id] ? (
-                        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                          <iframe
-                            className="absolute top-0 left-0 w-full h-full rounded-lg"
-                            src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
-                            title="Video del Proyecto"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
+                    ) : (
+                      <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center">
+                          <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">
+                            Ingresa una URL de YouTube y haz clic en Guardar
+                          </p>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                          <div className="text-center">
-                            <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                            <p className="text-sm text-gray-500">
-                              Ingresa una URL de YouTube y haz clic en Guardar
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      </div>
+                    )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1061,8 +1107,8 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Equipo' && (
-              <Card className="h-full shadow-md">
-                <CardContent className="p-6">
+              <Card className="h-full shadow-md flex flex-col">
+                <CardContent className="p-6 flex-1 overflow-auto">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Equipo del Proyecto</h2>
                   
                   <div className="space-y-6">
@@ -1087,7 +1133,7 @@ export default function ProyectosPage() {
                                 ) : (
                                   <div className="h-12 w-12 rounded-full bg-blue-200 flex items-center justify-center">
                                     <Users className="h-6 w-6 text-blue-600" />
-                                  </div>
+            </div>
                                 )}
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">
@@ -1184,8 +1230,8 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Gantt' && (
-              <Card className="h-full shadow-md">
-                <CardContent className="p-6">
+              <Card className="h-full shadow-md flex flex-col">
+                <CardContent className="p-6 flex-1 overflow-auto">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">Diagrama de Gantt</h2>
                   <p className="text-gray-500">Contenido del diagrama de Gantt próximamente...</p>
                 </CardContent>
@@ -1193,8 +1239,8 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Indicadores' && (
-              <Card className="h-full shadow-md">
-                <CardContent className="p-6">
+              <Card className="h-full shadow-md flex flex-col">
+                <CardContent className="p-6 flex-1 overflow-auto">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">Indicadores</h2>
                   <p className="text-gray-500">Contenido de indicadores próximamente...</p>
                 </CardContent>
@@ -1202,8 +1248,8 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Presupuesto' && (
-              <Card className="h-full shadow-md">
-                <CardContent className="p-6">
+              <Card className="h-full shadow-md flex flex-col">
+                <CardContent className="p-6 flex-1 overflow-auto">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">Presupuesto</h2>
                   <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
                 </CardContent>

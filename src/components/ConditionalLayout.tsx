@@ -27,8 +27,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       <SidebarProvider defaultOpen={true}>
         <SidebarNav />
         <ResponsiveMain>
-          <div className="flex-1 overflow-y-auto p-4 pt-2">
-            <div className="w-full">{children}</div>
+          <div className="flex flex-col flex-1 h-full p-4 pt-2">
+            {children}
           </div>
         </ResponsiveMain>
       </SidebarProvider>
