@@ -21,16 +21,18 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
     .sort((a, b) => a.orden - b.orden);
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardContent className="p-4 flex-1 flex flex-col">
-        <div className="flex items-center space-x-2 mb-3">
-          <FileText className="h-5 w-5 text-gray-600" />
-          <h3 className="text-sm font-semibold text-gray-900">
-            OBJETIVOS DEL PROYECTO
-          </h3>
+    <Card className="h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardContent className="p-0 flex-1 flex flex-col">
+        <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+          <div className="flex items-center space-x-2">
+            <Target className="h-5 w-5 text-gray-700" />
+            <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+              Objetivos del Proyecto
+            </h3>
+          </div>
         </div>
 
-        <div className="space-y-4 flex-1">
+        <div className="p-4 space-y-4 flex-1">
           {/* Objetivo General */}
           {objetivoGeneral && (
             <div>

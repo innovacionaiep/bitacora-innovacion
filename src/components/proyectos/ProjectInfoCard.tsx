@@ -2,14 +2,13 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, GraduationCap, Building, Target, Users, Handshake } from 'lucide-react';
+import { MapPin, GraduationCap, Building, Users, Handshake, Info } from 'lucide-react';
 
 interface ProjectInfoCardProps {
   sede: string;
   escuelas?: Array<{ escuela: { nombre: string } }>;
   carreras?: Array<{ carrera: { nombre: string } }>;
   comunas?: Array<{ comuna: { nombre: string; region: string } }>;
-  focalizacion?: string | null;
   gruposInteres?: Array<{ grupoInteres: { nombre: string } }>;
   sociosComunitarios?: Array<{ socioComunitario: { nombre: string } }>;
 }
@@ -19,47 +18,28 @@ export function ProjectInfoCard({
   escuelas,
   carreras,
   comunas,
-  focalizacion,
   gruposInteres,
   sociosComunitarios,
 }: ProjectInfoCardProps) {
-  const getFocalizacionColor = (focalizacion?: string | null) => {
-    switch (focalizacion) {
-      case 'Social':
-        return 'bg-green-100 text-green-800';
-      case 'Productiva':
-        return 'bg-blue-100 text-blue-800';
-      case 'Ambiental':
-        return 'bg-emerald-100 text-emerald-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <h3 className="text-sm font-semibold mb-3 text-gray-900">
-          INFORMACIÓN
-        </h3>
-        <div className="space-y-3">
+    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardContent className="p-0">
+        <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+          <div className="flex items-center space-x-2">
+            <Info className="h-5 w-5 text-gray-700" />
+            <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+              Información General
+            </h3>
+          </div>
+        </div>
+        <div className="p-4 space-y-3">
           {/* Sede */}
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Sede:</span>
             <span className="text-sm text-gray-900">{sede}</span>
           </div>
-
-          {/* Focalización */}
-          {focalizacion && (
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Focalización:</span>
-              <Badge className={getFocalizacionColor(focalizacion)}>
-                {focalizacion}
-              </Badge>
-            </div>
-          )}
 
           {/* Escuelas */}
           <div>

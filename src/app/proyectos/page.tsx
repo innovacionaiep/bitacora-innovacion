@@ -43,6 +43,7 @@ import {
   Calendar,
   HandCoins,
   Target,
+  Video,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -758,7 +759,7 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="space-y-2">
+          <div className="space-y-8">
             {/* Header del proyecto */}
             <div>
               <div className="flex items-start justify-between">
@@ -856,34 +857,37 @@ export default function ProyectosPage() {
                   escuelas={selectedProject.escuelas || []}
                   carreras={selectedProject.carreras || []}
                   comunas={selectedProject.comunas || []}
-                  focalizacion={selectedProject.focalizacion}
                   gruposInteres={selectedProject.gruposInteres || []}
                   sociosComunitarios={selectedProject.sociosComunitarios || []}
                 />
                 
                 {/* Video de YouTube */}
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-900">
-                        VIDEO DEL PROYECTO
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={tempVideoUrl}
-                          onChange={(e) => setTempVideoUrl(e.target.value)}
-                          placeholder="URL de YouTube"
-                          className="w-64 h-8 text-xs"
-                        />
-                        <Button
-                          onClick={handleSaveVideo}
-                          size="sm"
-                          className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Save className="h-3 w-3 mr-1" />
-                          Guardar
-                        </Button>
+                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <CardContent className="p-0">
+                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                      <div className="flex items-center space-x-2">
+                        <Video className="h-5 w-5 text-gray-700" />
+                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                          Video del Proyecto
+                        </h3>
                       </div>
+                    </div>
+                    <div className="p-6">
+                    <div className="flex items-center justify-end gap-2 mb-3">
+                      <Input
+                        value={tempVideoUrl}
+                        onChange={(e) => setTempVideoUrl(e.target.value)}
+                        placeholder="URL de YouTube"
+                        className="w-64 h-8 text-xs"
+                      />
+                      <Button
+                        onClick={handleSaveVideo}
+                        size="sm"
+                        className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Guardar
+                      </Button>
                     </div>
                     {selectedProject && projectVideos[selectedProject.id] ? (
                       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
@@ -906,6 +910,7 @@ export default function ProyectosPage() {
                         </div>
                       </div>
                     )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
