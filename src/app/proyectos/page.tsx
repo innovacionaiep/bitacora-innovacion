@@ -52,22 +52,6 @@ import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
 
-// Componente compacto para data bars
-const CompactDataBar = ({ label, percentage, color, showDivider = true }: { label: string; percentage: number; color: string; showDivider?: boolean }) => (
-  <div className={`flex flex-col gap-0.5 min-w-[165px] self-center -translate-y-0.5 ${showDivider ? 'pr-3 border-r border-gray-200' : ''}`}>
-    <div className="flex items-center justify-between">
-      <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">{label}</span>
-      <span className="text-[10px] font-bold text-gray-900">{percentage}%</span>
-    </div>
-    <div className="w-full bg-gray-200 rounded-full h-1.5">
-      <div
-        className={`${color} h-1.5 rounded-full transition-all duration-300`}
-        style={{ width: `${percentage}%` }}
-      />
-    </div>
-  </div>
-);
-
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
   try {
@@ -409,7 +393,7 @@ export default function ProyectosPage() {
       </Sheet>
 
       {/* Main Content - Full Width */}
-      <div className="px-8 pt-2 pb-4 h-full">
+      <div className="px-8 pt-6 pb-4 h-full">
 
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
@@ -762,88 +746,111 @@ export default function ProyectosPage() {
           <div className="space-y-8">
             {/* Header del proyecto */}
             <div>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                      {selectedProject.proyecto}
-                    </h1>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => setIsSheetOpen(true)}
-                            variant="ghost"
-                            size="sm"
-                            className="h-12 w-12 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
-                          >
-                            <ArrowLeftRight size={50} strokeWidth={2} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Cambiar proyecto</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-4xl font-bold text-gray-900">
+                    {selectedProject.proyecto}
+                  </h1>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsSheetOpen(true)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-12 w-12 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200"
+                        >
+                          <ArrowLeftRight size={50} strokeWidth={2} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Cambiar proyecto</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
+                {/* Botones de navegación */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    General
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    Objetivos
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    Equipo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    Gantt
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    Indicadores
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-sm font-medium"
+                  >
+                    Presupuesto
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
+                <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                  <HandCoins className="h-4 w-4 text-gray-600" />
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                    Fondo {selectedProject.fondo}
+                  </span>
+                </div>
+                {selectedProject.focalizacion && (
+                  <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                    <Target className="h-4 w-4 text-gray-600" />
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${
+                      selectedProject.focalizacion === 'Ambiental' 
+                        ? 'bg-green-100 text-green-700'
+                        : selectedProject.focalizacion === 'Social'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : selectedProject.focalizacion === 'Productiva'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      Foco {selectedProject.focalizacion}
+                    </span>
                   </div>
-                  <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                      <HandCoins className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        Fondo {selectedProject.fondo}
-                      </span>
-                    </div>
-                    {selectedProject.focalizacion && (
-                      <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                        <Target className="h-4 w-4 text-gray-600" />
-                        <span className={`text-xs px-2 py-1 rounded font-medium ${
-                          selectedProject.focalizacion === 'Ambiental' 
-                            ? 'bg-green-100 text-green-700'
-                            : selectedProject.focalizacion === 'Social'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : selectedProject.focalizacion === 'Productiva'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          Foco {selectedProject.focalizacion}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                      <Users className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        {selectedProject.participantes} participantes
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                      <Calendar className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
-                      </span>
-                    </div>
-                    
-                    {/* Data Bars Compactos */}
-                    <CompactDataBar 
-                      label="Gantt" 
-                      percentage={selectedProject.avanceGantt} 
-                      color="bg-emerald-500"
-                      showDivider={true}
-                    />
-                    <CompactDataBar 
-                      label="Indicadores" 
-                      percentage={selectedProject.objetivos} 
-                      color="bg-blue-500"
-                      showDivider={true}
-                    />
-                    <CompactDataBar 
-                      label="Presupuesto" 
-                      percentage={selectedProject.presupuestoTotal > 0 
-                        ? Math.round((selectedProject.presupuestoUsado / selectedProject.presupuestoTotal) * 100)
-                        : 0} 
-                      color="bg-orange-500"
-                      showDivider={false}
-                    />
-                  </div>
+                )}
+                <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                  <Users className="h-4 w-4 text-gray-600" />
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                    {selectedProject.participantes} participantes
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4 text-gray-600" />
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                    {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
+                  </span>
                 </div>
               </div>
             </div>

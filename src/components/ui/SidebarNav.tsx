@@ -68,7 +68,7 @@ export default function SidebarNav() {
 
       {/* Menú de navegación */}
       <SidebarContent className="flex flex-col mt-4 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
-        <SidebarMenu className="space-y-3">
+        <SidebarMenu className="space-y-3 -ml-[1px] group-data-[collapsible=icon]:ml-0">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;

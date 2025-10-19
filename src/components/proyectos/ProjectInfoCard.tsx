@@ -35,10 +35,16 @@ export function ProjectInfoCard({
         </div>
         <div className="p-4 space-y-3">
           {/* Sede */}
-          <div className="flex items-center space-x-2">
-            <MapPin className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Sede:</span>
-            <span className="text-sm text-gray-900">{sede}</span>
+          <div>
+            <div className="flex items-center space-x-2 mb-1">
+              <MapPin className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Sede:</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="secondary" className="text-xs">
+                {sede}
+              </Badge>
+            </div>
           </div>
 
           {/* Escuelas */}
@@ -66,7 +72,7 @@ export function ProjectInfoCard({
             </div>
             <div className="flex flex-wrap gap-1">
               {carreras?.map((item, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
+                <Badge key={index} variant="secondary" className="text-xs">
                   {item.carrera.nombre}
                 </Badge>
               )) || (
@@ -83,7 +89,7 @@ export function ProjectInfoCard({
             </div>
             <div className="flex flex-wrap gap-1">
               {comunas?.map((item, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
+                <Badge key={index} variant="secondary" className="text-xs">
                   {item.comuna.nombre}
                 </Badge>
               )) || (
@@ -101,7 +107,7 @@ export function ProjectInfoCard({
               </div>
               <div className="flex flex-wrap gap-1">
                 {gruposInteres.map((item, index) => (
-                  <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                  <Badge key={index} variant="secondary" className="text-xs">
                     {item.grupoInteres.nombre}
                   </Badge>
                 ))}
@@ -118,7 +124,7 @@ export function ProjectInfoCard({
               </div>
               <div className="flex flex-wrap gap-1">
                 {sociosComunitarios.map((item, index) => (
-                  <Badge key={index} variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
+                  <Badge key={index} variant="secondary" className="text-xs">
                     {item.socioComunitario.nombre}
                   </Badge>
                 ))}

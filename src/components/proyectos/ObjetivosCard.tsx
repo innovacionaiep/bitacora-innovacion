@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, Target } from 'lucide-react';
+import { FileText, Target, Crosshair, ListChecks } from 'lucide-react';
 
 interface ObjetivoItem {
   id: string;
@@ -37,11 +37,11 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
           {objetivoGeneral && (
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Target className="h-4 w-4 text-blue-600" />
-                <h4 className="font-semibold text-gray-900">OBJETIVO GENERAL</h4>
+                <Crosshair className="h-4 w-4 text-gray-500" />
+                <h4 className="font-semibold text-gray-900">Objetivo general</h4>
               </div>
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-gray-700 leading-relaxed text-sm">
+              <div className="ml-6 border-2 border-gray-300 rounded-lg p-4 shadow-md bg-gradient-to-br from-gray-50 to-white">
+                <p className="text-gray-900 leading-relaxed text-sm font-semibold">
                   {objetivoGeneral.descripcion}
                 </p>
               </div>
@@ -52,13 +52,13 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
           {objetivosEspecificos.length > 0 && (
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Target className="h-4 w-4 text-green-600" />
-                <h4 className="font-semibold text-gray-900">OBJETIVOS ESPECÍFICOS</h4>
+                <ListChecks className="h-4 w-4 text-gray-500" />
+                <h4 className="font-semibold text-gray-900">Objetivos específicos</h4>
               </div>
-              <div className="space-y-2">
+              <div className="ml-6 space-y-2">
                 {objetivosEspecificos.map((objetivo, index) => (
                   <div key={objetivo.id} className="flex items-start space-x-2">
-                    <div className="flex-shrink-0 w-5 h-5 bg-green-100 text-green-800 rounded-full flex items-center justify-center text-xs font-semibold">
+                    <div className="flex-shrink-0 w-5 h-5 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-semibold">
                       {index + 1}
                     </div>
                     <p className="text-gray-700 leading-relaxed flex-1 text-sm">
