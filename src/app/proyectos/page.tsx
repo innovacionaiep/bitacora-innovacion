@@ -868,13 +868,13 @@ export default function ProyectosPage() {
                     </div>
                     
             {/* Contenido condicional según tab seleccionado - Scrollable */}
-            <div className="flex-1 overflow-auto mt-8">
+            <div className="flex-1 overflow-hidden mt-8">
               {selectedTab === 'General' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-0">
                 {/* Columna izquierda: Información Básica */}
-                <Card className="h-full shadow-md flex flex-col">
-                  <CardContent className="p-0 flex-1 flex flex-col">
-                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                <Card className="h-full shadow-md flex flex-col min-h-0">
+                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-5 w-5 text-gray-700" />
                         <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
@@ -882,25 +882,35 @@ export default function ProyectosPage() {
                         </h3>
                       </div>
                     </div>
-                    <div className="p-6 flex-1 overflow-auto">
+                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
                       <div className="space-y-6">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                            <MapPin className="h-4 w-4 mr-2" />
-                            Sede
-                          </h3>
-                          <p className="text-base text-gray-900">{selectedProject.sede}</p>
+                        {/* Sede */}
+                        <div className="border-l-4 border-blue-500 pl-4 py-1">
+                          <div className="flex items-center gap-2 mb-3">
+                            <MapPin className="h-4 w-4 text-blue-600" />
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                              Sede
+                            </h3>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary" className="text-sm font-normal bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                              {selectedProject.sede}
+                            </Badge>
+                          </div>
                         </div>
 
+                        {/* Escuelas */}
                         {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <GraduationCap className="h-4 w-4 mr-2" />
-                              Escuelas
-                            </h3>
+                          <div className="border-l-4 border-cyan-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <GraduationCap className="h-4 w-4 text-cyan-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Escuelas
+                              </h3>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {selectedProject.escuelas.map((escuelaRel, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-sm">
+                                <Badge key={idx} variant="secondary" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200">
                                   {escuelaRel.escuela.nombre}
                                 </Badge>
                               ))}
@@ -908,15 +918,18 @@ export default function ProyectosPage() {
                           </div>
                         )}
 
+                        {/* Carreras */}
                         {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Carreras
-                            </h3>
+                          <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <BookOpen className="h-4 w-4 text-indigo-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Carreras
+                              </h3>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {selectedProject.carreras.map((carreraRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm">
+                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-300">
                                   {carreraRel.carrera.nombre}
                                 </Badge>
                               ))}
@@ -924,15 +937,18 @@ export default function ProyectosPage() {
                           </div>
                         )}
 
+                        {/* Comunas */}
                         {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <Building2 className="h-4 w-4 mr-2" />
-                              Comunas
-                            </h3>
+                          <div className="border-l-4 border-red-800 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Building2 className="h-4 w-4 text-red-800" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Comunas
+                              </h3>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {selectedProject.comunas.map((comunaRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm">
+                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-red-50 text-red-800 hover:bg-red-100 border-red-300">
                                   {comunaRel.comuna.nombre}
                                 </Badge>
                               ))}
@@ -940,15 +956,18 @@ export default function ProyectosPage() {
                           </div>
                         )}
 
+                        {/* Grupos de Interés */}
                         {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <UsersRound className="h-4 w-4 mr-2" />
-                              Grupos de Interés
-                            </h3>
+                          <div className="border-l-4 border-red-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <UsersRound className="h-4 w-4 text-red-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Grupos de Interés
+                              </h3>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                                <Badge key={idx} variant="outline" className="text-sm">
+                                <Badge key={idx} variant="outline" className="text-sm font-normal bg-red-50 text-red-700 hover:bg-red-100 border-red-300">
                                   {grupoRel.grupoInteres.nombre}
                                 </Badge>
                               ))}
@@ -956,15 +975,18 @@ export default function ProyectosPage() {
                           </div>
                         )}
 
+                        {/* Socios Comunitarios */}
                         {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <Handshake className="h-4 w-4 mr-2" />
-                              Socios Comunitarios
-                            </h3>
+                          <div className="border-l-4 border-violet-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Handshake className="h-4 w-4 text-violet-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Socios Comunitarios
+                              </h3>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-sm">
+                                <Badge key={idx} variant="secondary" className="text-sm font-normal bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200">
                                   {socioRel.socioComunitario.nombre}
                                 </Badge>
                               ))}
@@ -974,32 +996,34 @@ export default function ProyectosPage() {
 
                         {/* Encargados del proyecto */}
                         {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
-                              Encargados del Proyecto
-                            </h3>
-                            <div className="space-y-2">
+                          <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Users className="h-4 w-4 text-indigo-600" />
+                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Encargados del Proyecto
+                              </h3>
+                            </div>
+                            <div className="space-y-3">
                               {selectedProject.participantes_rel
                                 .filter(p => p.rol === 'Encargado')
                                 .map((participante) => (
-                                  <div key={participante.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                                  <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-indigo-50 to-transparent rounded-lg border border-indigo-100 hover:border-indigo-200 transition-all">
                                     {participante.user.image ? (
                                       <img
                                         src={participante.user.image}
                                         alt={participante.user.name || 'Usuario'}
-                                        className="h-10 w-10 rounded-full"
+                                        className="h-11 w-11 rounded-full ring-2 ring-indigo-200"
                                       />
                                     ) : (
-                                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                        <Users className="h-5 w-5 text-gray-600" />
+                                      <div className="h-11 w-11 rounded-full bg-indigo-100 flex items-center justify-center ring-2 ring-indigo-200">
+                                        <Users className="h-5 w-5 text-indigo-600" />
                                       </div>
                                     )}
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-900">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-gray-900 truncate">
                                         {participante.user.name || 'Sin nombre'}
                                       </p>
-                                      <p className="text-xs text-gray-500">{participante.user.email}</p>
+                                      <p className="text-xs text-gray-600 truncate">{participante.user.email}</p>
                                     </div>
                                   </div>
                                 ))}
@@ -1012,9 +1036,9 @@ export default function ProyectosPage() {
                 </Card>
 
                 {/* Columna derecha: Desarrollo Técnico */}
-                <Card className="h-full shadow-md flex flex-col">
-                  <CardContent className="p-0 flex-1 flex flex-col">
-                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                <Card className="h-full shadow-md flex flex-col min-h-0">
+                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
                       <div className="flex items-center space-x-2">
                         <Target className="h-5 w-5 text-gray-700" />
                         <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
@@ -1022,7 +1046,7 @@ export default function ProyectosPage() {
                         </h3>
                       </div>
                     </div>
-                    <div className="p-6 flex-1 overflow-auto">
+                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
                       <div className="text-center py-8 text-gray-500">
                         <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                         <p>Contenido de desarrollo técnico próximamente...</p>
