@@ -21,8 +21,8 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
     .sort((a, b) => a.orden - b.orden);
 
   return (
-    <Card>
-      <CardContent className="p-4">
+    <Card className="h-full flex flex-col">
+      <CardContent className="p-4 flex-1 flex flex-col">
         <div className="flex items-center space-x-2 mb-3">
           <FileText className="h-5 w-5 text-gray-600" />
           <h3 className="text-sm font-semibold text-gray-900">
@@ -30,7 +30,7 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
           </h3>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1">
           {/* Objetivo General */}
           {objetivoGeneral && (
             <div>

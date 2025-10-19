@@ -41,6 +41,8 @@ import {
   ArrowLeftRight,
   Users,
   Calendar,
+  HandCoins,
+  Target,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -48,8 +50,43 @@ import { ProyectoWithRelations } from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
-import { StakeholdersCard } from '@/components/proyectos/StakeholdersCard';
-import { EquipoCard } from '@/components/proyectos/EquipoCard';
+
+// Componente compacto para data bars
+const CompactDataBar = ({ label, percentage, color, showDivider = true }: { label: string; percentage: number; color: string; showDivider?: boolean }) => (
+  <div className={`flex flex-col gap-0.5 min-w-[165px] self-center -translate-y-0.5 ${showDivider ? 'pr-3 border-r border-gray-200' : ''}`}>
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">{label}</span>
+      <span className="text-[10px] font-bold text-gray-900">{percentage}%</span>
+    </div>
+    <div className="w-full bg-gray-200 rounded-full h-1.5">
+      <div
+        className={`${color} h-1.5 rounded-full transition-all duration-300`}
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+  </div>
+);
+
+// Helper para extraer el ID de video de YouTube desde una URL
+const extractYouTubeVideoId = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    
+    // Formato: youtube.com/watch?v=VIDEO_ID
+    if (urlObj.hostname.includes('youtube.com') && urlObj.pathname === '/watch') {
+      return urlObj.searchParams.get('v');
+    }
+    
+    // Formato: youtu.be/VIDEO_ID
+    if (urlObj.hostname === 'youtu.be') {
+      return urlObj.pathname.slice(1);
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
 
 export default function ProyectosPage() {
   const {
@@ -67,6 +104,10 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  
+  // Estado para videos de YouTube por proyecto
+  const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
+  const [tempVideoUrl, setTempVideoUrl] = useState('');
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -97,7 +138,9 @@ export default function ProyectosPage() {
     !showAddForm &&
     !showEditForm
   ) {
-    setSelectedProject(proyectosIniciales[0]);
+    const firstProject = proyectosIniciales[0];
+    setSelectedProject(firstProject);
+    setTempVideoUrl(projectVideos[firstProject.id] || '');
   }
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -215,6 +258,34 @@ export default function ProyectosPage() {
   const handleSelectProject = (project: ProyectoWithRelations) => {
     setSelectedProject(project);
     setIsSheetOpen(false);
+    // Cargar URL del video del proyecto seleccionado si existe
+    setTempVideoUrl(projectVideos[project.id] || '');
+  };
+
+  const handleSaveVideo = () => {
+    if (!selectedProject) return;
+    
+    if (!tempVideoUrl.trim()) {
+      // Si está vacío, eliminar el video
+      setProjectVideos(prev => {
+        const newVideos = { ...prev };
+        delete newVideos[selectedProject.id];
+        return newVideos;
+      });
+      return;
+    }
+    
+    const videoId = extractYouTubeVideoId(tempVideoUrl);
+    if (!videoId) {
+      alert('Por favor ingresa una URL válida de YouTube');
+      return;
+    }
+    
+    // Guardar la URL del video para este proyecto
+    setProjectVideos(prev => ({
+      ...prev,
+      [selectedProject.id]: tempVideoUrl
+    }));
   };
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
@@ -337,7 +408,7 @@ export default function ProyectosPage() {
       </Sheet>
 
       {/* Main Content - Full Width */}
-      <div className="p-6 h-full">
+      <div className="px-8 pt-2 pb-4 h-full">
 
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
@@ -687,14 +758,11 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* Header del proyecto */}
-            <div className="space-y-4">
+            <div>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                    Proyecto
-                  </p>
                   <div className="flex items-center gap-3 mb-2">
                     <h1 className="text-3xl font-bold text-gray-900">
                       {selectedProject.proyecto}
@@ -718,71 +786,133 @@ export default function ProyectosPage() {
                     </TooltipProvider>
                   </div>
                   <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <DollarSign className="h-4 w-4" />
-                      <span className="font-medium">
-                        {selectedProject.fondo}
+                    <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                      <HandCoins className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        Fondo {selectedProject.fondo}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <MapPin className="h-4 w-4" />
-                      <span>{selectedProject.sede}</span>
-                    </div>
                     {selectedProject.focalizacion && (
-                      <div className="flex items-center space-x-1">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                          {selectedProject.focalizacion}
+                      <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                        <Target className="h-4 w-4 text-gray-600" />
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                          selectedProject.focalizacion === 'Ambiental' 
+                            ? 'bg-green-100 text-green-700'
+                            : selectedProject.focalizacion === 'Social'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : selectedProject.focalizacion === 'Productiva'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          Foco {selectedProject.focalizacion}
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                      <Users className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
                         {selectedProject.participantes} participantes
                       </span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
                         {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
                       </span>
                     </div>
+                    
+                    {/* Data Bars Compactos */}
+                    <CompactDataBar 
+                      label="Gantt" 
+                      percentage={selectedProject.avanceGantt} 
+                      color="bg-emerald-500"
+                      showDivider={true}
+                    />
+                    <CompactDataBar 
+                      label="Indicadores" 
+                      percentage={selectedProject.objetivos} 
+                      color="bg-blue-500"
+                      showDivider={true}
+                    />
+                    <CompactDataBar 
+                      label="Presupuesto" 
+                      percentage={selectedProject.presupuestoTotal > 0 
+                        ? Math.round((selectedProject.presupuestoUsado / selectedProject.presupuestoTotal) * 100)
+                        : 0} 
+                      color="bg-orange-500"
+                      showDivider={false}
+                    />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Card consolidada de avances y presupuesto */}
-            <ProgressCard
-              avanceGantt={selectedProject.avanceGantt}
-              avanceIndicadores={selectedProject.objetivos}
-              presupuestoUsado={selectedProject.presupuestoUsado}
-              presupuestoTotal={selectedProject.presupuestoTotal}
-            />
-
-            {/* Información y Equipo */}
+            {/* Layout principal: 2 columnas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ProjectInfoCard
-                sede={selectedProject.sede}
-                escuelas={selectedProject.escuelas || []}
-                carreras={selectedProject.carreras || []}
-                comunas={selectedProject.comunas || []}
-                focalizacion={selectedProject.focalizacion}
-              />
-              <EquipoCard
-                participantes={selectedProject.participantes_rel || []}
-                canEdit={false} // Por ahora sin edición
-              />
+              {/* Columna izquierda: Información básica y video */}
+              <div className="flex flex-col gap-4">
+                <ProjectInfoCard
+                  sede={selectedProject.sede}
+                  escuelas={selectedProject.escuelas || []}
+                  carreras={selectedProject.carreras || []}
+                  comunas={selectedProject.comunas || []}
+                  focalizacion={selectedProject.focalizacion}
+                  gruposInteres={selectedProject.gruposInteres || []}
+                  sociosComunitarios={selectedProject.sociosComunitarios || []}
+                />
+                
+                {/* Video de YouTube */}
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        VIDEO DEL PROYECTO
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={tempVideoUrl}
+                          onChange={(e) => setTempVideoUrl(e.target.value)}
+                          placeholder="URL de YouTube"
+                          className="w-64 h-8 text-xs"
+                        />
+                        <Button
+                          onClick={handleSaveVideo}
+                          size="sm"
+                          className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Save className="h-3 w-3 mr-1" />
+                          Guardar
+                        </Button>
+                      </div>
+                    </div>
+                    {selectedProject && projectVideos[selectedProject.id] ? (
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full rounded-lg"
+                          src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
+                          title="Video del Proyecto"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center">
+                          <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">
+                            Ingresa una URL de YouTube y haz clic en Guardar
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Columna derecha: Objetivos con altura completa */}
+              <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
             </div>
-
-            {/* Objetivos del proyecto */}
-            <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
-
-            {/* Grupos de interés y socios */}
-            <StakeholdersCard
-              gruposInteres={selectedProject.gruposInteres || []}
-              sociosComunitarios={selectedProject.sociosComunitarios || []}
-            />
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">

@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, GraduationCap, Building, Target } from 'lucide-react';
+import { MapPin, GraduationCap, Building, Target, Users, Handshake } from 'lucide-react';
 
 interface ProjectInfoCardProps {
   sede: string;
@@ -10,6 +10,8 @@ interface ProjectInfoCardProps {
   carreras?: Array<{ carrera: { nombre: string } }>;
   comunas?: Array<{ comuna: { nombre: string; region: string } }>;
   focalizacion?: string | null;
+  gruposInteres?: Array<{ grupoInteres: { nombre: string } }>;
+  sociosComunitarios?: Array<{ socioComunitario: { nombre: string } }>;
 }
 
 export function ProjectInfoCard({
@@ -18,6 +20,8 @@ export function ProjectInfoCard({
   carreras,
   comunas,
   focalizacion,
+  gruposInteres,
+  sociosComunitarios,
 }: ProjectInfoCardProps) {
   const getFocalizacionColor = (focalizacion?: string | null) => {
     switch (focalizacion) {
@@ -107,6 +111,40 @@ export function ProjectInfoCard({
               )}
             </div>
           </div>
+
+          {/* Grupos de Interés */}
+          {gruposInteres && gruposInteres.length > 0 && (
+            <div>
+              <div className="flex items-center space-x-2 mb-1">
+                <Users className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Grupos de Interés:</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {gruposInteres.map((item, index) => (
+                  <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                    {item.grupoInteres.nombre}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Socios Comunitarios */}
+          {sociosComunitarios && sociosComunitarios.length > 0 && (
+            <div>
+              <div className="flex items-center space-x-2 mb-1">
+                <Handshake className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Socios Comunitarios:</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {sociosComunitarios.map((item, index) => (
+                  <Badge key={index} variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
+                    {item.socioComunitario.nombre}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
