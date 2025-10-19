@@ -44,6 +44,10 @@ import {
   HandCoins,
   Target,
   Video,
+  BookOpen,
+  Building2,
+  UsersRound,
+  Handshake,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -866,184 +870,167 @@ export default function ProyectosPage() {
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-auto mt-8">
               {selectedTab === 'General' && (
-              <Card className="h-full shadow-md flex flex-col">
-                <CardContent className="p-6 flex-1 overflow-auto">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Información General</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Información de ubicación y entidades */}
-                    <div className="space-y-24">
-                      <div className="py-16">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4 flex items-center">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          Sede
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                {/* Columna izquierda: Información Básica */}
+                <Card className="h-full shadow-md flex flex-col">
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-5 w-5 text-gray-700" />
+                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                          Información Básica
                         </h3>
-                        <p className="text-base text-gray-900">{selectedProject.sede}</p>
-                  </div>
-
-                      {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8 flex items-center">
-                            <GraduationCap className="h-4 w-4 mr-2" />
-                            Escuelas
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.escuelas.map((escuelaRel, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-sm">
-                                {escuelaRel.escuela.nombre}
-                              </Badge>
-                            ))}
-                </div>
-              </div>
-                      )}
-
-                      {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
-                            Carreras
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.carreras.map((carreraRel, idx) => (
-                              <Badge key={idx} variant="outline" className="text-sm">
-                                {carreraRel.carrera.nombre}
-                              </Badge>
-                            ))}
-            </div>
-                        </div>
-                      )}
-
-                      {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
-                            Comunas
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.comunas.map((comunaRel, idx) => (
-                              <Badge key={idx} variant="outline" className="text-sm">
-                                {comunaRel.comuna.nombre}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
-
-                    {/* Grupos de interés y socios */}
-                    <div className="space-y-24">
-                      {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
-                            Grupos de Interés
+                    <div className="p-6 flex-1 overflow-auto">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Sede
                           </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                              <Badge key={idx} variant="outline" className="text-sm">
-                                {grupoRel.grupoInteres.nombre}
-                              </Badge>
-                            ))}
-                          </div>
+                          <p className="text-base text-gray-900">{selectedProject.sede}</p>
                         </div>
-                      )}
 
-                      {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8">
-                            Socios Comunitarios
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-sm">
-                                {socioRel.socioComunitario.nombre}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Encargados del proyecto */}
-                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                        <div className="py-16">
-                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-8 flex items-center">
-                            <Users className="h-4 w-4 mr-2" />
-                            Encargados del Proyecto
-                          </h3>
-                          <div className="space-y-12">
-                            {selectedProject.participantes_rel
-                              .filter(p => p.rol === 'Encargado')
-                              .map((participante) => (
-                                <div key={participante.id} className="flex items-center space-x-3 p-12 bg-gray-50 rounded-lg">
-                                  {participante.user.image ? (
-                                    <img
-                                      src={participante.user.image}
-                                      alt={participante.user.name || 'Usuario'}
-                                      className="h-10 w-10 rounded-full"
-                                    />
-                                  ) : (
-                                    <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                      <Users className="h-5 w-5 text-gray-600" />
-                                    </div>
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {participante.user.name || 'Sin nombre'}
-                                    </p>
-                                    <p className="text-xs text-gray-500">{participante.user.email}</p>
-                                  </div>
-                                </div>
+                        {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <GraduationCap className="h-4 w-4 mr-2" />
+                              Escuelas
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject.escuelas.map((escuelaRel, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-sm">
+                                  {escuelaRel.escuela.nombre}
+                                </Badge>
                               ))}
-                            {/* Contenido adicional para probar scroll */}
-                            <div className="flex items-center space-x-3 p-12 bg-blue-50 rounded-lg">
-                              <div className="h-10 w-10 rounded-full bg-blue-300 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 1</p>
-                                <p className="text-xs text-gray-500">encargado1@test.com</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3 p-12 bg-green-50 rounded-lg">
-                              <div className="h-10 w-10 rounded-full bg-green-300 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-green-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 2</p>
-                                <p className="text-xs text-gray-500">encargado2@test.com</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3 p-12 bg-purple-50 rounded-lg">
-                              <div className="h-10 w-10 rounded-full bg-purple-300 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-purple-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 3</p>
-                                <p className="text-xs text-gray-500">encargado3@test.com</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3 p-12 bg-yellow-50 rounded-lg">
-                              <div className="h-10 w-10 rounded-full bg-yellow-300 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-yellow-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 4</p>
-                                <p className="text-xs text-gray-500">encargado4@test.com</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3 p-12 bg-red-50 rounded-lg">
-                              <div className="h-10 w-10 rounded-full bg-red-300 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-red-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">Encargado Adicional 5</p>
-                                <p className="text-xs text-gray-500">encargado5@test.com</p>
-                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+
+                        {selectedProject.carreras && selectedProject.carreras.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              Carreras
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject.carreras.map((carreraRel, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm">
+                                  {carreraRel.carrera.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedProject.comunas && selectedProject.comunas.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <Building2 className="h-4 w-4 mr-2" />
+                              Comunas
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject.comunas.map((comunaRel, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm">
+                                  {comunaRel.comuna.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <UsersRound className="h-4 w-4 mr-2" />
+                              Grupos de Interés
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject.gruposInteres.map((grupoRel, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm">
+                                  {grupoRel.grupoInteres.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <Handshake className="h-4 w-4 mr-2" />
+                              Socios Comunitarios
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject.sociosComunitarios.map((socioRel, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-sm">
+                                  {socioRel.socioComunitario.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Encargados del proyecto */}
+                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              Encargados del Proyecto
+                            </h3>
+                            <div className="space-y-2">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Encargado')
+                                .map((participante) => (
+                                  <div key={participante.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                                    {participante.user.image ? (
+                                      <img
+                                        src={participante.user.image}
+                                        alt={participante.user.name || 'Usuario'}
+                                        className="h-10 w-10 rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                        <Users className="h-5 w-5 text-gray-600" />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {participante.user.name || 'Sin nombre'}
+                                      </p>
+                                      <p className="text-xs text-gray-500">{participante.user.email}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Columna derecha: Desarrollo Técnico */}
+                <Card className="h-full shadow-md flex flex-col">
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                      <div className="flex items-center space-x-2">
+                        <Target className="h-5 w-5 text-gray-700" />
+                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                          Desarrollo Técnico
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="p-6 flex-1 overflow-auto">
+                      <div className="text-center py-8 text-gray-500">
+                        <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>Contenido de desarrollo técnico próximamente...</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {selectedTab === 'Objetivos' && (
