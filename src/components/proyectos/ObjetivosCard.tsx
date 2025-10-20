@@ -22,46 +22,55 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
 
   return (
     <Card className="h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardContent className="p-0 flex-1 flex flex-col">
+      <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
         <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
           <div className="flex items-center space-x-2">
-            <Target className="h-5 w-5 text-gray-700" />
-            <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+            <Target className="h-5 w-5 text-gray-600" />
+            <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
               Objetivos del Proyecto
             </h3>
           </div>
         </div>
 
-        <div className="p-4 space-y-4 flex-1">
+        <div className="p-6 space-y-12 flex-1 overflow-auto custom-scrollbar">
           {/* Objetivo General */}
           {objetivoGeneral && (
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Crosshair className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Objetivo general</h4>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2.5">
+                <Crosshair className="h-5 w-5 text-emerald-600" />
+                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                  Objetivo General
+                </h4>
               </div>
-              <div className="ml-6 border-2 border-gray-300 rounded-lg p-4 shadow-md bg-gradient-to-br from-gray-50 to-white">
-                <p className="text-gray-900 leading-relaxed text-sm font-semibold">
-                  {objetivoGeneral.descripcion}
-                </p>
+              <div className="border-l-4 border-emerald-600 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+                <div className="py-6 px-6">
+                  <p className="text-gray-800 leading-loose text-lg">
+                    {objetivoGeneral.descripcion}
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Objetivos Específicos */}
           {objetivosEspecificos.length > 0 && (
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <ListChecks className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Objetivos específicos</h4>
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2.5">
+                <ListChecks className="h-5 w-5 text-emerald-600" />
+                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                  Objetivos Específicos
+                </h4>
               </div>
-              <div className="ml-6 space-y-2">
+              <div className="ml-8 space-y-6">
                 {objetivosEspecificos.map((objetivo, index) => (
-                  <div key={objetivo.id} className="flex items-start space-x-2">
-                    <div className="flex-shrink-0 w-5 h-5 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-semibold">
+                  <div 
+                    key={objetivo.id} 
+                    className="flex items-start space-x-4"
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
                       {index + 1}
                     </div>
-                    <p className="text-gray-700 leading-relaxed flex-1 text-sm">
+                    <p className="text-gray-800 leading-relaxed flex-1 text-base pt-0.5">
                       {objetivo.descripcion}
                     </p>
                   </div>
@@ -71,9 +80,9 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
           )}
 
           {objetivos.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>No hay objetivos definidos para este proyecto</p>
+            <div className="text-center py-12 text-gray-500">
+              <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-base">No hay objetivos definidos para este proyecto</p>
             </div>
           )}
         </div>

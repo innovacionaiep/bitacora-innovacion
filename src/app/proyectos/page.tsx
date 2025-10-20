@@ -877,8 +877,8 @@ export default function ProyectosPage() {
                   <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
                     <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
                       <div className="flex items-center space-x-2">
-                        <MapPin className="h-5 w-5 text-gray-700" />
-                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                        <MapPin className="h-5 w-5 text-gray-600" />
+                        <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
                           Información Básica
                         </h3>
                   </div>
@@ -1079,8 +1079,8 @@ export default function ProyectosPage() {
                   <CardContent className="p-0 flex-1 overflow-auto">
                     <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
                       <div className="flex items-center space-x-2">
-                        <Video className="h-5 w-5 text-gray-700" />
-                        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                        <Video className="h-5 w-5 text-gray-600" />
+                        <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
                           Video del Proyecto
                         </h3>
                       </div>
@@ -1307,9 +1307,9 @@ export default function ProyectosPage() {
             <TooltipTrigger asChild>
               <Button
                 onClick={() => setIsSheetOpen(true)}
-                className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 hover:scale-110 z-50"
+                className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-xl bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-110 z-50"
               >
-                <ArrowLeftRight size={28} strokeWidth={2.5} />
+                <ArrowLeftRight size={32} strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left">
