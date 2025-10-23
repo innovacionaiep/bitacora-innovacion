@@ -15,12 +15,7 @@ import {
   Home,
   LayoutDashboard,
   FolderKanban,
-  GanttChart,
-  BarChart3,
-  Wallet,
   ClipboardCheck,
-  ChevronLeft,
-  ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Newspaper,
@@ -39,9 +34,6 @@ const navItems = [
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  { href: '/gantt', label: 'Gantt', icon: GanttChart },
-  { href: '/indicadores', label: 'Indicadores', icon: BarChart3 },
-  { href: '/presupuesto', label: 'Presupuesto', icon: Wallet },
   { href: '/seguimiento', label: 'Seguimiento', icon: ClipboardCheck },
 ];
 

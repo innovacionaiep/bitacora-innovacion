@@ -56,6 +56,7 @@ import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
 import { DesarrolloTecnicoCard } from '@/components/proyectos/DesarrolloTecnicoCard';
+import GanttChart from '@/components/proyectos/GanttChart';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -871,14 +872,14 @@ export default function ProyectosPage() {
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-hidden mt-8">
               {selectedTab === 'General' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full min-h-0">
                 {/* Columna izquierda: Información Básica */}
-                <Card className="h-full shadow-md flex flex-col min-h-0">
+                <Card className="h-full shadow-xl flex flex-col min-h-0">
                   <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
+                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
                       <div className="flex items-center space-x-2">
-                        <MapPin className="h-5 w-5 text-gray-600" />
-                        <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+                        <MapPin className="h-5 w-5 text-gray-800" />
+                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
                           Información Básica
                         </h3>
                   </div>
@@ -893,15 +894,15 @@ export default function ProyectosPage() {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Sedes */}
-                          <div className="border-l-4 border-cyan-500 pl-4 py-1">
+                          <div className="border-l-4 border-emerald-500 pl-4 py-1">
                             <div className="flex items-center gap-2 mb-3">
-                              <MapPin className="h-4 w-4 text-cyan-600" />
+                              <MapPin className="h-4 w-4 text-emerald-600" />
                               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Sedes
                               </h3>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant="secondary" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200">
+                              <Badge variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
                                 {selectedProject.sede}
                               </Badge>
               </div>
@@ -909,16 +910,16 @@ export default function ProyectosPage() {
 
                           {/* Comunas */}
                           {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                            <div className="border-l-4 border-cyan-500 pl-4 py-1">
+                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <Building2 className="h-4 w-4 text-cyan-600" />
+                                <Building2 className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                   Comunas
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {selectedProject.comunas.map((comunaRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-300">
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
                                     {comunaRel.comuna.nombre}
                                   </Badge>
                                 ))}
@@ -937,16 +938,16 @@ export default function ProyectosPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Escuelas */}
                           {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                            <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <GraduationCap className="h-4 w-4 text-indigo-600" />
+                                <GraduationCap className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                   Escuelas
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {selectedProject.escuelas.map((escuelaRel, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
                                     {escuelaRel.escuela.nombre}
                                   </Badge>
                                 ))}
@@ -956,16 +957,16 @@ export default function ProyectosPage() {
 
                           {/* Carreras */}
                           {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                            <div className="border-l-4 border-indigo-500 pl-4 py-1">
+                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <BookOpen className="h-4 w-4 text-indigo-600" />
+                                <BookOpen className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                   Carreras
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {selectedProject.carreras.map((carreraRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-300">
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
                                     {carreraRel.carrera.nombre}
                                   </Badge>
                                 ))}
@@ -984,16 +985,16 @@ export default function ProyectosPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Grupos de Interés */}
                           {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                            <div className="border-l-4 border-purple-500 pl-4 py-1">
+                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <UsersRound className="h-4 w-4 text-purple-600" />
+                                <UsersRound className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                   Grupos de Interés
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-300">
+                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
                                     {grupoRel.grupoInteres.nombre}
                                   </Badge>
                                 ))}
@@ -1003,16 +1004,16 @@ export default function ProyectosPage() {
 
                           {/* Socios Comunitarios */}
                           {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                            <div className="border-l-4 border-purple-500 pl-4 py-1">
+                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <Handshake className="h-4 w-4 text-purple-600" />
+                                <Handshake className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                   Socios Comunitarios
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200">
+                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
                                     {socioRel.socioComunitario.nombre}
                                   </Badge>
                                 ))}
@@ -1044,7 +1045,7 @@ export default function ProyectosPage() {
                                       />
                                     ) : (
                                       <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                        <Users className="h-5 w-5 text-gray-600" />
+                                        <Users className="h-5 w-5 text-gray-800" />
                                       </div>
                                     )}
                                     <div className="flex-1 min-w-0">
@@ -1065,22 +1066,26 @@ export default function ProyectosPage() {
                 </Card>
 
                 {/* Columna derecha: Desarrollo Técnico */}
-                <DesarrolloTecnicoCard desarrolloTecnico={selectedProject.desarrolloTecnico} />
+                <div className="h-full">
+                  <DesarrolloTecnicoCard desarrolloTecnico={selectedProject.desarrolloTecnico} />
+                </div>
               </div>
             )}
 
             {selectedTab === 'Objetivos' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full">
                 {/* Columna izquierda: Objetivos */}
-                <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+                <div className="h-full">
+                  <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+                </div>
 
                 {/* Columna derecha: Video */}
-                <Card className="h-full shadow-md flex flex-col">
+                <Card className="h-full shadow-xl flex flex-col">
                   <CardContent className="p-0 flex-1 overflow-auto">
-                    <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
+                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg">
                       <div className="flex items-center space-x-2">
-                        <Video className="h-5 w-5 text-gray-600" />
-                        <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+                        <Video className="h-5 w-5 text-gray-800" />
+                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
                           Video del Proyecto
                         </h3>
                       </div>
@@ -1130,93 +1135,122 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Equipo' && (
-              <Card className="h-full shadow-md flex flex-col">
-                <CardContent className="p-6 flex-1 overflow-auto">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Equipo del Proyecto</h2>
-                  
-                  <div className="space-y-6">
-                    {/* Encargados */}
-                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
-                          <Users className="h-5 w-5 mr-2" />
-                          Encargados
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full min-h-0">
+                {/* Columna izquierda: Equipo del Proyecto (Encargados y Coordinadores) */}
+                <Card className="h-full shadow-xl flex flex-col min-h-0">
+                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-5 w-5 text-gray-800" />
+                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
+                          Equipo del Proyecto
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {selectedProject.participantes_rel
-                            .filter(p => p.rol === 'Encargado')
-                            .map((participante) => (
-                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                {participante.user.image ? (
-                                  <img
-                                    src={participante.user.image}
-                                    alt={participante.user.name || 'Usuario'}
-                                    className="h-12 w-12 rounded-full"
-                                  />
-                                ) : (
-                                  <div className="h-12 w-12 rounded-full bg-blue-200 flex items-center justify-center">
-                                    <Users className="h-6 w-6 text-blue-600" />
-            </div>
-                                )}
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {participante.user.name || 'Sin nombre'}
-                                  </p>
-                                  <p className="text-xs text-gray-500">{participante.user.email}</p>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
                       </div>
-                    )}
-
-                    {/* Coordinadores */}
-                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
-                          <Users className="h-5 w-5 mr-2" />
-                          Coordinadores
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {selectedProject.participantes_rel
-                            .filter(p => p.rol === 'Coordinador')
-                            .map((participante) => (
-                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                {participante.user.image ? (
-                                  <img
-                                    src={participante.user.image}
-                                    alt={participante.user.name || 'Usuario'}
-                                    className="h-12 w-12 rounded-full"
-                                  />
-                                ) : (
-                                  <div className="h-12 w-12 rounded-full bg-green-200 flex items-center justify-center">
-                                    <Users className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
+                      <div className="space-y-6">
+                        {/* Encargados */}
+                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              Encargados
+                            </h4>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Encargado')
+                                .map((participante) => (
+                                  <div key={participante.id} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    {participante.user.image ? (
+                                      <img
+                                        src={participante.user.image}
+                                        alt={participante.user.name || 'Usuario'}
+                                        className="h-10 w-10 rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
+                                        <Users className="h-5 w-5 text-blue-600" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {participante.user.name || 'Sin nombre'}
+                                      </p>
+                                      <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
+                                    </div>
                                   </div>
-                                )}
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {participante.user.name || 'Sin nombre'}
-                                  </p>
-                                  <p className="text-xs text-gray-500">{participante.user.email}</p>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+                                ))}
+                            </div>
+                          </div>
+                        )}
 
-                    {/* Participantes */}
-                    {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Participante').length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
-                          <Users className="h-5 w-5 mr-2" />
+                        {/* Coordinadores */}
+                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              Coordinadores
+                            </h4>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Coordinador')
+                                .map((participante) => (
+                                  <div key={participante.id} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                    {participante.user.image ? (
+                                      <img
+                                        src={participante.user.image}
+                                        alt={participante.user.name || 'Usuario'}
+                                        className="h-10 w-10 rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-full bg-green-200 flex items-center justify-center">
+                                        <Users className="h-5 w-5 text-green-600" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {participante.user.name || 'Sin nombre'}
+                                      </p>
+                                      <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Mensaje si no hay encargados ni coordinadores */}
+                        {(!selectedProject.participantes_rel || 
+                          (selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length === 0 && 
+                           selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length === 0)) && (
+                          <div className="text-center py-8 text-gray-500">
+                            <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                            <p>No hay encargados o coordinadores asignados</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Columna derecha: Participantes */}
+                <Card className="h-full shadow-xl flex flex-col min-h-0">
+                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-5 w-5 text-gray-800" />
+                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
                           Participantes
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      </div>
+                    </div>
+                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
+                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Participante').length > 0 ? (
+                        <div className="grid grid-cols-1 gap-3">
                           {selectedProject.participantes_rel
                             .filter(p => p.rol === 'Participante')
                             .map((participante) => (
-                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                                 {participante.user.image ? (
                                   <img
                                     src={participante.user.image}
@@ -1225,7 +1259,7 @@ export default function ProyectosPage() {
                                   />
                                 ) : (
                                   <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                    <Users className="h-5 w-5 text-gray-600" />
+                                    <Users className="h-5 w-5 text-gray-800" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
@@ -1237,28 +1271,25 @@ export default function ProyectosPage() {
                               </div>
                             ))}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Mensaje si no hay participantes */}
-                    {(!selectedProject.participantes_rel || selectedProject.participantes_rel.length === 0) && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                        <p>No hay miembros asignados a este proyecto</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>No hay participantes asignados</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {selectedTab === 'Gantt' && (
-              <Card className="h-full shadow-md flex flex-col">
-                <CardContent className="p-6 flex-1 overflow-auto">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Diagrama de Gantt</h2>
-                  <p className="text-gray-500">Contenido del diagrama de Gantt próximamente...</p>
-                </CardContent>
-              </Card>
+              <div className="h-full">
+                <GanttChart 
+                  projectId={selectedProject.id}
+                  projectName={selectedProject.proyecto}
+                />
+              </div>
             )}
 
             {selectedTab === 'Indicadores' && (

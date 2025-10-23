@@ -39,7 +39,6 @@ import {
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
 import { useState, useEffect, useRef } from 'react';
-import { useProyectos } from '@/hooks/useProyectos';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import {
   DndContext,
@@ -75,6 +74,13 @@ const MONTHS = [
   'Noviembre',
   'Diciembre',
 ];
+
+// Props del componente
+interface GanttChartProps {
+  projectId: string;
+  projectName?: string;
+  showProjectSelector?: boolean;
+}
 
 // Componente para actividad arrastrable
 interface SortableActivityProps {
@@ -150,7 +156,7 @@ function SortableActivity({
     <div
       ref={setNodeRef}
       style={style}
-      className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`} // Z-index diferenciado por estado
+      className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`}
       {...attributes}
       {...listeners}
     >
@@ -240,30 +246,19 @@ function SortableActivity({
                 className={`absolute left-0 right-0 top-0 bottom-0 pointer-events-none ${isDragging ? 'dragging-absolute' : ''}`}
               >
                 {(() => {
-                  const taskSpacing = 22; // Espaciado entre tareas
-                  const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+                  const taskSpacing = 22;
+                  const startOffset = 4;
 
-                  // Estimar si el texto tendrá dos líneas basado en la longitud
-                  // Ajustar el umbral considerando el nuevo ancho de columna y tamaño de fuente
                   const estimatedLines = activity.name.length > 50 ? 2 : 1;
 
                   let topPosition;
 
                   if (estimatedLines === 1) {
-                    // Para títulos de una línea, usar la posición original que ya funcionaba bien
-                    topPosition = startOffset + 18; // Ajustar 2px hacia arriba para coincidir exactamente con estado colapsado
+                    topPosition = startOffset + 18;
                   } else {
-                    // Para títulos de múltiples líneas, calcular el centrado especial
-                    // Usar valores empíricos basados en la observación visual
-                    const totalTextHeight = 17; // Altura aproximada de 2 líneas de 13px
-
-                    // Calcular el centro de la barra de actividad (32px de altura)
-                    const barCenter = startOffset + 19; // Centro de la barra de 32px
-
-                    // Calcular el centro del texto de dos líneas
-                    const textCenter = totalTextHeight / 2; // Centro del texto = 16px
-
-                    // Posicionar el texto para que su centro coincida con el centro de la barra
+                    const totalTextHeight = 17;
+                    const barCenter = startOffset + 19;
+                    const textCenter = totalTextHeight / 2;
                     topPosition = barCenter - textCenter;
                   }
 
@@ -274,7 +269,7 @@ function SortableActivity({
                         fontSize: '15px',
                         lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
                         top: `${topPosition}px`,
-                        left: '40px', // Posición más a la izquierda para coincidir con títulos colapsados
+                        left: '40px',
                         right: '20px',
                         zIndex: 10,
                         touchAction: 'manipulation',
@@ -313,16 +308,16 @@ function SortableActivity({
                         new Date(b.startDate).getTime()
                     )
                     .map((task, index) => {
-                      const taskSpacing = 25; // Espaciado entre tareas
-                      const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+                      const taskSpacing = 25;
+                      const startOffset = 4;
 
                       return (
                         <div
                           key={task.id}
                           className={`absolute flex items-center space-x-2 text-sm text-gray-600 pointer-events-auto ${isDragging ? 'dragging-absolute' : ''}`}
                           style={{
-                            top: `${startOffset + 40 + index * taskSpacing + 12}px`, // 40 para la barra de actividad + espaciado + offset
-                            left: '60px', // Posición fija desde la izquierda
+                            top: `${startOffset + 40 + index * taskSpacing + 12}px`,
+                            left: '60px',
                             right: '8px',
                             zIndex: 10,
                           }}
@@ -386,8 +381,8 @@ function SortableActivity({
                               <div
                                 className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
                                 style={{
-                                  left: 'calc(100% + 0px)', // Comienza justo después del punto gris
-                                  right: 'calc(-100vw + 416px - 8px)', // Termina en el borde derecho de la columna
+                                  left: 'calc(100% + 0px)',
+                                  right: 'calc(-100vw + 416px - 8px)',
                                   height: '0.1px',
                                   backgroundColor: '#e5e7eb',
                                   opacity: 1,
@@ -422,24 +417,23 @@ function SortableActivity({
               activityRange.endDate
             );
 
-            // Si la actividad no es visible (ancho 0), no renderizarla
             if (barWidth === 0) return null;
 
-            const taskSpacing = 22; // Espaciado reducido entre tareas
-            const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+            const taskSpacing = 22;
+            const startOffset = 4;
 
             const activityProgress = getActivityProgress(activity);
 
             return (
-                <div
-                  key={`activity-${activity.id}`}
-                  className="absolute"
-                  style={{
-                    width: 'calc(100% - 16px)',
-                    left: '0px',
-                    right: '8px',
-                  }}
-                >
+              <div
+                key={`activity-${activity.id}`}
+                className="absolute"
+                style={{
+                  width: 'calc(100% - 16px)',
+                  left: '0px',
+                  right: '8px',
+                }}
+              >
                 <div
                   className="relative h-8"
                   style={{
@@ -495,14 +489,12 @@ function SortableActivity({
                   new Date(b.startDate).getTime()
               )
               .map((task, index) => {
-                const taskSpacing = 25; // Espaciado reducido entre tareas
-                const startOffset = 4; // Padding superior fijo para mantener consistencia entre estados
+                const taskSpacing = 25;
+                const startOffset = 4;
 
-                // Verificar si la tarea está dentro del rango visible (enero a diciembre)
                 const startPos = getDatePosition(task.startDate);
                 const barWidth = getBarWidth(task.startDate, task.endDate);
 
-                // Si la tarea no es visible (ancho 0), no renderizarla
                 if (barWidth === 0) {
                   return null;
                 }
@@ -520,7 +512,7 @@ function SortableActivity({
                     <div
                       className="relative h-6"
                       style={{
-                        top: `${startOffset + 40 + index * taskSpacing + 1}px`, // 40 para la barra de actividad + espaciado reducido entre tareas
+                        top: `${startOffset + 40 + index * taskSpacing + 1}px`,
                       }}
                     >
                       {/* Línea de conexión desde el inicio hasta la barra */}
@@ -554,18 +546,11 @@ function SortableActivity({
   );
 }
 
-export default function GanttPage() {
-  const {
-    proyectos,
-    loading: proyectosLoading,
-    error: proyectosError,
-  } = useProyectos();
-
-  const [selectedProject, setSelectedProject] = useState<{
-    id: string;
-    proyecto: string;
-    sede: string;
-  } | null>(null);
+export default function GanttChart({ 
+  projectId, 
+  projectName,
+  showProjectSelector = false 
+}: GanttChartProps) {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
@@ -591,16 +576,16 @@ export default function GanttPage() {
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Estado para controlar el offset del timeline (meses desde enero 2025)
-  const [timelineOffset, setTimelineOffset] = useState(0); // 0 = enero 2025, -12 = enero 2024, 12 = enero 2026
+  const [timelineOffset, setTimelineOffset] = useState(0);
 
   // Estado para controlar el rango visible de meses (6-24 meses)
-  const [visibleMonthsRange, setVisibleMonthsRange] = useState(12); // 12 meses por defecto
+  const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
 
   // Configuración de sensores para drag and drop optimizada para trackpads
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px de distancia antes de activar el drag (mejor para trackpads)
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -612,13 +597,12 @@ export default function GanttPage() {
   const getVisibleMonths = () => {
     const months = [];
     const startYear = 2025 + Math.floor(timelineOffset / 12);
-    const startMonth = ((timelineOffset % 12) + 12) % 12; // Manejar valores negativos
+    const startMonth = ((timelineOffset % 12) + 12) % 12;
 
     for (let i = 0; i < visibleMonthsRange; i++) {
       const monthIndex = (startMonth + i) % 12;
       const year = startYear + Math.floor((startMonth + i) / 12);
 
-      // Determinar si necesitamos truncar el nombre del mes
       const shouldTruncate = visibleMonthsRange > 12;
       const monthName = shouldTruncate
         ? MONTHS[monthIndex].substring(0, 3)
@@ -666,7 +650,7 @@ export default function GanttPage() {
   // Estado para tareas temporales en el popup de crear actividad
   const [tempTasks, setTempTasks] = useState<Task[]>([]);
 
-  // Usar el hook de Gantt con Supabase
+  // Usar el hook de Gantt con el projectId recibido como prop
   const {
     activities,
     loading: ganttLoading,
@@ -679,7 +663,7 @@ export default function GanttPage() {
     toggleTaskCompletion,
     calculateProjectProgress,
     reorderActivities,
-  } = useGantt(selectedProject?.id || null);
+  } = useGantt(projectId);
 
   // Estado derivado para determinar si todas las actividades están expandidas
   const allExpanded =
@@ -696,7 +680,7 @@ export default function GanttPage() {
 
   // Calcular estadísticas de actividades y tareas completadas
   const getProjectStats = () => {
-    if (!selectedProject || !activities.length) {
+    if (!projectId || !activities.length) {
       return {
         completedActivities: 0,
         totalActivities: 0,
@@ -766,7 +750,7 @@ export default function GanttPage() {
   // Cerrar todos los popups cuando cambie el proyecto seleccionado
   useEffect(() => {
     closeAllPopups();
-  }, [selectedProject]);
+  }, [projectId]);
 
   // Limpiar timer cuando el componente se desmonte
   useEffect(() => {
@@ -795,7 +779,7 @@ export default function GanttPage() {
 
   // Crear nueva actividad (función legacy - ahora se usa handleUnifiedActivityAction)
   const handleCreateActivity = async () => {
-    if (!selectedProject || !unifiedActivityForm.name) {
+    if (!projectId || !unifiedActivityForm.name) {
       alert('Por favor completa el nombre de la actividad');
       return;
     }
@@ -843,7 +827,6 @@ export default function GanttPage() {
     const dashParts = dateString.split('-');
     if (dashParts.length === 3) {
       const [day, month, year] = dashParts;
-      // Verificar si es formato DD-MM-YYYY (día y mes de 2 dígitos, año de 4)
       if (day.length <= 2 && month.length <= 2 && year.length === 4) {
         const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         console.log('Fecha convertida desde DD-MM-YYYY a ISO:', isoDate);
@@ -861,7 +844,7 @@ export default function GanttPage() {
     }
 
     console.error('No se pudo convertir la fecha:', dateString);
-    return dateString; // Devolver tal como está si no se puede convertir
+    return dateString;
   };
 
   // Crear nueva tarea
@@ -896,7 +879,7 @@ export default function GanttPage() {
     // Si estamos en modo crear actividad o editando, agregar a la lista temporal
     if (activityPopupMode === 'create' || activityPopupMode === 'edit') {
       const newTask: Task = {
-        id: `temp-${Date.now()}`, // ID temporal
+        id: `temp-${Date.now()}`,
         name: taskForm.name,
         description: taskForm.description,
         startDate: convertedStartDate,
@@ -981,21 +964,18 @@ export default function GanttPage() {
 
   // Manejar clic en agregar actividad
   const handleAddActivityClick = (event: React.MouseEvent) => {
-    // Cerrar solo los popups de formularios antes de abrir el nuevo
     closeFormPopups();
     openActivityPopup('create');
   };
 
   // Manejar clic en agregar tarea
   const handleAddTaskClick = (event: React.MouseEvent) => {
-    // Cerrar solo los popups de formularios antes de abrir el nuevo (pero mantener selectedActivity)
     setShowAddActivity(false);
     setShowAddTask(false);
     setShowEditActivity(false);
     setShowActivityPopup(false);
     setEditingActivity(null);
 
-    // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
     setTaskForm({ name: '', description: '', startDate: '', endDate: '' });
     setEditActivityForm({ name: '', description: '' });
@@ -1003,8 +983,8 @@ export default function GanttPage() {
 
     const rect = event.currentTarget.getBoundingClientRect();
     setPopupPosition({
-      x: rect.right + 10, // Posicionar a la derecha del botón
-      y: rect.top - 50, // Centrar verticalmente
+      x: rect.right + 10,
+      y: rect.top - 50,
     });
     setShowAddTask(true);
   };
@@ -1014,7 +994,6 @@ export default function GanttPage() {
     event: React.MouseEvent,
     activity: Activity
   ) => {
-    // Cerrar solo los popups de formularios antes de abrir el nuevo
     closeFormPopups();
     openActivityPopup('edit', activity);
   };
@@ -1171,35 +1150,22 @@ export default function GanttPage() {
     const month = dateObj.getMonth();
     const day = dateObj.getDate();
 
-    // Calcular el offset de la fecha desde enero 2025
     const dateOffset = (year - 2025) * 12 + month;
     const visibleStartOffset = timelineOffset;
     const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
 
-    // Si la fecha está completamente fuera del rango visible, ajustarla al borde del rango
     if (dateOffset < visibleStartOffset) {
-      return { month: 0, day: 1, left: 0 }; // Ajustar al inicio del rango
+      return { month: 0, day: 1, left: 0 };
     } else if (dateOffset > visibleEndOffset) {
-      return { month: visibleMonthsRange - 1, day: 31, left: 100 }; // Ajustar al final del rango
+      return { month: visibleMonthsRange - 1, day: 31, left: 100 };
     }
 
-    // Calcular la posición relativa dentro del rango visible
     const relativeMonth = dateOffset - visibleStartOffset;
-
-    // Calcular la posición basada en el mes relativo y el día del mes
-    const monthWidth = 100 / visibleMonthsRange; // Cada mes ocupa 1/total_meses del ancho total
-
-    // Obtener el número real de días en el mes para un cálculo más preciso
+    const monthWidth = 100 / visibleMonthsRange;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dayWidth = monthWidth / daysInMonth; // Cada día ocupa 1/días_del_mes del ancho del mes
-
-    // Calcular la posición del día dentro del mes (día 1 = 0%, último día = 100% del mes)
+    const dayWidth = monthWidth / daysInMonth;
     const dayPosition = (day - 1) * dayWidth;
-
-    // Calcular la posición total usando el mes relativo
     const leftPosition = relativeMonth * monthWidth + dayPosition;
-
-    // Limitar la posición al rango visible (0% a 100%)
     const clampedLeft = Math.max(0, Math.min(100, leftPosition));
 
     return {
@@ -1244,8 +1210,6 @@ export default function GanttPage() {
         name: activity.name,
         description: activity.description || '',
       });
-      // En modo editar, inicializar con tareas vacías para agregar nuevas
-      // En modo view, mostrar las tareas existentes
       setTempTasks(mode === 'edit' ? [] : activity.tasks || []);
     }
 
@@ -1263,7 +1227,6 @@ export default function GanttPage() {
     event: React.MouseEvent | React.TouchEvent | React.PointerEvent,
     isDragging: boolean
   ) => {
-    // Si estamos arrastrando, no procesar el click
     if (isDragging) {
       return;
     }
@@ -1302,7 +1265,6 @@ export default function GanttPage() {
       return null;
     }
 
-    // Ordenar las tareas por fecha de inicio
     const sortedTasks = [...activity.tasks].sort(
       (a, b) =>
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
@@ -1336,34 +1298,26 @@ export default function GanttPage() {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Calcular los offsets de las fechas desde enero 2025
     const startOffset = (start.getFullYear() - 2025) * 12 + start.getMonth();
     const endOffset = (end.getFullYear() - 2025) * 12 + end.getMonth();
     const visibleStartOffset = timelineOffset;
     const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
 
-    // Si la tarea está completamente fuera del rango visible, no mostrarla
     if (endOffset < visibleStartOffset || startOffset > visibleEndOffset) {
-      return 0; // No mostrar la tarea
+      return 0;
     }
 
-    // Obtener las posiciones de inicio y fin
     const startPos = getDatePosition(startDate);
     const endPos = getDatePosition(endDate);
 
-    // Calcular el ancho basado en la diferencia de posiciones
     let width = endPos.left - startPos.left;
 
-    // Si la tarea se extiende más allá del rango visible, ajustar el ancho
     if (startPos.left >= 100) {
-      // La tarea comienza después del rango visible, no mostrar
       return 0;
     } else if (endPos.left > 100) {
-      // La tarea se extiende más allá del rango visible, limitar al final del rango
       width = 100 - startPos.left;
     }
 
-    // Asegurar que el ancho mínimo sea al menos 1% para tareas de un día
     return Math.max(1, width);
   };
 
@@ -1371,19 +1325,16 @@ export default function GanttPage() {
   const getTodayPosition = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth(); // 0-11
+    const currentMonth = today.getMonth();
     const currentDay = today.getDate();
 
-    // Si estamos en 2024, mostrar en enero de 2025
-    // Si estamos en 2025, mostrar en el mes correspondiente
     let targetMonth = currentMonth;
     if (currentYear === 2024) {
-      targetMonth = 0; // Enero 2025
+      targetMonth = 0;
     }
 
-    // Calcular la posición basada en el mes (0-11) y el día del mes
-    const monthWidth = 100 / 12; // Cada mes ocupa 1/12 del ancho total
-    const dayWidth = monthWidth / 31; // Cada día ocupa 1/31 del ancho del mes
+    const monthWidth = 100 / 12;
+    const dayWidth = monthWidth / 31;
 
     const leftPosition = targetMonth * monthWidth + currentDay * dayWidth;
 
@@ -1402,38 +1353,27 @@ export default function GanttPage() {
     };
   };
 
-  // Obtener posición en porcentaje para la línea roja - Enfoque directo por columna
+  // Obtener posición en porcentaje para la línea roja
   const getTodayPositionPercent = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth(); // 0-11 (enero=0, septiembre=8)
+    const currentMonth = today.getMonth();
     const currentDay = today.getDate();
 
-    // Calcular el offset de hoy desde enero 2025
     const todayOffset = (currentYear - 2025) * 12 + currentMonth;
     const visibleStartOffset = timelineOffset;
     const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
 
-    // Solo mostrar la línea "Hoy" si está en el rango visible
     if (todayOffset < visibleStartOffset || todayOffset > visibleEndOffset) {
-      return -1; // No mostrar la línea si no está en el rango visible
+      return -1;
     }
 
-    // Calcular la posición relativa dentro del rango visible
     const relativeMonth = todayOffset - visibleStartOffset;
-
-    // PASO 1: Calcular la posición de la columna del mes
-    const monthWidth = 100 / visibleMonthsRange; // Ancho por mes basado en el rango total
-    const monthStartPosition = relativeMonth * monthWidth; // Posición de inicio del mes
-
-    // PASO 2: Obtener cuántos días tiene el mes actual
+    const monthWidth = 100 / visibleMonthsRange;
+    const monthStartPosition = relativeMonth * monthWidth;
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    // PASO 3: Calcular la posición del día dentro del mes
-    const dayWidth = monthWidth / daysInMonth; // Ancho por día basado en días reales del mes
-    const dayPosition = (currentDay - 1) * dayWidth; // Día 1 = 0%, Día 27 = 86.67%
-
-    // PASO 4: Posición final
+    const dayWidth = monthWidth / daysInMonth;
+    const dayPosition = (currentDay - 1) * dayWidth;
     const leftPercent = monthStartPosition + dayPosition;
 
     console.log('Cálculo directo por columna:', {
@@ -1446,43 +1386,18 @@ export default function GanttPage() {
       anchoDía: `${dayWidth.toFixed(2)}%`,
       posiciónDía: `${dayPosition.toFixed(2)}%`,
       posiciónFinal: `${leftPercent.toFixed(2)}%`,
-      columna: [
-        'Enero',
-        'Febrero',
-        'Marzo',
-        'Abril',
-        'Mayo',
-        'Junio',
-        'Julio',
-        'Agosto',
-        'Septiembre',
-        'Octubre',
-        'Noviembre',
-        'Diciembre',
-      ][relativeMonth],
+      columna: MONTHS[relativeMonth],
     });
 
     return leftPercent;
   };
 
-  // Solo mostrar pantalla de carga completa para la carga inicial de proyectos
-  if (proyectosLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando proyectos...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (proyectosError || ganttError) {
+  if (ganttError) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <p className="text-red-500 mb-4">
-            Error: {proyectosError || ganttError}
+            Error: {ganttError}
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -1500,75 +1415,30 @@ export default function GanttPage() {
       <div className="pt-4 px-4 pb-4 space-y-4">
         {/* Header */}
         <div className="space-y-4">
-          {/* Selector de proyecto y Progreso del proyecto alineados */}
-          <div className="flex items-start justify-between w-full">
-            {/* Selector de proyecto */}
-            <div className="rounded-xl border bg-muted/40 backdrop-blur-sm shadow-sm px-4 py-3">
-              <Label
-                htmlFor="project-select"
-                className="text-base font-medium text-gray-700"
-              >
-                Seleccionar Proyecto
-              </Label>
-              <div className="relative mt-2">
-                <FolderKanban className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-                <Select
-                  value={selectedProject?.id || ''}
-                  onValueChange={(value) => {
-                    const project = proyectos.find((p) => p.id === value);
-                    setSelectedProject(project || null);
-                  }}
-                  disabled={ganttLoading}
-                >
-                  <SelectTrigger className="h-11 md:h-12 pl-10 pr-10 w-[22rem] md:w-[26rem] rounded-xl border-2 border-border bg-background/80 hover:bg-accent/20 text-base shadow-sm transition focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500">
-                    <SelectValue placeholder="Selecciona un proyecto" />
-                  </SelectTrigger>
-                  <SelectContent className="text-base">
-                    {proyectos.map((project) => (
-                      <SelectItem
-                        key={project.id}
-                        value={project.id}
-                        className="py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium truncate">{project.proyecto}</span>
-                          <Badge variant="secondary" className="shrink-0">{project.sede}</Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {ganttLoading && selectedProject && (
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald-500 border-t-transparent"></div>
-                  </div>
-                )}
+          {/* Progreso del proyecto */}
+          <div className="flex items-center justify-end pr-8">
+            <div className="flex items-center space-x-8">
+              <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg shadow-sm">
+                <TrendingUp className="h-8 w-8 text-emerald-600" />
               </div>
-            </div>
-
-            {/* Elementos de Progreso del proyecto - Alineados con el final de la tabla */}
-            <div className="flex items-center justify-end pr-8">
-              <div className="flex items-center space-x-8">
-                <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg shadow-sm">
-                  <TrendingUp className="h-8 w-8 text-emerald-600" />
+              <div className="flex items-center space-x-6">
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">
+                    Progreso
+                  </p>
+                  <p className="text-base text-gray-600">
+                    {projectName ? `de ${projectName}` : 'del proyecto'}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-6">
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900">
-                      Progreso
-                    </p>
-                    <p className="text-base text-gray-600">del proyecto</p>
+                <div className="flex items-center space-x-4">
+                  <div className="w-[416px] min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                      style={{ width: `${calculateProjectProgress()}%` }}
+                    ></div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-[416px] min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
-                      <div
-                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
-                        style={{ width: `${calculateProjectProgress()}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-5xl font-bold text-emerald-600 drop-shadow-sm">
-                      {calculateProjectProgress()}%
-                    </div>
+                  <div className="text-5xl font-bold text-emerald-600 drop-shadow-sm">
+                    {calculateProjectProgress()}%
                   </div>
                 </div>
               </div>
@@ -1598,7 +1468,7 @@ export default function GanttPage() {
             <CardContent className="p-0">
               <div className="gantt-container overflow-x-auto relative overflow-y-visible">
                 <div className="w-full min-w-[800px]">
-                  {/* Línea roja continua del día de hoy - atraviesa toda la tabla - Solo visible si estamos en el rango actual */}
+                  {/* Línea roja continua del día de hoy */}
                   {getTodayPositionPercent() >= 0 && (
                     <div
                       className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
@@ -1615,31 +1485,31 @@ export default function GanttPage() {
                       className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative"
                       data-column="activities"
                     >
-                       <Button
-                         type="button"
-                         onClick={toggleAllDescriptions}
-                         disabled={activities.length === 0 || ganttLoading}
-                         variant="ghost"
-                         size="sm"
-                         aria-pressed={allExpanded}
-                         aria-label={
-                           allExpanded
-                             ? 'Contraer todas las actividades'
-                             : 'Expandir todas las actividades'
-                         }
-                         className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                       >
-                         {allExpanded ? (
-                           <ChevronDown className="h-4 w-4" />
-                         ) : (
-                           <ChevronRight className="h-4 w-4" />
-                         )}
-                       </Button>
+                      <Button
+                        type="button"
+                        onClick={toggleAllDescriptions}
+                        disabled={activities.length === 0 || ganttLoading}
+                        variant="ghost"
+                        size="sm"
+                        aria-pressed={allExpanded}
+                        aria-label={
+                          allExpanded
+                            ? 'Contraer todas las actividades'
+                            : 'Expandir todas las actividades'
+                        }
+                        className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                      >
+                        {allExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
                       <div className="flex justify-center items-center space-x-2">
                         <h3 className="font-semibold text-gray-900">
                           Actividades
                         </h3>
-                        {ganttLoading && selectedProject && (
+                        {ganttLoading && (
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
                         )}
                       </div>
@@ -1659,7 +1529,7 @@ export default function GanttPage() {
                         </div>
                       ))}
 
-                      {/* Indicador de "Hoy" - Solo visible si estamos en el rango actual */}
+                      {/* Indicador de "Hoy" */}
                       {getTodayPositionPercent() >= 0 && (
                         <div
                           className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
@@ -1675,27 +1545,7 @@ export default function GanttPage() {
                   </div>
 
                   {/* Filas de actividades y tareas */}
-                  {!selectedProject ? (
-                    /* Mensaje cuando no hay proyecto seleccionado */
-                    <div className="flex">
-                      <div
-                        className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
-                        data-column="activities"
-                      >
-                        <div className="text-center">
-                          <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm text-gray-500">
-                            Selecciona un proyecto
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-4 bg-gray-50 flex items-center justify-center">
-                        <p className="text-sm text-gray-400">
-                          El calendario Gantt aparecerá aquí
-                        </p>
-                      </div>
-                    </div>
-                  ) : activities.length === 0 ? (
+                  {activities.length === 0 ? (
                     <div className="flex">
                       <div
                         className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center"
@@ -1760,7 +1610,6 @@ export default function GanttPage() {
                           data-column="activities"
                         >
                           <div className="flex justify-center">
-                            {/* Botón agregar actividad */}
                             <div className="relative group">
                               <Button
                                 onClick={handleAddActivityClick}
@@ -1795,7 +1644,7 @@ export default function GanttPage() {
                 </span>
               </div>
 
-              {/* Slider de navegación temporal - Alineado con el timeline */}
+              {/* Slider de navegación temporal */}
               <div className="flex items-center space-x-4 flex-1 min-w-[630px] max-w-[787px]">
                 <Slider
                   value={[timelineOffset]}
@@ -1815,7 +1664,7 @@ export default function GanttPage() {
                 </Button>
               </div>
 
-              {/* Botones de rango de meses - Extremo derecho */}
+              {/* Botones de rango de meses */}
               <div className="flex items-center space-x-4 ml-auto">
                 <span className="text-sm font-medium text-gray-700">
                   Rango:
@@ -2173,7 +2022,6 @@ export default function GanttPage() {
                       {activityPopupMode !== 'view' && (
                         <Button
                           onClick={() => {
-                            // Crear una actividad temporal para poder usar el popup de crear tarea
                             const tempActivity: Activity =
                               selectedActivityForPopup || {
                                 id: 'temp-activity',
@@ -2184,7 +2032,7 @@ export default function GanttPage() {
                                   unifiedActivityForm.description || '',
                                 progress: 0,
                                 tasks: tempTasks,
-                                projectId: selectedProject?.id || '',
+                                projectId: projectId || '',
                                 color: '#3B82F6',
                                 orderIndex: 0,
                                 created_at: new Date().toISOString(),
@@ -2209,12 +2057,10 @@ export default function GanttPage() {
                         if (activityPopupMode === 'view') {
                           tasksToShow = selectedActivityForPopup?.tasks || [];
                         } else if (activityPopupMode === 'edit') {
-                          // En modo editar, mostrar tareas existentes + tareas temporales
                           const existingTasks =
                             selectedActivityForPopup?.tasks || [];
                           tasksToShow = [...existingTasks, ...tempTasks];
                         } else {
-                          // En modo crear, solo tareas temporales
                           tasksToShow = tempTasks;
                         }
 
@@ -2240,7 +2086,6 @@ export default function GanttPage() {
                                       checked={task.completed}
                                       onChange={async () => {
                                         if (task.id.startsWith('temp-')) {
-                                          // Actualizar tarea temporal
                                           setTempTasks((prev) =>
                                             prev.map((t) =>
                                               t.id === task.id
@@ -2252,11 +2097,9 @@ export default function GanttPage() {
                                             )
                                           );
                                         } else {
-                                          // Actualizar tarea existente en la base de datos
                                           await handleToggleTaskCompletion(
                                             task.id
                                           );
-                                          // Actualizar la actividad para reflejar el cambio
                                           if (selectedActivityForPopup) {
                                             const updatedActivity = {
                                               ...selectedActivityForPopup,
@@ -2308,7 +2151,6 @@ export default function GanttPage() {
                                           } else if (
                                             activityPopupMode === 'edit'
                                           ) {
-                                            // En modo editar, eliminar tareas temporales o existentes
                                             if (task.id.startsWith('temp-')) {
                                               setTempTasks((prev) =>
                                                 prev.filter(
@@ -2316,14 +2158,11 @@ export default function GanttPage() {
                                                 )
                                               );
                                             } else {
-                                              // Confirmar eliminación antes de proceder
                                               const confirmed = window.confirm(
                                                 '¿Estás seguro de que deseas eliminar esta tarea?'
                                               );
                                               if (confirmed) {
-                                                // Eliminar tarea existente de la base de datos
                                                 handleDeleteTask(task.id);
-                                                // Actualizar la actividad para reflejar el cambio
                                                 if (selectedActivityForPopup) {
                                                   const updatedActivity = {
                                                     ...selectedActivityForPopup,
@@ -2370,7 +2209,6 @@ export default function GanttPage() {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          // Cambiar al modo de edición
                           setActivityPopupMode('edit');
                           setUnifiedActivityForm({
                             name: selectedActivityForPopup?.name || '',
@@ -2391,14 +2229,12 @@ export default function GanttPage() {
                       variant="outline"
                       onClick={() => {
                         if (activityPopupMode === 'view') {
-                          // Si está en modo vista, cerrar el popup completamente
                           setShowActivityPopup(false);
                           setSelectedActivityForPopup(null);
                           setUnifiedActivityForm({ name: '', description: '' });
                           setTempTasks([]);
                           setActivityPopupMode('view');
                         } else {
-                          // Si está en modo edición, volver al modo vista
                           setActivityPopupMode('view');
                           setUnifiedActivityForm({ name: '', description: '' });
                           setTempTasks([]);
@@ -2430,3 +2266,4 @@ export default function GanttPage() {
     </TooltipProvider>
   );
 }
+

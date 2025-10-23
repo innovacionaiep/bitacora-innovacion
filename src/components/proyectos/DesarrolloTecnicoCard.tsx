@@ -106,12 +106,12 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
 
   if (!desarrolloTecnico) {
     return (
-      <Card className="h-full shadow-md flex flex-col min-h-0">
+      <Card className="h-full shadow-xl flex flex-col min-h-0">
         <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-          <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
+          <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
             <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-gray-600" />
-              <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+              <FileText className="h-5 w-5 text-gray-800" />
+              <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
                 Desarrollo Técnico
               </h3>
             </div>
@@ -203,13 +203,13 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
   ];
 
   return (
-    <Card className="h-full shadow-md flex flex-col min-h-0">
+    <Card className="h-full shadow-xl flex flex-col min-h-0">
       <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-        <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex-shrink-0">
+        <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-gray-600" />
-              <h3 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+              <FileText className="h-5 w-5 text-gray-800" />
+              <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
                 Desarrollo Técnico
               </h3>
             </div>
