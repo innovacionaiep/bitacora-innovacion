@@ -1412,35 +1412,27 @@ export default function GanttChart({
 
   return (
     <TooltipProvider>
-      <div className="pt-4 px-4 pb-4 space-y-4">
-        {/* Header */}
-        <div className="space-y-4">
-          {/* Progreso del proyecto */}
-          <div className="flex items-center justify-end pr-8">
-            <div className="flex items-center space-x-8">
-              <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg shadow-sm">
-                <TrendingUp className="h-8 w-8 text-emerald-600" />
-              </div>
-              <div className="flex items-center space-x-6">
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    Progreso
-                  </p>
-                  <p className="text-base text-gray-600">
-                    {projectName ? `de ${projectName}` : 'del proyecto'}
-                  </p>
+      <div className="pt-2 px-4 pb-4">
+        {/* Header compacto de progreso */}
+        <div className="mb-3">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+              <TrendingUp className="h-6 w-6 text-emerald-600" />
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-base font-semibold text-gray-900">
+                Progreso
+              </span>
+              <div className="flex items-center space-x-3">
+                <div className="w-60 bg-gray-200 rounded-full h-3 shadow-inner">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                    style={{ width: `${calculateProjectProgress()}%` }}
+                  ></div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <div className="w-[416px] min-w-[200px] max-w-[400px] bg-gray-200 rounded-full h-3 shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
-                      style={{ width: `${calculateProjectProgress()}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-5xl font-bold text-emerald-600 drop-shadow-sm">
-                    {calculateProjectProgress()}%
-                  </div>
-                </div>
+                <span className="text-xl font-bold text-emerald-600">
+                  {calculateProjectProgress()}%
+                </span>
               </div>
             </div>
           </div>
@@ -1463,22 +1455,11 @@ export default function GanttChart({
         )}
 
         {/* Calendario Gantt - Siempre visible */}
-        <div className="space-y-6 mt-12">
+        <div className="mt-0">
           <Card>
             <CardContent className="p-0">
-              <div className="gantt-container overflow-x-auto relative overflow-y-visible">
+              <div className="gantt-container overflow-x-auto relative">
                 <div className="w-full min-w-[800px]">
-                  {/* Línea roja continua del día de hoy */}
-                  {getTodayPositionPercent() >= 0 && (
-                    <div
-                      className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
-                      style={{
-                        left: `calc(416px + ${getTodayPositionPercent()}% * (100% - 416px) / 100%)`,
-                        height: '100%',
-                      }}
-                    ></div>
-                  )}
-
                   {/* Header del calendario */}
                   <div className="flex border-b border-white">
                     <div
@@ -1544,91 +1525,105 @@ export default function GanttChart({
                     </div>
                   </div>
 
-                  {/* Filas de actividades y tareas */}
-                  {activities.length === 0 ? (
-                    <div className="flex">
+                  {/* Contenedor con scroll vertical para filas de actividades */}
+                  <div className="overflow-y-auto relative" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+                    {/* Línea roja continua del día de hoy */}
+                    {getTodayPositionPercent() >= 0 && (
                       <div
-                        className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center"
-                        data-column="activities"
-                      >
-                        <div className="relative group">
-                          <Button
-                            onClick={handleAddActivityClick}
-                            variant="outline"
-                            className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                            aria-label="Agregar actividad"
-                          >
-                            <Plus className="h-6 w-6" />
-                          </Button>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                            Agregar actividad
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-4 bg-gray-50"></div>
-                    </div>
-                  ) : (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      measuring={{
-                        droppable: { strategy: MeasuringStrategy.Always },
-                      }}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext
-                        items={activities.map((activity) => activity.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {activities.map((activity) => (
-                          <SortableActivity
-                            key={activity.id}
-                            activity={activity}
-                            expandedDescriptions={expandedDescriptions}
-                            toggleDescription={toggleDescription}
-                            handleActivityBarClick={handleActivityBarClick}
-                            handleActivityInteraction={
-                              handleActivityInteraction
-                            }
-                            handleDeleteActivity={handleDeleteActivity}
-                            handleToggleTaskCompletion={
-                              handleToggleTaskCompletion
-                            }
-                            getActivityDateRange={getActivityDateRange}
-                            getActivityProgress={getActivityProgress}
-                            getDatePosition={getDatePosition}
-                            getBarWidth={getBarWidth}
-                            formatDateForTooltip={formatDateForTooltip}
-                          />
-                        ))}
-                      </SortableContext>
+                        className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
+                        style={{
+                          left: `calc(416px + ${getTodayPositionPercent()}% * (100% - 416px) / 100%)`,
+                          height: '100%',
+                        }}
+                      ></div>
+                    )}
 
-                      {/* Botón para agregar actividad */}
+                    {/* Filas de actividades y tareas */}
+                    {activities.length === 0 ? (
                       <div className="flex">
                         <div
-                          className="w-[416px] p-4 border-r border-gray-200 bg-gray-50"
+                          className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center"
                           data-column="activities"
                         >
-                          <div className="flex justify-center">
-                            <div className="relative group">
-                              <Button
-                                onClick={handleAddActivityClick}
-                                variant="outline"
-                                className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                                aria-label="Agregar actividad"
-                              >
-                                <Plus className="h-6 w-6" />
-                              </Button>
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                                Agregar actividad
-                              </div>
+                          <div className="relative group">
+                            <Button
+                              onClick={handleAddActivityClick}
+                              variant="outline"
+                              className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                              aria-label="Agregar actividad"
+                            >
+                              <Plus className="h-6 w-6" />
+                            </Button>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                              Agregar actividad
                             </div>
                           </div>
                         </div>
                         <div className="flex-1 p-4 bg-gray-50"></div>
                       </div>
-                    </DndContext>
-                  )}
+                    ) : (
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        measuring={{
+                          droppable: { strategy: MeasuringStrategy.Always },
+                        }}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={activities.map((activity) => activity.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {activities.map((activity) => (
+                            <SortableActivity
+                              key={activity.id}
+                              activity={activity}
+                              expandedDescriptions={expandedDescriptions}
+                              toggleDescription={toggleDescription}
+                              handleActivityBarClick={handleActivityBarClick}
+                              handleActivityInteraction={
+                                handleActivityInteraction
+                              }
+                              handleDeleteActivity={handleDeleteActivity}
+                              handleToggleTaskCompletion={
+                                handleToggleTaskCompletion
+                              }
+                              getActivityDateRange={getActivityDateRange}
+                              getActivityProgress={getActivityProgress}
+                              getDatePosition={getDatePosition}
+                              getBarWidth={getBarWidth}
+                              formatDateForTooltip={formatDateForTooltip}
+                            />
+                          ))}
+                        </SortableContext>
+
+                        {/* Botón para agregar actividad */}
+                        <div className="flex">
+                          <div
+                            className="w-[416px] p-4 border-r border-gray-200 bg-gray-50"
+                            data-column="activities"
+                          >
+                            <div className="flex justify-center">
+                              <div className="relative group">
+                                <Button
+                                  onClick={handleAddActivityClick}
+                                  variant="outline"
+                                  className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                  aria-label="Agregar actividad"
+                                >
+                                  <Plus className="h-6 w-6" />
+                                </Button>
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
+                                  Agregar actividad
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-1 p-4 bg-gray-50"></div>
+                        </div>
+                      </DndContext>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
