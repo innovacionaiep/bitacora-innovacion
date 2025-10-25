@@ -121,7 +121,8 @@ function SortableActivity({
   getDatePosition,
   getBarWidth,
   formatDateForTooltip,
-}: SortableActivityProps) {
+  scrollbarWidth,
+}: SortableActivityProps & { scrollbarWidth: number }) {
   const {
     attributes,
     listeners,
@@ -401,9 +402,14 @@ function SortableActivity({
 
         {/* Área de Gantt con barras de tareas apiladas verticalmente */}
         <div
-          className="flex-1 relative p-2"
+          className="flex-1 relative"
           style={{
             height: `${rowHeight}px`,
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            paddingLeft: '0px',
+            paddingRight: `${scrollbarWidth}px`,
+            boxSizing: 'border-box',
           }}
         >
           {/* Barra de actividad - como primera "tarea" */}
@@ -429,9 +435,9 @@ function SortableActivity({
                 key={`activity-${activity.id}`}
                 className="absolute"
                 style={{
-                  width: 'calc(100% - 16px)',
+                  width: '100%',
                   left: '0px',
-                  right: '8px',
+                  right: '0px',
                 }}
               >
                 <div
@@ -504,9 +510,9 @@ function SortableActivity({
                     key={task.id}
                     className="absolute"
                     style={{
-                      width: 'calc(100% - 16px)',
+                      width: '100%',
                       left: '0px',
-                      right: '8px',
+                      right: '0px',
                     }}
                   >
                     <div
@@ -580,6 +586,11 @@ export default function GanttChart({
 
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
+
+  // Refs y estado para manejar el ancho del scrollbar
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const monthsHeaderRef = useRef<HTMLDivElement>(null);
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
   // Configuración de sensores para drag and drop optimizada para trackpads
   const sensors = useSensors(
@@ -760,6 +771,38 @@ export default function GanttChart({
       }
     };
   }, [tooltipTimer]);
+
+  // Calcular el ancho del scrollbar dinámicamente
+  useEffect(() => {
+    const calculateScrollbarWidth = () => {
+      if (scrollContainerRef.current) {
+        // Calcular el ancho del scrollbar (diferencia entre offsetWidth y clientWidth)
+        const scrollbarWidth = scrollContainerRef.current.offsetWidth - scrollContainerRef.current.clientWidth;
+        
+        console.log('Scrollbar width calculation:', {
+          offsetWidth: scrollContainerRef.current.offsetWidth,
+          clientWidth: scrollContainerRef.current.clientWidth,
+          scrollbarWidth: scrollbarWidth
+        });
+        
+        setScrollbarWidth(scrollbarWidth);
+      }
+    };
+
+    // Calcular inmediatamente
+    calculateScrollbarWidth();
+
+    // Usar setTimeout para recalcular después del render (cuando el DOM esté completamente actualizado)
+    const timeoutId = setTimeout(calculateScrollbarWidth, 100);
+
+    // Recalcular cuando cambie el tamaño de la ventana
+    window.addEventListener('resize', calculateScrollbarWidth);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', calculateScrollbarWidth);
+    };
+  }, [activities, expandedDescriptions]);
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -1416,17 +1459,17 @@ export default function GanttChart({
         {/* Header compacto de progreso */}
         <div className="mb-3">
           <div className="flex items-center space-x-4">
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-              <TrendingUp className="h-6 w-6 text-emerald-600" />
+            <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
             </div>
             <div className="flex items-center space-x-3">
               <span className="text-base font-semibold text-gray-900">
                 Progreso
               </span>
               <div className="flex items-center space-x-3">
-                <div className="w-60 bg-gray-200 rounded-full h-3 shadow-inner">
+                <div className="w-48 bg-gray-200 rounded-full h-2.5 shadow-inner">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300 shadow-sm"
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
                     style={{ width: `${calculateProjectProgress()}%` }}
                   ></div>
                 </div>
@@ -1458,86 +1501,97 @@ export default function GanttChart({
         <div className="mt-0">
           <Card>
             <CardContent className="p-0">
-              <div className="gantt-container overflow-x-auto relative">
-                <div className="w-full min-w-[800px]">
-                  {/* Header del calendario */}
-                  <div className="flex border-b border-white">
-                    <div
-                      className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative"
-                      data-column="activities"
-                    >
-                      <Button
-                        type="button"
-                        onClick={toggleAllDescriptions}
-                        disabled={activities.length === 0 || ganttLoading}
-                        variant="ghost"
-                        size="sm"
-                        aria-pressed={allExpanded}
-                        aria-label={
-                          allExpanded
-                            ? 'Contraer todas las actividades'
-                            : 'Expandir todas las actividades'
-                        }
-                        className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+              <div className="gantt-container relative">
+                {/* Contenedor con scroll horizontal que incluye todo */}
+                <div className="overflow-x-auto">
+                  <div className="w-full min-w-[800px] relative">
+                    {/* Header del calendario */}
+                    <div className="flex border-b border-white">
+                      <div
+                        className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
+                        data-column="activities"
                       >
-                        {allExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
+                        <Button
+                          type="button"
+                          onClick={toggleAllDescriptions}
+                          disabled={activities.length === 0 || ganttLoading}
+                          variant="ghost"
+                          size="sm"
+                          aria-pressed={allExpanded}
+                          aria-label={
+                            allExpanded
+                              ? 'Contraer todas las actividades'
+                              : 'Expandir todas las actividades'
+                          }
+                          className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                        >
+                          {allExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <div className="flex justify-center items-center space-x-2">
+                          <h3 className="font-semibold text-gray-900">
+                            Actividades
+                          </h3>
+                          {ganttLoading && (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                          )}
+                        </div>
+                      </div>
+                      <div 
+                        ref={monthsHeaderRef}
+                        className="flex-1 flex relative" 
+                        style={{ paddingRight: `${scrollbarWidth}px` }}
+                      >
+                        {getVisibleMonths().map((month, index) => (
+                          <div
+                            key={`${month.year}-${month.monthIndex}`}
+                            className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
+                          >
+                            <div className="text-sm font-medium text-gray-700">
+                              {month.name}
+                            </div>
+                            <div className="text-xs text-gray-500 font-normal">
+                              {month.year}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Indicador de "Hoy" */}
+                        {getTodayPositionPercent() >= 0 && (
+                          <div
+                            className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
+                            style={{
+                              left: `${getTodayPositionPercent()}%`,
+                              transform: 'translateX(-50%)',
+                            }}
+                          >
+                            Hoy
+                          </div>
                         )}
-                      </Button>
-                      <div className="flex justify-center items-center space-x-2">
-                        <h3 className="font-semibold text-gray-900">
-                          Actividades
-                        </h3>
-                        {ganttLoading && (
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+
+                        {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
+                        {getTodayPositionPercent() >= 0 && (
+                          <div
+                            className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
+                            style={{
+                              left: `${getTodayPositionPercent()}%`,
+                              top: '100%',
+                              height: 'calc(100vh - 400px)',
+                            }}
+                          ></div>
                         )}
                       </div>
                     </div>
-                    <div className="flex-1 flex relative">
-                      {getVisibleMonths().map((month, index) => (
-                        <div
-                          key={`${month.year}-${month.monthIndex}`}
-                          className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
-                        >
-                          <div className="text-sm font-medium text-gray-700">
-                            {month.name}
-                          </div>
-                          <div className="text-xs text-gray-500 font-normal">
-                            {month.year}
-                          </div>
-                        </div>
-                      ))}
 
-                      {/* Indicador de "Hoy" */}
-                      {getTodayPositionPercent() >= 0 && (
-                        <div
-                          className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
-                          style={{
-                            left: `${getTodayPositionPercent()}%`,
-                            transform: 'translateX(-50%)',
-                          }}
-                        >
-                          Hoy
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Contenedor con scroll vertical para filas de actividades */}
-                  <div className="overflow-y-auto relative" style={{ maxHeight: 'calc(100vh - 400px)' }}>
-                    {/* Línea roja continua del día de hoy */}
-                    {getTodayPositionPercent() >= 0 && (
-                      <div
-                        className="absolute top-0 w-0.5 bg-red-500 z-50 pointer-events-none"
-                        style={{
-                          left: `calc(416px + ${getTodayPositionPercent()}% * (100% - 416px) / 100%)`,
-                          height: '100%',
-                        }}
-                      ></div>
-                    )}
-
+                    {/* Contenedor con scroll vertical para filas de actividades */}
+                    <div 
+                      ref={scrollContainerRef}
+                      className="overflow-y-auto relative" 
+                      style={{ maxHeight: 'calc(100vh - 400px)' }}
+                    >
                     {/* Filas de actividades y tareas */}
                     {activities.length === 0 ? (
                       <div className="flex">
@@ -1593,6 +1647,7 @@ export default function GanttChart({
                               getDatePosition={getDatePosition}
                               getBarWidth={getBarWidth}
                               formatDateForTooltip={formatDateForTooltip}
+                              scrollbarWidth={scrollbarWidth}
                             />
                           ))}
                         </SortableContext>
@@ -1623,6 +1678,7 @@ export default function GanttChart({
                         </div>
                       </DndContext>
                     )}
+                    </div>
                   </div>
                 </div>
               </div>
