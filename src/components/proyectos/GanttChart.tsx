@@ -1458,7 +1458,7 @@ export default function GanttChart({
       <div className="pt-2 px-4 pb-4">
         {/* Header compacto de progreso */}
         <div className="mb-3">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-end space-x-4">
             <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
             </div>
@@ -1542,7 +1542,7 @@ export default function GanttChart({
                       </div>
                       <div 
                         ref={monthsHeaderRef}
-                        className="flex-1 flex relative" 
+                        className="flex-1 flex relative bg-gray-50" 
                         style={{ paddingRight: `${scrollbarWidth}px` }}
                       >
                         {getVisibleMonths().map((month, index) => (
@@ -1562,14 +1562,15 @@ export default function GanttChart({
                         {/* Indicador de "Hoy" */}
                         {getTodayPositionPercent() >= 0 && (
                           <div
-                            className="absolute top-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-50 font-medium shadow-lg pointer-events-none"
+                            className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
                             style={{
                               left: `${getTodayPositionPercent()}%`,
-                              transform: 'translateX(-50%)',
+                              transform: 'translateX(-45%) translateY(50%)',
+                              width: '14px',
+                              height: '14px',
+                              bottom: '0px',
                             }}
-                          >
-                            Hoy
-                          </div>
+                          ></div>
                         )}
 
                         {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
