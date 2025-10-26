@@ -52,28 +52,44 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'TODO',
     title: 'Por hacer',
-    color: 'text-gray-700',
-    bgColor: 'bg-gray-50',
+    color: 'text-gray-800',
+    bgColor: 'bg-gray-100',
   },
   {
     id: 'WAITING',
     title: 'En espera',
-    color: 'text-yellow-700',
-    bgColor: 'bg-yellow-50',
+    color: 'text-amber-800',
+    bgColor: 'bg-amber-100',
   },
   {
     id: 'IN_PROGRESS',
     title: 'En proceso',
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50',
+    color: 'text-blue-800',
+    bgColor: 'bg-blue-100',
   },
   {
     id: 'DONE',
     title: 'Hecho',
-    color: 'text-emerald-700',
-    bgColor: 'bg-emerald-50',
+    color: 'text-emerald-800',
+    bgColor: 'bg-emerald-100',
   },
 ];
+
+// Función para obtener el color de fondo del contenido de la columna
+const getColumnContentBgColor = (columnId: KanbanStatus): string => {
+  switch (columnId) {
+    case 'TODO':
+      return 'bg-gray-50';
+    case 'WAITING':
+      return 'bg-amber-50';
+    case 'IN_PROGRESS':
+      return 'bg-blue-50';
+    case 'DONE':
+      return 'bg-emerald-50';
+    default:
+      return 'bg-gray-50';
+  }
+};
 
 // Componente de tarjeta de actividad arrastrable
 interface ActivityCardProps {
@@ -554,7 +570,7 @@ function KanbanColumn({
       className={`flex-1 min-w-[250px] ${
         isOver 
           ? 'bg-blue-50 border-2 border-blue-400 shadow-lg' 
-          : 'border-2 border-transparent hover:border-gray-200'
+          : 'border-2 border-transparent'
       } rounded-lg transition-all duration-200`}
     >
       {/* Header de la columna */}
@@ -576,7 +592,7 @@ function KanbanColumn({
 
       {/* Lista de tarjetas - Toda esta área es droppable */}
       <div className={`p-4 space-y-3 min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto transition-all duration-200 ${
-        isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : ''
+        isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : getColumnContentBgColor(column.id)
       }`}>
         {activities.length === 0 ? (
           <div className={`flex flex-col items-center justify-center py-8 transition-colors duration-200 ${

@@ -95,7 +95,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'General' | 'Objetivos' | 'Equipo' | 'Gantt' | 'Indicadores' | 'Presupuesto'>('General');
+  const [selectedTab, setSelectedTab] = useState<'General' | 'Objetivos' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto'>('General');
   
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
@@ -796,15 +796,15 @@ export default function ProyectosPage() {
                     Equipo
                   </Button>
                   <Button
-                    onClick={() => setSelectedTab('Gantt')}
+                    onClick={() => setSelectedTab('Actividades')}
                     size="sm"
                     className={`text-sm font-medium ${
-                      selectedTab === 'Gantt'
+                      selectedTab === 'Actividades'
                         ? 'bg-black text-white hover:bg-black'
                         : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
                     }`}
                   >
-                    Gantt
+                    Actividades
                   </Button>
                   <Button
                     onClick={() => setSelectedTab('Indicadores')}
@@ -1283,7 +1283,7 @@ export default function ProyectosPage() {
               </div>
             )}
 
-            {selectedTab === 'Gantt' && (
+            {selectedTab === 'Actividades' && (
               <div className="h-full">
                 <GanttChart 
                   projectId={selectedProject.id}

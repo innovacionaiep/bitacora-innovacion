@@ -275,7 +275,6 @@ export async function toggleTaskCompletion(id: string) {
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(task.activityId);
 
-    revalidatePath('/gantt');
     return { success: true, data: updatedTask };
   } catch (error) {
     console.error('Error toggling task completion:', error);

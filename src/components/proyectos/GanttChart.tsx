@@ -1584,7 +1584,7 @@ export default function GanttChart({
                 size="sm"
                 className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
                   viewMode === 'gantt'
-                    ? 'bg-gray-900 text-white hover:bg-gray-800' // Estado seleccionado: como los tabs de arriba
+                    ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
                 }`}
                 title="Vista Gantt"
@@ -1599,7 +1599,7 @@ export default function GanttChart({
                 size="sm"
                 className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
                   viewMode === 'kanban'
-                    ? 'bg-gray-900 text-white hover:bg-gray-800' // Estado seleccionado: como los tabs de arriba
+                    ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
                 }`}
                 title="Vista Kanban"
