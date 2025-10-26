@@ -79,6 +79,14 @@ const extractYouTubeVideoId = (url: string): string | null => {
   }
 };
 
+// Helper para truncar títulos de proyectos
+const truncateTitle = (title: string, maxLength: number = 58): string => {
+  if (title.length <= maxLength) {
+    return title;
+  }
+  return title.substring(0, maxLength) + '...';
+};
+
 export default function ProyectosPage() {
   const {
     proyectos: proyectosIniciales,
@@ -772,8 +780,8 @@ export default function ProyectosPage() {
                     </Tooltip>
                   </TooltipProvider>
                   <h1 className="text-4xl font-bold text-gray-900">
-                      {selectedProject.proyecto}
-                    </h1>
+                    {truncateTitle(selectedProject.proyecto)}
+                  </h1>
                 </div>
                 
                 {/* Botones de navegación */}
