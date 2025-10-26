@@ -755,6 +755,22 @@ export default function ProyectosPage() {
             <div className="flex-shrink-0 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
+                  {/* Botón de cambiar proyecto */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsSheetOpen(true)}
+                          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                        >
+                          <ArrowLeftRight size={20} strokeWidth={2.5} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Cambiar proyecto</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <h1 className="text-4xl font-bold text-gray-900">
                       {selectedProject.proyecto}
                     </h1>
@@ -1288,6 +1304,7 @@ export default function ProyectosPage() {
                 <GanttChart 
                   projectId={selectedProject.id}
                   projectName={selectedProject.proyecto}
+                  onProjectChange={() => setIsSheetOpen(true)}
                 />
               </div>
             )}
@@ -1330,25 +1347,6 @@ export default function ProyectosPage() {
           </div>
         )}
       </div>
-
-      {/* Botón flotante de cambiar proyecto */}
-      {selectedProject && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={() => setIsSheetOpen(true)}
-                className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-xl bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-110 z-50"
-              >
-                <ArrowLeftRight size={32} strokeWidth={2.5} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Cambiar proyecto</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
     </>
   );
 }

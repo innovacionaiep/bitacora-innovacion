@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CheckCircle,
   Circle,
+  Plus,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Activity } from '@/hooks/useGantt';
@@ -45,6 +46,8 @@ interface KanbanBoardProps {
   onToggleTaskCompletion: (taskId: string) => Promise<void>;
   onReorderActivities?: (activityId: string, targetActivityId: string, status: KanbanStatus) => Promise<void>;
   onOptimisticReorder?: (activityId: string, targetActivityId: string, status: KanbanStatus) => void;
+  onAddActivity: () => void;
+  isFullscreen?: boolean;
 }
 
 // Definición de columnas
@@ -307,6 +310,8 @@ export default function KanbanBoard({
   onToggleTaskCompletion,
   onReorderActivities,
   onOptimisticReorder,
+  onAddActivity,
+  isFullscreen = false,
 }: KanbanBoardProps) {
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(
     new Set()
@@ -508,7 +513,7 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-[calc(100vh-300px)] overflow-x-auto pb-4 w-full">
+      <div className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-150px)]' : 'h-[calc(100vh-300px)]'}`}>
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -517,6 +522,7 @@ export default function KanbanBoard({
             expandedActivities={expandedActivities}
             onToggleExpand={toggleExpand}
             onToggleTaskCompletion={onToggleTaskCompletion}
+            onAddActivity={onAddActivity}
           />
         ))}
       </div>
@@ -544,6 +550,7 @@ interface KanbanColumnProps {
   expandedActivities: Set<string>;
   onToggleExpand: (activityId: string) => void;
   onToggleTaskCompletion: (taskId: string) => Promise<void>;
+  onAddActivity: () => void;
 }
 
 function KanbanColumn({
@@ -552,6 +559,7 @@ function KanbanColumn({
   expandedActivities,
   onToggleExpand,
   onToggleTaskCompletion,
+  onAddActivity,
 }: KanbanColumnProps) {
   const {
     setNodeRef,
@@ -578,12 +586,27 @@ function KanbanColumn({
         isOver ? 'bg-blue-100 border-blue-300' : ''
       }`}>
         <div className="flex items-center justify-between">
-          <h3 className={`font-semibold text-sm transition-colors duration-200 ${
-            isOver ? 'text-blue-700' : column.color
-          }`}>
-            {column.title}
-            {isOver && <span className="ml-2 text-xs">← Suelta aquí</span>}
-          </h3>
+          <div className="flex items-center space-x-2">
+            <div className="relative group">
+              <Button
+                onClick={onAddActivity}
+                variant="outline"
+                className="rounded-full w-6 h-6 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                aria-label="Agregar actividad"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+                Agregar actividad
+              </div>
+            </div>
+            <h3 className={`font-semibold text-sm transition-colors duration-200 ${
+              isOver ? 'text-blue-700' : column.color
+            }`}>
+              {column.title}
+              {isOver && <span className="ml-2 text-xs">← Suelta aquí</span>}
+            </h3>
+          </div>
           <Badge variant="secondary" className="text-xs">
             {activities.length}
           </Badge>

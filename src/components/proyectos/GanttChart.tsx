@@ -29,6 +29,9 @@ import {
   ChevronUp,
   ChevronRight,
   TrendingUp,
+  Maximize,
+  Minimize,
+  ArrowLeftRight,
 } from 'lucide-react';
 import KanbanBoard from '@/components/proyectos/KanbanBoard';
 import {
@@ -83,6 +86,7 @@ interface GanttChartProps {
   projectId: string;
   projectName?: string;
   showProjectSelector?: boolean;
+  onProjectChange?: () => void;
 }
 
 // Componente para actividad arrastrable
@@ -558,14 +562,21 @@ function SortableActivity({
 export default function GanttChart({ 
   projectId, 
   projectName,
-  showProjectSelector = false 
+  showProjectSelector = false,
+  onProjectChange
 }: GanttChartProps) {
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
     null
   );
+
+  // Función para alternar pantalla completa
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [showEditActivity, setShowEditActivity] = useState(false);
@@ -1571,42 +1582,94 @@ export default function GanttChart({
 
   return (
     <TooltipProvider>
-      <div className="pt-2 px-4 pb-8">
+      <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white overflow-auto' : ''} ${isFullscreen ? 'p-4' : 'pt-2 px-4 pb-8'}`}>
         {/* Header compacto de progreso */}
         <div className="mb-3">
           <div className="flex items-center justify-between">
             {/* Botones de toggle Gantt/Kanban */}
             <div className="flex items-center space-x-2">
-              <Button
-                type="button"
-                onClick={() => setViewMode('gantt')}
-                variant="ghost"
-                size="sm"
-                className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
-                  viewMode === 'gantt'
-                    ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
-                }`}
-                title="Vista Gantt"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span className="text-sm font-medium">Gantt</span>
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setViewMode('kanban')}
-                variant="ghost"
-                size="sm"
-                className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
-                  viewMode === 'kanban'
-                    ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
-                }`}
-                title="Vista Kanban"
-              >
-                <FolderKanban className="h-4 w-4" />
-                <span className="text-sm font-medium">Kanban</span>
-              </Button>
+              {/* Botón de pantalla completa */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="h-4 w-4" />
+                    ) : (
+                      <Maximize className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isFullscreen ? "Salir de pantalla completa" : "Ver en pantalla completa"}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Nombre del proyecto y botón de cambiar proyecto - solo en fullscreen */}
+              {isFullscreen && projectName && (
+                <div className="flex items-center space-x-3 ml-4 flex-1">
+                  {/* Botón de cambiar proyecto */}
+                  {onProjectChange && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          onClick={onProjectChange}
+                          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                        >
+                          <ArrowLeftRight size={20} strokeWidth={2.5} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Cambiar proyecto</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {/* Nombre del proyecto */}
+                  <h1 className="text-2xl font-bold text-gray-900 truncate flex-1 min-w-0">
+                    {projectName}
+                  </h1>
+                </div>
+              )}
+              
+              {/* Contenedor de botones Gantt/Kanban con espaciado solo en fullscreen */}
+              <div className={`flex items-center space-x-2 ${isFullscreen ? 'ml-8' : ''}`}>
+                <Button
+                  type="button"
+                  onClick={() => setViewMode('gantt')}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                    viewMode === 'gantt'
+                      ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
+                  }`}
+                  title="Vista Gantt"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="text-sm font-medium">Gantt</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setViewMode('kanban')}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                    viewMode === 'kanban'
+                      ? 'bg-gray-900 text-white hover:bg-gray-800 hover:text-white' // Estado seleccionado: como los tabs de arriba
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
+                  }`}
+                  title="Vista Kanban"
+                >
+                  <FolderKanban className="h-4 w-4" />
+                  <span className="text-sm font-medium">Kanban</span>
+                </Button>
+              </div>
             </div>
 
             {/* Progreso del proyecto */}
@@ -1652,12 +1715,12 @@ export default function GanttChart({
 
         {/* Calendario Gantt - Siempre visible */}
         <div className="mt-0">
-          <Card>
-            <CardContent className="p-0">
-              <div className="gantt-container relative">
+          <Card className={isFullscreen ? (viewMode === 'gantt' ? 'h-[calc(100vh-160px)]' : 'h-[calc(100vh-120px)]') : ''}>
+            <CardContent className="p-0 h-full">
+              <div className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}>
                 {/* Contenedor con scroll horizontal que incluye todo */}
-                <div className="overflow-x-auto">
-                  <div className="w-full min-w-[800px] relative">
+                <div className={`overflow-x-auto ${isFullscreen ? 'h-full' : ''}`}>
+                  <div className={`w-full min-w-[800px] relative ${isFullscreen ? 'h-full' : ''}`}>
                     {/* Header del calendario - solo en vista Gantt */}
                     {viewMode === 'gantt' && (
                       <div className="flex border-b border-white">
@@ -1804,6 +1867,8 @@ export default function GanttChart({
                           onToggleTaskCompletion={handleToggleTaskCompletion}
                           onReorderActivities={handleReorderActivities}
                           onOptimisticReorder={handleOptimisticReorder}
+                          onAddActivity={handleAddActivityClick}
+                          isFullscreen={isFullscreen}
                         />
                       </div>
                     ) : (
@@ -1813,7 +1878,7 @@ export default function GanttChart({
                         <div 
                           ref={scrollContainerRef}
                           className="overflow-y-auto relative" 
-                          style={{ maxHeight: 'calc(100vh - 375px)' }}
+                          style={{ maxHeight: isFullscreen ? 'calc(100vh - 220px)' : 'calc(100vh - 375px)' }}
                         >
                         {/* Filas de actividades y tareas */}
                         {activities.length === 0 ? (
