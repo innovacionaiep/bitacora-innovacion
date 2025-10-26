@@ -1571,7 +1571,7 @@ export default function GanttChart({
 
   return (
     <TooltipProvider>
-      <div className="pt-2 px-4 pb-4">
+      <div className="pt-2 px-4 pb-8">
         {/* Header compacto de progreso */}
         <div className="mb-3">
           <div className="flex items-center justify-between">
@@ -1619,13 +1619,13 @@ export default function GanttChart({
                   Progreso
                 </span>
                 <div className="flex items-center space-x-3">
-                  <div className="w-48 bg-gray-200 rounded-full h-2.5 shadow-inner">
+                  <div className="w-72 bg-gray-200 rounded-full h-2.5 shadow-inner">
                     <div
                       className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
                       style={{ width: `${calculateProjectProgress()}%` }}
                     ></div>
                   </div>
-                  <span className="text-xl font-bold text-emerald-600">
+                  <span className="text-4xl font-bold text-emerald-600">
                     {calculateProjectProgress()}%
                   </span>
                 </div>
@@ -1786,7 +1786,7 @@ export default function GanttChart({
                             style={{
                               left: `${getTodayPositionPercent()}%`,
                               top: '100%',
-                              height: 'calc(100vh - 400px)',
+                              height: 'calc(100vh - 375px)',
                             }}
                           ></div>
                         )}
@@ -1813,7 +1813,7 @@ export default function GanttChart({
                         <div 
                           ref={scrollContainerRef}
                           className="overflow-y-auto relative" 
-                          style={{ maxHeight: 'calc(100vh - 400px)' }}
+                          style={{ maxHeight: 'calc(100vh - 375px)' }}
                         >
                         {/* Filas de actividades y tareas */}
                         {activities.length === 0 ? (
@@ -1894,15 +1894,15 @@ export default function GanttChart({
           {viewMode === 'gantt' && (
           <div className="mt-4">
             <div className="flex items-center w-full">
-              {/* Espaciador para alinear con la columna de actividades */}
-              <div className="w-[416px] min-w-[200px] flex items-center justify-end pr-2">
+              {/* Espaciador reducido para mover controles hacia la izquierda */}
+              <div className="w-[300px] min-w-[150px] flex items-center justify-end pr-2">
                 <span className="text-sm font-medium text-gray-700">
                   Navegación:
                 </span>
               </div>
 
               {/* Slider de navegación temporal */}
-              <div className="flex items-center space-x-4 flex-1 min-w-[630px] max-w-[787px]">
+              <div className="flex items-center space-x-4 flex-1 min-w-[500px] max-w-[600px]">
                 <Slider
                   value={[timelineOffset]}
                   onValueChange={(value) => setTimelineOffset(value[0])}
@@ -1922,7 +1922,7 @@ export default function GanttChart({
               </div>
 
               {/* Botones de rango de meses */}
-              <div className="flex items-center space-x-4 ml-auto">
+              <div className="flex items-center space-x-4 ml-50">
                 <span className="text-sm font-medium text-gray-700">
                   Rango:
                 </span>
