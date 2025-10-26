@@ -513,7 +513,7 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-150px)]' : 'h-[calc(100vh-300px)]'}`}>
+      <div className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-135px)]' : 'h-[calc(100vh-300px)]'}`}>
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}

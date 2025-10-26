@@ -1715,7 +1715,7 @@ export default function GanttChart({
 
         {/* Calendario Gantt - Siempre visible */}
         <div className="mt-0">
-          <Card className={isFullscreen ? (viewMode === 'gantt' ? 'h-[calc(100vh-160px)]' : 'h-[calc(100vh-120px)]') : ''}>
+          <Card className={isFullscreen ? (viewMode === 'gantt' ? 'h-[calc(100vh-160px)]' : 'h-[calc(100vh-100px)]') : ''}>
             <CardContent className="p-0 h-full">
               <div className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}>
                 {/* Contenedor con scroll horizontal que incluye todo */}
@@ -1878,7 +1878,7 @@ export default function GanttChart({
                         <div 
                           ref={scrollContainerRef}
                           className="overflow-y-auto relative" 
-                          style={{ maxHeight: isFullscreen ? 'calc(100vh - 220px)' : 'calc(100vh - 375px)' }}
+                          style={{ maxHeight: isFullscreen ? 'calc(100vh - 230px)' : 'calc(100vh - 375px)' }}
                         >
                         {/* Filas de actividades y tareas */}
                         {activities.length === 0 ? (
