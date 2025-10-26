@@ -508,7 +508,7 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full overflow-x-auto pb-4 w-full">
+      <div className="flex gap-4 h-[calc(100vh-300px)] overflow-x-auto pb-4 w-full">
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -567,14 +567,14 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[250px] ${
+      className={`flex-1 min-w-[250px] h-full flex flex-col ${
         isOver 
           ? 'bg-blue-50 border-2 border-blue-400 shadow-lg' 
           : 'border-2 border-transparent'
       } rounded-lg transition-all duration-200`}
     >
       {/* Header de la columna */}
-      <div className={`${column.bgColor} rounded-t-lg p-4 border-b-2 border-gray-200 transition-all duration-200 ${
+      <div className={`${column.bgColor} rounded-t-lg p-4 border-b-2 border-gray-200 transition-all duration-200 flex-shrink-0 ${
         isOver ? 'bg-blue-100 border-blue-300' : ''
       }`}>
         <div className="flex items-center justify-between">
@@ -591,7 +591,7 @@ function KanbanColumn({
       </div>
 
       {/* Lista de tarjetas - Toda esta área es droppable */}
-      <div className={`p-4 space-y-3 min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto transition-all duration-200 ${
+      <div className={`p-4 space-y-3 flex-1 overflow-y-auto transition-all duration-200 ${
         isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : getColumnContentBgColor(column.id)
       }`}>
         {activities.length === 0 ? (

@@ -1665,35 +1665,85 @@ export default function GanttChart({
                         className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
                         data-column="activities"
                       >
-                        {viewMode === 'gantt' && (
-                          <Button
-                            type="button"
-                            onClick={toggleAllDescriptions}
-                            disabled={activities.length === 0 || ganttLoading}
-                            variant="ghost"
-                            size="sm"
-                            aria-pressed={allExpanded}
-                            aria-label={
-                              allExpanded
-                                ? 'Contraer todas las actividades'
-                                : 'Expandir todas las actividades'
-                            }
-                            className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                          >
-                            {allExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
+                        <div className="flex items-center relative">
+                          <div className="flex items-center space-x-2">
+                            {viewMode === 'gantt' && (
+                              <div className="relative group">
+                                <Button
+                                  type="button"
+                                  onClick={toggleAllDescriptions}
+                                  disabled={activities.length === 0 || ganttLoading}
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-pressed={allExpanded}
+                                  aria-label={
+                                    allExpanded
+                                      ? 'Contraer todas las actividades'
+                                      : 'Expandir todas las actividades'
+                                  }
+                                  className="h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const tooltip = document.getElementById('chevron-tooltip');
+                                    if (tooltip) {
+                                      tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                                      tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                                      tooltip.style.transform = 'translateX(-50%)';
+                                      tooltip.style.opacity = '1';
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    const tooltip = document.getElementById('chevron-tooltip');
+                                    if (tooltip) {
+                                      tooltip.style.opacity = '0';
+                                    }
+                                  }}
+                                >
+                                  {allExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
                             )}
-                          </Button>
-                        )}
-                        <div className="flex justify-center items-center space-x-2">
-                          <h3 className="font-semibold text-gray-900">
-                            {viewMode === 'gantt' ? 'Actividades' : 'Tablero Kanban'}
-                          </h3>
-                          {ganttLoading && (
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-                          )}
+                            {viewMode === 'gantt' && (
+                              <div className="relative group">
+                                <Button
+                                  onClick={handleAddActivityClick}
+                                  variant="outline"
+                                  className="rounded-full w-7 h-7 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                  aria-label="Agregar actividad"
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const tooltip = document.getElementById('add-activity-tooltip');
+                                    if (tooltip) {
+                                      tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                                      tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                                      tooltip.style.transform = 'translateX(-50%)';
+                                      tooltip.style.opacity = '1';
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    const tooltip = document.getElementById('add-activity-tooltip');
+                                    if (tooltip) {
+                                      tooltip.style.opacity = '0';
+                                    }
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-2">
+                            <h3 className="font-semibold text-gray-900">
+                              {viewMode === 'gantt' ? 'Actividades' : 'Tablero Kanban'}
+                            </h3>
+                            {ganttLoading && (
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div 
@@ -1769,21 +1819,13 @@ export default function GanttChart({
                         {activities.length === 0 ? (
                       <div className="flex">
                         <div
-                          className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center"
+                          className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
                           data-column="activities"
                         >
-                          <div className="relative group">
-                            <Button
-                              onClick={handleAddActivityClick}
-                              variant="outline"
-                              className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                              aria-label="Agregar actividad"
-                            >
-                              <Plus className="h-6 w-6" />
-                            </Button>
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                              Agregar actividad
-                            </div>
+                          <div className="text-center text-gray-500">
+                            <Circle className="h-8 w-8 mx-auto mb-2" />
+                            <p className="text-sm">No hay actividades</p>
+                            <p className="text-xs mt-1">Usa el botón + en el header para agregar una</p>
                           </div>
                         </div>
                         <div className="flex-1 p-4 bg-gray-50"></div>
@@ -1825,29 +1867,17 @@ export default function GanttChart({
                           ))}
                         </SortableContext>
 
-                        {/* Botón para agregar actividad */}
+                        {/* Footer para marcar el fin de las actividades */}
                         <div className="flex">
                           <div
-                            className="w-[416px] p-4 border-r border-gray-200 bg-gray-50"
+                            className="w-[416px] border-r border-gray-200 bg-gray-50"
                             data-column="activities"
                           >
-                            <div className="flex justify-center">
-                              <div className="relative group">
-                                <Button
-                                  onClick={handleAddActivityClick}
-                                  variant="outline"
-                                  className="rounded-full w-10 h-10 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                                  aria-label="Agregar actividad"
-                                >
-                                  <Plus className="h-6 w-6" />
-                                </Button>
-                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]">
-                                  Agregar actividad
-                                </div>
-                              </div>
-                            </div>
+                            <div className="h-6"></div>
                           </div>
-                          <div className="flex-1 p-4 bg-gray-50"></div>
+                          <div className="flex-1 bg-gray-50">
+                            <div className="h-6"></div>
+                          </div>
                         </div>
                       </DndContext>
                     )}
@@ -2491,6 +2521,23 @@ export default function GanttChart({
             </Card>
           </div>
         )}
+
+        {/* Tooltips independientes posicionados en el viewport */}
+        <div
+          id="chevron-tooltip"
+          className="fixed px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 pointer-events-none whitespace-nowrap z-[99999] opacity-0 transition-opacity duration-200"
+          style={{ transform: 'translateX(-50%)' }}
+        >
+          {allExpanded ? 'Contraer todas las actividades' : 'Expandir todas las actividades'}
+        </div>
+        
+        <div
+          id="add-activity-tooltip"
+          className="fixed px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 pointer-events-none whitespace-nowrap z-[99999] opacity-0 transition-opacity duration-200"
+          style={{ transform: 'translateX(-50%)' }}
+        >
+          Agregar actividad
+        </div>
       </div>
     </TooltipProvider>
   );
