@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { Activity, Task } from '@prisma/client';
+import { Activity, Task, ActivityStatus } from '@prisma/client';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
 export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
@@ -135,11 +135,33 @@ export async function reorderActivities(updates: { id: string; orderIndex: numbe
       )
     );
 
-    revalidatePath('/gantt');
+    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error reordering activities:', error);
     return { success: false, error: 'Error al reordenar actividades' };
+  }
+}
+
+/**
+ * Reordenar actividades en Kanban (usa kanbanOrderIndex)
+ */
+export async function reorderActivitiesKanban(updates: { id: string; kanbanOrderIndex: number }[]) {
+  try {
+    await prisma.$transaction(
+      updates.map((update) =>
+        prisma.activity.update({
+          where: { id: update.id },
+          data: { kanbanOrderIndex: update.kanbanOrderIndex },
+        })
+      )
+    );
+
+    // NO llamar revalidatePath aquí para evitar re-fetch automático
+    return { success: true };
+  } catch (error) {
+    console.error('Error reordering activities in Kanban:', error);
+    return { success: false, error: 'Error al reordenar actividades en Kanban' };
   }
 }
 
@@ -336,6 +358,30 @@ export async function calculateProjectProgress(projectId: string) {
   } catch (error) {
     console.error('Error calculating project progress:', error);
     return { success: false, error: 'Error al calcular progreso' };
+  }
+}
+
+/**
+ * Actualizar el status de una actividad
+ */
+export async function updateActivityStatus(
+  activityId: string,
+  status: ActivityStatus
+) {
+  try {
+    const activity = await prisma.activity.update({
+      where: { id: activityId },
+      data: { status },
+      include: {
+        tasks: true,
+      },
+    });
+
+    revalidatePath('/proyectos');
+    return { success: true, data: activity };
+  } catch (error) {
+    console.error('Error updating activity status:', error);
+    return { success: false, error: 'Error al actualizar el status de la actividad' };
   }
 }
 

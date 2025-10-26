@@ -1,0 +1,94 @@
+---
+alwaysApply: true
+description: Configuración general del proyecto y tecnologías principales
+---
+
+# Gestor de Proyectos - Configuración del Proyecto
+
+## Gestor de Paquetes
+
+- **SIEMPRE usa pnpm** como gestor de paquetes
+- Nunca usar npm o yarn
+- Para instalar dependencias: `pnpm install`
+- Para agregar paquetes: `pnpm add <package>`
+- Para ejecutar scripts: `pnpm run <script>`
+
+## Stack Tecnológico Principal
+
+- **Framework**: Next.js 15.5.3 (App Router)
+- **UI Framework**: React 19
+- **Base de datos**: PostgreSQL con Prisma ORM
+- **Autenticación**: NextAuth.js v5
+- **Estilos**: TailwindCSS 3.4
+- **Componentes UI**: shadcn/ui
+- **Drag & Drop**: @dnd-kit
+- **Deploy**: Supabase (PostgreSQL)
+
+## Estructura del Proyecto
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   ├── auth/              # Páginas de autenticación
+│   ├── dashboard/         # Dashboard principal
+│   ├── proyectos/         # Gestión de proyectos
+│   └── ...
+├── components/            # Componentes React
+│   ├── ui/               # Componentes base de shadcn/ui
+│   └── proyectos/        # Componentes específicos de proyectos
+├── lib/                  # Utilidades y configuración
+│   ├── actions/          # Server Actions de Next.js
+│   ├── auth-actions.ts   # Acciones de autenticación
+│   └── prisma.ts         # Cliente de Prisma
+├── hooks/                # Custom React hooks
+└── types/                # Definiciones de tipos TypeScript
+
+prisma/
+├── schema.prisma         # Schema de base de datos
+├── migrations/           # Migraciones de Prisma
+└── seed*.ts             # Scripts de seed
+```
+
+## Convenciones de Código
+
+### Componentes React
+
+- Usar **'use client'** cuando el componente necesita interactividad
+- Componentes de servidor por defecto (sin directiva)
+- Nombres de archivos en PascalCase para componentes
+- Exportación por defecto para componentes de página
+
+### Server Actions
+
+- Ubicar en `src/lib/actions/`
+- Siempre incluir **'use server'** al inicio
+- Usar `revalidatePath()` después de mutaciones
+- Retornar objetos con formato `{ success: boolean, data?: T, error?: string }`
+
+### Base de Datos
+
+- Usar Prisma para todas las operaciones de BD
+- Ejecutar migraciones con: `npx prisma migrate dev --name <nombre>`
+- Generar cliente después de cambios: `npx prisma generate`
+- Seed data disponible en múltiples archivos según necesidad
+
+### Estilos
+
+- Usar clases de Tailwind directamente
+- Componentes UI de shadcn/ui en `src/components/ui/`
+- Colores principales: emerald (éxito), blue (primario), gray (neutral)
+
+## Scripts Importantes
+
+- `pnpm dev` - Iniciar servidor de desarrollo
+- `pnpm build` - Construir para producción
+- `pnpm start` - Iniciar servidor de producción
+- `npx prisma studio` - Interfaz visual de base de datos
+- `npx prisma migrate dev` - Crear y aplicar migraciones
+
+## Variables de Entorno Requeridas
+
+- `DATABASE_URL` - URL de conexión a PostgreSQL
+- `NEXTAUTH_SECRET` - Secret para NextAuth
+- `NEXTAUTH_URL` - URL de la aplicación

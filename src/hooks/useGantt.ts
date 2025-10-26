@@ -10,10 +10,12 @@ import {
   toggleTaskCompletion as toggleTaskCompletionAction,
   reorderActivities,
   calculateProjectProgress,
+  updateActivityStatus as updateActivityStatusAction,
   type ActivityData,
   type TaskData,
   type ActivityWithTasks,
 } from '@/lib/actions/gantt';
+import { ActivityStatus } from '@prisma/client';
 
 export type Task = {
   id: string;
@@ -87,6 +89,7 @@ export function useGantt(projectId: string | null) {
         color,
         progress: 0,
         orderIndex,
+        status: 'TODO', // Valor por defecto para el Kanban
       });
 
       if (!result.success) {
@@ -417,6 +420,45 @@ export function useGantt(projectId: string | null) {
     }
   };
 
+  // Actualizar status de una actividad
+  const updateActivityStatusHandler = async (
+    activityId: string,
+    status: ActivityStatus
+  ) => {
+    // Actualización optimista del estado local
+    const prevActivities = activities;
+    setActivities((prev) =>
+      prev.map((activity) =>
+        activity.id === activityId ? { ...activity, status } : activity
+      )
+    );
+
+    try {
+      const result = await updateActivityStatusAction(activityId, status);
+
+      if (!result.success) {
+        // Rollback en caso de error
+        setActivities(prevActivities);
+        setError(result.error || 'Error al actualizar el status');
+        return { success: false, error: result.error };
+      }
+
+      return { success: true, data: result.data };
+    } catch (err) {
+      // Rollback en caso de error
+      setActivities(prevActivities);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error al actualizar el status';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Función para actualizar el estado local de actividades
+  const updateActivitiesState = (updater: (activities: Activity[]) => Activity[]) => {
+    setActivities(updater);
+  };
+
   // Cargar actividades cuando cambie el proyecto
   useEffect(() => {
     loadActivities();
@@ -438,5 +480,7 @@ export function useGantt(projectId: string | null) {
     syncAllActivitiesProgress,
     loadActivities,
     reorderActivities: reorderActivitiesHandler,
+    updateActivityStatus: updateActivityStatusHandler,
+    updateActivitiesState, // ← Nueva función
   };
 }

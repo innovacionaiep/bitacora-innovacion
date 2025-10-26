@@ -30,6 +30,7 @@ import {
   ChevronRight,
   TrendingUp,
 } from 'lucide-react';
+import KanbanBoard from '@/components/proyectos/KanbanBoard';
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +41,8 @@ import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
 import { useState, useEffect, useRef } from 'react';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
+import { ActivityStatus } from '@prisma/client';
+import { reorderActivitiesKanban } from '@/lib/actions/gantt';
 import {
   DndContext,
   closestCenter,
@@ -557,6 +560,7 @@ export default function GanttChart({
   projectName,
   showProjectSelector = false 
 }: GanttChartProps) {
+  const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
@@ -674,6 +678,9 @@ export default function GanttChart({
     toggleTaskCompletion,
     calculateProjectProgress,
     reorderActivities,
+    updateActivityStatus,
+    loadActivities,
+    updateActivitiesState, // ← Agregar
   } = useGantt(projectId);
 
   // Estado derivado para determinar si todas las actividades están expandidas
@@ -930,8 +937,8 @@ export default function GanttChart({
         completed: false,
         activityId: selectedActivity.id,
         progress: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       setTempTasks((prev) => [...prev, newTask]);
@@ -1003,6 +1010,115 @@ export default function GanttChart({
   const showSuccessMessage = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // Handler para cambiar el status de una actividad en Kanban
+  const handleStatusChange = async (
+    activityId: string,
+    status: ActivityStatus
+  ) => {
+    const result = await updateActivityStatus(activityId, status);
+    if (result?.success) {
+      showSuccessMessage('Actividad actualizada exitosamente');
+    } else {
+      showSuccessMessage('Error al actualizar la actividad');
+    }
+  };
+
+  // Handler para reordenar actividades en Kanban
+  const handleReorderActivities = async (
+    activityId: string,
+    targetActivityId: string,
+    status: ActivityStatus
+  ) => {
+    try {
+      // Filtrar actividades solo de la columna específica y ordenar por kanbanOrderIndex
+      const activitiesInColumn = activities
+        .filter(a => a.status === status)
+        .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
+      
+      const currentIndex = activitiesInColumn.findIndex(a => a.id === activityId);
+      const targetIndex = activitiesInColumn.findIndex(a => a.id === targetActivityId);
+      
+      if (currentIndex === -1 || targetIndex === -1 || currentIndex === targetIndex) {
+        return; // No hay nada que reordenar
+      }
+      
+      // Crear una copia de solo las actividades de esta columna
+      const reorderedColumnActivities = [...activitiesInColumn];
+      const [movedActivity] = reorderedColumnActivities.splice(currentIndex, 1);
+      reorderedColumnActivities.splice(targetIndex, 0, movedActivity);
+      
+      // Calcular el kanbanOrderIndex para las actividades de esta columna
+      const updates = reorderedColumnActivities.map((activity, index) => ({
+        id: activity.id,
+        kanbanOrderIndex: index,
+      }));
+      
+      // Llamar a la server action de reordenamiento de Kanban
+      const result = await reorderActivitiesKanban(updates);
+      
+      if (result?.success) {
+        // Actualizar el estado local manualmente sin hacer fetch
+        updateActivitiesState((prevActivities) => {
+          return prevActivities.map(activity => {
+            const update = updates.find(u => u.id === activity.id);
+            if (update) {
+              return { ...activity, kanbanOrderIndex: update.kanbanOrderIndex };
+            }
+            return activity;
+          });
+        });
+      } else {
+        throw new Error(result?.error || 'Error al reordenar actividades');
+      }
+    } catch (error) {
+      console.error('Error reordering activities:', error);
+      await loadActivities(); // Refrescar en caso de error
+      showSuccessMessage('Error al reordenar actividades');
+    }
+  };
+
+  // Handler para actualización optimista en Kanban
+  const handleOptimisticReorder = (
+    activityId: string,
+    targetActivityId: string,
+    status: ActivityStatus
+  ) => {
+    // Actualizar el estado local inmediatamente para una experiencia fluida
+    const activitiesInColumn = activities
+      .filter(a => a.status === status)
+      .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
+    
+    const currentIndex = activitiesInColumn.findIndex(a => a.id === activityId);
+    const targetIndex = activitiesInColumn.findIndex(a => a.id === targetActivityId);
+    
+    if (currentIndex === -1 || targetIndex === -1 || currentIndex === targetIndex) {
+      return;
+    }
+    
+    // Crear una copia de solo las actividades de esta columna
+    const reorderedColumnActivities = [...activitiesInColumn];
+    const [movedActivity] = reorderedColumnActivities.splice(currentIndex, 1);
+    reorderedColumnActivities.splice(targetIndex, 0, movedActivity);
+    
+    // Calcular el kanbanOrderIndex para las actividades de esta columna
+    const updates = reorderedColumnActivities.map((activity, index) => ({
+      id: activity.id,
+      kanbanOrderIndex: index,
+    }));
+    
+    // Actualizar el estado local inmediatamente
+    const updatedActivities = activities.map(activity => {
+      const update = updates.find(u => u.id === activity.id);
+      if (update) {
+        return { ...activity, kanbanOrderIndex: update.kanbanOrderIndex };
+      }
+      return activity;
+    });
+    
+    // Actualizar el estado local (esto requeriría acceso al setter del hook)
+    // Por ahora, la actualización optimista se maneja en el componente KanbanBoard
   };
 
   // Manejar clic en agregar actividad
@@ -1458,24 +1574,61 @@ export default function GanttChart({
       <div className="pt-2 px-4 pb-4">
         {/* Header compacto de progreso */}
         <div className="mb-3">
-          <div className="flex items-center justify-end space-x-4">
-            <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
+          <div className="flex items-center justify-between">
+            {/* Botones de toggle Gantt/Kanban */}
+            <div className="flex items-center space-x-2">
+              <Button
+                type="button"
+                onClick={() => setViewMode('gantt')}
+                variant="ghost"
+                size="sm"
+                className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                  viewMode === 'gantt'
+                    ? 'bg-gray-900 text-white hover:bg-gray-800' // Estado seleccionado: como los tabs de arriba
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
+                }`}
+                title="Vista Gantt"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="text-sm font-medium">Gantt</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setViewMode('kanban')}
+                variant="ghost"
+                size="sm"
+                className={`h-10 px-4 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                  viewMode === 'kanban'
+                    ? 'bg-gray-900 text-white hover:bg-gray-800' // Estado seleccionado: como los tabs de arriba
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm' // Estado no seleccionado: como la tarjeta de progreso
+                }`}
+                title="Vista Kanban"
+              >
+                <FolderKanban className="h-4 w-4" />
+                <span className="text-sm font-medium">Kanban</span>
+              </Button>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-base font-semibold text-gray-900">
-                Progreso
-              </span>
+
+            {/* Progreso del proyecto */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+              </div>
               <div className="flex items-center space-x-3">
-                <div className="w-48 bg-gray-200 rounded-full h-2.5 shadow-inner">
-                  <div
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
-                    style={{ width: `${calculateProjectProgress()}%` }}
-                  ></div>
-                </div>
-                <span className="text-xl font-bold text-emerald-600">
-                  {calculateProjectProgress()}%
+                <span className="text-base font-semibold text-gray-900">
+                  Progreso
                 </span>
+                <div className="flex items-center space-x-3">
+                  <div className="w-48 bg-gray-200 rounded-full h-2.5 shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
+                      style={{ width: `${calculateProjectProgress()}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-xl font-bold text-emerald-600">
+                    {calculateProjectProgress()}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1505,35 +1658,38 @@ export default function GanttChart({
                 {/* Contenedor con scroll horizontal que incluye todo */}
                 <div className="overflow-x-auto">
                   <div className="w-full min-w-[800px] relative">
-                    {/* Header del calendario */}
-                    <div className="flex border-b border-white">
+                    {/* Header del calendario - solo en vista Gantt */}
+                    {viewMode === 'gantt' && (
+                      <div className="flex border-b border-white">
                       <div
                         className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
                         data-column="activities"
                       >
-                        <Button
-                          type="button"
-                          onClick={toggleAllDescriptions}
-                          disabled={activities.length === 0 || ganttLoading}
-                          variant="ghost"
-                          size="sm"
-                          aria-pressed={allExpanded}
-                          aria-label={
-                            allExpanded
-                              ? 'Contraer todas las actividades'
-                              : 'Expandir todas las actividades'
-                          }
-                          className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                        >
-                          {allExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {viewMode === 'gantt' && (
+                          <Button
+                            type="button"
+                            onClick={toggleAllDescriptions}
+                            disabled={activities.length === 0 || ganttLoading}
+                            variant="ghost"
+                            size="sm"
+                            aria-pressed={allExpanded}
+                            aria-label={
+                              allExpanded
+                                ? 'Contraer todas las actividades'
+                                : 'Expandir todas las actividades'
+                            }
+                            className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                          >
+                            {allExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                         <div className="flex justify-center items-center space-x-2">
                           <h3 className="font-semibold text-gray-900">
-                            Actividades
+                            {viewMode === 'gantt' ? 'Actividades' : 'Tablero Kanban'}
                           </h3>
                           {ganttLoading && (
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
@@ -1586,15 +1742,31 @@ export default function GanttChart({
                         )}
                       </div>
                     </div>
+                    )}
 
-                    {/* Contenedor con scroll vertical para filas de actividades */}
-                    <div 
-                      ref={scrollContainerRef}
-                      className="overflow-y-auto relative" 
-                      style={{ maxHeight: 'calc(100vh - 400px)' }}
-                    >
-                    {/* Filas de actividades y tareas */}
-                    {activities.length === 0 ? (
+                    {/* Renderizado condicional: Vista Gantt o Kanban */}
+                    {viewMode === 'kanban' ? (
+                      /* Vista Kanban */
+                      <div className="p-4 w-full">
+                        <KanbanBoard
+                          activities={activities}
+                          onStatusChange={handleStatusChange}
+                          onToggleTaskCompletion={handleToggleTaskCompletion}
+                          onReorderActivities={handleReorderActivities}
+                          onOptimisticReorder={handleOptimisticReorder}
+                        />
+                      </div>
+                    ) : (
+                      /* Vista Gantt */
+                      <>
+                        {/* Contenedor con scroll vertical para filas de actividades */}
+                        <div 
+                          ref={scrollContainerRef}
+                          className="overflow-y-auto relative" 
+                          style={{ maxHeight: 'calc(100vh - 400px)' }}
+                        >
+                        {/* Filas de actividades y tareas */}
+                        {activities.length === 0 ? (
                       <div className="flex">
                         <div
                           className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center"
@@ -1679,14 +1851,17 @@ export default function GanttChart({
                         </div>
                       </DndContext>
                     )}
-                    </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Controles del timeline */}
+          {/* Controles del timeline - solo en vista Gantt */}
+          {viewMode === 'gantt' && (
           <div className="mt-4">
             <div className="flex items-center w-full">
               {/* Espaciador para alinear con la columna de actividades */}
@@ -1758,6 +1933,7 @@ export default function GanttChart({
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Popup simple para agregar tarea */}
@@ -2087,8 +2263,9 @@ export default function GanttChart({
                                 projectId: projectId || '',
                                 color: '#3B82F6',
                                 orderIndex: 0,
-                                created_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString(),
+                                status: 'TODO',
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
                               };
                             setSelectedActivity(tempActivity);
                             setShowAddTask(true);

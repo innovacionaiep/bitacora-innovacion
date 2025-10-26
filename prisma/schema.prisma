@@ -255,16 +255,25 @@ model ObjetivoProyecto {
   @@map("objetivos_proyecto")
 }
 
+enum ActivityStatus {
+  TODO
+  WAITING
+  IN_PROGRESS
+  DONE
+}
+
 model Activity {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
-  progress    Int      @default(0)
-  projectId   String   @map("project_id")
-  color       String   @default("bg-gray-700")
-  orderIndex  Int      @default(0) @map("order_index")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               String         @id @default(cuid())
+  name             String
+  description      String         @default("")
+  progress         Int            @default(0)
+  projectId        String         @map("project_id")
+  color            String         @default("bg-gray-700")
+  orderIndex       Int            @default(0) @map("order_index")
+  kanbanOrderIndex Int            @default(0) @map("kanban_order_index")
+  status           ActivityStatus @default(TODO)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   project Proyecto @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks   Task[]

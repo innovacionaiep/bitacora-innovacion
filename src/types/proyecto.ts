@@ -1,4 +1,20 @@
-import { Proyecto, Escuela, Carrera, Comuna, GrupoInteres, SocioComunitario, ObjetivoProyecto, User, DesarrolloTecnico } from '@prisma/client';
+import { 
+  Proyecto, 
+  Escuela, 
+  Carrera, 
+  Comuna, 
+  GrupoInteres, 
+  SocioComunitario, 
+  ObjetivoProyecto, 
+  User, 
+  DesarrolloTecnico,
+  ProyectoParticipante,
+  ProyectoEscuela,
+  ProyectoCarrera,
+  ProyectoComuna,
+  ProyectoGrupoInteres,
+  ProyectoSocioComunitario
+} from '@prisma/client';
 
 // Tipos base para relaciones
 export type ProyectoWithRelations = Proyecto & {
