@@ -57,6 +57,7 @@ import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
 import { DesarrolloTecnicoCard } from '@/components/proyectos/DesarrolloTecnicoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
+import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -1318,12 +1319,9 @@ export default function ProyectosPage() {
             )}
 
             {selectedTab === 'Indicadores' && (
-              <Card className="h-full shadow-md flex flex-col">
-                <CardContent className="p-6 flex-1 overflow-auto">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Indicadores</h2>
-                  <p className="text-gray-500">Contenido de indicadores próximamente...</p>
-                </CardContent>
-              </Card>
+              <div className="h-full">
+                <IndicadoresCard projectId={selectedProject.id} />
+              </div>
             )}
 
             {selectedTab === 'Presupuesto' && (

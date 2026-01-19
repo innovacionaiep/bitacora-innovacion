@@ -76,6 +76,7 @@ export async function getUserRoles(userId: string): Promise<Role[]> {
       role: true,
     },
   });
+  
   return roles.map((r) => r.role as Role);
 }
 

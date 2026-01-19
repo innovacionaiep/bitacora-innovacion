@@ -232,7 +232,7 @@ async function seedFullDatabase() {
     console.log('👥 Creando usuarios...');
     const passwordHash = await bcrypt.hash('password123', 10);
     
-    // Verificar si admin existe, si no, crearlo
+    // Verificar si admin existe, si no, crearlo. Si existe, actualizar contraseña.
     let adminUser = await prisma.user.findUnique({
       where: { email: 'admin@test.com' }
     });
@@ -245,6 +245,12 @@ async function seedFullDatabase() {
           password: passwordHash,
           activeRole: 'Admin'
         }
+      });
+    } else {
+      // Actualizar la contraseña del admin si ya existe
+      adminUser = await prisma.user.update({
+        where: { email: 'admin@test.com' },
+        data: { password: passwordHash }
       });
     }
 
@@ -465,11 +471,38 @@ async function seedFullDatabase() {
     console.log(`   ✅ ${proyectos.length * 40} tareas creadas`);
     console.log(`   📚 ${escuelas.length} escuelas, ${carreras.length} carreras, ${comunas.length} comunas`);
     console.log('');
-    console.log('🔑 Credenciales de prueba:');
-    console.log('   admin@test.com / password123 (todos los roles)');
-    for (let i = 1; i <= 10; i++) {
-      console.log(`   usuario${i}@test.com / password123 (todos los roles)`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('🔑 CREDENCIALES DE PRUEBA - TODOS LOS USUARIOS');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('');
+    console.log('📝 Contraseña para TODOS los usuarios: password123');
+    console.log('');
+    console.log('┌─────────────────────────────────────────────────────────────┐');
+    console.log('│ Usuario                  │ Email                    │ Rol Activo │');
+    console.log('├─────────────────────────────────────────────────────────────┤');
+    
+    // Mostrar admin
+    console.log(`│ ${usuarios[0].name.padEnd(24)} │ ${usuarios[0].email.padEnd(24)} │ ${usuarios[0].activeRole.padEnd(10)} │`);
+    
+    // Mostrar los 10 usuarios adicionales
+    for (let i = 1; i < usuarios.length; i++) {
+      const usuario = usuarios[i];
+      console.log(`│ ${usuario.name.padEnd(24)} │ ${usuario.email.padEnd(24)} │ ${usuario.activeRole.padEnd(10)} │`);
     }
+    
+    console.log('└─────────────────────────────────────────────────────────────┘');
+    console.log('');
+    console.log('📋 FORMATO DE CREDENCIALES:');
+    console.log('');
+    for (const usuario of usuarios) {
+      console.log(`   Email: ${usuario.email}`);
+      console.log(`   Contraseña: password123`);
+      console.log(`   Nombre: ${usuario.name}`);
+      console.log(`   Rol Activo: ${usuario.activeRole}`);
+      console.log(`   Roles Disponibles: ${roles.join(', ')}`);
+      console.log('');
+    }
+    console.log('═══════════════════════════════════════════════════════════════');
     console.log('');
     console.log('📅 Fechas: Todas las tareas están distribuidas entre enero-diciembre 2025');
     console.log('🎨 Colores: Las actividades tienen colores variados para mejor visualización');

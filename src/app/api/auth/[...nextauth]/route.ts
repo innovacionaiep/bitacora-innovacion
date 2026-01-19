@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email y password son requeridos');
         }
-
+        
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           select: {
@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) {
           throw new Error('Email o password incorrectos');
         }
-
+        
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
@@ -43,6 +43,9 @@ export const authOptions: NextAuthOptions = {
 
         // Obtener roles del usuario
         const roles = await getUserRoles(user.id);
+        
+        // Eliminar duplicados de roles antes de retornar
+        const uniqueRoles = Array.from(new Set(roles));
 
         return {
           id: user.id,
@@ -50,7 +53,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           image: user.image,
           activeRole: user.activeRole,
-          availableRoles: roles,
+          availableRoles: uniqueRoles,
         };
       },
     }),
@@ -92,8 +95,9 @@ export const authOptions: NextAuthOptions = {
         if (token.id) {
           try {
             const roles = await getUserRoles(token.id as string);
-            token.availableRoles = roles;
-            console.log('Refreshed availableRoles:', roles);
+            // Eliminar duplicados
+            token.availableRoles = Array.from(new Set(roles));
+            console.log('Refreshed availableRoles:', token.availableRoles);
           } catch (error) {
             console.error('Error refreshing roles:', error);
             // Mantener los roles existentes si hay error

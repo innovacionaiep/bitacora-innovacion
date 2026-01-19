@@ -110,6 +110,7 @@ model Proyecto {
   sociosComunitarios ProyectoSocioComunitario[]
   objetivos_rel ObjetivoProyecto[]
   desarrolloTecnico DesarrolloTecnico?
+  indicadores Indicador[]
 
   @@map("proyectos")
 }
@@ -251,6 +252,7 @@ model ObjetivoProyecto {
   createdAt   DateTime @default(now()) @map("created_at")
 
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  indicadores Indicador[]
 
   @@map("objetivos_proyecto")
 }
@@ -319,4 +321,25 @@ model DesarrolloTecnico {
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
   @@map("desarrollo_tecnico")
+}
+
+// Indicadores del Proyecto
+model Indicador {
+  id                    String   @id @default(cuid())
+  proyectoId           String   @map("proyecto_id")
+  objetivoEspecificoId String   @map("objetivo_especifico_id")
+  nombre               String
+  descripcion          String   @db.Text
+  formaCalculo         String   @db.Text @map("forma_calculo")
+  resultadoEsperado    String   @map("resultado_esperado")
+  resultadoAlcanzado   String   @default("0") @map("resultado_alcanzado")
+  porcentajeCumplimiento Float @default(0) @map("porcentaje_cumplimiento")
+  porcentajeAvance      Float   @default(0) @map("porcentaje_avance")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  proyecto            Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  objetivoEspecifico  ObjetivoProyecto  @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
+
+  @@map("indicadores")
 }

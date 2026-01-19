@@ -269,7 +269,7 @@ export function SidebarUserInfo() {
             onPointerLeave={handlePointerLeave}
           >
             {user.availableRoles && user.availableRoles.length > 0 ? (
-              user.availableRoles.map((role) => {
+              Array.from(new Set(user.availableRoles)).map((role) => {
                 const isActive = role === currentRole;
                 return (
                   <DropdownMenuItem
