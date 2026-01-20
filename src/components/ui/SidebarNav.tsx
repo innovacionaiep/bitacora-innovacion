@@ -73,20 +73,18 @@ export default function SidebarNav() {
                 >
                   <Link
                     href={item.href}
-                    className={`flex items-center group-data-[collapsible=icon]:justify-center ${
-                      isActive
-                        ? 'bg-black text-white pointer-events-none'
-                        : 'text-gray-700 hover:!bg-gray-200 hover:text-black'
-                    }`}
+                    className={`flex items-center group-data-[collapsible=icon]:justify-center ${isActive
+                        ? 'bg-white text-gray-800 pointer-events-none'
+                        : 'text-gray-300 hover:!bg-gray-800 hover:!text-gray-300'
+                      }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${
-                        isActive
-                          ? 'text-white'
-                          : 'text-gray-700 hover:text-black'
-                      }`}
+                      className={`h-5 w-5 ${isActive
+                          ? 'text-gray-800'
+                          : 'text-gray-300 hover:!text-gray-300'
+                        }`}
                     />
-                    <span className="ml-3 group-data-[collapsible=icon]:hidden">
+                    <span className="ml-3 group-data-[collapsible=icon]:hidden hover:!text-gray-300">
                       {item.label}
                     </span>
                   </Link>
@@ -110,9 +108,9 @@ export default function SidebarNav() {
           className="h-10 w-10 rounded-full p-0 transition-all duration-200 mb-3"
         >
           {state === 'collapsed' ? (
-            <ChevronsRight className="h-4 w-4" />
+            <ChevronsRight className="h-4 w-4 text-gray-800" />
           ) : (
-            <ChevronsLeft className="h-4 w-4" />
+            <ChevronsLeft className="h-4 w-4 text-gray-800" />
           )}
         </Button>
       </SidebarFooter>

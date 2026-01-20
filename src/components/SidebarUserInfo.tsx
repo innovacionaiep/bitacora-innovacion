@@ -22,7 +22,7 @@ export function SidebarUserInfo() {
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const { state } = useSidebar();
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const isCollapsed = state === 'collapsed';
 
   // Track if we have initial user data to prevent loading state during updates
@@ -165,10 +165,10 @@ export function SidebarUserInfo() {
     }
 
     const previousRole = session.user.activeRole;
-    
+
     console.log('Cambiando rol de', previousRole, 'a', newRole);
     console.log('Roles disponibles:', session.user.availableRoles);
-    
+
     // INSTANT UI update - update optimistic state immediately
     setOptimisticRole(newRole);
 
@@ -184,12 +184,12 @@ export function SidebarUserInfo() {
 
       // Update session after successful database update
       await update({ activeRole: newRole });
-      
+
       // Force session refresh to get updated availableRoles
       setTimeout(() => {
         update();
       }, 100);
-      
+
       console.log('Rol cambiado exitosamente');
     } catch (err) {
       // Revert optimistic state on error
@@ -210,12 +210,12 @@ export function SidebarUserInfo() {
           className="h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3"
           onClick={() => console.log('Notificaciones clicked')}
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-4 w-4 text-gray-800" />
           {/* Badge de notificaciones - actualmente estático para visualización */}
           <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full">
-            <span className="absolute text-white text-[10px] font-medium" style={{ 
-              top: '50%', 
-              left: '50%', 
+            <span className="absolute text-white text-[10px] font-medium" style={{
+              top: '50%',
+              left: '50%',
               transform: isCollapsed ? 'translate(-48%, -50%)' : 'translate(-50%, -50%)',
               lineHeight: '1'
             }}>
@@ -226,7 +226,7 @@ export function SidebarUserInfo() {
 
         {/* User name - first word only, hidden when collapsed */}
         {!isCollapsed && (
-          <span className="text-sm font-medium text-gray-700 text-center px-2 mb-1">
+          <span className="text-sm font-medium text-white text-center px-2 mb-1">
             {firstName}
           </span>
         )}
@@ -240,14 +240,12 @@ export function SidebarUserInfo() {
             >
               <Button
                 variant="ghost"
-                className={`rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
-                  isCollapsed ? 'h-[45px] w-[45px]' : 'h-[100px] w-[100px]'
-                }`}
+                className={`rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${isCollapsed ? 'h-[45px] w-[45px]' : 'h-[100px] w-[100px]'
+                  }`}
                 onClick={() => setProfileOpen(true)}
               >
-                <div className={`rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium shadow-md hover:shadow-lg transition-shadow ${
-                  isCollapsed ? 'h-[45px] w-[45px] text-sm' : 'h-[100px] w-[100px] text-3xl'
-                }`}>
+                <div className={`rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium shadow-md hover:shadow-lg transition-shadow ${isCollapsed ? 'h-[45px] w-[45px] text-sm' : 'h-[100px] w-[100px] text-3xl'
+                  }`}>
                   {user.image ? (
                     <img
                       src={user.image}
@@ -261,15 +259,15 @@ export function SidebarUserInfo() {
               </Button>
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            align="center" 
+          <DropdownMenuContent
+            align="center"
             side="right"
             sideOffset={5}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
           >
             {user.availableRoles && user.availableRoles.length > 0 ? (
-              Array.from(new Set(user.availableRoles)).map((role) => {
+              user.availableRoles.map((role) => {
                 const isActive = role === currentRole;
                 return (
                   <DropdownMenuItem

@@ -1620,7 +1620,7 @@ export default function GanttChart({
                         <Button
                           type="button"
                           onClick={onProjectChange}
-                          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                          className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
                         >
                           <ArrowLeftRight size={20} strokeWidth={2.5} />
                         </Button>

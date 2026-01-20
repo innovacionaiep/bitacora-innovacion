@@ -770,7 +770,7 @@ export default function ProyectosPage() {
                       <TooltipTrigger asChild>
                         <Button
                           onClick={() => setIsSheetOpen(true)}
-                          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                          className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
                         >
                           <ArrowLeftRight size={20} strokeWidth={2.5} />
                         </Button>
@@ -792,8 +792,8 @@ export default function ProyectosPage() {
                             size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'General'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     General
@@ -803,8 +803,8 @@ export default function ProyectosPage() {
                     size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'Objetivos'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     Objetivos
@@ -814,8 +814,8 @@ export default function ProyectosPage() {
                     size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'Equipo'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     Equipo
@@ -825,8 +825,8 @@ export default function ProyectosPage() {
                     size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'Actividades'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     Actividades
@@ -836,8 +836,8 @@ export default function ProyectosPage() {
                     size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'Indicadores'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     Indicadores
@@ -847,8 +847,8 @@ export default function ProyectosPage() {
                     size="sm"
                     className={`text-sm font-medium ${
                       selectedTab === 'Presupuesto'
-                        ? 'bg-black text-white hover:bg-black'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-black border border-gray-300'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                     }`}
                   >
                     Presupuesto

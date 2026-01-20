@@ -526,7 +526,7 @@ export default function DashboardPage() {
                           style={{ width: `${p.avanceGantt}%` }}
                         ></div>
                       </div>
-                      <span className="text-xs text-black ml-2">
+                      <span className="text-xs text-gray-800 ml-2">
                         {p.avanceGantt}%
                       </span>
                     </div>
@@ -539,7 +539,7 @@ export default function DashboardPage() {
                           style={{ width: `${p.objetivos}%` }}
                         ></div>
                       </div>
-                      <span className="text-xs text-black ml-2">
+                      <span className="text-xs text-gray-800 ml-2">
                         {p.objetivos}%
                       </span>
                     </div>

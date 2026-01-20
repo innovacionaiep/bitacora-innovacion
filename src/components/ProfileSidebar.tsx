@@ -322,7 +322,7 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                 />
                 {/* Overlay hover para editar avatar */}
                 <div 
-                  className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer"
+                  className="absolute inset-0 rounded-full bg-gray-800/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer"
                   onClick={handleAvatarSelectorToggle}
                 >
                   <Pencil className="h-8 w-8 text-white" />
