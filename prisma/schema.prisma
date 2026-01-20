@@ -48,15 +48,15 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime? @map("email_verified")
-  password      String?   // Hashed password for credentials auth
+  password      String? // Hashed password for credentials auth
   image         String?
   activeRole    String?   @map("active_role") // Current active role
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts Account[]
-  sessions Session[]
-  roles    UserRole[]
+  accounts  Account[]
+  sessions  Session[]
+  roles     UserRole[]
   proyectos ProyectoParticipante[]
 
   @@map("users")
@@ -76,7 +76,7 @@ model VerificationToken {
 model UserRole {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
-  role      String   // 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante'
+  role      String // 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante'
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -85,32 +85,32 @@ model UserRole {
 }
 
 model Proyecto {
-  id                 String     @id @default(cuid())
-  proyecto           String
-  fondo              String
-  sede               String
-  focalizacion       String?    // Social|Productiva|Ambiental|null
-  avanceGantt        Int        @default(0) @map("avance_gantt")
-  objetivos          Int        @default(0)
-  presupuestoUsado   Int        @default(0) @map("presupuesto_usado")
-  presupuestoTotal   Int        @default(0) @map("presupuesto_total")
-  reunionesHechas    Int        @default(0) @map("reuniones_hechas")
-  reunionesTotales   Int        @default(0) @map("reuniones_totales")
-  participantes      Int        @default(0)
-  createdAt          DateTime   @default(now()) @map("created_at")
-  updatedAt          DateTime   @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  proyecto         String
+  fondo            String
+  sede             String
+  focalizacion     String? // Social|Productiva|Ambiental|null
+  avanceGantt      Int      @default(0) @map("avance_gantt")
+  objetivos        Int      @default(0)
+  presupuestoUsado Int      @default(0) @map("presupuesto_usado")
+  presupuestoTotal Int      @default(0) @map("presupuesto_total")
+  reunionesHechas  Int      @default(0) @map("reuniones_hechas")
+  reunionesTotales Int      @default(0) @map("reuniones_totales")
+  participantes    Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  activities Activity[]
-  participantes_rel ProyectoParticipante[]
-  escuelas ProyectoEscuela[]
-  carreras ProyectoCarrera[]
-  comunas ProyectoComuna[]
-  gruposInteres ProyectoGrupoInteres[]
+  activities         Activity[]
+  participantes_rel  ProyectoParticipante[]
+  escuelas           ProyectoEscuela[]
+  carreras           ProyectoCarrera[]
+  comunas            ProyectoComuna[]
+  gruposInteres      ProyectoGrupoInteres[]
   sociosComunitarios ProyectoSocioComunitario[]
-  objetivos_rel ObjetivoProyecto[]
-  desarrolloTecnico DesarrolloTecnico?
-  indicadores Indicador[]
+  objetivos_rel      ObjetivoProyecto[]
+  desarrolloTecnico  DesarrolloTecnico?
+  indicadores        Indicador[]
 
   @@map("proyectos")
 }
@@ -119,14 +119,17 @@ model Proyecto {
 model ProyectoParticipante {
   id         String   @id @default(cuid())
   proyectoId String   @map("proyecto_id")
-  userId     String   @map("user_id")
-  rol        String   // Encargado|Coordinador|Participante
+  userId     String?  @map("user_id") // Opcional: para participantes sin cuenta activa
+  rol        String // Encargado|Coordinador|Colaborador|Docente|Estudiante|Beneficiario
+  nombre     String? // Nombre del participante (cuando no tiene cuenta)
+  email      String? // Email del participante (cuando no tiene cuenta)
+  cargo      String? // Cargo del participante en el proyecto
   createdAt  DateTime @default(now()) @map("created_at")
 
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([proyectoId, userId])
+  @@unique([proyectoId, userId, rol])
   @@map("proyecto_participantes")
 }
 
@@ -155,11 +158,11 @@ model ProyectoEscuela {
 
 // Carreras del Proyecto (many-to-many)
 model Carrera {
-  id       String  @id @default(cuid())
-  nombre   String
+  id        String  @id @default(cuid())
+  nombre    String
   escuelaId String? @map("escuela_id")
 
-  escuela   Escuela? @relation(fields: [escuelaId], references: [id])
+  escuela   Escuela?          @relation(fields: [escuelaId], references: [id])
   proyectos ProyectoCarrera[]
 
   @@map("carreras")
@@ -200,7 +203,7 @@ model ProyectoComuna {
 
 // Grupos de Interés (many-to-many)
 model GrupoInteres {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   nombre      String
   descripcion String?
 
@@ -222,7 +225,7 @@ model ProyectoGrupoInteres {
 
 // Socios Comunitarios (many-to-many, texto libre)
 model SocioComunitario {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   nombre      String
   descripcion String?
 
@@ -244,14 +247,14 @@ model ProyectoSocioComunitario {
 
 // Objetivos del Proyecto
 model ObjetivoProyecto {
-  id          String @id @default(cuid())
-  proyectoId  String @map("proyecto_id")
+  id          String   @id @default(cuid())
+  proyectoId  String   @map("proyecto_id")
   tipo        String // General|Especifico
   descripcion String
-  orden       Int    @default(0)
+  orden       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  proyecto    Proyecto    @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   indicadores Indicador[]
 
   @@map("objetivos_proyecto")
@@ -301,22 +304,22 @@ model Task {
 }
 
 model DesarrolloTecnico {
-  id                        String   @id @default(cuid())
-  proyectoId               String   @unique @map("proyecto_id")
-  continuidadFasesAnteriores String? @db.Text @map("continuidad_fases_anteriores")
-  pertinenciaLocal         String? @db.Text @map("pertinencia_local")
-  pertinenciaDisciplinar   String? @db.Text @map("pertinencia_disciplinar")
-  necesidadProblema        String? @db.Text @map("necesidad_problema")
-  publicoObjetivo          String? @db.Text @map("publico_objetivo")
-  solucionAvance           String? @db.Text @map("solucion_avance")
-  perspectiveGenero        String? @db.Text @map("perspective_genero")
-  resultadosContribucion   String? @db.Text @map("resultados_contribucion")
-  metodologiaMedicion      String? @db.Text @map("metodologia_medicion")
-  ejesImpacto              String? @db.Text @map("ejes_impacto")
-  factorInnovador          String? @db.Text @map("factor_innovador")
-  escalabilidad            String? @db.Text
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
+  id                         String   @id @default(cuid())
+  proyectoId                 String   @unique @map("proyecto_id")
+  continuidadFasesAnteriores String?  @map("continuidad_fases_anteriores") @db.Text
+  pertinenciaLocal           String?  @map("pertinencia_local") @db.Text
+  pertinenciaDisciplinar     String?  @map("pertinencia_disciplinar") @db.Text
+  necesidadProblema          String?  @map("necesidad_problema") @db.Text
+  publicoObjetivo            String?  @map("publico_objetivo") @db.Text
+  solucionAvance             String?  @map("solucion_avance") @db.Text
+  perspectiveGenero          String?  @map("perspective_genero") @db.Text
+  resultadosContribucion     String?  @map("resultados_contribucion") @db.Text
+  metodologiaMedicion        String?  @map("metodologia_medicion") @db.Text
+  ejesImpacto                String?  @map("ejes_impacto") @db.Text
+  factorInnovador            String?  @map("factor_innovador") @db.Text
+  escalabilidad              String?  @db.Text
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
 
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
@@ -325,21 +328,21 @@ model DesarrolloTecnico {
 
 // Indicadores del Proyecto
 model Indicador {
-  id                    String   @id @default(cuid())
-  proyectoId           String   @map("proyecto_id")
-  objetivoEspecificoId String   @map("objetivo_especifico_id")
-  nombre               String
-  descripcion          String   @db.Text
-  formaCalculo         String   @db.Text @map("forma_calculo")
-  resultadoEsperado    String   @map("resultado_esperado")
-  resultadoAlcanzado   String   @default("0") @map("resultado_alcanzado")
-  porcentajeCumplimiento Float @default(0) @map("porcentaje_cumplimiento")
-  porcentajeAvance      Float   @default(0) @map("porcentaje_avance")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                     String   @id @default(cuid())
+  proyectoId             String   @map("proyecto_id")
+  objetivoEspecificoId   String   @map("objetivo_especifico_id")
+  nombre                 String
+  descripcion            String   @db.Text
+  formaCalculo           String   @map("forma_calculo") @db.Text
+  resultadoEsperado      String   @map("resultado_esperado")
+  resultadoAlcanzado     String   @default("0") @map("resultado_alcanzado")
+  porcentajeCumplimiento Float    @default(0) @map("porcentaje_cumplimiento")
+  porcentajeAvance       Float    @default(0) @map("porcentaje_avance")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
-  proyecto            Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  objetivoEspecifico  ObjetivoProyecto  @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
+  proyecto           Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  objetivoEspecifico ObjetivoProyecto @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
 
   @@map("indicadores")
 }

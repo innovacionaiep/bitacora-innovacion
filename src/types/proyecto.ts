@@ -19,7 +19,7 @@ import {
 // Tipos base para relaciones
 export type ProyectoWithRelations = Proyecto & {
   participantes_rel: (ProyectoParticipante & {
-    user: User;
+    user?: User | null;
   })[];
   escuelas: (ProyectoEscuela & {
     escuela: Escuela;
@@ -63,8 +63,11 @@ export type ProyectoFormData = {
   sociosComunitariosIds: string[];
   // Participantes
   participantes_rel: Array<{
-    userId: string;
-    rol: 'Encargado' | 'Coordinador' | 'Participante';
+    userId?: string;
+    rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
+    nombre?: string;
+    email?: string;
+    cargo?: string;
   }>;
 };
 
@@ -95,9 +98,11 @@ export type SocioComunitarioItem = CatalogoItem;
 // Tipos para participantes
 export type ParticipanteProyecto = {
   id: string;
-  userId: string;
-  rol: 'Encargado' | 'Coordinador' | 'Participante';
-  user: User;
+  userId?: string;
+  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante';
+  nombre?: string;
+  email?: string;
+  user?: User;
 };
 
 // Tipos para objetivos

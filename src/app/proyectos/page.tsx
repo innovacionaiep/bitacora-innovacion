@@ -61,6 +61,7 @@ import {
   ChevronRight,
   Maximize2,
   Minimize2,
+  Crown,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -920,7 +921,7 @@ export default function ProyectosPage() {
                             {/* Objetivo General */}
                             {objetivoGeneral && (
                               <div className="space-y-3">
-                                <div className="flex items-center space-x-2.5">
+                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5">
                                   <Crosshair className="h-5 w-5 text-emerald-600" />
                                   <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
                                     Objetivo General
@@ -939,7 +940,7 @@ export default function ProyectosPage() {
                             {/* Objetivos Específicos */}
                             {objetivosEspecificos.length > 0 && (
                               <div className="space-y-6">
-                                <div className="flex items-center space-x-2.5">
+                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5">
                                   <ListChecks className="h-5 w-5 text-emerald-600" />
                                   <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
                                     Objetivos Específicos
@@ -975,11 +976,9 @@ export default function ProyectosPage() {
 
                       {/* Video del Proyecto */}
                       <div className="space-y-4">
-                        <div className="flex items-center space-x-2.5">
-                          <Video className="h-5 w-5 text-emerald-600" />
-                          <h4 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
-                            Video del Proyecto
-                          </h4>
+                        <div className="flex items-center gap-3 mb-6">
+                          <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Video del Proyecto</span>
+                          <div className="h-px bg-gray-200 flex-1"></div>
                         </div>
                         <div className="flex justify-center">
                           <div className="relative w-full" style={{ width: '70%', paddingBottom: '39.375%' }}>
@@ -1001,6 +1000,14 @@ export default function ProyectosPage() {
                   <div className="h-full flex flex-col px-6 xl:px-8 xl:border-r xl:border-gray-200">
                     <div className="flex-1 overflow-auto min-h-0">
                       <div className="space-y-6">
+                        {/* Título: Información Básica */}
+                        <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                          <FileText className="h-5 w-5 text-emerald-600" />
+                          <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                            Información Básica
+                          </h4>
+                        </div>
+
                         {/* Sección 1: Contribución Local */}
                         <div className="mb-8">
                           <div className="flex items-center gap-3 mb-6">
@@ -1259,13 +1266,11 @@ export default function ProyectosPage() {
 
                         return (
                           <div className="space-y-4">
-                            <div className="flex items-center mb-4">
-                              <div className="flex items-center space-x-2.5">
-                                <FileText className="h-5 w-5 text-emerald-600" />
-                                <h4 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
-                                  Desarrollo Técnico
-                                </h4>
-                              </div>
+                            <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <FileText className="h-5 w-5 text-emerald-600" />
+                              <h4 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+                                Desarrollo Técnico
+                              </h4>
                             </div>
                             
                             {/* Tabs */}
@@ -1323,152 +1328,323 @@ export default function ProyectosPage() {
             )}
 
 
-            {selectedTab === 'Equipo' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full min-h-0">
-                {/* Columna izquierda: Equipo del Proyecto (Encargados y Coordinadores) */}
-                <Card className="h-full shadow-xl flex flex-col min-h-0">
-                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-5 w-5 text-gray-800" />
-                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
-                          Equipo del Proyecto
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
+            {selectedTab === 'Equipo' && selectedProject && (
+              <div className="h-full overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-4 h-full">
+                  {/* Columna 1: Encargados, Coordinadores y Colaboradores */}
+                  <div className="h-full flex flex-col pr-6 lg:pr-8 lg:border-r lg:border-gray-200 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                       <div className="space-y-6">
                         {/* Encargados */}
                         {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
-                              Encargados
-                            </h4>
+                          <div className="mb-8">
+                            <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Crown className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Encargados
+                              </h4>
+                            </div>
                             <div className="space-y-3">
                               {selectedProject.participantes_rel
                                 .filter(p => p.rol === 'Encargado')
-                                .map((participante) => (
-                                  <div key={participante.id} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    {participante.user.image ? (
-                                      <img
-                                        src={participante.user.image}
-                                        alt={participante.user.name || 'Usuario'}
-                                        className="h-10 w-10 rounded-full"
-                                      />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
-                                        <Users className="h-5 w-5 text-blue-600" />
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
                                       </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 truncate">
-                                        {participante.user.name || 'Sin nombre'}
-                                      </p>
-                                      <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
+                                      <Crown className="h-5 w-5 text-emerald-600 flex-shrink-0" />
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                             </div>
                           </div>
                         )}
 
                         {/* Coordinadores */}
                         {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
-                              Coordinadores
-                            </h4>
+                          <div className="mb-8">
+                            <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Users className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Coordinadores
+                              </h4>
+                            </div>
                             <div className="space-y-3">
                               {selectedProject.participantes_rel
                                 .filter(p => p.rol === 'Coordinador')
-                                .map((participante) => (
-                                  <div key={participante.id} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                    {participante.user.image ? (
-                                      <img
-                                        src={participante.user.image}
-                                        alt={participante.user.name || 'Usuario'}
-                                        className="h-10 w-10 rounded-full"
-                                      />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-full bg-green-200 flex items-center justify-center">
-                                        <Users className="h-5 w-5 text-green-600" />
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
                                       </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 truncate">
-                                        {participante.user.name || 'Sin nombre'}
-                                      </p>
-                                      <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                             </div>
                           </div>
                         )}
 
-                        {/* Mensaje si no hay encargados ni coordinadores */}
+                        {/* Colaboradores */}
+                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Colaborador').length > 0 && (
+                          <div className="mb-8">
+                            <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Users className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Colaboradores
+                              </h4>
+                            </div>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Colaborador')
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Mensaje si no hay equipo */}
                         {(!selectedProject.participantes_rel || 
-                          (selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length === 0 && 
-                           selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length === 0)) && (
+                          (selectedProject.participantes_rel.filter(p => ['Encargado', 'Coordinador', 'Colaborador'].includes(p.rol)).length === 0)) && (
                           <div className="text-center py-8 text-gray-500">
                             <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                            <p>No hay encargados o coordinadores asignados</p>
+                            <p>No hay equipo asignado</p>
                           </div>
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
 
-                {/* Columna derecha: Participantes */}
-                <Card className="h-full shadow-xl flex flex-col min-h-0">
-                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-5 w-5 text-gray-800" />
-                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
-                          Participantes
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
-                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Participante').length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3">
-                          {selectedProject.participantes_rel
-                            .filter(p => p.rol === 'Participante')
-                            .map((participante) => (
-                              <div key={participante.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
-                                {participante.user.image ? (
-                                  <img
-                                    src={participante.user.image}
-                                    alt={participante.user.name || 'Usuario'}
-                                    className="h-10 w-10 rounded-full"
-                                  />
-                                ) : (
-                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                    <Users className="h-5 w-5 text-gray-800" />
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {participante.user.name || 'Sin nombre'}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">{participante.user.email}</p>
-                                </div>
-                              </div>
-                            ))}
+                  {/* Columna 2: Docentes */}
+                  <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Docente').length > 0 ? (
+                        <div className="space-y-6">
+                          <div className="mb-8">
+                            <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Users className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Docentes
+                              </h4>
+                            </div>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Docente')
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                          <p>No hay participantes asignados</p>
+                          <p>No hay docentes asignados</p>
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  {/* Columna 3: Estudiantes */}
+                  <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Estudiante').length > 0 ? (
+                        <div className="space-y-6">
+                          <div className="mb-8">
+                            <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Users className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Estudiantes
+                              </h4>
+                            </div>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Estudiante')
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>No hay estudiantes asignados</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Columna 4: Beneficiarios */}
+                  <div className="h-full flex flex-col pl-6 lg:pl-8 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+                      {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Beneficiario').length > 0 ? (
+                        <div className="space-y-6">
+                          <div className="mb-8">
+                            <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                              <Users className="h-5 w-5 text-emerald-600" />
+                              <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                Beneficiarios
+                              </h4>
+                            </div>
+                            <div className="space-y-3">
+                              {selectedProject.participantes_rel
+                                .filter(p => p.rol === 'Beneficiario')
+                                .map((participante) => {
+                                  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                  const cargo = participante.cargo || '';
+                                  const imagen = participante.user?.image;
+                                  return (
+                                    <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      {imagen ? (
+                                        <img
+                                          src={imagen}
+                                          alt={nombre}
+                                          className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                          <Users className="h-5 w-5 text-gray-800" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                          {nombre}
+                                        </p>
+                                        {cargo && (
+                                          <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>No hay beneficiarios asignados</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
