@@ -48,14 +48,25 @@ import {
   Building2,
   UsersRound,
   Handshake,
+  Crosshair,
+  ListChecks,
+  History,
+  AlertCircle,
+  Lightbulb,
+  Heart,
+  Zap,
+  TrendingUp,
+  Globe,
+  ChevronDown,
+  ChevronRight,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { ProyectoWithRelations } from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
-import { ObjetivosCard } from '@/components/proyectos/ObjetivosCard';
-import { DesarrolloTecnicoCard } from '@/components/proyectos/DesarrolloTecnicoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
 import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
 
@@ -109,6 +120,11 @@ export default function ProyectosPage() {
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
   const [tempVideoUrl, setTempVideoUrl] = useState('');
+  
+  // Estado para secciones expandidas del desarrollo técnico
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  // Estado para el tab activo del desarrollo técnico
+  const [activeDesarrolloTecnicoTab, setActiveDesarrolloTecnicoTab] = useState<string>('fases-anteriores');
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -885,81 +901,105 @@ export default function ProyectosPage() {
                     
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-hidden mt-8">
-              {selectedTab === 'General' && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 h-full min-h-0">
-                {/* Columna izquierda: Objetivos + Video */}
-                <div className="h-full flex flex-col gap-6 min-h-0">
-                  {/* Objetivos */}
-                  <div className="flex-1 min-h-0">
-                    <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
-                  </div>
-                  
-                  {/* Video */}
-                  <Card className="shadow-xl flex flex-col">
-                    <CardContent className="p-0 flex-1 overflow-auto">
-                      <div className="bg-gray-200 px-4 py-3 rounded-t-lg">
-                        <div className="flex items-center space-x-2">
-                          <Video className="h-5 w-5 text-gray-800" />
-                          <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
+              {selectedTab === 'General' && selectedProject && (
+              <div className="h-full overflow-auto custom-scrollbar">
+                <div className="grid grid-cols-1 xl:grid-cols-3 h-full">
+                  {/* Columna izquierda: Objetivos + Video */}
+                  <div className="h-full flex flex-col pr-6 xl:pr-8 xl:border-r xl:border-gray-200">
+                    <div className="flex-1 overflow-auto min-h-0 space-y-8">
+                      {/* Objetivos */}
+                      {(() => {
+                        const objetivos = selectedProject.objetivos_rel || [];
+                        const objetivoGeneral = objetivos.find(obj => obj.tipo === 'General');
+                        const objetivosEspecificos = objetivos
+                          .filter(obj => obj.tipo === 'Especifico')
+                          .sort((a, b) => a.orden - b.orden);
+
+                        return (
+                          <div className="space-y-8">
+                            {/* Objetivo General */}
+                            {objetivoGeneral && (
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2.5">
+                                  <Crosshair className="h-5 w-5 text-emerald-600" />
+                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                    Objetivo General
+                                  </h4>
+                                </div>
+                                <div className="border-l-4 border-emerald-600 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+                                  <div className="py-6 px-6">
+                                    <p className="text-gray-800 leading-loose text-base">
+                                      {objetivoGeneral.descripcion}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Objetivos Específicos */}
+                            {objetivosEspecificos.length > 0 && (
+                              <div className="space-y-6">
+                                <div className="flex items-center space-x-2.5">
+                                  <ListChecks className="h-5 w-5 text-emerald-600" />
+                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                    Objetivos Específicos
+                                  </h4>
+                                </div>
+                                <div className="ml-8 space-y-6">
+                                  {objetivosEspecificos.map((objetivo, index) => (
+                                    <div 
+                                      key={objetivo.id} 
+                                      className="flex items-start space-x-4"
+                                    >
+                                      <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
+                                        {index + 1}
+                                      </div>
+                                      <p className="text-gray-800 leading-relaxed flex-1 text-sm pt-0.5">
+                                        {objetivo.descripcion}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {objetivos.length === 0 && (
+                              <div className="text-center py-12 text-gray-500">
+                                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                                <p className="text-base">No hay objetivos definidos para este proyecto</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Video del Proyecto */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2.5">
+                          <Video className="h-5 w-5 text-emerald-600" />
+                          <h4 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
                             Video del Proyecto
-                          </h3>
+                          </h4>
                         </div>
-                      </div>
-                      <div className="p-6">
-                        <div className="flex flex-col gap-3 mb-3">
-                          <Input
-                            value={tempVideoUrl}
-                            onChange={(e) => setTempVideoUrl(e.target.value)}
-                            placeholder="URL de YouTube"
-                            className="w-full h-9 text-sm"
-                          />
-                          <Button
-                            onClick={handleSaveVideo}
-                            size="sm"
-                            className="w-full bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Save className="h-3 w-3 mr-1" />
-                            Guardar
-                          </Button>
-                        </div>
-                        {selectedProject && projectVideos[selectedProject.id] ? (
-                          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <div className="flex justify-center">
+                          <div className="relative w-full" style={{ width: '70%', paddingBottom: '39.375%' }}>
                             <iframe
                               className="absolute top-0 left-0 w-full h-full rounded-lg"
-                              src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
+                              src="https://www.youtube.com/embed/7zsPRwIsC-I"
                               title="Video del Proyecto"
                               frameBorder="0"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
                             />
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                            <div className="text-center">
-                              <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                              <p className="text-sm text-gray-500">
-                                Ingresa una URL de YouTube y haz clic en Guardar
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Columna central: Información Básica */}
-                <Card className="h-full shadow-xl flex flex-col min-h-0">
-                  <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-5 w-5 text-gray-800" />
-                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
-                          Información Básica
-                        </h3>
+                    </div>
                   </div>
-                </div>
-                    <div className="p-6 flex-1 overflow-auto min-h-0 custom-scrollbar">
+
+                  {/* Columna central: Información Básica */}
+                  <div className="h-full flex flex-col px-6 xl:px-8 xl:border-r xl:border-gray-200">
+                    <div className="flex-1 overflow-auto min-h-0">
                       <div className="space-y-6">
                         {/* Sección 1: Contribución Local */}
                         <div className="mb-8">
@@ -968,39 +1008,39 @@ export default function ProyectosPage() {
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
                           <div className="grid grid-cols-1 gap-6">
-                          {/* Sedes */}
-                          <div className="border-l-4 border-emerald-500 pl-4 py-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <MapPin className="h-4 w-4 text-emerald-600" />
-                              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Sedes
-                              </h3>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
-                                {selectedProject.sede}
-                              </Badge>
-              </div>
-            </div>
-
-                          {/* Comunas */}
-                          {selectedProject.comunas && selectedProject.comunas.length > 0 && (
+                            {/* Sedes */}
                             <div className="border-l-4 border-emerald-500 pl-4 py-1">
                               <div className="flex items-center gap-2 mb-3">
-                                <Building2 className="h-4 w-4 text-emerald-600" />
+                                <MapPin className="h-4 w-4 text-emerald-600" />
                                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                  Comunas
+                                  Sedes
                                 </h3>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {selectedProject.comunas.map((comunaRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                    {comunaRel.comuna.nombre}
-                                  </Badge>
-                                ))}
+                                <Badge variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                  {selectedProject.sede}
+                                </Badge>
                               </div>
                             </div>
-                          )}
+
+                            {/* Comunas */}
+                            {selectedProject.comunas && selectedProject.comunas.length > 0 && (
+                              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Building2 className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Comunas
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedProject.comunas.map((comunaRel, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
+                                      {comunaRel.comuna.nombre}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1011,43 +1051,43 @@ export default function ProyectosPage() {
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
                           <div className="grid grid-cols-1 gap-6">
-                          {/* Escuelas */}
-                          {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
-                              <div className="flex items-center gap-2 mb-3">
-                                <GraduationCap className="h-4 w-4 text-emerald-600" />
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                  Escuelas
-                                </h3>
+                            {/* Escuelas */}
+                            {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
+                              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <GraduationCap className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Escuelas
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedProject.escuelas.map((escuelaRel, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                      {escuelaRel.escuela.nombre}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedProject.escuelas.map((escuelaRel, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
-                                    {escuelaRel.escuela.nombre}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Carreras */}
-                          {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
-                              <div className="flex items-center gap-2 mb-3">
-                                <BookOpen className="h-4 w-4 text-emerald-600" />
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                  Carreras
-                                </h3>
+                            {/* Carreras */}
+                            {selectedProject.carreras && selectedProject.carreras.length > 0 && (
+                              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <BookOpen className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Carreras
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedProject.carreras.map((carreraRel, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
+                                      {carreraRel.carrera.nombre}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedProject.carreras.map((carreraRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                    {carreraRel.carrera.nombre}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            )}
                           </div>
                         </div>
 
@@ -1058,91 +1098,226 @@ export default function ProyectosPage() {
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
                           <div className="grid grid-cols-1 gap-6">
-                          {/* Grupos de Interés */}
-                          {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
-                              <div className="flex items-center gap-2 mb-3">
-                                <UsersRound className="h-4 w-4 text-emerald-600" />
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                  Grupos de Interés
-                                </h3>
+                            {/* Grupos de Interés */}
+                            {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
+                              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <UsersRound className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Grupos de Interés
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedProject.gruposInteres.map((grupoRel, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
+                                      {grupoRel.grupoInteres.nombre}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                    {grupoRel.grupoInteres.nombre}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Socios Comunitarios */}
-                          {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                            <div className="border-l-4 border-emerald-500 pl-4 py-1">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Handshake className="h-4 w-4 text-emerald-600" />
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                  Socios Comunitarios
-                                </h3>
+                            {/* Socios Comunitarios */}
+                            {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
+                              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Handshake className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Socios Comunitarios
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedProject.sociosComunitarios.map((socioRel, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                      {socioRel.socioComunitario.nombre}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-sm font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
-                                    {socioRel.socioComunitario.nombre}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            )}
                           </div>
-                        </div>
-
-                        {/* Sección 4: Encargados del Proyecto */}
-                        <div className="mb-8">
-                          <div className="flex items-center gap-3 mb-6">
-                            <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Encargados del Proyecto</span>
-                            <div className="h-px bg-gray-200 flex-1"></div>
-                          </div>
-                          {/* Encargados del proyecto */}
-                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                          <div>
-                            <div className="grid grid-cols-1 gap-3">
-                              {selectedProject.participantes_rel
-                                .filter(p => p.rol === 'Encargado')
-                                .map((participante) => (
-                                  <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
-                                    {participante.user.image ? (
-                                      <img
-                                        src={participante.user.image}
-                                        alt={participante.user.name || 'Usuario'}
-                                        className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                      />
-                                    ) : (
-                                      <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                        <Users className="h-5 w-5 text-gray-800" />
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold text-gray-900 truncate">
-                                        {participante.user.name || 'Sin nombre'}
-                                      </p>
-                                      <p className="text-xs text-gray-600 truncate">{participante.user.email}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
 
-                {/* Columna derecha: Desarrollo Técnico */}
-                <div className="h-full">
-                  <DesarrolloTecnicoCard desarrolloTecnico={selectedProject?.desarrolloTecnico} />
+                  {/* Columna derecha: Desarrollo Técnico */}
+                  <div className="h-full flex flex-col pl-6 xl:pl-8">
+                    <div className="flex-1 overflow-auto min-h-0">
+                      {(() => {
+                        const desarrolloTecnico = selectedProject.desarrolloTecnico;
+                        
+                        if (!desarrolloTecnico) {
+                          return (
+                            <div className="text-center py-8 text-gray-500">
+                              <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                              <p>Información de desarrollo técnico no disponible</p>
+                            </div>
+                          );
+                        }
+
+                        const sections = [
+                          {
+                            key: 'continuidad',
+                            title: 'Continuidad de Fases Anteriores',
+                            content: desarrolloTecnico.continuidadFasesAnteriores,
+                            icon: <History className="h-4 w-4" />,
+                            group: 'fases-anteriores',
+                          },
+                          {
+                            key: 'pertinenciaLocal',
+                            title: 'Pertinencia Local',
+                            content: desarrolloTecnico.pertinenciaLocal,
+                            icon: <MapPin className="h-4 w-4" />,
+                            group: 'impacto',
+                          },
+                          {
+                            key: 'pertinenciaDisciplinar',
+                            title: 'Pertinencia Disciplinar',
+                            content: desarrolloTecnico.pertinenciaDisciplinar,
+                            icon: <GraduationCap className="h-4 w-4" />,
+                            group: 'impacto',
+                          },
+                          {
+                            key: 'ejesImpacto',
+                            title: 'Ejes de Impacto',
+                            content: desarrolloTecnico.ejesImpacto,
+                            icon: <Zap className="h-4 w-4" />,
+                            group: 'impacto',
+                          },
+                          {
+                            key: 'publicoObjetivo',
+                            title: 'Público Objetivo',
+                            content: desarrolloTecnico.publicoObjetivo,
+                            icon: <Users className="h-4 w-4" />,
+                            group: 'publico-objetivo',
+                          },
+                          {
+                            key: 'genero',
+                            title: 'Perspectiva de Género',
+                            content: desarrolloTecnico.perspectiveGenero,
+                            icon: <Heart className="h-4 w-4" />,
+                            group: 'publico-objetivo',
+                          },
+                          {
+                            key: 'necesidad',
+                            title: 'Necesidad, Problema u Oportunidad',
+                            content: desarrolloTecnico.necesidadProblema,
+                            icon: <AlertCircle className="h-4 w-4" />,
+                            group: 'innovacion-escalabilidad',
+                          },
+                          {
+                            key: 'solucion',
+                            title: 'Solución y Nivel de Avance',
+                            content: desarrolloTecnico.solucionAvance,
+                            icon: <Lightbulb className="h-4 w-4" />,
+                            group: 'innovacion-escalabilidad',
+                          },
+                          {
+                            key: 'factorInnovador',
+                            title: 'Factor Innovador',
+                            content: desarrolloTecnico.factorInnovador,
+                            icon: <TrendingUp className="h-4 w-4" />,
+                            group: 'innovacion-escalabilidad',
+                          },
+                          {
+                            key: 'escalabilidad',
+                            title: 'Escalabilidad',
+                            content: desarrolloTecnico.escalabilidad,
+                            icon: <Globe className="h-4 w-4" />,
+                            group: 'innovacion-escalabilidad',
+                          },
+                          {
+                            key: 'resultados',
+                            title: 'Resultados y Contribución Esperada',
+                            content: desarrolloTecnico.resultadosContribucion,
+                            icon: <Target className="h-4 w-4" />,
+                            group: 'resultados',
+                          },
+                          {
+                            key: 'metodologia',
+                            title: 'Metodología de Medición',
+                            content: desarrolloTecnico.metodologiaMedicion,
+                            icon: <BarChart3 className="h-4 w-4" />,
+                            group: 'resultados',
+                          },
+                        ];
+
+                        const tabs = [
+                          { id: 'fases-anteriores', label: 'Fases anteriores' },
+                          { id: 'impacto', label: 'Impacto' },
+                          { id: 'publico-objetivo', label: 'Público Objetivo' },
+                          { id: 'innovacion-escalabilidad', label: 'Innovación' },
+                          { id: 'resultados', label: 'Resultados' },
+                        ];
+
+                        const activeSections = sections.filter(section => 
+                          section.group === activeDesarrolloTecnicoTab && 
+                          section.content && 
+                          section.content.trim() !== ''
+                        );
+
+                        return (
+                          <div className="space-y-4">
+                            <div className="flex items-center mb-4">
+                              <div className="flex items-center space-x-2.5">
+                                <FileText className="h-5 w-5 text-emerald-600" />
+                                <h4 className="text-base font-semibold text-gray-600 uppercase tracking-wide">
+                                  Desarrollo Técnico
+                                </h4>
+                              </div>
+                            </div>
+                            
+                            {/* Tabs */}
+                            <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+                              {tabs.map((tab) => {
+                                const tabSections = sections.filter(s => s.group === tab.id && s.content && s.content.trim() !== '');
+                                if (tabSections.length === 0) return null;
+                                
+                                return (
+                                  <button
+                                    key={tab.id}
+                                    onClick={() => setActiveDesarrolloTecnicoTab(tab.id)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
+                                      activeDesarrolloTecnicoTab === tab.id
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                  >
+                                    {tab.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Contenido del tab activo */}
+                            <div className="space-y-3">
+                              {activeSections.length > 0 ? (
+                                activeSections.map((section) => (
+                                  <div key={section.key}>
+                                    <div className="px-2 py-2 flex items-center gap-2">
+                                      <div className="text-emerald-600">{section.icon}</div>
+                                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.title}</h4>
+                                    </div>
+                                    <div className="px-2 pb-3">
+                                      <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                        {section.content}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                  <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                  <p>No hay información disponible en esta categoría</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
