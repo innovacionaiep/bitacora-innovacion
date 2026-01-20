@@ -105,12 +105,12 @@ export default function SidebarNav() {
           variant="outline"
           size="sm"
           onClick={toggleSidebar}
-          className="h-10 w-10 rounded-full p-0 transition-all duration-200 mb-3"
+          className="group/collapse h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3 bg-sidebar border border-white hover:!bg-white hover:!text-accent-foreground"
         >
           {state === 'collapsed' ? (
-            <ChevronsRight className="h-4 w-4 text-gray-800" />
+            <ChevronsRight className="h-4 w-4 text-white group-hover/collapse:!text-black transition-colors duration-200" />
           ) : (
-            <ChevronsLeft className="h-4 w-4 text-gray-800" />
+            <ChevronsLeft className="h-4 w-4 text-white group-hover/collapse:!text-black transition-colors duration-200" />
           )}
         </Button>
       </SidebarFooter>

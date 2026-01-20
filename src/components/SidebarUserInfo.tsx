@@ -207,10 +207,10 @@ export function SidebarUserInfo() {
         <Button
           variant="outline"
           size="sm"
-          className="h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3"
+          className="group/notification h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3 bg-sidebar border border-white hover:!bg-white hover:!text-accent-foreground"
           onClick={() => console.log('Notificaciones clicked')}
         >
-          <Bell className="h-4 w-4 text-gray-800" />
+          <Bell className="h-4 w-4 text-white group-hover/notification:!text-black transition-colors duration-200" />
           {/* Badge de notificaciones - actualmente estático para visualización */}
           <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full">
             <span className="absolute text-white text-[10px] font-medium" style={{

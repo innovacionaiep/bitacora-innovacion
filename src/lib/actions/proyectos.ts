@@ -65,7 +65,12 @@ export async function getProyectos() {
       escuelas: proyectos[0].escuelas?.length || 0,
       carreras: proyectos[0].carreras?.length || 0,
       objetivos: proyectos[0].objetivos_rel?.length || 0,
+      desarrolloTecnico: proyectos[0].desarrolloTecnico ? 'Sí' : 'No',
     } : 'No hay proyectos');
+    
+    // Log detallado sobre desarrollo técnico
+    const proyectosConDesarrolloTecnico = proyectos.filter(p => p.desarrolloTecnico !== null);
+    console.log(`📈 [getProyectos] Proyectos con desarrollo técnico: ${proyectosConDesarrolloTecnico.length} de ${proyectos.length}`);
     
     return { success: true, data: proyectos as ProyectoWithRelations[] };
   } catch (error) {

@@ -104,7 +104,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'General' | 'Objetivos' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto'>('General');
+  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto'>('General');
   
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
@@ -799,17 +799,6 @@ export default function ProyectosPage() {
                     General
                           </Button>
                   <Button
-                    onClick={() => setSelectedTab('Objetivos')}
-                    size="sm"
-                    className={`text-sm font-medium ${
-                      selectedTab === 'Objetivos'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                    }`}
-                  >
-                    Objetivos
-                  </Button>
-                  <Button
                     onClick={() => setSelectedTab('Equipo')}
                     size="sm"
                     className={`text-sm font-medium ${
@@ -897,8 +886,69 @@ export default function ProyectosPage() {
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-hidden mt-8">
               {selectedTab === 'General' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full min-h-0">
-                {/* Columna izquierda: Información Básica */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 h-full min-h-0">
+                {/* Columna izquierda: Objetivos + Video */}
+                <div className="h-full flex flex-col gap-6 min-h-0">
+                  {/* Objetivos */}
+                  <div className="flex-1 min-h-0">
+                    <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
+                  </div>
+                  
+                  {/* Video */}
+                  <Card className="shadow-xl flex flex-col">
+                    <CardContent className="p-0 flex-1 overflow-auto">
+                      <div className="bg-gray-200 px-4 py-3 rounded-t-lg">
+                        <div className="flex items-center space-x-2">
+                          <Video className="h-5 w-5 text-gray-800" />
+                          <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
+                            Video del Proyecto
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <div className="flex flex-col gap-3 mb-3">
+                          <Input
+                            value={tempVideoUrl}
+                            onChange={(e) => setTempVideoUrl(e.target.value)}
+                            placeholder="URL de YouTube"
+                            className="w-full h-9 text-sm"
+                          />
+                          <Button
+                            onClick={handleSaveVideo}
+                            size="sm"
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Save className="h-3 w-3 mr-1" />
+                            Guardar
+                          </Button>
+                        </div>
+                        {selectedProject && projectVideos[selectedProject.id] ? (
+                          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                            <iframe
+                              className="absolute top-0 left-0 w-full h-full rounded-lg"
+                              src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
+                              title="Video del Proyecto"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                            <div className="text-center">
+                              <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                              <p className="text-sm text-gray-500">
+                                Ingresa una URL de YouTube y haz clic en Guardar
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Columna central: Información Básica */}
                 <Card className="h-full shadow-xl flex flex-col min-h-0">
                   <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
                     <div className="bg-gray-200 px-4 py-3 rounded-t-lg flex-shrink-0">
@@ -917,7 +967,7 @@ export default function ProyectosPage() {
                             <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Local</span>
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 gap-6">
                           {/* Sedes */}
                           <div className="border-l-4 border-emerald-500 pl-4 py-1">
                             <div className="flex items-center gap-2 mb-3">
@@ -960,7 +1010,7 @@ export default function ProyectosPage() {
                             <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Disciplinar</span>
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 gap-6">
                           {/* Escuelas */}
                           {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
                             <div className="border-l-4 border-emerald-500 pl-4 py-1">
@@ -1007,7 +1057,7 @@ export default function ProyectosPage() {
                             <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Comunitaria</span>
                             <div className="h-px bg-gray-200 flex-1"></div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 gap-6">
                           {/* Grupos de Interés */}
                           {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
                             <div className="border-l-4 border-emerald-500 pl-4 py-1">
@@ -1057,7 +1107,7 @@ export default function ProyectosPage() {
                           {/* Encargados del proyecto */}
                         {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
                           <div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3">
                               {selectedProject.participantes_rel
                                 .filter(p => p.rol === 'Encargado')
                                 .map((participante) => (
@@ -1092,72 +1142,11 @@ export default function ProyectosPage() {
 
                 {/* Columna derecha: Desarrollo Técnico */}
                 <div className="h-full">
-                  <DesarrolloTecnicoCard desarrolloTecnico={selectedProject.desarrolloTecnico} />
+                  <DesarrolloTecnicoCard desarrolloTecnico={selectedProject?.desarrolloTecnico} />
                 </div>
               </div>
             )}
 
-            {selectedTab === 'Objetivos' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full">
-                {/* Columna izquierda: Objetivos */}
-                <div className="h-full">
-                  <ObjetivosCard objetivos={selectedProject.objetivos_rel || []} />
-                </div>
-
-                {/* Columna derecha: Video */}
-                <Card className="h-full shadow-xl flex flex-col">
-                  <CardContent className="p-0 flex-1 overflow-auto">
-                    <div className="bg-gray-200 px-4 py-3 rounded-t-lg">
-                      <div className="flex items-center space-x-2">
-                        <Video className="h-5 w-5 text-gray-800" />
-                        <h3 className="text-base font-semibold text-gray-800 uppercase tracking-wide">
-                          Video del Proyecto
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                    <div className="flex items-center justify-end gap-2 mb-3">
-                      <Input
-                        value={tempVideoUrl}
-                        onChange={(e) => setTempVideoUrl(e.target.value)}
-                        placeholder="URL de YouTube"
-                        className="w-64 h-8 text-xs"
-                      />
-                      <Button
-                        onClick={handleSaveVideo}
-                        size="sm"
-                        className="h-8 px-3 bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Save className="h-3 w-3 mr-1" />
-                        Guardar
-                      </Button>
-                    </div>
-                    {selectedProject && projectVideos[selectedProject.id] ? (
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full rounded-lg"
-                          src={`https://www.youtube.com/embed/${extractYouTubeVideoId(projectVideos[selectedProject.id])}`}
-                          title="Video del Proyecto"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <div className="text-center">
-                          <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">
-                            Ingresa una URL de YouTube y haz clic en Guardar
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
 
             {selectedTab === 'Equipo' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full min-h-0">
