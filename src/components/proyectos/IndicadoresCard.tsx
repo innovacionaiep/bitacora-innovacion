@@ -1,7 +1,7 @@
 'use client';
 
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ObjetivoGeneralCard } from './ObjetivoGeneralCard';
 import { IndicadorModal } from './IndicadorModal';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
@@ -11,12 +11,57 @@ interface IndicadoresCardProps {
 }
 
 export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
-  const { data, loading, error, progresoGeneral } = useIndicadores(projectId);
+  const { data, loading, error, progresoGeneral, fetchIndicadores } = useIndicadores(projectId);
   const [selectedIndicador, setSelectedIndicador] = useState<{
+    id: string;
     nombre: string;
     descripcion: string;
     formaCalculo: string;
+    resultadoEsperado: string;
+    resultadoAlcanzado: string;
+    formatoNumero?: string | null;
   } | null>(null);
+
+  // Función para refrescar los datos después de guardar
+  const handleIndicadorUpdated = async () => {
+    // Actualizar datos sin mostrar estado de carga para evitar "refresh" visual
+    await fetchIndicadores(false);
+  };
+
+  // Actualizar el indicador seleccionado cuando cambian los datos
+  useEffect(() => {
+    if (selectedIndicador && data) {
+      // Buscar el indicador actualizado en los datos refrescados
+      for (const objetivoGeneral of data.objetivosGenerales) {
+        for (const objetivoEspecifico of objetivoGeneral.objetivosEspecificos) {
+          const indicadorActualizado = objetivoEspecifico.indicadores.find(
+            ind => ind.id === selectedIndicador.id
+          );
+          if (indicadorActualizado) {
+            // Solo actualizar si hay cambios
+            if (
+              indicadorActualizado.formatoNumero !== selectedIndicador.formatoNumero ||
+              indicadorActualizado.resultadoEsperado !== selectedIndicador.resultadoEsperado ||
+              indicadorActualizado.resultadoAlcanzado !== selectedIndicador.resultadoAlcanzado ||
+              indicadorActualizado.descripcion !== selectedIndicador.descripcion ||
+              indicadorActualizado.formaCalculo !== selectedIndicador.formaCalculo
+            ) {
+              setSelectedIndicador({
+                id: indicadorActualizado.id,
+                nombre: indicadorActualizado.nombre,
+                descripcion: indicadorActualizado.descripcion,
+                formaCalculo: indicadorActualizado.formaCalculo,
+                resultadoEsperado: indicadorActualizado.resultadoEsperado,
+                resultadoAlcanzado: indicadorActualizado.resultadoAlcanzado,
+                formatoNumero: indicadorActualizado.formatoNumero,
+              });
+            }
+            break;
+          }
+        }
+      }
+    }
+  }, [data, selectedIndicador?.id]);
 
   if (loading) {
     return (
@@ -59,7 +104,7 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
     <div className="h-full flex flex-col">
       {/* Main Content - Sistema de tarjetas tipo mapa mental */}
       <div className="flex-1 overflow-auto">
-        <div className="py-6 pl-40 pr-6 min-w-max">
+        <div className="pt-3 pb-6 pl-40 pr-6 min-w-max">
           {data.objetivosGenerales.map((objetivoGeneral, index) => (
             <div key={objetivoGeneral.id} className={index > 0 ? 'mt-12' : ''}>
               <ObjetivoGeneralCard
@@ -67,9 +112,13 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                 progresoGeneral={progresoGeneral}
                 onIndicadorClick={(indicador) => {
                   setSelectedIndicador({
+                    id: indicador.id,
                     nombre: indicador.nombre,
                     descripcion: indicador.descripcion,
                     formaCalculo: indicador.formaCalculo,
+                    resultadoEsperado: indicador.resultadoEsperado,
+                    resultadoAlcanzado: indicador.resultadoAlcanzado,
+                    formatoNumero: indicador.formatoNumero,
                   });
                 }}
               />
@@ -83,6 +132,7 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
         <IndicadorModal
           indicador={selectedIndicador}
           onClose={() => setSelectedIndicador(null)}
+          onUpdate={handleIndicadorUpdated}
         />
       )}
     </div>

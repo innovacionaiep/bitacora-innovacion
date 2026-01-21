@@ -90,7 +90,7 @@ async function assignIndicadoresToAllProjects() {
 
       // Verificar si el proyecto ya tiene indicadores
       const tieneIndicadores = proyecto.objetivos_rel.some(obj => obj.indicadores.length > 0);
-      
+
       if (tieneIndicadores) {
         console.log(`ℹ️  Proyecto "${proyecto.proyecto}" ya tiene indicadores, verificando objetivos sin indicadores...`);
         proyectosConIndicadores++;
@@ -103,28 +103,35 @@ async function assignIndicadoresToAllProjects() {
           continue;
         }
 
-        // Asignar al menos un indicador por objetivo específico
-        // Usar el primer template como base, pero adaptarlo según el orden del objetivo
-        const templateIndex = Math.min(objetivo.orden - 1, indicadoresTemplates.length - 1);
-        const indicadorData = indicadoresTemplates[templateIndex];
+        // Generar entre 1 y 2 indicadores aleatorios por objetivo específico
+        const numIndicadores = Math.floor(Math.random() * 2) + 1; // 1 o 2 indicadores
 
-        await prisma.indicador.create({
-          data: {
-            proyectoId: proyecto.id,
-            objetivoEspecificoId: objetivo.id,
-            nombre: indicadorData.nombre,
-            descripcion: indicadorData.descripcion,
-            formaCalculo: indicadorData.formaCalculo,
-            resultadoEsperado: indicadorData.resultadoEsperado,
-            resultadoAlcanzado: indicadorData.resultadoAlcanzado,
-            porcentajeCumplimiento: indicadorData.porcentajeCumplimiento,
-            porcentajeAvance: indicadorData.porcentajeAvance
-          }
-        });
+        // Seleccionar templates aleatorios para los indicadores
+        const templatesDisponibles = [...indicadoresTemplates];
+        const templatesSeleccionados = templatesDisponibles
+          .sort(() => 0.5 - Math.random())
+          .slice(0, numIndicadores);
 
-        indicadoresEnProyecto++;
-        indicadoresCreados++;
-        proyectoTieneIndicadores = true;
+        // Crear los indicadores seleccionados
+        for (const indicadorTemplate of templatesSeleccionados) {
+          await prisma.indicador.create({
+            data: {
+              proyectoId: proyecto.id,
+              objetivoEspecificoId: objetivo.id,
+              nombre: indicadorTemplate.nombre,
+              descripcion: indicadorTemplate.descripcion,
+              formaCalculo: indicadorTemplate.formaCalculo,
+              resultadoEsperado: indicadorTemplate.resultadoEsperado,
+              resultadoAlcanzado: indicadorTemplate.resultadoAlcanzado,
+              porcentajeCumplimiento: indicadorTemplate.porcentajeCumplimiento,
+              porcentajeAvance: indicadorTemplate.porcentajeAvance
+            }
+          });
+
+          indicadoresEnProyecto++;
+          indicadoresCreados++;
+          proyectoTieneIndicadores = true;
+        }
       }
 
       if (proyectoTieneIndicadores) {

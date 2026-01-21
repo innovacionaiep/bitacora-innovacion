@@ -10,13 +10,17 @@ export function useIndicadores(projectId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchIndicadores = async () => {
+  const fetchIndicadores = async (showLoading: boolean = true) => {
     if (!projectId) {
       setData(null);
       return;
     }
 
-    setLoading(true);
+    // Solo mostrar loading si se solicita explícitamente (primera carga)
+    // Para actualizaciones silenciosas después de guardar, no mostrar loading
+    if (showLoading) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -30,7 +34,9 @@ export function useIndicadores(projectId: string | null) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 

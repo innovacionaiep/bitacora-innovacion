@@ -19,7 +19,7 @@ const PROJECT_NAMES = [
 
 const SEDES = [
   'San Bernardo',
-  'Antofagasta', 
+  'Antofagasta',
   'La Serena',
   'Los Ángeles',
   'Santiago',
@@ -68,7 +68,7 @@ const TASK_TEMPLATES = [
 
 const COLORS = [
   'bg-blue-600',
-  'bg-green-600', 
+  'bg-green-600',
   'bg-purple-600',
   'bg-orange-600',
   'bg-red-600',
@@ -91,10 +91,10 @@ function generateRandomDate2025() {
 function generateTaskDates(baseDate: Date, taskIndex: number) {
   const startDate = new Date(baseDate);
   startDate.setDate(startDate.getDate() + (taskIndex * 7)); // 1 semana entre tareas
-  
+
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 14); // 2 semanas de duración por tarea
-  
+
   return {
     startDate: startDate.toISOString().split('T')[0],
     endDate: endDate.toISOString().split('T')[0]
@@ -121,7 +121,7 @@ async function seedFullDatabase() {
     await prisma.comuna.deleteMany();
     await prisma.grupoInteres.deleteMany();
     await prisma.socioComunitario.deleteMany();
-    
+
     // Limpiar roles de usuarios (excepto admin)
     await prisma.userRole.deleteMany({
       where: {
@@ -132,7 +132,7 @@ async function seedFullDatabase() {
         }
       }
     });
-    
+
     // Eliminar usuarios (excepto admin)
     await prisma.user.deleteMany({
       where: {
@@ -144,7 +144,7 @@ async function seedFullDatabase() {
 
     // 2. Crear catálogos si no existen
     console.log('📚 Creando catálogos...');
-    
+
     // Escuelas
     const escuelas = await Promise.all([
       prisma.escuela.upsert({
@@ -197,7 +197,7 @@ async function seedFullDatabase() {
       { nombre: 'Los Ángeles', region: 'Biobío' },
       { nombre: 'Santiago', region: 'Metropolitana' }
     ];
-    
+
     await prisma.comuna.deleteMany();
     const comunas = await Promise.all(
       comunasData.map(data => prisma.comuna.create({ data }))
@@ -210,7 +210,7 @@ async function seedFullDatabase() {
       { nombre: 'Sector productivo y de servicios', descripcion: 'Empresas del sector productivo y de servicios' },
       { nombre: 'Municipalidades y organismos públicos', descripcion: 'Instituciones públicas y municipales' }
     ];
-    
+
     await prisma.grupoInteres.deleteMany();
     const gruposInteres = await Promise.all(
       gruposInteresData.map(data => prisma.grupoInteres.create({ data }))
@@ -222,7 +222,7 @@ async function seedFullDatabase() {
       { nombre: 'Dideco San Bernardo', descripcion: 'Dirección de Desarrollo Comunitario' },
       { nombre: 'Organizaciones Civiles', descripcion: 'Organizaciones de la sociedad civil' }
     ];
-    
+
     await prisma.socioComunitario.deleteMany();
     const sociosComunitarios = await Promise.all(
       sociosComunitariosData.map(data => prisma.socioComunitario.create({ data }))
@@ -231,12 +231,12 @@ async function seedFullDatabase() {
     // 3. Crear usuarios (preservar admin y crear 10 nuevos)
     console.log('👥 Creando usuarios...');
     const passwordHash = await bcrypt.hash('password123', 10);
-    
+
     // Verificar si admin existe, si no, crearlo. Si existe, actualizar contraseña.
     let adminUser = await prisma.user.findUnique({
       where: { email: 'admin@test.com' }
     });
-    
+
     if (!adminUser) {
       adminUser = await prisma.user.create({
         data: {
@@ -258,7 +258,7 @@ async function seedFullDatabase() {
     const usuarios = [adminUser];
     const nombres = [
       'María González Pérez',
-      'Carlos Rodríguez Silva', 
+      'Carlos Rodríguez Silva',
       'Ana Martínez López',
       'Luis Fernández García',
       'Carmen Jiménez Ruiz',
@@ -284,7 +284,7 @@ async function seedFullDatabase() {
     // Asignar todos los roles a todos los usuarios
     console.log('🔐 Asignando roles a usuarios...');
     const roles = ['Admin', 'Evaluador', 'Coordinador', 'Encargado', 'Participante'];
-    
+
     // Crear todos los roles de usuario
     const userRolesData = [];
     for (const usuario of usuarios) {
@@ -295,7 +295,7 @@ async function seedFullDatabase() {
         });
       }
     }
-    
+
     await prisma.userRole.createMany({
       data: userRolesData,
       skipDuplicates: true
@@ -373,7 +373,7 @@ async function seedFullDatabase() {
       const numParticipantes = Math.floor(Math.random() * 4) + 2;
       const participantesSeleccionados = usuarios.sort(() => 0.5 - Math.random()).slice(0, numParticipantes);
       const rolesParticipacion = ['Encargado', 'Coordinador', 'Participante'];
-      
+
       for (let j = 0; j < participantesSeleccionados.length; j++) {
         const rolParticipacion = rolesParticipacion[j % rolesParticipacion.length];
         await prisma.proyectoParticipante.create({
@@ -386,47 +386,58 @@ async function seedFullDatabase() {
       }
 
       // Objetivos del proyecto
+      // Crear objetivo general
+      await prisma.objetivoProyecto.create({
+        data: {
+          proyectoId: proyecto.id,
+          tipo: 'General',
+          descripcion: `Objetivo general del proyecto ${proyecto.proyecto}: Desarrollar e implementar soluciones innovadoras que generen impacto positivo en la comunidad.`,
+          orden: 0
+        }
+      });
+
+      // Plantilla de objetivos específicos variados
+      const objetivosEspecificosTemplates = [
+        `Identificar y analizar las necesidades específicas del sector objetivo para el proyecto ${proyecto.proyecto}.`,
+        `Implementar las soluciones propuestas con metodologías participativas y enfoque en resultados medibles.`,
+        `Capacitar a los beneficiarios en el uso y mantenimiento de las soluciones implementadas.`,
+        `Desarrollar estrategias de difusión y comunicación para maximizar el impacto del proyecto ${proyecto.proyecto}.`,
+        `Establecer alianzas estratégicas con actores clave del sector para fortalecer la sostenibilidad del proyecto.`,
+        `Evaluar y monitorear continuamente el progreso y los resultados del proyecto ${proyecto.proyecto}.`,
+        `Fortalecer las capacidades técnicas y organizacionales de los participantes del proyecto.`,
+        `Generar evidencia y documentación que permita replicar y escalar las soluciones implementadas.`
+      ];
+
+      // Generar entre 3 y 4 objetivos específicos aleatorios por proyecto
+      const numObjetivosEspecificos = Math.floor(Math.random() * 2) + 3; // 3 o 4 objetivos
+      const objetivosSeleccionados = objetivosEspecificosTemplates
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numObjetivosEspecificos);
+
+      // Crear los objetivos específicos seleccionados
+      const objetivosEspecificosData = objetivosSeleccionados.map((descripcion, index) => ({
+        proyectoId: proyecto.id,
+        tipo: 'Especifico' as const,
+        descripcion: descripcion,
+        orden: index + 1
+      }));
+
       await prisma.objetivoProyecto.createMany({
-        data: [
-          {
-            proyectoId: proyecto.id,
-            tipo: 'General',
-            descripcion: `Objetivo general del proyecto ${proyecto.proyecto}: Desarrollar e implementar soluciones innovadoras que generen impacto positivo en la comunidad.`,
-            orden: 0
-          },
-          {
-            proyectoId: proyecto.id,
-            tipo: 'Especifico',
-            descripcion: `Identificar y analizar las necesidades específicas del sector objetivo para el proyecto ${proyecto.proyecto}.`,
-            orden: 1
-          },
-          {
-            proyectoId: proyecto.id,
-            tipo: 'Especifico',
-            descripcion: `Implementar las soluciones propuestas con metodologías participativas y enfoque en resultados medibles.`,
-            orden: 2
-          },
-          {
-            proyectoId: proyecto.id,
-            tipo: 'Especifico',
-            descripcion: `Capacitar a los beneficiarios en el uso y mantenimiento de las soluciones implementadas.`,
-            orden: 3
-          }
-        ]
+        data: objetivosEspecificosData
       });
     }
 
     // 5. Crear actividades y tareas para cada proyecto
     console.log('📊 Creando actividades y tareas...');
-    
+
     for (const proyecto of proyectos) {
       // Generar fecha base aleatoria en 2025 para el proyecto
       const fechaBaseProyecto = generateRandomDate2025();
-      
+
       for (let i = 0; i < 10; i++) {
         const progresoActividad = Math.floor(Math.random() * 100);
         const color = COLORS[i % COLORS.length];
-        
+
         const actividad = await prisma.activity.create({
           data: {
             name: ACTIVITY_NAMES[i],
@@ -480,16 +491,16 @@ async function seedFullDatabase() {
     console.log('┌─────────────────────────────────────────────────────────────┐');
     console.log('│ Usuario                  │ Email                    │ Rol Activo │');
     console.log('├─────────────────────────────────────────────────────────────┤');
-    
+
     // Mostrar admin
     console.log(`│ ${usuarios[0].name.padEnd(24)} │ ${usuarios[0].email.padEnd(24)} │ ${usuarios[0].activeRole.padEnd(10)} │`);
-    
+
     // Mostrar los 10 usuarios adicionales
     for (let i = 1; i < usuarios.length; i++) {
       const usuario = usuarios[i];
       console.log(`│ ${usuario.name.padEnd(24)} │ ${usuario.email.padEnd(24)} │ ${usuario.activeRole.padEnd(10)} │`);
     }
-    
+
     console.log('└─────────────────────────────────────────────────────────────┘');
     console.log('');
     console.log('📋 FORMATO DE CREDENCIALES:');

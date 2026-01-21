@@ -336,6 +336,7 @@ model Indicador {
   formaCalculo           String   @map("forma_calculo") @db.Text
   resultadoEsperado      String   @map("resultado_esperado")
   resultadoAlcanzado     String   @default("0") @map("resultado_alcanzado")
+  formatoNumero          String?  @default("Porcentaje") @map("formato_numero")
   porcentajeCumplimiento Float    @default(0) @map("porcentaje_cumplimiento")
   porcentajeAvance       Float    @default(0) @map("porcentaje_avance")
   createdAt              DateTime @default(now()) @map("created_at")

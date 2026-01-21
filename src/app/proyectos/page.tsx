@@ -1700,7 +1700,7 @@ export default function ProyectosPage() {
               )}
 
               {selectedTab === 'Indicadores' && (
-                <div className="h-full pt-4">
+                <div className="h-full pt-2">
                   <IndicadoresCard projectId={selectedProject.id} />
                 </div>
               )}
