@@ -170,9 +170,14 @@ export async function reorderActivitiesKanban(updates: { id: string; kanbanOrder
  */
 export async function createTask(data: TaskData) {
   try {
+    // Validar que el nombre de la tarea no exceda 62 caracteres
+    if (data.name && data.name.length > 62) {
+      return { success: false, error: 'El nombre de la tarea no puede exceder 62 caracteres' };
+    }
+
     const task = await prisma.task.create({
       data: {
-        name: data.name,
+        name: data.name.length > 62 ? data.name.substring(0, 62) : data.name,
         description: data.description || '',
         completed: false,
         startDate: data.startDate,
@@ -198,10 +203,17 @@ export async function createTask(data: TaskData) {
  */
 export async function updateTask(id: string, data: Partial<TaskData>) {
   try {
+    // Validar que el nombre de la tarea no exceda 62 caracteres
+    if (data.name !== undefined && data.name.length > 62) {
+      return { success: false, error: 'El nombre de la tarea no puede exceder 62 caracteres' };
+    }
+
     const task = await prisma.task.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
+        ...(data.name !== undefined && { 
+          name: data.name.length > 62 ? data.name.substring(0, 62) : data.name 
+        }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.completed !== undefined && { completed: data.completed }),
         ...(data.startDate !== undefined && { startDate: data.startDate }),

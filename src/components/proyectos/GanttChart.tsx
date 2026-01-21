@@ -174,7 +174,7 @@ function SortableActivity({
         style={{ cursor: isDragging ? 'grabbing' : 'default' }}
       >
         <div
-          className={`w-[416px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
+          className={`w-[500px] pl-2 pr-4 py-4 border-r border-gray-200 flex justify-between overflow-hidden relative ${
             !expandedDescriptions.has(activity.id) ? 'items-center' : ''
           }`}
           data-column="activities"
@@ -832,6 +832,11 @@ export default function GanttChart({
 
   // Manejar cambios en el formulario de tarea
   const handleTaskInputChange = (field: string, value: string) => {
+    // Limitar el nombre de la tarea a 62 caracteres máximo
+    if (field === 'name' && value.length > 62) {
+      alert('El nombre de la tarea no puede exceder 62 caracteres');
+      return;
+    }
     setTaskForm((prev) => ({
       ...prev,
       [field]: value,
@@ -919,6 +924,12 @@ export default function GanttChart({
       alert(
         'Por favor completa todos los campos obligatorios y selecciona una actividad'
       );
+      return;
+    }
+
+    // Validar que el nombre no exceda 62 caracteres
+    if (taskForm.name.length > 62) {
+      alert('El nombre de la tarea no puede exceder 62 caracteres');
       return;
     }
 
@@ -1206,6 +1217,17 @@ export default function GanttChart({
         return;
       }
 
+      // Validar que todas las tareas temporales tengan nombres válidos (máximo 62 caracteres)
+      const tasksWithInvalidNames = tempTasks.filter(
+        (task) => task.name.length > 62
+      );
+      if (tasksWithInvalidNames.length > 0) {
+        alert(
+          `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 62 caracteres. Por favor, corrige los nombres antes de continuar.`
+        );
+        return;
+      }
+
       // Crear nueva actividad
       const { error, data: newActivity } = await createActivity({
         name: unifiedActivityForm.name,
@@ -1241,6 +1263,17 @@ export default function GanttChart({
       if (error) {
         alert('Error al actualizar la actividad: ' + error);
       } else {
+        // Validar que todas las tareas temporales tengan nombres válidos (máximo 64 caracteres)
+        const tasksWithInvalidNames = tempTasks.filter(
+          (task) => task.name.length > 64
+        );
+        if (tasksWithInvalidNames.length > 0) {
+          alert(
+            `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 64 caracteres. Por favor, corrige los nombres antes de continuar.`
+          );
+          return;
+        }
+
         // Crear las tareas temporales que se agregaron durante la edición
         for (const task of tempTasks) {
           await createTask(selectedActivityForPopup.id, {
@@ -1725,7 +1758,7 @@ export default function GanttChart({
                     {viewMode === 'gantt' && (
                       <div className="flex border-b border-white">
                       <div
-                        className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
+                        className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
                         data-column="activities"
                       >
                         <div className="flex items-center relative">
@@ -1884,7 +1917,7 @@ export default function GanttChart({
                         {activities.length === 0 ? (
                       <div className="flex">
                         <div
-                          className="w-[416px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
+                          className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
                           data-column="activities"
                         >
                           <div className="text-center text-gray-500">
@@ -1935,7 +1968,7 @@ export default function GanttChart({
                         {/* Footer para marcar el fin de las actividades */}
                         <div className="flex">
                           <div
-                            className="w-[416px] border-r border-gray-200 bg-gray-50"
+                            className="w-[500px] border-r border-gray-200 bg-gray-50"
                             data-column="activities"
                           >
                             <div className="h-6"></div>
@@ -2086,8 +2119,12 @@ export default function GanttChart({
                       }
                       placeholder="Nombre de la tarea *"
                       className="w-full"
+                      maxLength={62}
                       required
                     />
+                    <div className="text-xs text-gray-500 mt-1 text-right">
+                      {taskForm.name.length}/62 caracteres
+                    </div>
                   </div>
 
                   <div>

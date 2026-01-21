@@ -70,6 +70,9 @@ import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
 import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
+import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
+import { ProyectoParticipante } from '@prisma/client';
+import { User as UserType } from '@prisma/client';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -117,6 +120,10 @@ export default function ProyectosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto'>('General');
+  
+  // Estado para el modal de participante
+  const [selectedParticipante, setSelectedParticipante] = useState<(ProyectoParticipante & { user?: UserType | null }) | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
@@ -1321,7 +1328,7 @@ export default function ProyectosPage() {
 
 
               {selectedTab === 'Equipo' && selectedProject && (
-                <div className="h-full overflow-hidden">
+                <div className="h-full overflow-hidden pt-4">
                   <div className="grid grid-cols-1 lg:grid-cols-4 h-full">
                     {/* Columna 1: Encargados, Coordinadores y Colaboradores */}
                     <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
@@ -1344,7 +1351,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1389,7 +1403,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1433,7 +1454,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1492,7 +1520,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1547,7 +1582,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1602,7 +1644,14 @@ export default function ProyectosPage() {
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div key={participante.id} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                                      <div 
+                                        key={participante.id} 
+                                        onClick={() => {
+                                          setSelectedParticipante(participante);
+                                          setIsModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                      >
                                         {imagen ? (
                                           <img
                                             src={imagen}
@@ -1641,7 +1690,7 @@ export default function ProyectosPage() {
               )}
 
               {selectedTab === 'Actividades' && (
-                <div className="h-full">
+                <div className="h-full pt-4">
                   <GanttChart
                     projectId={selectedProject.id}
                     projectName={selectedProject.proyecto}
@@ -1651,18 +1700,20 @@ export default function ProyectosPage() {
               )}
 
               {selectedTab === 'Indicadores' && (
-                <div className="h-full">
+                <div className="h-full pt-4">
                   <IndicadoresCard projectId={selectedProject.id} />
                 </div>
               )}
 
               {selectedTab === 'Presupuesto' && (
-                <Card className="h-full shadow-md flex flex-col">
-                  <CardContent className="p-6 flex-1 overflow-auto">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Presupuesto</h2>
-                    <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
-                  </CardContent>
-                </Card>
+                <div className="h-full pt-4">
+                  <Card className="h-full shadow-md flex flex-col">
+                    <CardContent className="p-6 flex-1 overflow-auto">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Presupuesto</h2>
+                      <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </div>
           </div>
@@ -1685,6 +1736,13 @@ export default function ProyectosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Información del Participante */}
+      <ModalParticipante
+        participante={selectedParticipante}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </>
   );
 }
