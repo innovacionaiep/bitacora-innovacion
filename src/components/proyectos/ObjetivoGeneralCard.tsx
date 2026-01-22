@@ -9,9 +9,15 @@ interface ObjetivoGeneralCardProps {
   objetivoGeneral: ObjetivoGeneralData;
   progresoGeneral: number;
   onIndicadorClick: (indicador: {
+    id: string;
     nombre: string;
     descripcion: string;
     formaCalculo: string;
+    resultadoEsperado: string;
+    resultadoAlcanzado: string;
+    formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   }) => void;
 }
 
@@ -45,7 +51,7 @@ export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndica
       {objetivoGeneral.objetivosEspecificos.length > 0 ? (
         <>
           {/* Contenedor wrapper que agrupa todo para alinear anchos */}
-          <div className="flex flex-col gap-10 relative">
+          <div className="flex flex-col gap-16 relative">
             {/* Tarjeta del Objetivo General - ENCIMA de todo, con desplazamiento hacia la izquierda */}
             <div
               className="relative group z-20"
@@ -85,9 +91,9 @@ export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndica
             </div>
 
             {/* Contenedor de objetivos específicos - este define el ancho máximo (sin barras de progreso) */}
-            <div className="flex flex-col gap-8 relative">
+            <div className="flex flex-col gap-16 relative">
               {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
-              <div className="absolute left-[28px] -top-10 bottom-0 w-0.5 bg-gray-300 z-0"></div>
+              <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
               {objetivoGeneral.objetivosEspecificos.map((objetivoEspecifico) => (
                 <div key={objetivoEspecifico.id} className="relative z-10">
                   <ObjetivoEspecificoCard

@@ -7,97 +7,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { FileText, Calculator, Hash, Edit2, Check } from 'lucide-react';
-import { useState, useEffect, useRef, memo } from 'react';
+import { FileText, Calculator, Hash, Edit2, Check, Calendar, Info, BarChart3, TrendingUp, Send, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { updateIndicador } from '@/lib/actions/indicadores';
+import { getComentariosIndicador, createComentarioIndicador, type ComentarioIndicadorData } from '@/lib/actions/comentarios-indicador';
+import { useSession } from 'next-auth/react';
 
-// Componente EditableField movido fuera para evitar recreaciones
-const EditableFieldComponent = memo(({ 
-  label, 
-  value, 
-  field, 
-  icon: Icon,
-  type = 'text',
-  options,
-  isEditing,
-  onEdit,
-  onCancel,
-  editValue,
-  onValueChange
-}: { 
-  label: string; 
-  value: string; 
-  field: string; 
-  icon: any;
-  type?: 'text' | 'select' | 'textarea';
-  options?: string[];
-  isEditing: boolean;
-  onEdit: () => void;
-  onCancel: () => void;
-  editValue: string;
-  onValueChange: (value: string) => void;
-}) => {
-  return (
-    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <Icon className="h-5 w-5 text-purple-600" />
-          <h3 className="font-semibold text-gray-900">{label}</h3>
-        </div>
-        {!isEditing ? (
-          <button
-            onClick={onEdit}
-            className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Editar"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-        ) : (
-          <button
-            onClick={onCancel}
-            className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-          >
-            Cancelar
-          </button>
-        )}
-      </div>
-      {isEditing ? (
-        type === 'select' ? (
-          <select
-            value={editValue}
-            onChange={(e) => onValueChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          >
-            {options?.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        ) : type === 'textarea' ? (
-          <textarea
-            value={editValue}
-            onChange={(e) => onValueChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-y"
-            autoFocus
-            rows={4}
-          />
-        ) : (
-          <input
-            type="text"
-            value={editValue}
-            onChange={(e) => onValueChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          />
-        )
-      ) : (
-        <p className="text-gray-700 text-sm pl-7 whitespace-pre-wrap">{value}</p>
-      )}
-    </div>
-  );
-});
-
-EditableFieldComponent.displayName = 'EditableFieldComponent';
 
 interface IndicadorModalProps {
   indicador: {
@@ -108,24 +23,38 @@ interface IndicadorModalProps {
     resultadoEsperado: string;
     resultadoAlcanzado: string;
     formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   };
   onClose: () => void;
   onUpdate?: () => Promise<void>;
 }
 
 export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalProps) {
-  const [editingFields, setEditingFields] = useState<Set<string>>(new Set());
+  const { data: session } = useSession();
+  const [isEditMode, setIsEditMode] = useState(false);
   const [editValues, setEditValues] = useState({
+    nombre: indicador.nombre,
     descripcion: indicador.descripcion,
     formaCalculo: indicador.formaCalculo,
     formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
     resultadoEsperado: indicador.resultadoEsperado,
     resultadoAlcanzado: indicador.resultadoAlcanzado,
+    fechaInicio: indicador.fechaInicio ?? '',
+    fechaFin: indicador.fechaFin ?? '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [comentarios, setComentarios] = useState<ComentarioIndicadorData[]>([]);
+  const [nuevoComentario, setNuevoComentario] = useState('');
+  const [isLoadingComentarios, setIsLoadingComentarios] = useState(false);
+  const [isEnviandoComentario, setIsEnviandoComentario] = useState(false);
   const lastIndicadorIdRef = useRef<string>(indicador.id);
   const justSavedRef = useRef<boolean>(false);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
+  const comentariosContainerRef = useRef<HTMLDivElement>(null);
+  const comentariosListRef = useRef<HTMLDivElement>(null);
+  const loadingComentariosRef = useRef<{ indicadorId: string; timestamp: number } | null>(null);
 
   // Actualizar editValues solo cuando cambia el ID del indicador (nuevo indicador seleccionado)
   useEffect(() => {
@@ -133,39 +62,47 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
     if (indicador.id !== lastIndicadorIdRef.current) {
       lastIndicadorIdRef.current = indicador.id;
       setEditValues({
+        nombre: indicador.nombre,
         descripcion: indicador.descripcion,
         formaCalculo: indicador.formaCalculo,
         formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
         resultadoEsperado: indicador.resultadoEsperado,
         resultadoAlcanzado: indicador.resultadoAlcanzado,
+        fechaInicio: indicador.fechaInicio ?? '',
+        fechaFin: indicador.fechaFin ?? '',
       });
-      setEditingFields(new Set());
+      setIsEditMode(false);
     }
   }, [indicador.id]); // Solo dependemos del ID para evitar re-renders durante la edición
 
-  // Actualizar valores después de guardar (cuando no hay campos en edición)
-  // Este efecto se ejecuta cuando editingFields.size cambia a 0 o cuando el prop indicador cambia
+  // Actualizar valores después de guardar (cuando no está en modo edición)
   useEffect(() => {
-    // Solo actualizar si no hay campos en edición y es el mismo indicador
+    // Solo actualizar si no está en modo edición y es el mismo indicador
     // Esto evita actualizaciones mientras el usuario está escribiendo
-    if (editingFields.size === 0 && indicador.id === lastIndicadorIdRef.current) {
+    if (!isEditMode && indicador.id === lastIndicadorIdRef.current) {
       const newValues = {
+        nombre: indicador.nombre,
         descripcion: indicador.descripcion,
         formaCalculo: indicador.formaCalculo,
         formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
         resultadoEsperado: indicador.resultadoEsperado,
         resultadoAlcanzado: indicador.resultadoAlcanzado,
+        fechaInicio: indicador.fechaInicio ?? '',
+        fechaFin: indicador.fechaFin ?? '',
       };
       
       // Si acabamos de guardar, verificar si el prop ya tiene los valores nuevos
       // Si los valores del prop coinciden con los valores locales, significa que el prop se actualizó
       if (justSavedRef.current) {
         const propMatchesLocal = 
+          newValues.nombre === editValues.nombre &&
           newValues.descripcion === editValues.descripcion &&
           newValues.formaCalculo === editValues.formaCalculo &&
           newValues.formatoNumero === editValues.formatoNumero &&
           newValues.resultadoEsperado === editValues.resultadoEsperado &&
-          newValues.resultadoAlcanzado === editValues.resultadoAlcanzado;
+          newValues.resultadoAlcanzado === editValues.resultadoAlcanzado &&
+          newValues.fechaInicio === editValues.fechaInicio &&
+          newValues.fechaFin === editValues.fechaFin;
         
         if (propMatchesLocal) {
           // El prop se actualizó correctamente, resetear la bandera
@@ -178,16 +115,19 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
       
       // Solo actualizar si los valores han cambiado para evitar re-renders innecesarios
       if (
+        editValues.nombre !== newValues.nombre ||
         editValues.descripcion !== newValues.descripcion ||
         editValues.formaCalculo !== newValues.formaCalculo ||
         editValues.formatoNumero !== newValues.formatoNumero ||
         editValues.resultadoEsperado !== newValues.resultadoEsperado ||
-        editValues.resultadoAlcanzado !== newValues.resultadoAlcanzado
+        editValues.resultadoAlcanzado !== newValues.resultadoAlcanzado ||
+        editValues.fechaInicio !== newValues.fechaInicio ||
+        editValues.fechaFin !== newValues.fechaFin
       ) {
         setEditValues(newValues);
       }
     }
-  }, [editingFields.size, indicador.resultadoAlcanzado, indicador.resultadoEsperado, indicador.descripcion, indicador.formaCalculo, indicador.formatoNumero]); // Depender también de los valores del prop para detectar actualizaciones
+  }, [isEditMode, indicador.nombre, indicador.resultadoAlcanzado, indicador.resultadoEsperado, indicador.descripcion, indicador.formaCalculo, indicador.formatoNumero]); // Depender también de los valores del prop para detectar actualizaciones
 
   // Ocultar toast después de 3 segundos
   useEffect(() => {
@@ -199,24 +139,89 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
     }
   }, [showSuccessToast]);
 
-  const handleEdit = (field: string) => {
-    setEditingFields(new Set(editingFields).add(field));
+
+  // Cargar comentarios cuando se abre el modal o cambia el indicador
+  useEffect(() => {
+    const currentIndicadorId = indicador.id;
+    const requestTimestamp = Date.now();
+    
+    // Verificar si ya hay una llamada en progreso para este indicador (dentro de 2 segundos)
+    if (loadingComentariosRef.current && 
+        loadingComentariosRef.current.indicadorId === currentIndicadorId &&
+        (requestTimestamp - loadingComentariosRef.current.timestamp) < 2000) {
+      return;
+    }
+    
+    let isCancelled = false;
+    loadingComentariosRef.current = { indicadorId: currentIndicadorId, timestamp: requestTimestamp };
+    
+    const cargarComentarios = async () => {
+      // Verificar si el indicador cambió o fue cancelado antes de hacer la llamada
+      if (isCancelled || loadingComentariosRef.current?.indicadorId !== currentIndicadorId) {
+        return;
+      }
+      
+      setIsLoadingComentarios(true);
+      const result = await getComentariosIndicador(currentIndicadorId);
+      
+      // Verificar si el efecto fue cancelado antes de actualizar el estado
+      if (isCancelled || loadingComentariosRef.current?.indicadorId !== currentIndicadorId) {
+        return;
+      }
+      
+      if (result.success && result.data) {
+        setComentarios(result.data);
+      }
+      setIsLoadingComentarios(false);
+      loadingComentariosRef.current = null;
+    };
+    
+    cargarComentarios();
+    
+    // Cleanup: marcar como cancelado y limpiar el ref si el componente se desmonta o cambia el indicador
+    return () => {
+      isCancelled = true;
+      if (loadingComentariosRef.current?.indicadorId === currentIndicadorId) {
+        loadingComentariosRef.current = null;
+      }
+    };
+  }, [indicador.id]);
+
+  const handleEnviarComentario = async () => {
+    if (!nuevoComentario.trim() || !session?.user) return;
+
+    setIsEnviandoComentario(true);
+    const result = await createComentarioIndicador(indicador.id, nuevoComentario.trim());
+
+    if (result.success && result.data) {
+      setComentarios([result.data, ...comentarios]);
+      setNuevoComentario('');
+      
+      // Llamar a onUpdate para actualizar el conteo de comentarios en las tarjetas
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } else {
+      alert(result.error || 'Error al enviar comentario');
+    }
+    setIsEnviandoComentario(false);
   };
 
-  const handleCancelEdit = (field: string) => {
-    const newEditingFields = new Set(editingFields);
-    newEditingFields.delete(field);
-    setEditingFields(newEditingFields);
-    // Restaurar el valor original
-    const originalValue = indicador[field as keyof typeof indicador] ?? 
-      (field === 'formatoNumero' ? 'Porcentaje' : 
-       field === 'descripcion' ? indicador.descripcion :
-       field === 'formaCalculo' ? indicador.formaCalculo :
-       '');
-    setEditValues({
-      ...editValues,
-      [field]: originalValue,
-    });
+  const toggleEditMode = () => {
+    if (isEditMode) {
+      // Si está saliendo del modo edición, restaurar valores originales
+      setEditValues({
+        nombre: indicador.nombre,
+        descripcion: indicador.descripcion,
+        formaCalculo: indicador.formaCalculo,
+        formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
+        resultadoEsperado: indicador.resultadoEsperado,
+        resultadoAlcanzado: indicador.resultadoAlcanzado,
+        fechaInicio: indicador.fechaInicio ?? '',
+        fechaFin: indicador.fechaFin ?? '',
+      });
+    }
+    setIsEditMode(!isEditMode);
   };
 
   const handleSaveAll = async () => {
@@ -226,6 +231,9 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
       const updateData: any = {};
       
       // Verificar qué campos han cambiado
+      if (editValues.nombre !== indicador.nombre) {
+        updateData.nombre = editValues.nombre;
+      }
       if (editValues.descripcion !== indicador.descripcion) {
         updateData.descripcion = editValues.descripcion;
       }
@@ -241,10 +249,17 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
       if (editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado) {
         updateData.resultadoAlcanzado = editValues.resultadoAlcanzado;
       }
+      if (editValues.fechaInicio !== (indicador.fechaInicio ?? '')) {
+        updateData.fechaInicio = editValues.fechaInicio || null;
+      }
+      if (editValues.fechaFin !== (indicador.fechaFin ?? '')) {
+        updateData.fechaFin = editValues.fechaFin || null;
+      }
 
       // Si no hay cambios, no hacer nada
       if (Object.keys(updateData).length === 0) {
         setIsSaving(false);
+        setIsEditMode(false);
         return;
       }
       
@@ -263,7 +278,7 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
         };
         setEditValues(newEditValues);
         
-        setEditingFields(new Set());
+        setIsEditMode(false);
         setShowSuccessToast(true);
         
         // Refrescar los datos después de guardar exitosamente
@@ -271,7 +286,7 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
           await onUpdate();
         }
         // Los valores se actualizarán automáticamente cuando el prop indicador cambie
-        // gracias al useEffect que maneja las actualizaciones cuando no hay campos en edición
+        // gracias al useEffect que maneja las actualizaciones cuando no está en modo edición
       } else {
         alert(`Error al guardar: ${result.error}`);
       }
@@ -283,102 +298,399 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
   };
 
   const handleCancelAll = () => {
-    setEditingFields(new Set());
     setEditValues({
+      nombre: indicador.nombre,
       descripcion: indicador.descripcion,
       formaCalculo: indicador.formaCalculo,
       formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
       resultadoEsperado: indicador.resultadoEsperado,
       resultadoAlcanzado: indicador.resultadoAlcanzado,
+      fechaInicio: indicador.fechaInicio ?? '',
+      fechaFin: indicador.fechaFin ?? '',
     });
+    setIsEditMode(false);
   };
 
   const hasChanges = () => {
-    return editValues.descripcion !== indicador.descripcion ||
+    return editValues.nombre !== indicador.nombre ||
+           editValues.descripcion !== indicador.descripcion ||
            editValues.formaCalculo !== indicador.formaCalculo ||
            editValues.formatoNumero !== (indicador.formatoNumero ?? 'Porcentaje') ||
            editValues.resultadoEsperado !== indicador.resultadoEsperado ||
-           editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado;
+           editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado ||
+           editValues.fechaInicio !== (indicador.fechaInicio ?? '') ||
+           editValues.fechaFin !== (indicador.fechaFin ?? '');
   };
+
+  // Funciones para cálculo y formateo (igual que en IndicadorCard)
+  const parseValue = (value: string): number => {
+    if (!value || value === '') return 0;
+    const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const formatResultado = (value: string, formato: string | null | undefined): string => {
+    const numValue = parseValue(value);
+    if (formato === 'Porcentaje') {
+      return `${Math.round(numValue)}%`;
+    } else if (formato === 'Número Entero') {
+      return Math.round(numValue).toString();
+    } else if (formato === 'Número Decimal') {
+      return numValue.toFixed(2);
+    }
+    if (value.includes('%')) {
+      return `${Math.round(numValue)}%`;
+    }
+    return Math.round(numValue).toString();
+  };
+
+  // Calcular porcentaje de cumplimiento
+  const resultadoEsperadoNum = parseValue(editValues.resultadoEsperado);
+  const resultadoAlcanzadoNum = parseValue(editValues.resultadoAlcanzado);
+  
+  let porcentajeCumplimiento = 0;
+  if (resultadoEsperadoNum > 0) {
+    porcentajeCumplimiento = (resultadoAlcanzadoNum / resultadoEsperadoNum) * 100;
+  } else if (resultadoAlcanzadoNum > 0) {
+    porcentajeCumplimiento = 100;
+  }
+
+  // Determinar color según porcentaje (igual que IndicadorCard)
+  let colorEstado = '';
+  let badgeColor = '';
+  let badgeBg = '';
+  if (porcentajeCumplimiento < 50) {
+    colorEstado = 'text-red-600';
+    badgeColor = 'text-red-700';
+    badgeBg = 'bg-red-100';
+  } else if (porcentajeCumplimiento >= 50 && porcentajeCumplimiento < 100) {
+    colorEstado = 'text-yellow-600';
+    badgeColor = 'text-yellow-700';
+    badgeBg = 'bg-yellow-100';
+  } else {
+    colorEstado = 'text-emerald-600';
+    badgeColor = 'text-emerald-700';
+    badgeBg = 'bg-emerald-100';
+  }
+
+  const resultadoEsperadoFormateado = formatResultado(editValues.resultadoEsperado, editValues.formatoNumero);
+  const resultadoAlcanzadoFormateado = formatResultado(editValues.resultadoAlcanzado, editValues.formatoNumero);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-900">
-            {indicador.nombre}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent ref={dialogContentRef} className="max-w-5xl max-h-[95vh] overflow-y-auto pb-4">
+        {/* Header con título, nombre e indicador de cumplimiento */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex-1">
+              <DialogTitle className="text-sm font-semibold text-emerald-600 uppercase tracking-wide mb-2">
+                INDICADOR
+              </DialogTitle>
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={editValues.nombre}
+                  onChange={(e) => setEditValues({ ...editValues, nombre: e.target.value })}
+                  className="text-xl font-bold text-emerald-600 w-full px-2 py-1 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  autoFocus
+                />
+              ) : (
+                <h1 className="text-xl font-bold text-emerald-600">
+                  {editValues.nombre}
+                </h1>
+              )}
+            </div>
+            <div className="flex items-center space-x-3 ml-4">
+              <span className="text-sm font-medium text-gray-700">Cumplimiento</span>
+              <div className="w-48 bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    porcentajeCumplimiento < 50
+                      ? 'bg-red-500'
+                      : porcentajeCumplimiento < 100
+                      ? 'bg-yellow-500'
+                      : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(porcentajeCumplimiento, 100)}%` }}
+                />
+              </div>
+              <span className={`text-xl font-bold ${colorEstado} min-w-[3rem]`}>
+                {Math.round(porcentajeCumplimiento)}%
+              </span>
+            </div>
+          </div>
+          {/* Línea separadora verde esmeralda */}
+          <div className="w-full h-px bg-emerald-600 mt-2"></div>
+        </div>
         
-        <div className="space-y-6 mt-4">
-          {/* Descripción */}
-          <EditableFieldComponent
-            label="Descripción"
-            value={editValues.descripcion}
-            field="descripcion"
-            icon={FileText}
-            type="textarea"
-            isEditing={editingFields.has('descripcion')}
-            onEdit={() => handleEdit('descripcion')}
-            onCancel={() => handleCancelEdit('descripcion')}
-            editValue={editValues.descripcion}
-            onValueChange={(value) => setEditValues({ ...editValues, descripcion: value })}
-          />
+        {/* Layout de dos columnas con separador */}
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-6 mt-0">
+          {/* COLUMNA IZQUIERDA: Fechas primero, luego información sin tarjetas */}
+          <div className="space-y-6">
+            {/* FECHAS (Primero) - Horizontal */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">Inicio</span>
+                {isEditMode ? (
+                  <input
+                    type="date"
+                    value={editValues.fechaInicio}
+                    onChange={(e) => setEditValues({ ...editValues, fechaInicio: e.target.value })}
+                    className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                ) : (
+                  <span className="text-gray-700 text-sm">
+                    {editValues.fechaInicio 
+                      ? (() => {
+                          try {
+                            const date = new Date(editValues.fechaInicio);
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = String(date.getFullYear()).slice(-2);
+                            return `${day}.${month}.${year}`;
+                          } catch {
+                            return 'No definida';
+                          }
+                        })()
+                      : 'No definida'}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">Finalización</span>
+                {isEditMode ? (
+                  <input
+                    type="date"
+                    value={editValues.fechaFin}
+                    onChange={(e) => setEditValues({ ...editValues, fechaFin: e.target.value })}
+                    className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                ) : (
+                  <span className="text-gray-700 text-sm">
+                    {editValues.fechaFin 
+                      ? (() => {
+                          try {
+                            const date = new Date(editValues.fechaFin);
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = String(date.getFullYear()).slice(-2);
+                            return `${day}.${month}.${year}`;
+                          } catch {
+                            return 'No definida';
+                          }
+                        })()
+                      : 'No definida'}
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {/* Forma de Cálculo */}
-          <EditableFieldComponent
-            label="Forma de Cálculo"
-            value={editValues.formaCalculo}
-            field="formaCalculo"
-            icon={Calculator}
-            type="textarea"
-            isEditing={editingFields.has('formaCalculo')}
-            onEdit={() => handleEdit('formaCalculo')}
-            onCancel={() => handleCancelEdit('formaCalculo')}
-            editValue={editValues.formaCalculo}
-            onValueChange={(value) => setEditValues({ ...editValues, formaCalculo: value })}
-          />
+            {/* SECCIÓN: Descripción, Forma de Cálculo, Formato del número - SIN TARJETAS */}
+            <div className="space-y-4">
+              {/* Descripción */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">Descripción</h3>
+                {isEditMode ? (
+                  <textarea
+                    value={editValues.descripcion}
+                    onChange={(e) => setEditValues({ ...editValues, descripcion: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-y"
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-gray-700 text-sm">{editValues.descripcion}</p>
+                )}
+              </div>
 
-          {/* Formato del Número */}
-          <EditableFieldComponent
-            label="Formato del número"
-            value={editValues.formatoNumero}
-            field="formatoNumero"
-            icon={Hash}
-            type="select"
-            options={['Porcentaje', 'Número Entero', 'Número Decimal']}
-            isEditing={editingFields.has('formatoNumero')}
-            onEdit={() => handleEdit('formatoNumero')}
-            onCancel={() => handleCancelEdit('formatoNumero')}
-            editValue={editValues.formatoNumero}
-            onValueChange={(value) => setEditValues({ ...editValues, formatoNumero: value })}
-          />
+              {/* Forma de Cálculo */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">Forma de Cálculo</h3>
+                {isEditMode ? (
+                  <textarea
+                    value={editValues.formaCalculo}
+                    onChange={(e) => setEditValues({ ...editValues, formaCalculo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-y"
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-gray-700 text-sm">{editValues.formaCalculo}</p>
+                )}
+              </div>
 
-          {/* Resultado Esperado */}
-          <EditableFieldComponent
-            label="Resultado esperado"
-            value={editValues.resultadoEsperado}
-            field="resultadoEsperado"
-            icon={Calculator}
-            isEditing={editingFields.has('resultadoEsperado')}
-            onEdit={() => handleEdit('resultadoEsperado')}
-            onCancel={() => handleCancelEdit('resultadoEsperado')}
-            editValue={editValues.resultadoEsperado}
-            onValueChange={(value) => setEditValues({ ...editValues, resultadoEsperado: value })}
-          />
+              {/* Formato del Número */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">Formato del número</h3>
+                {isEditMode ? (
+                  <select
+                    value={editValues.formatoNumero}
+                    onChange={(e) => setEditValues({ ...editValues, formatoNumero: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {['Porcentaje', 'Número Entero', 'Número Decimal'].map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-gray-700 text-sm">{editValues.formatoNumero}</p>
+                )}
+              </div>
 
-          {/* Resultado Actual */}
-          <EditableFieldComponent
-            label="Resultado actual"
-            value={editValues.resultadoAlcanzado}
-            field="resultadoAlcanzado"
-            icon={Calculator}
-            isEditing={editingFields.has('resultadoAlcanzado')}
-            onEdit={() => handleEdit('resultadoAlcanzado')}
-            onCancel={() => handleCancelEdit('resultadoAlcanzado')}
-            editValue={editValues.resultadoAlcanzado}
-            onValueChange={(value) => setEditValues({ ...editValues, resultadoAlcanzado: value })}
-          />
+              {/* Resultados */}
+              <div className="mt-4">
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 mb-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-bold text-gray-900">Resultados</h2>
+                </div>
+                
+                {/* Esperado y Actual con línea separadora vertical */}
+                <div className="flex items-center">
+                  {/* Resultado Esperado */}
+                  <div className="flex-1 flex flex-col items-center py-2">
+                    <span className="text-sm font-medium text-blue-600 mb-1">Esperado</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editValues.resultadoEsperado}
+                        onChange={(e) => setEditValues({ ...editValues, resultadoEsperado: e.target.value })}
+                        className="w-full max-w-[120px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
+                      />
+                    ) : (
+                      <p className="text-xl font-bold text-blue-600">{resultadoEsperadoFormateado}</p>
+                    )}
+                  </div>
+
+                  {/* Línea separadora vertical */}
+                  <div className="w-px h-10 bg-gray-200 self-center"></div>
+
+                  {/* Resultado Actual */}
+                  <div className="flex-1 flex flex-col items-center py-2">
+                    <span className={`text-sm font-medium mb-1 ${colorEstado}`}>Actual</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editValues.resultadoAlcanzado}
+                        onChange={(e) => setEditValues({ ...editValues, resultadoAlcanzado: e.target.value })}
+                        className="w-full max-w-[120px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
+                      />
+                    ) : (
+                      <p className={`text-xl font-bold ${colorEstado}`}>{resultadoAlcanzadoFormateado}</p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Línea separadora horizontal debajo */}
+                <div className="w-full h-px bg-gray-200 mt-2"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* SEPARADOR VERTICAL SUTIL */}
+          <div className="w-px bg-gray-200"></div>
+
+          {/* COLUMNA DERECHA: Solo Comentarios */}
+          <div ref={comentariosContainerRef} className="flex flex-col pb-2" style={{ height: '550px', maxHeight: '550px' }}>
+            {/* Header de comentarios - movido más arriba */}
+            <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 mb-4 flex-shrink-0">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              <h2 className="text-lg font-bold text-gray-900">Comentarios</h2>
+            </div>
+
+            {/* Lista de comentarios - con flex-1 para ocupar espacio disponible */}
+            <div ref={comentariosListRef} className="space-y-3 flex-1 overflow-y-auto mb-4" style={{ minHeight: 0, maxHeight: '100%' }}>
+              {isLoadingComentarios ? (
+                <p className="text-sm text-gray-500">Cargando comentarios...</p>
+              ) : comentarios.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay comentarios aún</p>
+              ) : (
+                comentarios.map((comentario) => (
+                  <div key={comentario.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      {comentario.user.image ? (
+                        <img
+                          src={comentario.user.image}
+                          alt={comentario.user.name || 'Usuario'}
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                          <span className="text-xs font-medium text-gray-600">
+                            {(comentario.user.name || comentario.user.email)[0].toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {comentario.user.name || 'Usuario'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(comentario.createdAt).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{comentario.contenido}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Input para nuevo comentario - posicionado al final */}
+            {session?.user && (
+              <div className="flex items-start space-x-3 pt-4 pb-2 border-t border-gray-200 flex-shrink-0">
+                  <div className="flex-shrink-0">
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session.user.name || 'Usuario'}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-xs font-medium text-gray-600">
+                          {(session.user.name || session.user.email)[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="text-xs text-gray-500 mb-1">
+                      Comentas como {session.user.name || session.user.email}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <textarea
+                        value={nuevoComentario}
+                        onChange={(e) => setNuevoComentario(e.target.value)}
+                        placeholder="Escribe un comentario..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.ctrlKey) {
+                            handleEnviarComentario();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleEnviarComentario}
+                        disabled={!nuevoComentario.trim() || isEnviandoComentario}
+                        className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Enviar comentario (Ctrl+Enter)"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
         </div>
 
         {/* Toast de éxito */}
@@ -390,33 +702,54 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
         )}
 
         {/* Footer con botones de guardar y cancelar */}
-        {(editingFields.size > 0 || hasChanges()) && (
-          <DialogFooter className="mt-6">
+        {isEditMode ? (
+          <DialogFooter className="mt-6 flex items-center justify-between">
+            {/* Botón redondo de edición (X roja) */}
             <button
-              onClick={handleCancelAll}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              disabled={isSaving}
+              onClick={toggleEditMode}
+              className="w-12 h-12 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 border border-red-200"
+              title="Salir del modo edición"
             >
-              Cancelar
+              <span className="text-xl font-semibold">×</span>
             </button>
-            <button
-              onClick={handleSaveAll}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              disabled={isSaving || !hasChanges()}
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4" />
-                  <span>Guardar cambios</span>
-                </>
-              )}
-            </button>
+            
+            {/* Botones Cancelar y Guardar */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCancelAll}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                disabled={isSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveAll}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                disabled={isSaving || !hasChanges()}
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>Guardar cambios</span>
+                  </>
+                )}
+              </button>
+            </div>
           </DialogFooter>
+        ) : (
+          /* Botón redondo de edición en la parte inferior izquierda (solo cuando NO está en modo edición) */
+          <button
+            onClick={toggleEditMode}
+            className="absolute bottom-6 left-6 w-12 h-12 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center z-50 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200"
+            title="Modo edición"
+          >
+            <Edit2 className="h-5 w-5" />
+          </button>
         )}
       </DialogContent>
     </Dialog>

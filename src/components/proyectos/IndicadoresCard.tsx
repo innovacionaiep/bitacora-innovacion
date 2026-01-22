@@ -20,6 +20,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
     resultadoEsperado: string;
     resultadoAlcanzado: string;
     formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   } | null>(null);
 
   // Función para refrescar los datos después de guardar
@@ -44,7 +46,9 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
               indicadorActualizado.resultadoEsperado !== selectedIndicador.resultadoEsperado ||
               indicadorActualizado.resultadoAlcanzado !== selectedIndicador.resultadoAlcanzado ||
               indicadorActualizado.descripcion !== selectedIndicador.descripcion ||
-              indicadorActualizado.formaCalculo !== selectedIndicador.formaCalculo
+              indicadorActualizado.formaCalculo !== selectedIndicador.formaCalculo ||
+              indicadorActualizado.fechaInicio !== selectedIndicador.fechaInicio ||
+              indicadorActualizado.fechaFin !== selectedIndicador.fechaFin
             ) {
               setSelectedIndicador({
                 id: indicadorActualizado.id,
@@ -54,6 +58,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                 resultadoEsperado: indicadorActualizado.resultadoEsperado,
                 resultadoAlcanzado: indicadorActualizado.resultadoAlcanzado,
                 formatoNumero: indicadorActualizado.formatoNumero,
+                fechaInicio: indicadorActualizado.fechaInicio,
+                fechaFin: indicadorActualizado.fechaFin,
               });
             }
             break;
@@ -119,6 +125,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                     resultadoEsperado: indicador.resultadoEsperado,
                     resultadoAlcanzado: indicador.resultadoAlcanzado,
                     formatoNumero: indicador.formatoNumero,
+                    fechaInicio: indicador.fechaInicio,
+                    fechaFin: indicador.fechaFin,
                   });
                 }}
               />

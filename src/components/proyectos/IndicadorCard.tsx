@@ -10,6 +10,8 @@ interface IndicadorCardProps {
     resultadoAlcanzado: string;
     formatoNumero?: string | null;
     porcentajeAvance: number;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   };
   orden: number;
 }
@@ -79,9 +81,6 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
               <BarChart3 className="h-3.5 w-3.5 text-gray-600" />
             </div>
             <div className="flex flex-col">
-              <div className="text-xs font-semibold text-gray-700">
-                Indicador {orden}
-              </div>
               <h5 className="font-medium text-[15px] leading-tight break-words text-gray-800">
                 {indicador.nombre}
               </h5>

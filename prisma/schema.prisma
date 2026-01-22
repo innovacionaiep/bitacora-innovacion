@@ -58,6 +58,7 @@ model User {
   sessions  Session[]
   roles     UserRole[]
   proyectos ProyectoParticipante[]
+  comentariosIndicador ComentarioIndicador[]
 
   @@map("users")
 }
@@ -339,11 +340,30 @@ model Indicador {
   formatoNumero          String?  @default("Porcentaje") @map("formato_numero")
   porcentajeCumplimiento Float    @default(0) @map("porcentaje_cumplimiento")
   porcentajeAvance       Float    @default(0) @map("porcentaje_avance")
+  fechaInicio            String?  @map("fecha_inicio") // Formato: YYYY-MM-DD
+  fechaFin               String?  @map("fecha_fin") // Formato: YYYY-MM-DD
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   proyecto           Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   objetivoEspecifico ObjetivoProyecto @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
+  comentarios       ComentarioIndicador[]
 
   @@map("indicadores")
+}
+
+// Comentarios de Indicadores
+model ComentarioIndicador {
+  id          String   @id @default(cuid())
+  indicadorId String   @map("indicador_id")
+  userId      String   @map("user_id")
+  contenido   String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  indicador Indicador @relation(fields: [indicadorId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([indicadorId])
+  @@map("comentarios_indicador")
 }

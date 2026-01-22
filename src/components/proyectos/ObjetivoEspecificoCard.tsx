@@ -2,6 +2,7 @@
 
 import { ListChecks, Search } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
+import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
 import type { ObjetivoGeneralData } from '@/lib/actions/indicadores';
 
 interface ObjetivoEspecificoCardProps {
@@ -19,6 +20,9 @@ interface ObjetivoEspecificoCardProps {
       formatoNumero?: string | null;
       porcentajeCumplimiento: number;
       porcentajeAvance: number;
+      fechaInicio?: string | null;
+      fechaFin?: string | null;
+      comentariosCount: number;
     }>;
   };
   onIndicadorClick: (indicador: {
@@ -29,6 +33,8 @@ interface ObjetivoEspecificoCardProps {
     resultadoEsperado: string;
     resultadoAlcanzado: string;
     formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   }) => void;
 }
 
@@ -41,22 +47,29 @@ export function ObjetivoEspecificoCard({ objetivoEspecifico, onIndicadorClick }:
       )
     : 0;
 
+  // Calcular dimensiones para indicadores agrupados
+  // Altura aproximada de cada sección de indicador: py-2.5 (20px) + contenido (~50px) + separador (1px) = ~71px
+  const alturaPorIndicador = 71;
+  const alturaTotalTarjetaAgrupada = objetivoEspecifico.indicadores.length > 0
+    ? objetivoEspecifico.indicadores.length * alturaPorIndicador - 1 // -1 porque el último no tiene separador
+    : 0;
+  
   // Calcular la altura mínima de la tarjeta basada en la cantidad de indicadores
-  // Altura base de la tarjeta del indicador: ~90px (aproximado, incluyendo padding y contenido)
-  // Gap entre indicadores: 16px (gap-4) cuando hay 2 indicadores, 24px (gap-6) en otros casos
-  // Altura base del objetivo: ~110px (aproximado, incluyendo padding y contenido)
-  const alturaIndicador = 90; // altura aproximada de cada tarjeta de indicador
-  const gapIndicadores = objetivoEspecifico.indicadores.length === 2 ? 16 : 24; // gap-4 = 16px para 2 indicadores, gap-6 = 24px para otros casos
   const alturaBaseObjetivo = 110; // altura base del objetivo
   
   // Si hay indicadores, calcular la altura mínima necesaria
-  // La altura total debe ser: altura del primer indicador + (cantidad de indicadores adicionales * (altura + gap))
-  const alturaMinima = objetivoEspecifico.indicadores.length > 0
-    ? Math.max(
-        alturaBaseObjetivo,
-        alturaIndicador + (objetivoEspecifico.indicadores.length - 1) * (alturaIndicador + gapIndicadores)
-      )
-    : alturaBaseObjetivo;
+  // Para un solo indicador: usar altura de tarjeta individual (~90px)
+  // Para múltiples indicadores: usar altura de tarjeta agrupada
+  const alturaMinima = objetivoEspecifico.indicadores.length === 0
+    ? alturaBaseObjetivo
+    : objetivoEspecifico.indicadores.length === 1
+      ? Math.max(alturaBaseObjetivo, 90) // altura aproximada de tarjeta individual
+      : Math.max(alturaBaseObjetivo, alturaTotalTarjetaAgrupada);
+  
+  // Altura de la línea vertical para múltiples indicadores
+  const alturaVertical = objetivoEspecifico.indicadores.length > 1
+    ? Math.max(alturaTotalTarjetaAgrupada - alturaPorIndicador, alturaPorIndicador)
+    : 0;
 
   return (
     <div className="flex items-stretch gap-6 relative">
@@ -99,41 +112,86 @@ export function ObjetivoEspecificoCard({ objetivoEspecifico, onIndicadorClick }:
       {/* Indicadores - Se expanden hacia la derecha */}
       {objetivoEspecifico.indicadores.length > 0 && (
         <div 
-          className={`flex flex-col min-w-max relative ml-40 ${objetivoEspecifico.indicadores.length === 1 ? 'justify-center' : objetivoEspecifico.indicadores.length === 2 ? 'gap-4 justify-center' : 'gap-6 justify-center'}`}
+          className="flex flex-col min-w-max relative ml-40 justify-center"
           style={{ height: `${alturaMinima}px`, minHeight: `${alturaMinima}px` }}
         >
-          {/* Líneas conectoras horizontales desde el objetivo específico hacia cada indicador */}
-          {objetivoEspecifico.indicadores.map((indicador, index) => (
-            <div key={indicador.id} className="relative flex items-center gap-3">
-              {/* Línea conectora horizontal - desde el borde derecho del objetivo específico hasta el punto del indicador */}
-              {/* gap-6 (24px) + ml-40 (160px) = 184px total desde el borde derecho del objetivo específico hasta el inicio del contenedor de indicadores */}
-              {/* La línea debe extenderse desde el borde derecho del objetivo específico hasta el inicio del contenedor de indicadores */}
+          {objetivoEspecifico.indicadores.length === 1 ? (
+            // Un solo indicador: conexión simple
+            <div className="relative flex items-center gap-3">
+              {/* Línea conectora horizontal - desde el borde derecho del objetivo específico hasta la tarjeta del indicador */}
               <div className="absolute left-[-184px] top-1/2 -translate-y-1/2 w-[184px] h-0.5 bg-gray-300 z-0"></div>
-              {/* Nodo circular en el punto de conexión - al inicio de la tarjeta del indicador */}
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-gray-400 rounded-full -translate-x-1/2 z-10"></div>
               
               <IndicadorCard
                 indicador={{
-                  id: indicador.id,
-                  nombre: indicador.nombre,
-                  resultadoEsperado: indicador.resultadoEsperado,
-                  resultadoAlcanzado: indicador.resultadoAlcanzado,
-                  formatoNumero: indicador.formatoNumero,
-                  porcentajeAvance: indicador.porcentajeAvance,
+                  id: objetivoEspecifico.indicadores[0].id,
+                  nombre: objetivoEspecifico.indicadores[0].nombre,
+                  resultadoEsperado: objetivoEspecifico.indicadores[0].resultadoEsperado,
+                  resultadoAlcanzado: objetivoEspecifico.indicadores[0].resultadoAlcanzado,
+                  formatoNumero: objetivoEspecifico.indicadores[0].formatoNumero,
+                  porcentajeAvance: objetivoEspecifico.indicadores[0].porcentajeAvance,
+                  fechaInicio: objetivoEspecifico.indicadores[0].fechaInicio,
+                  fechaFin: objetivoEspecifico.indicadores[0].fechaFin,
                 }}
-                orden={index + 1}
+                orden={1}
               />
               
               {/* Botón Ver Detalles - fuera de la tarjeta, a la derecha */}
-              <button
-                onClick={() => onIndicadorClick(indicador)}
-                className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer flex-shrink-0"
-                title="Ver detalles"
-              >
-                <Search className="h-5 w-5 text-gray-700" />
-              </button>
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => onIndicadorClick(objetivoEspecifico.indicadores[0])}
+                  className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                  title="Ver detalles"
+                >
+                  <Search className="h-5 w-5 text-gray-700" />
+                </button>
+                {/* Badge de comentarios */}
+                {objetivoEspecifico.indicadores[0].comentariosCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                    {objetivoEspecifico.indicadores[0].comentariosCount}
+                  </span>
+                )}
+              </div>
             </div>
-          ))}
+          ) : (
+            // Múltiples indicadores: conexión simple centrada
+            <div className="relative flex items-center gap-3">
+              {/* Línea conectora horizontal - desde el borde derecho del objetivo específico hasta la tarjeta agrupada */}
+              <div className="absolute left-[-184px] top-1/2 -translate-y-1/2 w-[184px] h-0.5 bg-gray-300 z-0"></div>
+              
+              {/* Tarjeta agrupada de indicadores */}
+              <div className="relative z-10">
+                <IndicadoresAgrupadosCard
+                  indicadores={objetivoEspecifico.indicadores.map((ind, idx) => ({
+                    ...ind,
+                    orden: idx + 1
+                  }))}
+                  indicadoresCompletos={objetivoEspecifico.indicadores}
+                  onIndicadorClick={onIndicadorClick}
+                />
+              </div>
+              
+              {/* Botones Ver Detalles - fuera de la tarjeta, a la derecha, uno por cada indicador */}
+              <div className="flex flex-col gap-3 justify-center">
+                {objetivoEspecifico.indicadores.map((indicador) => (
+                  <div key={indicador.id} className="relative flex-shrink-0">
+                    <button
+                      onClick={() => onIndicadorClick(indicador)}
+                      className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                      title="Ver detalles"
+                    >
+                      <Search className="h-5 w-5 text-gray-700" />
+                    </button>
+                    {/* Badge de comentarios */}
+                    {indicador.comentariosCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        {indicador.comentariosCount}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

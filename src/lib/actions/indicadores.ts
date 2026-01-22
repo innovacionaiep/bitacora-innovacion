@@ -13,6 +13,9 @@ export interface IndicadorData {
   formatoNumero?: string | null;
   porcentajeCumplimiento: number;
   porcentajeAvance: number;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  comentariosCount: number;
   objetivoEspecifico: {
     id: string;
     descripcion: string;
@@ -51,7 +54,14 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
       where: { proyectoId },
       include: {
         indicadores: {
-          orderBy: { createdAt: 'asc' }
+          orderBy: { createdAt: 'asc' },
+          include: {
+            _count: {
+              select: {
+                comentarios: true
+              }
+            }
+          }
         }
       },
       orderBy: { orden: 'asc' }
@@ -131,6 +141,9 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                 formatoNumero: ind.formatoNumero,
                 porcentajeCumplimiento, // Usar el valor recalculado
                 porcentajeAvance, // Usar el valor recalculado
+                fechaInicio: ind.fechaInicio,
+                fechaFin: ind.fechaFin,
+                comentariosCount: ind._count.comentarios,
                 objetivoEspecifico: {
                   id: obj.id,
                   descripcion: obj.descripcion,
@@ -224,11 +237,14 @@ export async function updateIndicadorResultado(
 export async function updateIndicador(
   indicadorId: string,
   data: {
+    nombre?: string;
     descripcion?: string;
     formaCalculo?: string;
     formatoNumero?: string | null;
     resultadoEsperado?: string;
     resultadoAlcanzado?: string;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
