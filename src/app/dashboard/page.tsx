@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 
 import {
   DropdownMenu,
@@ -41,7 +40,7 @@ import {
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import * as XLSX from 'xlsx';
 import { useProyectos } from '@/hooks/useProyectos';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
@@ -49,6 +48,103 @@ import { SimpleDonutChart } from '@/components/dashboard/SimpleDonutChart';
 import { ProyectoWithRelations } from '@/types/proyecto';
 
 type Project = ProyectoWithRelations;
+
+// ====== Componente SimpleMultiSelect - Sin DropdownMenu de Radix ======
+// Usa un div posicionado simple con click-outside handler
+// Memoizado con React.memo para evitar re-renders innecesarios
+interface SimpleMultiSelectProps {
+  label: string;
+  filterKey: string;
+  options: (string | number)[];
+  placeholder: string;
+  selectedValues: string[];
+  onSelectionChange: (filterKey: string, value: string, checked: boolean) => void;
+}
+
+const SimpleMultiSelect = memo(function SimpleMultiSelect({
+  label,
+  filterKey,
+  options,
+  placeholder,
+  selectedValues,
+  onSelectionChange,
+}: SimpleMultiSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Click outside handler
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    
+    // Usar setTimeout para evitar que el click que abre el menú lo cierre inmediatamente
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const displayText =
+    selectedValues.length === 0
+      ? placeholder
+      : selectedValues.length === 1
+        ? String(selectedValues[0])
+        : `${selectedValues.length} seleccionados`;
+
+  return (
+    <div className="space-y-2" ref={containerRef}>
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <span className={selectedValues.length === 0 ? 'text-muted-foreground' : ''}>
+            {displayText}
+          </span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </button>
+        
+        {isOpen && (
+          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-2 shadow-md">
+            <div className="max-h-64 overflow-y-auto">
+              {options.map((option) => {
+                const value = String(option);
+                const isChecked = selectedValues.includes(value);
+                return (
+                  <label
+                    key={value}
+                    className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-gray-100 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        onSelectionChange(filterKey, value, e.target.checked);
+                      }}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <span>{option}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function DashboardPage() {
   const { proyectos: proyectosIniciales, loading, error } = useProyectos();
@@ -66,6 +162,27 @@ export default function DashboardPage() {
   const handleNombreProyectoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNombreProyectoFilter(e.target.value);
   }, []);
+
+  // Handler para cambios en filtros de selección múltiple
+  const handleFilterSelectionChange = useCallback((filterKey: string, value: string, checked: boolean) => {
+    setFilters(prevFilters => {
+      const newFilters = { ...prevFilters };
+      if (checked) {
+        newFilters[filterKey] = [...(newFilters[filterKey] || []), value];
+      } else {
+        newFilters[filterKey] = newFilters[filterKey]?.filter((f) => f !== value) || [];
+      }
+      return newFilters;
+    });
+  }, []);
+
+  // Arrays estables para selectedValues (evita crear nuevos arrays vacíos en cada render)
+  const emptyArray = useMemo(() => [] as string[], []);
+  const selectedFondos = filters.fondo || emptyArray;
+  const selectedSedes = filters.sede || emptyArray;
+  const selectedEscuelas = filters.escuela || emptyArray;
+  const selectedCarreras = filters.carrera || emptyArray;
+
 
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
   const getDisplayValue = (col: string, p: Project): string | number => {
@@ -560,224 +677,36 @@ export default function DashboardPage() {
     </Card>
   );
 
-  // ====== Componente helper para filtro con selección múltiple ======
-  const MultiSelectFilter = ({
-    label,
-    filterKey,
-    options,
-    placeholder,
-  }: {
-    label: string;
-    filterKey: string;
-    options: (string | number)[];
-    placeholder: string;
-  }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const selectedValues = filters[filterKey] || [];
-    const displayText =
-      selectedValues.length === 0
-        ? placeholder
-        : selectedValues.length === 1
-          ? String(selectedValues[0])
-          : `${selectedValues.length} seleccionados`;
 
-    return (
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
-        <DropdownMenu 
-          open={isOpen} 
-          onOpenChange={(open) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:605',message:'onOpenChange called',data:{open:open,activeElement:document.activeElement?.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
-            // Solo cerrar si realmente se quiere cerrar (click fuera)
-            // No cerrar automáticamente cuando se hace click en elementos dentro
-            setIsOpen(open);
-          }} 
-          modal={false}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between text-left font-normal"
-            >
-              <span className={selectedValues.length === 0 ? 'text-muted-foreground' : ''}>
-                {displayText}
-              </span>
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            className="w-56 p-2" 
-            align="start"
-            onInteractOutside={(e) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:625',message:'onInteractOutside',data:{targetTag:e.target?.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
-              // Permitir cerrar solo cuando se hace click fuera del contenido
-              const target = e.target as HTMLElement;
-              const content = e.currentTarget;
-              // Si el click es dentro del contenido o en un label/checkbox, prevenir el cierre
-              if (content.contains(target) || target.closest('label') || target.closest('[role="checkbox"]')) {
-                e.preventDefault();
-              }
-            }}
-            onSelect={(e) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:635',message:'onSelect',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
-              // Prevenir que el dropdown se cierre al hacer click en elementos dentro
-              e.preventDefault();
-            }}
-          >
-            <div className="max-h-64 overflow-y-auto pr-1">
-              {options.map((option) => {
-                const value = String(option);
-                const isChecked = selectedValues.includes(value);
-                return (
-                  <label
-                    key={value}
-                    className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-gray-100 cursor-pointer"
-                    onClick={(e) => {
-                      // #region agent log
-                      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:636',message:'Label onClick',data:{filterKey:filterKey,value:value},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
-                      // #endregion
-                      // No prevenir el evento - permitir que el checkbox funcione normalmente
-                    }}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={(checked) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:648',message:'Checkbox onCheckedChange',data:{filterKey:filterKey,value:value,checked:checked},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
-                        // #endregion
-                        const newFilters = { ...filters };
-                        if (checked) {
-                          newFilters[filterKey] = [
-                            ...(newFilters[filterKey] || []),
-                            value,
-                          ];
-                        } else {
-                          newFilters[filterKey] =
-                            newFilters[filterKey]?.filter((f) => f !== value) ||
-                            [];
-                        }
-                        setFilters(newFilters);
-                      }}
-                    />
-                    <span>{option}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  };
+  // Valores únicos para filtros - basados en TODOS los proyectos (no filtrados)
+  // Esto evita que las opciones cambien mientras el usuario está filtrando
+  const fondosUnicos = useMemo(() => {
+    if (loading) return [];
+    return Array.from(new Set(proyectosIniciales.map(p => p.fondo))).sort();
+  }, [proyectosIniciales, loading]);
 
-  // ====== Panel de Filtros ======
-  const renderFilterPanel = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:628',message:'renderFilterPanel called',data:{nombreProyectoFilter:nombreProyectoFilter,filtersCount:Object.keys(filters).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    const fondosUnicos = getUniqueValues('fondo' as any);
-    const sedesUnicas = getUniqueValues('sede' as any);
-    const escuelasUnicas = getUniqueValues('escuela' as any);
-    const carrerasUnicas = getUniqueValues('carrera' as any);
+  const sedesUnicas = useMemo(() => {
+    if (loading) return [];
+    return Array.from(new Set(proyectosIniciales.map(p => p.sede))).sort();
+  }, [proyectosIniciales, loading]);
 
-    return (
-      <div className="mb-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700">Filtros:</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Filtro de Nombre de Proyecto */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Nombre de Proyecto
-            </label>
-            <Input
-              placeholder="Buscar proyecto..."
-              value={nombreProyectoFilter}
-              onChange={handleNombreProyectoChange}
-              className="w-full"
-            />
-          </div>
+  const escuelasUnicas = useMemo(() => {
+    if (loading) return [];
+    const escuelas = new Set<string>();
+    proyectosIniciales.forEach(p => {
+      p.escuelas?.forEach(e => escuelas.add(e.escuela.nombre));
+    });
+    return Array.from(escuelas).sort();
+  }, [proyectosIniciales, loading]);
 
-          {/* Filtro de Fondo */}
-          <MultiSelectFilter
-            label="Fondo"
-            filterKey="fondo"
-            options={fondosUnicos}
-            placeholder="Todos los fondos"
-          />
-
-          {/* Filtro de Sede */}
-          <MultiSelectFilter
-            label="Sede"
-            filterKey="sede"
-            options={sedesUnicas}
-            placeholder="Todas las sedes"
-          />
-
-          {/* Filtro de Escuela Líder */}
-          <MultiSelectFilter
-            label="Escuela Líder"
-            filterKey="escuela"
-            options={escuelasUnicas}
-            placeholder="Todas las escuelas"
-          />
-
-          {/* Filtro de Carrera */}
-          <MultiSelectFilter
-            label="Carrera"
-            filterKey="carrera"
-            options={carrerasUnicas}
-            placeholder="Todas las carreras"
-          />
-        </div>
-
-        {/* Botón para limpiar filtros */}
-        {(nombreProyectoFilter ||
-          filters.fondo?.length ||
-          filters.sede?.length ||
-          filters.escuela?.length ||
-          filters.carrera?.length) && (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setNombreProyectoFilter('');
-                setFilters({});
-              }}
-              className="bg-[#26619c] hover:bg-[#1e4d7a] text-white border-[#26619c] hover:border-[#1e4d7a]"
-            >
-              Limpiar filtros
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ====== Vista: Lista ======
-  const VistaLista = () => (
-    <div className="space-y-6">
-      {renderFilterPanel()}
-      {renderTable()}
-      <div className="flex justify-start">
-        <Button
-          onClick={exportToExcel}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
-        >
-          <Download className="h-4 w-4" />
-          <span>Exportar Excel</span>
-        </Button>
-      </div>
-    </div>
-  );
+  const carrerasUnicas = useMemo(() => {
+    if (loading) return [];
+    const carreras = new Set<string>();
+    proyectosIniciales.forEach(p => {
+      p.carreras?.forEach(c => carreras.add(c.carrera.nombre));
+    });
+    return Array.from(carreras).sort();
+  }, [proyectosIniciales, loading]);
 
   // ====== Vista: Mirada General ======
   const VistaMiradaGeneral = () => (
@@ -1303,7 +1232,103 @@ export default function DashboardPage() {
       </div>
 
       {/* Contenido según la vista seleccionada */}
-      {currentView === 'lista' && <VistaLista />}
+      {currentView === 'lista' && (
+        <div className="space-y-6">
+          {/* Panel de Filtros - Inline para evitar re-mount */}
+          <div className="mb-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700">Filtros:</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Filtro de Nombre de Proyecto */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Nombre de Proyecto
+                </label>
+                <Input
+                  placeholder="Buscar proyecto..."
+                  value={nombreProyectoFilter}
+                  onChange={(e) => setNombreProyectoFilter(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Filtro de Fondo */}
+              <SimpleMultiSelect
+                label="Fondo"
+                filterKey="fondo"
+                options={fondosUnicos}
+                placeholder="Todos los fondos"
+                selectedValues={selectedFondos}
+                onSelectionChange={handleFilterSelectionChange}
+              />
+
+              {/* Filtro de Sede */}
+              <SimpleMultiSelect
+                label="Sede"
+                filterKey="sede"
+                options={sedesUnicas}
+                placeholder="Todas las sedes"
+                selectedValues={selectedSedes}
+                onSelectionChange={handleFilterSelectionChange}
+              />
+
+              {/* Filtro de Escuela Líder */}
+              <SimpleMultiSelect
+                label="Escuela Líder"
+                filterKey="escuela"
+                options={escuelasUnicas}
+                placeholder="Todas las escuelas"
+                selectedValues={selectedEscuelas}
+                onSelectionChange={handleFilterSelectionChange}
+              />
+
+              {/* Filtro de Carrera */}
+              <SimpleMultiSelect
+                label="Carrera"
+                filterKey="carrera"
+                options={carrerasUnicas}
+                placeholder="Todas las carreras"
+                selectedValues={selectedCarreras}
+                onSelectionChange={handleFilterSelectionChange}
+              />
+            </div>
+
+            {/* Botón para limpiar filtros */}
+            {(nombreProyectoFilter ||
+              filters.fondo?.length ||
+              filters.sede?.length ||
+              filters.escuela?.length ||
+              filters.carrera?.length) && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNombreProyectoFilter('');
+                    setFilters({});
+                  }}
+                  className="bg-[#26619c] hover:bg-[#1e4d7a] text-white border-[#26619c] hover:border-[#1e4d7a]"
+                >
+                  Limpiar filtros
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {renderTable()}
+          
+          <div className="flex justify-start">
+            <Button
+              onClick={exportToExcel}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <Download className="h-4 w-4" />
+              <span>Exportar Excel</span>
+            </Button>
+          </div>
+        </div>
+      )}
       {currentView === 'mirada-general' && <VistaMiradaGeneral />}
       {currentView === 'analisis-escuela' && <VistaAnalisisEscuela />}
       {currentView === 'analisis-participantes' && <VistaAnalisisParticipantes />}
