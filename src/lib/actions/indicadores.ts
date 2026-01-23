@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { createHistorialEntry } from './historial';
 
 export interface IndicadorData {
   id: string;
@@ -291,6 +292,25 @@ export async function updateIndicador(
       where: { id: indicadorId },
       data: updateData
     });
+
+    // Registrar en historial si hay cambios en valores
+    const cambios: string[] = [];
+    if (data.resultadoEsperado !== undefined && data.resultadoEsperado !== indicadorActual.resultadoEsperado) {
+      cambios.push(`Resultado esperado: ${indicadorActual.resultadoEsperado} → ${data.resultadoEsperado}`);
+    }
+    if (data.resultadoAlcanzado !== undefined && data.resultadoAlcanzado !== indicadorActual.resultadoAlcanzado) {
+      cambios.push(`Resultado alcanzado: ${indicadorActual.resultadoAlcanzado} → ${data.resultadoAlcanzado}`);
+    }
+
+    if (cambios.length > 0) {
+      await createHistorialEntry({
+        proyectoId: indicadorActual.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'Indicadores',
+        elementoEspecifico: `Indicador "${indicadorActual.nombre}"`,
+        cambioGenerado: cambios.join('; '),
+      });
+    }
 
     // Eliminado revalidatePath para evitar refresh completo de página
     // El estado se actualizará mediante onUpdate callback y fetchIndicadores

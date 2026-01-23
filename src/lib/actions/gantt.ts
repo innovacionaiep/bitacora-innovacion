@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
+import { createHistorialEntry } from './historial';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
 export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
@@ -63,6 +64,15 @@ export async function createActivity(data: ActivityData) {
       include: {
         tasks: true,
       },
+    });
+
+    // Registrar en historial
+    await createHistorialEntry({
+      proyectoId: data.projectId,
+      accion: 'Crear',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Actividad "${activity.name}"`,
+      cambioGenerado: `Nueva actividad creada: ${activity.name}`,
     });
 
     revalidatePath('/gantt');
@@ -269,7 +279,17 @@ export async function toggleTaskCompletion(id: string) {
   try {
     const task = await prisma.task.findUnique({
       where: { id },
-      select: { completed: true, activityId: true },
+      select: { 
+        completed: true, 
+        activityId: true,
+        name: true,
+        activity: {
+          select: {
+            name: true,
+            projectId: true,
+          },
+        },
+      },
     });
 
     if (!task) {
@@ -283,6 +303,17 @@ export async function toggleTaskCompletion(id: string) {
         progress: !task.completed ? 100 : 0,
       },
     });
+
+    // Registrar en historial solo si se marca como completada (no cuando se desmarca)
+    if (updatedTask.completed && !task.completed) {
+      await createHistorialEntry({
+        proyectoId: task.activity.projectId,
+        accion: 'Marcar realizada',
+        tabProyecto: 'Actividades',
+        elementoEspecifico: `Tarea "${task.name}" de Actividad "${task.activity.name}"`,
+        cambioGenerado: '', // No mostrar cambioGenerado para tareas completadas
+      });
+    }
 
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(task.activityId);
@@ -380,6 +411,20 @@ export async function updateActivityStatus(
   status: ActivityStatus
 ) {
   try {
+    // Obtener la actividad actual para tener el nombre y proyectoId
+    const activityBefore = await prisma.activity.findUnique({
+      where: { id: activityId },
+      select: {
+        name: true,
+        projectId: true,
+        status: true,
+      },
+    });
+
+    if (!activityBefore) {
+      return { success: false, error: 'Actividad no encontrada' };
+    }
+
     const activity = await prisma.activity.update({
       where: { id: activityId },
       data: { status },
@@ -387,6 +432,17 @@ export async function updateActivityStatus(
         tasks: true,
       },
     });
+
+    // Registrar en historial solo si se marca como realizada (DONE)
+    if (status === 'DONE' && activityBefore.status !== 'DONE') {
+      await createHistorialEntry({
+        proyectoId: activityBefore.projectId,
+        accion: 'Marcar realizada',
+        tabProyecto: 'Actividades',
+        elementoEspecifico: `Actividad "${activity.name}"`,
+        cambioGenerado: `Actividad "${activity.name}" marcada como realizada`,
+      });
+    }
 
     revalidatePath('/proyectos');
     return { success: true, data: activity };

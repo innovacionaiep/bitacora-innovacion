@@ -59,6 +59,7 @@ model User {
   roles     UserRole[]
   proyectos ProyectoParticipante[]
   comentariosIndicador ComentarioIndicador[]
+  historialProyecto HistorialProyecto[]
 
   @@map("users")
 }
@@ -112,6 +113,7 @@ model Proyecto {
   objetivos_rel      ObjetivoProyecto[]
   desarrolloTecnico  DesarrolloTecnico?
   indicadores        Indicador[]
+  historial          HistorialProyecto[]
 
   @@map("proyectos")
 }
@@ -366,4 +368,24 @@ model ComentarioIndicador {
 
   @@index([indicadorId])
   @@map("comentarios_indicador")
+}
+
+// Historial de Proyectos
+model HistorialProyecto {
+  id                String   @id @default(cuid())
+  proyectoId        String   @map("proyecto_id")
+  userId            String   @map("user_id")
+  accion            String   // Crear, Comentar, Actualizar, Marcar realizada, etc.
+  tabProyecto       String   @map("tab_proyecto") // Actividades, Indicadores, Presupuesto, etc.
+  elementoEspecifico String   @map("elemento_especifico") @db.Text // Nombre del elemento afectado
+  cambioGenerado    String   @map("cambio_generado") @db.Text // Texto del cambio
+  fecha             DateTime @default(now())
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([proyectoId])
+  @@index([userId])
+  @@map("historial_proyecto")
 }

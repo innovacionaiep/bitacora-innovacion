@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
+import { createHistorialEntry } from './historial';
 
 export interface ComentarioIndicadorData {
   id: string;
@@ -65,6 +66,22 @@ export async function createComentarioIndicador(
       };
     }
 
+    // Obtener el indicador para tener su nombre y proyectoId
+    const indicador = await prisma.indicador.findUnique({
+      where: { id: indicadorId },
+      select: {
+        nombre: true,
+        proyectoId: true,
+      },
+    });
+
+    if (!indicador) {
+      return {
+        success: false,
+        error: 'Indicador no encontrado',
+      };
+    }
+
     const comentario = await prisma.comentarioIndicador.create({
       data: {
         indicadorId,
@@ -81,6 +98,15 @@ export async function createComentarioIndicador(
           },
         },
       },
+    });
+
+    // Registrar en historial
+    await createHistorialEntry({
+      proyectoId: indicador.proyectoId,
+      accion: 'Comentar',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: `Indicador "${indicador.nombre}"`,
+      cambioGenerado: contenido,
     });
 
     revalidatePath('/proyectos');

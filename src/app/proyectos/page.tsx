@@ -70,6 +70,7 @@ import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
 import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
+import { HistorialCard } from '@/components/proyectos/HistorialCard';
 import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
 import { ProyectoParticipante } from '@prisma/client';
 import { User as UserType } from '@prisma/client';
@@ -119,7 +120,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto'>('General');
+  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto' | 'Historial'>('General');
   
   // Estado para el modal de participante
   const [selectedParticipante, setSelectedParticipante] = useState<(ProyectoParticipante & { user?: UserType | null }) | null>(null);
@@ -861,6 +862,16 @@ export default function ProyectosPage() {
                       }`}
                   >
                     Presupuesto
+                  </Button>
+                  <Button
+                    onClick={() => setSelectedTab('Historial')}
+                    size="sm"
+                    className={`text-sm font-medium ${selectedTab === 'Historial'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                  >
+                    Historial
                   </Button>
                 </div>
               </div>
@@ -1713,6 +1724,12 @@ export default function ProyectosPage() {
                       <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
                     </CardContent>
                   </Card>
+                </div>
+              )}
+
+              {selectedTab === 'Historial' && (
+                <div className="h-full pt-4">
+                  <HistorialCard projectId={selectedProject.id} />
                 </div>
               )}
             </div>

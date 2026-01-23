@@ -379,9 +379,9 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent ref={dialogContentRef} className="w-[65vw] max-w-[65vw] min-h-[85vh] max-h-[90vh] p-10 overflow-y-auto pb-4">
+      <DialogContent ref={dialogContentRef} className="w-[65vw] max-w-[65vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4">
         {/* Header con título, nombre e indicador de cumplimiento */}
-        <div className="mb-6">
+        <div className="mb-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1">
               <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-3">
@@ -425,9 +425,11 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
         </div>
         
         {/* Layout de dos columnas con separador */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-10 mt-0">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-10 mt-0 flex-1 min-h-0">
           {/* COLUMNA IZQUIERDA: Fechas primero, luego información sin tarjetas */}
-          <div className="space-y-8">
+          <div 
+            className={`space-y-8 overflow-y-auto ${isEditMode ? 'max-h-[calc(100%-140px)]' : 'h-full'}`}
+          >
             {/* FECHAS (Primero) - Horizontal */}
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
@@ -590,7 +592,7 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
           <div className="w-px bg-gray-200"></div>
 
           {/* COLUMNA DERECHA: Solo Comentarios */}
-          <div ref={comentariosContainerRef} className="flex flex-col pb-2 min-h-[60vh] max-h-[70vh]">
+          <div ref={comentariosContainerRef} className="flex flex-col pb-2 h-full min-h-0">
             {/* Header de comentarios - movido más arriba */}
             <div className="flex items-center space-x-2 pb-3 border-b border-gray-200 mb-6 flex-shrink-0">
               <MessageSquare className="h-6 w-6 text-blue-600" />
@@ -703,44 +705,36 @@ export function IndicadorModal({ indicador, onClose, onUpdate }: IndicadorModalP
 
         {/* Footer con botones de guardar y cancelar */}
         {isEditMode ? (
-          <DialogFooter className="mt-8 flex items-center justify-between">
-            {/* Botón redondo de edición (X roja) */}
+          <div className="absolute bottom-6 left-6 flex items-center space-x-4 z-50">
+            {/* Botón redondo de cancelar (X roja) */}
             <button
-              onClick={toggleEditMode}
+              onClick={handleCancelAll}
               className="w-14 h-14 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 border border-red-200"
               title="Salir del modo edición"
+              disabled={isSaving}
             >
               <span className="text-xl font-semibold">×</span>
             </button>
             
-            {/* Botones Cancelar y Guardar */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleCancelAll}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-base"
-                disabled={isSaving}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveAll}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-base"
-                disabled={isSaving || !hasChanges()}
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Guardando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-5 w-5" />
-                    <span>Guardar cambios</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </DialogFooter>
+            {/* Botón Guardar */}
+            <button
+              onClick={handleSaveAll}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-base"
+              disabled={isSaving || !hasChanges()}
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-5 w-5" />
+                  <span>Guardar cambios</span>
+                </>
+              )}
+            </button>
+          </div>
         ) : (
           /* Botón redondo de edición en la parte inferior izquierda (solo cuando NO está en modo edición) */
           <button
