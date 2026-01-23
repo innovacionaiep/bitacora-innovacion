@@ -901,7 +901,7 @@ export default function ProyectosPage() {
                 <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
                   <Users className="h-4 w-4 text-gray-600" />
                   <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    {selectedProject.participantes} participantes
+                    {selectedProject.participantes_rel?.length || 0} participantes
                   </span>
                 </div>
                 <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
@@ -1654,6 +1654,7 @@ export default function ProyectosPage() {
                                     const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
+                                    const socioComunitario = participante.socioComunitario?.nombre;
                                     return (
                                       <div 
                                         key={participante.id} 
@@ -1680,6 +1681,11 @@ export default function ProyectosPage() {
                                           </p>
                                           {cargo && (
                                             <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                          )}
+                                          {socioComunitario && (
+                                            <p className="text-xs text-blue-600 truncate font-medium mt-0.5">
+                                              {socioComunitario}
+                                            </p>
                                           )}
                                         </div>
                                       </div>

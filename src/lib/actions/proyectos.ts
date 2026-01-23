@@ -19,6 +19,7 @@ export async function getProyectos() {
         participantes_rel: {
           include: {
             user: true,
+            socioComunitario: true,
           },
         },
         escuelas: {
@@ -98,6 +99,7 @@ export async function getProyecto(id: string) {
         participantes_rel: {
           include: {
             user: true,
+            socioComunitario: true,
           },
         },
         escuelas: {
@@ -215,6 +217,7 @@ export async function createProyecto(data: ProyectoFormData) {
         participantes_rel: {
           include: {
             user: true,
+            socioComunitario: true,
           },
         },
         escuelas: {

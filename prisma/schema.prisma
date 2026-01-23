@@ -120,17 +120,19 @@ model Proyecto {
 
 // Participación en Proyectos (many-to-many con roles)
 model ProyectoParticipante {
-  id         String   @id @default(cuid())
-  proyectoId String   @map("proyecto_id")
-  userId     String?  @map("user_id") // Opcional: para participantes sin cuenta activa
-  rol        String // Encargado|Coordinador|Colaborador|Docente|Estudiante|Beneficiario
-  nombre     String? // Nombre del participante (cuando no tiene cuenta)
-  email      String? // Email del participante (cuando no tiene cuenta)
-  cargo      String? // Cargo del participante en el proyecto
-  createdAt  DateTime @default(now()) @map("created_at")
+  id                 String   @id @default(cuid())
+  proyectoId         String   @map("proyecto_id")
+  userId             String?  @map("user_id") // Opcional: para participantes sin cuenta activa
+  rol                String // Encargado|Coordinador|Colaborador|Docente|Estudiante|Beneficiario
+  nombre             String? // Nombre del participante (cuando no tiene cuenta)
+  email              String? // Email del participante (cuando no tiene cuenta)
+  cargo              String? // Cargo del participante en el proyecto
+  socioComunitarioId String?  @map("socio_comunitario_id") // Socio comunitario (obligatorio para Beneficiarios)
+  createdAt          DateTime @default(now()) @map("created_at")
 
-  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proyecto         Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  socioComunitario SocioComunitario? @relation(fields: [socioComunitarioId], references: [id], onDelete: SetNull)
 
   @@unique([proyectoId, userId, rol])
   @@map("proyecto_participantes")
@@ -232,7 +234,8 @@ model SocioComunitario {
   nombre      String
   descripcion String?
 
-  proyectos ProyectoSocioComunitario[]
+  proyectos           ProyectoSocioComunitario[]
+  participantes      ProyectoParticipante[]
 
   @@map("socios_comunitarios")
 }

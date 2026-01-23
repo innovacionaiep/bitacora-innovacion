@@ -20,6 +20,7 @@ import {
 export type ProyectoWithRelations = Proyecto & {
   participantes_rel: (ProyectoParticipante & {
     user?: User | null;
+    socioComunitario?: SocioComunitario | null;
   })[];
   escuelas: (ProyectoEscuela & {
     escuela: Escuela;
