@@ -29,15 +29,13 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 
 import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
@@ -126,13 +124,12 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
                     key={value}
                     className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-gray-100 cursor-pointer"
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isChecked}
-                      onChange={(e) => {
-                        onSelectionChange(filterKey, value, e.target.checked);
+                      onCheckedChange={(checked) => {
+                        onSelectionChange(filterKey, value, checked === true);
                       }}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-gray-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500"
                     />
                     <span>{option}</span>
                   </label>
@@ -152,7 +149,6 @@ export default function DashboardPage() {
   // ====== Estados ======
   const [currentView, setCurrentView] = useState<string>('mirada-general');
   const [filters, setFilters] = useState<{ [key: string]: string[] }>({});
-  const [searchTerm, setSearchTerm] = useState<{ [key: string]: string }>({});
   const [nombreProyectoFilter, setNombreProyectoFilter] = useState<string>('');
   const [sort, setSort] = useState<{ key: string | null; dir: 'asc' | 'desc' }>({
     key: null,
@@ -182,6 +178,7 @@ export default function DashboardPage() {
   const selectedSedes = filters.sede || emptyArray;
   const selectedEscuelas = filters.escuela || emptyArray;
   const selectedCarreras = filters.carrera || emptyArray;
+  const selectedFocos = filters.focalizacion || emptyArray;
 
 
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
@@ -196,6 +193,7 @@ export default function DashboardPage() {
     if (col === 'carrera') {
       return p.carreras?.[0]?.carrera.nombre || 'N/A';
     }
+    if (col === 'focalizacion') return p.focalizacion || 'N/A';
     return (p as any)[col];
   };
 
@@ -205,6 +203,7 @@ export default function DashboardPage() {
     }
     if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') return p.presupuestoUsado;
+    if (col === 'focalizacion') return p.focalizacion || 'N/A';
     return (p as any)[col];
   };
 
@@ -252,51 +251,6 @@ export default function DashboardPage() {
     return filtered;
   }, [proyectosIniciales, nombreProyectoFilter, filters, sort, loading]);
 
-  // Valores únicos DINÁMICOS para la columna abierta (excluye su propio filtro) - MEMOIZADO
-  const getUniqueValues = useCallback((columna: keyof Project | 'reuniones' | 'carrera') => {
-    if (loading) return [];
-    let rows = proyectosIniciales;
-
-    // Aplicar filtro de nombre de proyecto
-    if (nombreProyectoFilter.trim()) {
-      rows = rows.filter((p) =>
-        p.proyecto.toLowerCase().includes(nombreProyectoFilter.toLowerCase())
-      );
-    }
-
-    // Aplicar otros filtros excepto el de la columna actual
-    rows = rows.filter((p) =>
-      Object.entries(filters).every(([col, selected]) => {
-        if (col === columna) return true; // ignorar su propio filtro
-        if (!selected || selected.length === 0) return true;
-        
-        // Para carrera, verificar si alguna de las carreras del proyecto coincide
-        if (col === 'carrera') {
-          const carrerasProyecto = p.carreras?.map(c => c.carrera.nombre) || [];
-          return selected.some((val) => carrerasProyecto.includes(val));
-        }
-        
-        const val = String(getDisplayValue(col, p));
-        return selected.includes(val);
-      })
-    );
-    
-    // Para carrera, obtener todas las carreras de todos los proyectos
-    if (columna === 'carrera') {
-      const todasLasCarreras = new Set<string>();
-      rows.forEach((p) => {
-        p.carreras?.forEach((c) => {
-          todasLasCarreras.add(c.carrera.nombre);
-        });
-      });
-      return Array.from(todasLasCarreras).sort();
-    }
-    
-    return Array.from(
-      new Set(rows.map((p) => getDisplayValue(columna as string, p)))
-    ).sort();
-  }, [proyectosIniciales, nombreProyectoFilter, filters, loading]);
-
   // ====== Acciones de menú ======
   const handleAction = (columna: string, accion: string) => {
     if (accion === 'Ordenar ASC') {
@@ -317,8 +271,12 @@ export default function DashboardPage() {
       Fondo: project.fondo,
       Sede: project.sede,
       'Escuela Líder': project.escuelas?.[0]?.escuela.nombre || 'N/A',
+      Foco: project.focalizacion || 'N/A',
       'Avance Gantt (%)': project.avanceGantt,
       'Indicadores (%)': project.objetivos,
+      'Presupuesto (%)': project.presupuestoTotal
+        ? Math.min(100, Math.round((project.presupuestoUsado / project.presupuestoTotal) * 100))
+        : 0,
       'Presupuesto Usado': project.presupuestoUsado,
       'Presupuesto Total': project.presupuestoTotal,
       'Reuniones Realizadas': project.reunionesHechas,
@@ -336,8 +294,10 @@ export default function DashboardPage() {
       { wch: 15 }, // Fondo
       { wch: 20 }, // Sede
       { wch: 30 }, // Escuela Líder
+      { wch: 12 }, // Foco
       { wch: 15 }, // Avance Gantt
       { wch: 15 }, // Indicadores
+      { wch: 15 }, // Presupuesto (%)
       { wch: 18 }, // Presupuesto Usado
       { wch: 18 }, // Presupuesto Total
       { wch: 20 }, // Reuniones Realizadas
@@ -383,59 +343,6 @@ export default function DashboardPage() {
             >
               Ordenar DESC
             </DropdownMenuItem>
-
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Filtrar</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-56 p-2">
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="w-full border rounded px-2 py-1 text-sm mb-2"
-                  value={searchTerm[columna] || ''}
-                  onChange={(e) =>
-                    setSearchTerm({ ...searchTerm, [columna]: e.target.value })
-                  }
-                />
-
-                <div className="max-h-48 overflow-y-auto pr-1">
-                  {getUniqueValues(columna as any)
-                    .filter((val) =>
-                      String(val)
-                        .toLowerCase()
-                        .includes((searchTerm[columna] || '').toLowerCase())
-                    )
-                    .map((val) => (
-                      <label
-                        key={`${columna}-${val}`}
-                        className="flex items-center gap-2 text-sm py-1"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            filters[columna]?.includes(String(val)) || false
-                          }
-                          onChange={(e) => {
-                            const newFilters = { ...filters };
-                            const v = String(val);
-                            if (e.target.checked) {
-                              newFilters[columna] = [
-                                ...(newFilters[columna] || []),
-                                v,
-                              ];
-                            } else {
-                              newFilters[columna] =
-                                newFilters[columna]?.filter((f) => f !== v) ||
-                                [];
-                            }
-                            setFilters(newFilters);
-                          }}
-                        />
-                        {val}
-                      </label>
-                    ))}
-                </div>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -572,6 +479,11 @@ export default function DashboardPage() {
                 'text-center w-[150px]'
               )}
               {renderHeadWithButton(
+                'Foco',
+                'focalizacion',
+                'text-center w-[100px]'
+              )}
+              {renderHeadWithButton(
                 'Avance Gantt',
                 'avanceGantt',
                 'text-center w-40'
@@ -584,7 +496,7 @@ export default function DashboardPage() {
               {renderHeadWithButton(
                 'Presupuesto',
                 'presupuestoUsado',
-                'pl-8 text-center w-30'
+                'text-center w-40'
               )}
               {renderHeadWithButton(
                 'Reuniones',
@@ -601,8 +513,13 @@ export default function DashboardPage() {
           <TableBody>
             {filteredProjects.map((p, i) => (
               <TableRow key={i}>
-                <TableCell className="font-medium pl-7">
-                  {p.proyecto}
+                <TableCell
+                  className="font-medium pl-7"
+                  title={p.proyecto}
+                >
+                  {p.proyecto.length > 51
+                    ? `${p.proyecto.slice(0, 51)}...`
+                    : p.proyecto}
                 </TableCell>
                 <TableCell className="text-center">
                   <Badge
@@ -626,6 +543,14 @@ export default function DashboardPage() {
                     className="text-gray-600 whitespace-nowrap"
                   >
                     {p.escuelas?.[0]?.escuela.nombre || 'N/A'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge
+                    variant="outline"
+                    className="text-gray-600 whitespace-nowrap"
+                  >
+                    {p.focalizacion || 'N/A'}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -654,14 +579,24 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="pl-8 text-center">
-                  <span className="font-bold">
-                    ${p.presupuestoUsado.toLocaleString('es-CL')}
-                  </span>
-                  <br />
-                  <span className="text-gray-500">
-                    de ${p.presupuestoTotal.toLocaleString('es-CL')}
-                  </span>
+                <TableCell>
+                  <div className="flex items-center">
+                    <div className="flex-1 bg-gray-200 rounded h-3 relative">
+                      <div
+                        className="bg-emerald-500 h-3 rounded"
+                        style={{
+                          width: `${p.presupuestoTotal
+                            ? Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))
+                            : 0}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-gray-800 ml-2">
+                      {p.presupuestoTotal
+                        ? `${Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))}%`
+                        : '0%'}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-center">
                   {p.reunionesHechas}/{p.reunionesTotales}
@@ -706,6 +641,13 @@ export default function DashboardPage() {
       p.carreras?.forEach(c => carreras.add(c.carrera.nombre));
     });
     return Array.from(carreras).sort();
+  }, [proyectosIniciales, loading]);
+
+  const focalizacionesUnicas = useMemo(() => {
+    if (loading) return [];
+    return Array.from(
+      new Set(proyectosIniciales.map(p => p.focalizacion || 'N/A'))
+    ).filter(Boolean).sort();
   }, [proyectosIniciales, loading]);
 
   // ====== Vista: Mirada General ======
@@ -1235,11 +1177,8 @@ export default function DashboardPage() {
       {currentView === 'lista' && (
         <div className="space-y-6">
           {/* Panel de Filtros - Inline para evitar re-mount */}
-          <div className="mb-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-700">Filtros:</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="pt-6 mb-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               {/* Filtro de Nombre de Proyecto */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
@@ -1292,6 +1231,16 @@ export default function DashboardPage() {
                 selectedValues={selectedCarreras}
                 onSelectionChange={handleFilterSelectionChange}
               />
+
+              {/* Filtro de Foco */}
+              <SimpleMultiSelect
+                label="Foco"
+                filterKey="focalizacion"
+                options={focalizacionesUnicas}
+                placeholder="Todos los focos"
+                selectedValues={selectedFocos}
+                onSelectionChange={handleFilterSelectionChange}
+              />
             </div>
 
             {/* Botón para limpiar filtros */}
@@ -1299,7 +1248,8 @@ export default function DashboardPage() {
               filters.fondo?.length ||
               filters.sede?.length ||
               filters.escuela?.length ||
-              filters.carrera?.length) && (
+              filters.carrera?.length ||
+              filters.focalizacion?.length) && (
               <div className="flex justify-end">
                 <Button
                   variant="outline"
