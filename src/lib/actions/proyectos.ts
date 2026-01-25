@@ -16,6 +16,18 @@ export async function getProyectos() {
     
     const proyectos = await prisma.proyecto.findMany({
       include: {
+        activities: {
+          include: {
+            tasks: {
+              orderBy: {
+                createdAt: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
         participantes_rel: {
           include: {
             user: true,

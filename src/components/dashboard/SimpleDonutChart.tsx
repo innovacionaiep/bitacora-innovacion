@@ -31,9 +31,13 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
   let currentOffset = 0;
   const segments = data.map((item, index) => {
     const percentage = total > 0 ? (item.value / total) * 100 : 0;
-    const strokeDasharray = (percentage / 100) * circumference;
+    const segmentLength = (percentage / 100) * circumference;
+    // strokeDasharray: [longitud del segmento visible, espacio en blanco]
+    // El espacio en blanco es el resto de la circunferencia para que el siguiente segmento comience después
+    const gap = circumference - segmentLength;
+    const strokeDasharray = `${segmentLength} ${gap}`;
     const strokeDashoffset = -currentOffset;
-    currentOffset += strokeDasharray;
+    currentOffset += segmentLength;
     const color = item.color || colors[index % colors.length];
 
     return {
@@ -50,8 +54,9 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
       {title && (
         <h3 className="text-lg font-semibold mb-4 text-gray-900">{title}</h3>
       )}
-      <div className="flex flex-col items-center space-y-4">
-        <div className="relative" style={{ width: size, height: size }}>
+      <div className="flex items-center justify-center gap-12">
+        {/* Gráfico donut a la izquierda */}
+        <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="transform -rotate-90">
             {segments.map((segment, index) => (
               <circle
@@ -64,34 +69,31 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
                 strokeWidth="20"
                 strokeDasharray={segment.strokeDasharray}
                 strokeDashoffset={segment.strokeDashoffset}
-                strokeLinecap="round"
+                strokeLinecap="butt"
                 className="transition-all duration-500"
               />
             ))}
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{total}</div>
-              <div className="text-xs text-gray-500">Total</div>
-            </div>
-          </div>
         </div>
-        <div className="w-full space-y-2">
-          {segments.map((segment) => (
-            <div key={segment.label} className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: segment.color }}
-                />
-                <span className="text-gray-700">{segment.label}</span>
+        {/* Leyendas a la derecha */}
+        <div className="flex-shrink-0">
+          <div className="space-y-3">
+            {segments.map((segment) => (
+              <div key={segment.label} className="flex items-center justify-between text-sm" style={{ minWidth: '200px' }}>
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: segment.color }}
+                  />
+                  <span className="text-gray-700">{segment.label}</span>
+                </div>
+                <div className="flex items-center space-x-1 flex-shrink-0">
+                  <span className="text-gray-900 font-bold">{segment.value}</span>
+                  <span className="text-gray-500">({segment.percentage.toFixed(1)}%)</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-900 font-bold">{segment.value}</span>
-                <span className="text-gray-500">({segment.percentage.toFixed(1)}%)</span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

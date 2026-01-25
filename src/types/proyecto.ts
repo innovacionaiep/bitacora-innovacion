@@ -13,11 +13,16 @@ import {
   ProyectoCarrera,
   ProyectoComuna,
   ProyectoGrupoInteres,
-  ProyectoSocioComunitario
+  ProyectoSocioComunitario,
+  Activity,
+  Task
 } from '@prisma/client';
 
 // Tipos base para relaciones
 export type ProyectoWithRelations = Proyecto & {
+  activities?: (Activity & {
+    tasks: Task[];
+  })[];
   participantes_rel: (ProyectoParticipante & {
     user?: User | null;
     socioComunitario?: SocioComunitario | null;

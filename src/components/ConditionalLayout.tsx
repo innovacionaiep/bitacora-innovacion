@@ -23,11 +23,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // Para todas las demás rutas, mostrar el layout completo con sidebar
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <SidebarProvider defaultOpen={true}>
         <SidebarNav />
         <ResponsiveMain>
-          <div className="flex flex-col flex-1 h-full p-4 pt-2">
+          <div className="flex flex-col flex-1 h-full p-4 pt-2 overflow-x-hidden overflow-y-auto">
             {children}
           </div>
         </ResponsiveMain>

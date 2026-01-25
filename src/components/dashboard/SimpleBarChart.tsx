@@ -36,18 +36,20 @@ export function SimpleBarChart({ data, title, height = 200 }: SimpleBarChartProp
 
           return (
             <div key={item.label} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-sm mb-1">
                 <span className="text-gray-700 font-medium">{item.label}</span>
-                <span className="text-gray-900 font-bold">{item.value}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${percentage}%`,
-                    backgroundColor: color,
-                  }}
-                />
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-300 rounded-full h-4 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+                </div>
+                <span className="text-gray-900 font-bold text-sm min-w-[2rem] text-right">{item.value}</span>
               </div>
             </div>
           );

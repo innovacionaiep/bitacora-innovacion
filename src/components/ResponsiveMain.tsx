@@ -17,7 +17,7 @@ export default function ResponsiveMain({
   return (
     <main
       className={cn(
-        'relative flex w-full flex-1 flex-col bg-background h-full',
+        'relative flex w-full flex-1 flex-col bg-background h-full overflow-hidden',
         state === 'collapsed' ? 'ml-16' : 'ml-46',
         className
       )}

@@ -154,6 +154,8 @@ export default function DashboardPage() {
     key: null,
     dir: 'asc',
   });
+  const [graficoSedeEscuela, setGraficoSedeEscuela] = useState<'sede' | 'escuela'>('sede');
+  
   // Handler simple y fluido para el Input (igual que en proyectos/page.tsx)
   const handleNombreProyectoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNombreProyectoFilter(e.target.value);
@@ -194,6 +196,11 @@ export default function DashboardPage() {
       return p.carreras?.[0]?.carrera.nombre || 'N/A';
     }
     if (col === 'focalizacion') return p.focalizacion || 'N/A';
+    if (col === 'estado') return calcularEstadoProyecto(p);
+    if (col === 'fechaInicio' || col === 'fechaFin') {
+      const fechas = calcularFechasProyecto(p);
+      return col === 'fechaInicio' ? formatearFecha(fechas.fechaInicio) : formatearFecha(fechas.fechaFin);
+    }
     return (p as any)[col];
   };
 
@@ -202,9 +209,110 @@ export default function DashboardPage() {
       return p.reunionesTotales ? p.reunionesHechas / p.reunionesTotales : 0;
     }
     if (col === 'avanceGantt') return p.avanceGantt;
-    if (col === 'presupuestoUsado') return p.presupuestoUsado;
+    if (col === 'presupuestoUsado') {
+      // Ordenar por porcentaje de presupuesto usado (lo que se muestra en la tabla)
+      return p.presupuestoTotal ? (p.presupuestoUsado / p.presupuestoTotal) * 100 : 0;
+    }
     if (col === 'focalizacion') return p.focalizacion || 'N/A';
+    if (col === 'estado') {
+      const estado = calcularEstadoProyecto(p);
+      // Ordenar: Finalizado = 3, En Ejecución = 2, Atrasado = 1
+      if (estado === 'Finalizado') return 3;
+      if (estado === 'En Ejecución') return 2;
+      return 1;
+    }
+    if (col === 'fechaInicio' || col === 'fechaFin') {
+      const fechas = calcularFechasProyecto(p);
+      const fecha = col === 'fechaInicio' ? fechas.fechaInicio : fechas.fechaFin;
+      return fecha ? new Date(fecha).getTime() : 0;
+    }
     return (p as any)[col];
+  };
+
+  // ====== Funciones helper para estado y fechas ======
+  /**
+   * Calcula el estado del proyecto:
+   * - "Finalizado": avanceGantt === 100 y objetivos === 100 y no hay actividades atrasadas
+   * - "Atrasado": hay al menos una tarea con fecha de finalización pasada pero progress < 100
+   * - "En Ejecución": no está finalizado y no hay actividades atrasadas
+   */
+  const calcularEstadoProyecto = (p: Project): 'Finalizado' | 'En Ejecución' | 'Atrasado' => {
+    // Verificar si está completamente finalizado
+    const estaFinalizado = p.avanceGantt === 100 && p.objetivos === 100;
+
+    // Verificar si hay tareas atrasadas
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    const tieneTareasAtrasadas = p.activities?.some(activity =>
+      activity.tasks?.some(task => {
+        if (!task.endDate) return false;
+        const fechaFin = new Date(task.endDate);
+        fechaFin.setHours(0, 0, 0, 0);
+        // Tarea atrasada: fecha de fin pasada y progress < 100
+        return fechaFin < hoy && task.progress < 100;
+      })
+    ) || false;
+
+    if (tieneTareasAtrasadas) {
+      return 'Atrasado';
+    }
+    
+    if (estaFinalizado) {
+      return 'Finalizado';
+    }
+    
+    return 'En Ejecución';
+  };
+
+  /**
+   * Calcula la fecha de inicio y fin del proyecto basándose en las tareas
+   * Retorna las fechas mínima (inicio) y máxima (fin) de todas las tareas
+   */
+  const calcularFechasProyecto = (p: Project): { fechaInicio: string | null; fechaFin: string | null } => {
+    const todasLasTareas = p.activities?.flatMap(activity => activity.tasks || []) || [];
+    
+    if (todasLasTareas.length === 0) {
+      return { fechaInicio: null, fechaFin: null };
+    }
+
+    const fechasInicio = todasLasTareas
+      .map(t => t.startDate)
+      .filter(Boolean)
+      .map(fecha => new Date(fecha));
+    
+    const fechasFin = todasLasTareas
+      .map(t => t.endDate)
+      .filter(Boolean)
+      .map(fecha => new Date(fecha));
+
+    if (fechasInicio.length === 0 || fechasFin.length === 0) {
+      return { fechaInicio: null, fechaFin: null };
+    }
+
+    const fechaInicio = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
+    const fechaFin = new Date(Math.max(...fechasFin.map(d => d.getTime())));
+
+    return {
+      fechaInicio: fechaInicio.toISOString().split('T')[0],
+      fechaFin: fechaFin.toISOString().split('T')[0],
+    };
+  };
+
+  /**
+   * Formatea una fecha al formato "01.01.2026"
+   */
+  const formatearFecha = (fecha: string | null): string => {
+    if (!fecha) return 'N/A';
+    try {
+      const date = new Date(fecha);
+      const dia = String(date.getDate()).padStart(2, '0');
+      const mes = String(date.getMonth() + 1).padStart(2, '0');
+      const año = date.getFullYear();
+      return `${dia}.${mes}.${año}`;
+    } catch {
+      return 'N/A';
+    }
   };
 
   // Proyectos filtrados con TODOS los filtros aplicados - MEMOIZADO para evitar re-renders
@@ -266,23 +374,31 @@ export default function DashboardPage() {
     const filteredData = filteredProjects;
 
     // Preparar los datos para Excel
-    const excelData = filteredData.map((project) => ({
-      'Nombre del Proyecto': project.proyecto,
-      Fondo: project.fondo,
-      Sede: project.sede,
-      'Escuela Líder': project.escuelas?.[0]?.escuela.nombre || 'N/A',
-      Foco: project.focalizacion || 'N/A',
-      'Avance Gantt (%)': project.avanceGantt,
-      'Indicadores (%)': project.objetivos,
-      'Presupuesto (%)': project.presupuestoTotal
-        ? Math.min(100, Math.round((project.presupuestoUsado / project.presupuestoTotal) * 100))
-        : 0,
-      'Presupuesto Usado': project.presupuestoUsado,
-      'Presupuesto Total': project.presupuestoTotal,
-      'Reuniones Realizadas': project.reunionesHechas,
-      'Reuniones Totales': project.reunionesTotales,
-      Participantes: project.participantes_rel?.length || 0,
-    }));
+    const excelData = filteredData.map((project) => {
+      const estado = calcularEstadoProyecto(project);
+      const fechas = calcularFechasProyecto(project);
+      
+      return {
+        'Nombre del Proyecto': project.proyecto,
+        Estado: estado,
+        'Fecha Inicio': formatearFecha(fechas.fechaInicio),
+        'Fecha Fin': formatearFecha(fechas.fechaFin),
+        Fondo: project.fondo,
+        Sede: project.sede,
+        'Escuela Líder': project.escuelas?.[0]?.escuela.nombre || 'N/A',
+        Foco: project.focalizacion || 'N/A',
+        'Avance Gantt (%)': project.avanceGantt,
+        'Indicadores (%)': project.objetivos,
+        'Presupuesto (%)': project.presupuestoTotal
+          ? Math.min(100, Math.round((project.presupuestoUsado / project.presupuestoTotal) * 100))
+          : 0,
+        'Presupuesto Usado': project.presupuestoUsado,
+        'Presupuesto Total': project.presupuestoTotal,
+        'Reuniones Realizadas': project.reunionesHechas,
+        'Reuniones Totales': project.reunionesTotales,
+        Participantes: project.participantes_rel?.length || 0,
+      };
+    });
 
     // Crear el libro de trabajo
     const wb = XLSX.utils.book_new();
@@ -291,6 +407,9 @@ export default function DashboardPage() {
     // Ajustar el ancho de las columnas
     const colWidths = [
       { wch: 50 }, // Nombre del Proyecto
+      { wch: 15 }, // Estado
+      { wch: 15 }, // Fecha Inicio
+      { wch: 15 }, // Fecha Fin
       { wch: 15 }, // Fondo
       { wch: 20 }, // Sede
       { wch: 30 }, // Escuela Líder
@@ -321,7 +440,7 @@ export default function DashboardPage() {
     className = '',
     align: 'start' | 'center' = 'center'
   ) => (
-    <TableHead className={className}>
+    <TableHead className={`${className} whitespace-nowrap`}>
       <div
         className={`flex items-center gap-1 ${align === 'center' ? 'justify-center' : 'justify-start'}`}
       >
@@ -384,6 +503,14 @@ export default function DashboardPage() {
     0
   );
 
+  // Cálculos adicionales para proyectos terminados y en ejecución
+  const proyectosTerminados = proyectosIniciales.filter((p) => p.avanceGantt === 100).length;
+  const proyectosEnEjecucion = totalProyectos - proyectosTerminados;
+  const porcentajePresupuestoUsado = presupuestoTotal > 0 
+    ? Math.round((presupuestoUsado / presupuestoTotal) * 100) 
+    : 0;
+  const presupuestoDisponible = presupuestoTotal - presupuestoUsado;
+
   // ====== Cálculos para gráficos ======
   const proyectosPorFocalizacion = useMemo(() => {
     const grouped: Record<string, number> = {};
@@ -395,12 +522,12 @@ export default function DashboardPage() {
       label,
       value,
       color:
-        label === 'Social'
-          ? '#3b82f6'
-          : label === 'Productiva'
-            ? '#10b981'
+        label === 'Productiva'
+          ? '#3b82f6' // Azul
+          : label === 'Social'
+            ? '#eab308' // Amarillo
             : label === 'Ambiental'
-              ? '#f59e0b'
+              ? '#10b981' // Verde esmeralda
               : '#6b7280',
     }));
   }, [proyectosIniciales]);
@@ -454,74 +581,132 @@ export default function DashboardPage() {
       .sort((a, b) => b.value - a.value);
   }, [proyectosIniciales]);
 
+  // Desglose de participantes por rol en orden específico
+  const desgloseParticipantes = useMemo(() => {
+    const roles = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
+    const grouped: Record<string, number> = {};
+    proyectosIniciales.forEach((p) => {
+      p.participantes_rel?.forEach((participante) => {
+        const rol = participante.rol;
+        grouped[rol] = (grouped[rol] || 0) + 1;
+      });
+    });
+    return roles.map(rol => ({
+      rol,
+      cantidad: grouped[rol] || 0,
+    }));
+  }, [proyectosIniciales]);
+
   // ====== Renderizado de Tabla ======
   const renderTable = () => (
-    <Card>
+    <Card className="w-full">
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-100">
-              {renderHeadWithButton(
-                'Nombre del proyecto',
-                'proyecto',
-                'pl-7 w-[400px]',
-                'start'
-              )}
-              {renderHeadWithButton(
-                'Fondo',
-                'fondo',
-                'text-center w-[100px]'
-              )}
-              {renderHeadWithButton('Sede', 'sede', 'text-center w-[100px]')}
+        <div className="overflow-x-auto w-full" style={{ maxWidth: '100%' }}>
+          <div style={{ minWidth: '2100px' }}>
+            <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-100">
+                {renderHeadWithButton(
+                  'Nombre del proyecto',
+                  'proyecto',
+                  'pl-7 w-[400px] sticky left-0 z-10 bg-gray-100',
+                  'start'
+                )}
+                {renderHeadWithButton(
+                  'Estado',
+                  'estado',
+                  'text-center w-[130px] px-4'
+                )}
+                {renderHeadWithButton(
+                  'Fecha Inicio',
+                  'fechaInicio',
+                  'text-center w-[140px] px-4'
+                )}
+                {renderHeadWithButton(
+                  'Fecha Fin',
+                  'fechaFin',
+                  'text-center w-[140px] px-4'
+                )}
+                {renderHeadWithButton(
+                  'Fondo',
+                  'fondo',
+                  'text-center w-[120px] px-4'
+                )}
+              {renderHeadWithButton('Sede', 'sede', 'text-center w-[120px] px-4')}
               {renderHeadWithButton(
                 'Escuela líder',
                 'escuela',
-                'text-center w-[150px]'
+                'text-center w-[200px] px-4'
               )}
               {renderHeadWithButton(
                 'Foco',
                 'focalizacion',
-                'text-center w-[100px]'
+                'text-center w-[120px] px-4'
               )}
               {renderHeadWithButton(
                 'Avance Gantt',
                 'avanceGantt',
-                'text-center w-40'
+                'text-center w-[180px] px-4'
               )}
               {renderHeadWithButton(
                 'Indicadores',
                 'objetivos',
-                'text-center w-40'
+                'text-center w-[180px] px-4'
               )}
               {renderHeadWithButton(
                 'Presupuesto',
                 'presupuestoUsado',
-                'text-center w-40'
+                'text-center w-[180px] px-4'
               )}
               {renderHeadWithButton(
                 'Reuniones',
                 'reuniones',
-                'text-center w-28'
+                'text-center w-[110px] px-4'
               )}
               {renderHeadWithButton(
                 'Participantes',
                 'participantes',
-                'text-center w-28'
+                'text-center w-[120px] px-4'
               )}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProjects.map((p, i) => (
-              <TableRow key={i}>
+            {filteredProjects.map((p, i) => {
+              const estado = calcularEstadoProyecto(p);
+              const fechas = calcularFechasProyecto(p);
+              
+              return (
+              <TableRow key={i} className="group">
                 <TableCell
-                  className="font-medium pl-7"
+                  className="font-medium pl-7 sticky left-0 z-10 bg-white group-hover:bg-muted/50 whitespace-nowrap overflow-hidden text-ellipsis"
                   title={p.proyecto}
+                  style={{ maxWidth: '400px' }}
                 >
                   {p.proyecto.length > 51
                     ? `${p.proyecto.slice(0, 51)}...`
                     : p.proyecto}
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4" style={{ width: '130px', minWidth: '130px' }}>
+                  <Badge
+                    variant="outline"
+                    className={`whitespace-nowrap ${
+                      estado === 'Finalizado'
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                        : estado === 'Atrasado'
+                        ? 'bg-red-100 text-red-700 border-red-300'
+                        : 'bg-blue-100 text-blue-700 border-blue-300'
+                    }`}
+                  >
+                    {estado}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center text-sm px-4 whitespace-nowrap" style={{ width: '140px', minWidth: '140px' }}>
+                  {formatearFecha(fechas.fechaInicio)}
+                </TableCell>
+                <TableCell className="text-center text-sm px-4 whitespace-nowrap" style={{ width: '140px', minWidth: '140px' }}>
+                  {formatearFecha(fechas.fechaFin)}
+                </TableCell>
+                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
                   <Badge
                     variant="outline"
                     className="text-gray-600 whitespace-nowrap"
@@ -529,7 +714,7 @@ export default function DashboardPage() {
                     {p.fondo}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
                   <Badge
                     variant="outline"
                     className="text-gray-600 whitespace-nowrap"
@@ -537,7 +722,7 @@ export default function DashboardPage() {
                     {p.sede}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '200px', minWidth: '200px' }}>
                   <Badge
                     variant="outline"
                     className="text-gray-600 whitespace-nowrap"
@@ -545,7 +730,7 @@ export default function DashboardPage() {
                     {p.escuelas?.[0]?.escuela.nombre || 'N/A'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
                   <Badge
                     variant="outline"
                     className="text-gray-600 whitespace-nowrap"
@@ -553,35 +738,35 @@ export default function DashboardPage() {
                     {p.focalizacion || 'N/A'}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative">
+                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
                       <div
                         className="bg-emerald-500 h-3 rounded"
                         style={{ width: `${p.avanceGantt}%` }}
                       ></div>
                     </div>
-                    <span className="text-xs text-gray-800 ml-2">
+                    <span className="text-xs text-gray-800 whitespace-nowrap">
                       {p.avanceGantt}%
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative">
+                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
                       <div
                         className="bg-emerald-500 h-3 rounded"
                         style={{ width: `${p.objetivos}%` }}
                       ></div>
                     </div>
-                    <span className="text-xs text-gray-800 ml-2">
+                    <span className="text-xs text-gray-800 whitespace-nowrap">
                       {p.objetivos}%
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative">
+                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
                       <div
                         className="bg-emerald-500 h-3 rounded"
                         style={{
@@ -591,23 +776,26 @@ export default function DashboardPage() {
                         }}
                       ></div>
                     </div>
-                    <span className="text-xs text-gray-800 ml-2">
+                    <span className="text-xs text-gray-800 whitespace-nowrap">
                       {p.presupuestoTotal
                         ? `${Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))}%`
                         : '0%'}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '110px', minWidth: '110px' }}>
                   {p.reunionesHechas}/{p.reunionesTotales}
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '120px', minWidth: '120px' }}>
                   {p.participantes_rel?.length || 0}
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -651,119 +839,182 @@ export default function DashboardPage() {
   }, [proyectosIniciales, loading]);
 
   // ====== Vista: Mirada General ======
-  const VistaMiradaGeneral = () => (
-    <div className="space-y-6">
-      {/* Tarjetas de métricas */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Total proyectos</p>
-                <div className="text-2xl font-bold">{totalProyectos}</div>
-                <p className="text-xs text-muted-foreground">
-                  Proyectos en la base de datos
-                </p>
-              </div>
-              <FolderKanban className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Avance promedio Gantt</p>
-                <div className="text-2xl font-bold">{avancePromedio}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Avance promedio de las cartas Gantt
-                </p>
-              </div>
-              <LineChart className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">% Objetivos cumplidos</p>
-                <div className="text-2xl font-bold">{indicadoresPromedio}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Promedio de objetivos cumplidos
-                </p>
-              </div>
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Presupuesto usado promedio</p>
-                <div className="text-2xl font-bold">
-                  ${(presupuestoPromedio / 1000000).toFixed(1)}M
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Promedio por proyecto
-                </p>
-              </div>
-              <DollarSign className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Reuniones realizadas</p>
-                <div className="text-2xl font-bold">{reunionesRealizadas}</div>
-                <p className="text-xs text-muted-foreground">
-                  Asociadas al seguimiento
-                </p>
-              </div>
-              <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Total participantes</p>
-                <div className="text-2xl font-bold">{totalParticipantes}</div>
-                <p className="text-xs text-muted-foreground">
-                  Miembros activos en proyectos
-                </p>
-              </div>
-              <User className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+  const VistaMiradaGeneral = () => {
+    // Preparar datos para el gráfico de sede/escuela con color gris más oscuro
+    const datosGraficoSedeEscuela = useMemo(() => {
+      const datos = graficoSedeEscuela === 'sede' ? proyectosPorSede : proyectosPorEscuela.slice(0, 10);
+      return datos.map(item => ({
+        ...item,
+        color: '#6b7280', // Gris más oscuro (gray-500)
+      }));
+    }, [graficoSedeEscuela, proyectosPorSede, proyectosPorEscuela]);
 
-      {/* Gráficos */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardContent className="p-6">
-            <SimpleDonutChart
-              data={proyectosPorFocalizacion}
-              title="Proyectos por Focalización"
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <SimpleBarChart
-              data={proyectosPorSede}
-              title="Distribución de Proyectos por Sede"
-            />
-          </CardContent>
-        </Card>
+    return (
+      <div className="space-y-6">
+        {/* Primera fila: Tarjetas de Total Proyectos y Total Participantes (mismo tamaño) */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <FolderKanban className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Total Proyectos</h3>
+              </div>
+              <div className="text-5xl font-bold text-gray-900 mb-4">{totalProyectos}</div>
+              <div className="flex items-center gap-6 mt-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Terminados</p>
+                  <p className="text-xl font-semibold text-emerald-600">{proyectosTerminados}</p>
+                </div>
+                <div className="h-12 w-px bg-gray-300"></div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">En Ejecución</p>
+                  <p className="text-xl font-semibold text-blue-600">{proyectosEnEjecucion}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tarjeta de Total Participantes (mismo tamaño) */}
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Total Participantes</h3>
+              </div>
+              <div className="text-5xl font-bold text-gray-900 mb-4">{totalParticipantes}</div>
+              <div className="flex flex-wrap items-center gap-4 mt-4">
+                {desgloseParticipantes.map(({ rol, cantidad }, index) => (
+                  <div key={rol} className="flex items-center gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1 capitalize">{rol}</p>
+                      <p className="text-xl font-semibold text-gray-900">{cantidad}</p>
+                    </div>
+                    {index < desgloseParticipantes.length - 1 && (
+                      <div className="h-12 w-px bg-gray-300 flex-shrink-0"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Segunda fila: Tres tarjetas separadas para Avance, Objetivos y Presupuesto */}
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex flex-col h-full">
+                <div className="flex items-center gap-2 mb-4">
+                  <LineChart className="h-5 w-5 text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Avance Promedio Gantt</h3>
+                </div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{avancePromedio}%</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${avancePromedio}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex flex-col h-full">
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="h-5 w-5 text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">% Objetivos Cumplidos</h3>
+                </div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{indicadoresPromedio}%</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${indicadoresPromedio}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex flex-col h-full">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="h-5 w-5 text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Presupuesto Usado</h3>
+                </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-bold text-gray-900">
+                    ${(presupuestoUsado / 1000000).toFixed(1)}M
+                  </span>
+                  <span className="text-xl font-bold text-gray-400">
+                    de ${(presupuestoTotal / 1000000).toFixed(1)}M
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${porcentajePresupuestoUsado}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{porcentajePresupuestoUsado}% utilizado</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tercera fila: Gráficos */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Gráfico de Sede/Escuela (Cuarta prioridad) */}
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  {graficoSedeEscuela === 'sede' ? (
+                    <Building2 className="h-5 w-5 text-gray-600" />
+                  ) : (
+                    <GraduationCap className="h-5 w-5 text-gray-600" />
+                  )}
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {graficoSedeEscuela === 'sede' ? 'Distribución de Proyectos por Sede' : 'Distribución de Proyectos por Escuela'}
+                  </h3>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGraficoSedeEscuela(graficoSedeEscuela === 'sede' ? 'escuela' : 'sede')}
+                  className="text-xs"
+                >
+                  {graficoSedeEscuela === 'sede' ? 'Ver por Escuela' : 'Ver por Sede'}
+                </Button>
+              </div>
+              <SimpleBarChart
+                data={datosGraficoSedeEscuela}
+                height={250}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Focalización (Última prioridad) */}
+          <Card className="shadow-lg">
+            <CardContent className="p-6 flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Focalización</h3>
+              </div>
+              <div className="flex-1 flex items-center">
+                <SimpleDonutChart
+                  data={proyectosPorFocalizacion}
+                  size={180}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ====== Vista: Análisis por Escuela/Sede/Carrera ======
   const VistaAnalisisEscuela = () => (
@@ -1175,7 +1426,7 @@ export default function DashboardPage() {
 
       {/* Contenido según la vista seleccionada */}
       {currentView === 'lista' && (
-        <div className="space-y-6">
+        <div className="space-y-6 w-full">
           {/* Panel de Filtros - Inline para evitar re-mount */}
           <div className="pt-6 mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
