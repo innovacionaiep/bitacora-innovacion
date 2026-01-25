@@ -46,6 +46,12 @@ export type ProyectoWithRelations = Proyecto & {
   desarrolloTecnico?: DesarrolloTecnico | null;
 };
 
+// Tipo extendido con variaciones mensuales para el dashboard
+export type ProyectoConVariaciones = ProyectoWithRelations & {
+  variacionGantt: number;
+  variacionObjetivos: number;
+};
+
 // Tipos para formularios
 export type ProyectoFormData = {
   proyecto: string;

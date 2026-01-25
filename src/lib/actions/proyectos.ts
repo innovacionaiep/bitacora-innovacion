@@ -4,15 +4,25 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Proyecto } from '@prisma/client';
 import { ProyectoFormData, ProyectoWithRelations, CatalogoResponse } from '@/types/proyecto';
+import { getMesAnteriorInfo } from '@/lib/utils/fecha';
 
 export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
 
+// Tipo extendido para proyectos con variaciones
+export type ProyectoConVariaciones = ProyectoWithRelations & {
+  variacionGantt: number;
+  variacionObjetivos: number;
+};
+
 /**
- * Obtener todos los proyectos con relaciones
+ * Obtener todos los proyectos con relaciones y variaciones mensuales
  */
 export async function getProyectos() {
   try {
     console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
+    
+    // Obtener información del mes anterior para calcular variaciones
+    const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
     
     const proyectos = await prisma.proyecto.findMany({
       include: {
@@ -65,6 +75,13 @@ export async function getProyectos() {
           },
         },
         desarrolloTecnico: true,
+        snapshotsMensuales: {
+          where: {
+            mes: mesAnterior,
+            anio: anioMesAnterior,
+          },
+          take: 1,
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -85,7 +102,31 @@ export async function getProyectos() {
     const proyectosConDesarrolloTecnico = proyectos.filter(p => p.desarrolloTecnico !== null);
     console.log(`📈 [getProyectos] Proyectos con desarrollo técnico: ${proyectosConDesarrolloTecnico.length} de ${proyectos.length}`);
     
-    return { success: true, data: proyectos as ProyectoWithRelations[] };
+    // Calcular variaciones para cada proyecto
+    const proyectosConVariaciones: ProyectoConVariaciones[] = proyectos.map(proyecto => {
+      const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
+      
+      // Si hay snapshot del mes anterior, calcular la diferencia
+      // Si no hay snapshot, la variación es 0 (sin datos de comparación)
+      const variacionGantt = snapshotMesAnterior 
+        ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
+        : 0;
+      
+      const variacionObjetivos = snapshotMesAnterior
+        ? proyecto.objetivos - snapshotMesAnterior.objetivos
+        : 0;
+      
+      // Remover snapshotsMensuales del objeto final (no necesario en frontend)
+      const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
+      
+      return {
+        ...proyectoSinSnapshots,
+        variacionGantt,
+        variacionObjetivos,
+      } as ProyectoConVariaciones;
+    });
+    
+    return { success: true, data: proyectosConVariaciones };
   } catch (error) {
     console.error('❌ [getProyectos] Error:', error);
     return { success: false, error: 'Error al obtener proyectos' };

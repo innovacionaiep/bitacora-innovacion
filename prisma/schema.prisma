@@ -114,6 +114,7 @@ model Proyecto {
   desarrolloTecnico  DesarrolloTecnico?
   indicadores        Indicador[]
   historial          HistorialProyecto[]
+  snapshotsMensuales SnapshotMensualProyecto[]
 
   @@map("proyectos")
 }
@@ -391,4 +392,21 @@ model HistorialProyecto {
   @@index([proyectoId])
   @@index([userId])
   @@map("historial_proyecto")
+}
+
+// Snapshots Mensuales de Proyectos - Para calcular variación de avances
+model SnapshotMensualProyecto {
+  id          String   @id @default(cuid())
+  proyectoId  String   @map("proyecto_id")
+  mes         Int      // 1-12
+  anio        Int      // 2025, 2026, etc.
+  avanceGantt Int      @default(0) @map("avance_gantt")
+  objetivos   Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@unique([proyectoId, mes, anio])
+  @@index([proyectoId])
+  @@map("snapshots_mensuales_proyecto")
 }

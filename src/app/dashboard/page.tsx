@@ -43,9 +43,9 @@ import * as XLSX from 'xlsx';
 import { useProyectos } from '@/hooks/useProyectos';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
 import { SimpleDonutChart } from '@/components/dashboard/SimpleDonutChart';
-import { ProyectoWithRelations } from '@/types/proyecto';
+import { ProyectoConVariaciones } from '@/types/proyecto';
 
-type Project = ProyectoWithRelations;
+type Project = ProyectoConVariaciones;
 
 // ====== Componente SimpleMultiSelect - Sin DropdownMenu de Radix ======
 // Usa un div posicionado simple con click-outside handler
@@ -388,7 +388,9 @@ export default function DashboardPage() {
         'Escuela Líder': project.escuelas?.[0]?.escuela.nombre || 'N/A',
         Foco: project.focalizacion || 'N/A',
         'Avance Gantt (%)': project.avanceGantt,
+        'Var. Gantt (%)': project.variacionGantt,
         'Indicadores (%)': project.objetivos,
+        'Var. Indicadores (%)': project.variacionObjetivos,
         'Presupuesto (%)': project.presupuestoTotal
           ? Math.min(100, Math.round((project.presupuestoUsado / project.presupuestoTotal) * 100))
           : 0,
@@ -415,7 +417,9 @@ export default function DashboardPage() {
       { wch: 30 }, // Escuela Líder
       { wch: 12 }, // Foco
       { wch: 15 }, // Avance Gantt
+      { wch: 12 }, // Var. Gantt
       { wch: 15 }, // Indicadores
+      { wch: 15 }, // Var. Indicadores
       { wch: 15 }, // Presupuesto (%)
       { wch: 18 }, // Presupuesto Usado
       { wch: 18 }, // Presupuesto Total
@@ -602,7 +606,7 @@ export default function DashboardPage() {
     <Card className="w-full">
       <CardContent className="p-0">
         <div className="overflow-x-auto w-full" style={{ maxWidth: '100%' }}>
-          <div style={{ minWidth: '2100px' }}>
+          <div style={{ minWidth: '2280px' }}>
             <Table>
             <TableHeader>
               <TableRow className="bg-gray-100">
@@ -649,9 +653,19 @@ export default function DashboardPage() {
                 'text-center w-[180px] px-4'
               )}
               {renderHeadWithButton(
+                'Var. Gantt',
+                'variacionGantt',
+                'text-center w-[90px] px-2'
+              )}
+              {renderHeadWithButton(
                 'Indicadores',
                 'objetivos',
                 'text-center w-[180px] px-4'
+              )}
+              {renderHeadWithButton(
+                'Var. Ind.',
+                'variacionObjetivos',
+                'text-center w-[90px] px-2'
               )}
               {renderHeadWithButton(
                 'Presupuesto',
@@ -751,6 +765,14 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </TableCell>
+                <TableCell className="text-center px-2" style={{ width: '90px', minWidth: '90px' }}>
+                  <span className={`text-sm font-medium ${
+                    p.variacionGantt > 0 ? 'text-emerald-600' : 
+                    p.variacionGantt < 0 ? 'text-red-600' : 'text-gray-500'
+                  }`}>
+                    {p.variacionGantt > 0 ? '+' : ''}{p.variacionGantt}%
+                  </span>
+                </TableCell>
                 <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
@@ -763,6 +785,14 @@ export default function DashboardPage() {
                       {p.objetivos}%
                     </span>
                   </div>
+                </TableCell>
+                <TableCell className="text-center px-2" style={{ width: '90px', minWidth: '90px' }}>
+                  <span className={`text-sm font-medium ${
+                    p.variacionObjetivos > 0 ? 'text-emerald-600' : 
+                    p.variacionObjetivos < 0 ? 'text-red-600' : 'text-gray-500'
+                  }`}>
+                    {p.variacionObjetivos > 0 ? '+' : ''}{p.variacionObjetivos}%
+                  </span>
                 </TableCell>
                 <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
                   <div className="flex items-center gap-2">

@@ -6,10 +6,10 @@ import {
   deleteProyecto,
   type ProyectoData,
 } from '@/lib/actions/proyectos';
-import { ProyectoWithRelations } from '@/types/proyecto';
+import { ProyectoConVariaciones } from '@/types/proyecto';
 
 export function useProyectos() {
-  const [proyectos, setProyectos] = useState<ProyectoWithRelations[]>([]);
+  const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

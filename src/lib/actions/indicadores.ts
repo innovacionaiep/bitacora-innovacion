@@ -213,6 +213,24 @@ export async function updateIndicadorResultado(
   porcentajeAvance: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Obtener indicador actual para el historial
+    const indicadorActual = await prisma.indicador.findUnique({
+      where: { id: indicadorId },
+      select: {
+        nombre: true,
+        proyectoId: true,
+        resultadoAlcanzado: true,
+        porcentajeAvance: true,
+      }
+    });
+
+    if (!indicadorActual) {
+      return {
+        success: false,
+        error: 'Indicador no encontrado'
+      };
+    }
+
     await prisma.indicador.update({
       where: { id: indicadorId },
       data: {
@@ -221,6 +239,20 @@ export async function updateIndicadorResultado(
         porcentajeAvance
       }
     });
+
+    // Registrar en historial si hubo cambio en el resultado alcanzado
+    if (indicadorActual.resultadoAlcanzado !== resultadoAlcanzado) {
+      await createHistorialEntry({
+        proyectoId: indicadorActual.proyectoId,
+        accion: 'Actualizar avance',
+        tabProyecto: 'Indicadores',
+        elementoEspecifico: `Indicador "${indicadorActual.nombre}"`,
+        cambioGenerado: `Resultado alcanzado: ${indicadorActual.resultadoAlcanzado} → ${resultadoAlcanzado} (${Math.round(porcentajeAvance)}%)`,
+      });
+    }
+
+    // Sincronizar el campo objetivos del proyecto con el nuevo progreso
+    await sincronizarObjetivosProyecto(indicadorActual.proyectoId);
 
     // Eliminado revalidatePath para evitar refresh completo de página
     // El estado se actualizará mediante fetchIndicadores en el cliente
@@ -312,6 +344,11 @@ export async function updateIndicador(
       });
     }
 
+    // Sincronizar el campo objetivos del proyecto si cambiaron los resultados
+    if (data.resultadoAlcanzado !== undefined || data.resultadoEsperado !== undefined) {
+      await sincronizarObjetivosProyecto(indicadorActual.proyectoId);
+    }
+
     // Eliminado revalidatePath para evitar refresh completo de página
     // El estado se actualizará mediante onUpdate callback y fetchIndicadores
     return { success: true };
@@ -379,6 +416,45 @@ export async function recalcularPorcentajesProyecto(
 
   } catch (error) {
     console.error('Error recalculating porcentajes:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido'
+    };
+  }
+}
+
+/**
+ * Sincronizar el campo objetivos del proyecto con el progreso general de indicadores
+ * Esta función calcula el promedio de avance de todos los indicadores y actualiza el proyecto
+ */
+export async function sincronizarObjetivosProyecto(proyectoId: string): Promise<{
+  success: boolean;
+  progresoGeneral?: number;
+  error?: string;
+}> {
+  try {
+    const result = await getIndicadoresByProyecto(proyectoId);
+    
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        error: result.error || 'Error al obtener indicadores'
+      };
+    }
+
+    const progresoGeneral = result.data.progresoGeneral;
+
+    await prisma.proyecto.update({
+      where: { id: proyectoId },
+      data: { objetivos: progresoGeneral }
+    });
+
+    return {
+      success: true,
+      progresoGeneral
+    };
+  } catch (error) {
+    console.error('Error al sincronizar objetivos del proyecto:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error desconocido'
