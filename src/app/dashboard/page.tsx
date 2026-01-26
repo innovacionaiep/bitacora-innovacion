@@ -37,15 +37,182 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import * as XLSX from 'xlsx';
 import { useProyectos } from '@/hooks/useProyectos';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
 import { SimpleDonutChart } from '@/components/dashboard/SimpleDonutChart';
+import { SimpleStackedBarChart } from '@/components/dashboard/SimpleStackedBarChart';
 import { ProyectoConVariaciones } from '@/types/proyecto';
 
 type Project = ProyectoConVariaciones;
+
+type AnalisisDimension = 'sede' | 'escuela' | 'carrera' | 'comuna' | 'grupos-interes';
+
+type MatrixRow = {
+  dimension: string;
+  proyectos: number;
+  comunas: number;
+  escuelas: number;
+  carreras: number;
+  avanceGanttProm: number;
+  avanceObjetivosProm: number;
+  participantes: number;
+  sociosComunitarios: number;
+  presupuestoTotal: number;
+  proyectosNombres: string[];
+  comunasNombres: string[];
+  escuelasNombres: string[];
+  carrerasNombres: string[];
+  sociosNombres: string[];
+};
+
+function metricsFromProjects(projects: Project[]): Omit<MatrixRow, 'dimension'> {
+  const n = projects.length;
+  const comunasSet = new Map<string, string>();
+  projects.forEach((p) =>
+    p.comunas?.forEach((rel) => {
+      const c = rel.comuna;
+      comunasSet.set(c.id, `${c.nombre} (${c.region})`);
+    })
+  );
+  const escuelasSet = new Map<string, string>();
+  projects.forEach((p) =>
+    p.escuelas?.forEach((rel) => escuelasSet.set(rel.escuela.id, rel.escuela.nombre))
+  );
+  const carrerasSet = new Map<string, string>();
+  projects.forEach((p) =>
+    p.carreras?.forEach((rel) => carrerasSet.set(rel.carrera.id, rel.carrera.nombre))
+  );
+  const avanceGanttProm = n ? projects.reduce((s, p) => s + p.avanceGantt, 0) / n : 0;
+  const avanceObjetivosProm = n ? projects.reduce((s, p) => s + p.objetivos, 0) / n : 0;
+  const participantes = projects.reduce((s, p) => s + (p.participantes_rel?.length ?? 0), 0);
+  const sociosComunitarios = projects.reduce((s, p) => s + (p.sociosComunitarios?.length ?? 0), 0);
+  const presupuestoTotal = projects.reduce((s, p) => s + (p.presupuestoTotal ?? 0), 0);
+  const proyectosNombres = projects.map((p) => p.proyecto);
+  const comunasNombres = Array.from(comunasSet.values());
+  const escuelasNombres = Array.from(escuelasSet.values());
+  const carrerasNombres = Array.from(carrerasSet.values());
+  const sociosNombres = projects.flatMap((p) =>
+    (p.sociosComunitarios ?? []).map((rel) => rel.socioComunitario.nombre)
+  );
+  const sociosNombresUnicos = Array.from(new Set(sociosNombres));
+  return {
+    proyectos: n,
+    comunas: comunasNombres.length,
+    escuelas: escuelasNombres.length,
+    carreras: carrerasNombres.length,
+    avanceGanttProm,
+    avanceObjetivosProm,
+    participantes,
+    sociosComunitarios,
+    presupuestoTotal,
+    proyectosNombres,
+    comunasNombres,
+    escuelasNombres,
+    carrerasNombres,
+    sociosNombres: sociosNombresUnicos,
+  };
+}
+
+function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): MatrixRow[] {
+  const byId = new Map<string, Project>();
+  proyectos.forEach((p) => byId.set(p.id, p));
+
+  if (dimension === 'sede') {
+    const groups = new Map<string, Project[]>();
+    proyectos.forEach((p) => {
+      const k = p.sede;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(p);
+    });
+    return Array.from(groups.entries())
+      .map(([sede, projs]) => ({ dimension: sede, ...metricsFromProjects(projs) }))
+      .sort((a, b) => b.proyectos - a.proyectos);
+  }
+
+  if (dimension === 'escuela') {
+    const nameToIds = new Map<string, Set<string>>();
+    proyectos.forEach((p) => {
+      p.escuelas?.forEach((rel) => {
+        const n = rel.escuela.nombre;
+        if (!nameToIds.has(n)) nameToIds.set(n, new Set());
+        nameToIds.get(n)!.add(p.id);
+      });
+    });
+    return Array.from(nameToIds.entries())
+      .map(([nombre, ids]) => {
+        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        return { dimension: nombre, ...metricsFromProjects(projs) };
+      })
+      .sort((a, b) => b.proyectos - a.proyectos);
+  }
+
+  if (dimension === 'carrera') {
+    const nameToIds = new Map<string, Set<string>>();
+    proyectos.forEach((p) => {
+      p.carreras?.forEach((rel) => {
+        const n = rel.carrera.nombre;
+        if (!nameToIds.has(n)) nameToIds.set(n, new Set());
+        nameToIds.get(n)!.add(p.id);
+      });
+    });
+    return Array.from(nameToIds.entries())
+      .map(([nombre, ids]) => {
+        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        return { dimension: nombre, ...metricsFromProjects(projs) };
+      })
+      .sort((a, b) => b.proyectos - a.proyectos);
+  }
+
+  if (dimension === 'comuna') {
+    const keyToIds = new Map<string, Set<string>>();
+    const keyToLabel = new Map<string, string>();
+    proyectos.forEach((p) => {
+      p.comunas?.forEach((rel) => {
+        const c = rel.comuna;
+        const k = c.id;
+        const label = `${c.nombre} (${c.region})`;
+        if (!keyToIds.has(k)) {
+          keyToIds.set(k, new Set());
+          keyToLabel.set(k, label);
+        }
+        keyToIds.get(k)!.add(p.id);
+      });
+    });
+    return Array.from(keyToIds.entries())
+      .map(([k, ids]) => {
+        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        return { dimension: keyToLabel.get(k) ?? k, ...metricsFromProjects(projs) };
+      })
+      .sort((a, b) => b.proyectos - a.proyectos);
+  }
+
+  if (dimension === 'grupos-interes') {
+    const nameToIds = new Map<string, Set<string>>();
+    proyectos.forEach((p) => {
+      p.gruposInteres?.forEach((rel) => {
+        const n = rel.grupoInteres.nombre;
+        if (!nameToIds.has(n)) nameToIds.set(n, new Set());
+        nameToIds.get(n)!.add(p.id);
+      });
+    });
+    return Array.from(nameToIds.entries())
+      .map(([nombre, ids]) => {
+        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        return { dimension: nombre, ...metricsFromProjects(projs) };
+      })
+      .sort((a, b) => b.proyectos - a.proyectos);
+  }
+
+  return [];
+}
 
 // ====== Componente SimpleMultiSelect - Sin DropdownMenu de Radix ======
 // Usa un div posicionado simple con click-outside handler
@@ -154,8 +321,8 @@ export default function DashboardPage() {
     key: null,
     dir: 'asc',
   });
-  const [graficoSedeEscuela, setGraficoSedeEscuela] = useState<'sede' | 'escuela'>('sede');
-  
+  const [analisisDimension, setAnalisisDimension] = useState<AnalisisDimension>('sede');
+
   // Handler simple y fluido para el Input (igual que en proyectos/page.tsx)
   const handleNombreProyectoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNombreProyectoFilter(e.target.value);
@@ -516,6 +683,16 @@ export default function DashboardPage() {
   const presupuestoDisponible = presupuestoTotal - presupuestoUsado;
 
   // ====== Cálculos para gráficos ======
+  const proyectosPorFondo = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    proyectosIniciales.forEach((p) => {
+      grouped[p.fondo] = (grouped[p.fondo] || 0) + 1;
+    });
+    return Object.entries(grouped)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [proyectosIniciales]);
+
   const proyectosPorFocalizacion = useMemo(() => {
     const grouped: Record<string, number> = {};
     proyectosIniciales.forEach((p) => {
@@ -571,6 +748,11 @@ export default function DashboardPage() {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value);
   }, [proyectosIniciales]);
+
+  const matrixRowsPertinencia = useMemo(
+    () => computeMatrixRows(proyectosIniciales, analisisDimension),
+    [proyectosIniciales, analisisDimension]
+  );
 
   const participantesPorRol = useMemo(() => {
     const grouped: Record<string, number> = {};
@@ -870,14 +1052,27 @@ export default function DashboardPage() {
 
   // ====== Vista: Mirada General ======
   const VistaMiradaGeneral = () => {
-    // Preparar datos para el gráfico de sede/escuela con color gris más oscuro
-    const datosGraficoSedeEscuela = useMemo(() => {
-      const datos = graficoSedeEscuela === 'sede' ? proyectosPorSede : proyectosPorEscuela.slice(0, 10);
-      return datos.map(item => ({
+    // Preparar datos para los gráficos con color gris más oscuro
+    const datosGraficoSede = useMemo(() => {
+      return proyectosPorSede.map(item => ({
         ...item,
         color: '#6b7280', // Gris más oscuro (gray-500)
       }));
-    }, [graficoSedeEscuela, proyectosPorSede, proyectosPorEscuela]);
+    }, [proyectosPorSede]);
+
+    const datosGraficoEscuela = useMemo(() => {
+      return proyectosPorEscuela.slice(0, 10).map(item => ({
+        ...item,
+        color: '#6b7280', // Gris más oscuro (gray-500)
+      }));
+    }, [proyectosPorEscuela]);
+
+    const datosGraficoFondo = useMemo(() => {
+      return proyectosPorFondo.map(item => ({
+        ...item,
+        color: '#6b7280', // Gris más oscuro (gray-500)
+      }));
+    }, [proyectosPorFondo]);
 
     return (
       <div className="space-y-6">
@@ -994,49 +1189,61 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Tercera fila: Gráficos */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Gráfico de Sede/Escuela (Cuarta prioridad) */}
+        {/* Tercera fila: Gráficos - 4 tarjetas en grid de 4 columnas */}
+        <div className="grid gap-6 md:grid-cols-4">
+          {/* Gráfico de Proyectos por Fondo */}
           <Card className="shadow-lg">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {graficoSedeEscuela === 'sede' ? (
-                    <Building2 className="h-5 w-5 text-gray-600" />
-                  ) : (
-                    <GraduationCap className="h-5 w-5 text-gray-600" />
-                  )}
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {graficoSedeEscuela === 'sede' ? 'Distribución de Proyectos por Sede' : 'Distribución de Proyectos por Escuela'}
-                  </h3>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setGraficoSedeEscuela(graficoSedeEscuela === 'sede' ? 'escuela' : 'sede')}
-                  className="text-xs"
-                >
-                  {graficoSedeEscuela === 'sede' ? 'Ver por Escuela' : 'Ver por Sede'}
-                </Button>
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Fondo</h3>
               </div>
               <SimpleBarChart
-                data={datosGraficoSedeEscuela}
+                data={datosGraficoFondo}
                 height={250}
               />
             </CardContent>
           </Card>
 
-          {/* Gráfico de Focalización (Última prioridad) */}
+          {/* Gráfico de Proyectos por Sede */}
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Sede</h3>
+              </div>
+              <SimpleBarChart
+                data={datosGraficoSede}
+                height={250}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Proyectos por Escuela */}
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <GraduationCap className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Escuela</h3>
+              </div>
+              <SimpleBarChart
+                data={datosGraficoEscuela}
+                height={250}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Proyectos por Focalización */}
           <Card className="shadow-lg">
             <CardContent className="p-6 flex flex-col h-full">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="h-5 w-5 text-gray-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Proyectos por Focalización</h3>
               </div>
-              <div className="flex-1 flex items-center">
+              <div className="flex-1 flex items-center justify-center min-h-0">
                 <SimpleDonutChart
                   data={proyectosPorFocalizacion}
-                  size={180}
+                  size={140}
                 />
               </div>
             </CardContent>
@@ -1046,98 +1253,117 @@ export default function DashboardPage() {
     );
   };
 
-  // ====== Vista: Análisis por Escuela/Sede/Carrera ======
-  const VistaAnalisisEscuela = () => (
-    <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Building2 className="h-5 w-5 text-emerald-600" />
-              <h3 className="text-lg font-semibold">Por Sede</h3>
-            </div>
-            <SimpleBarChart data={proyectosPorSede} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <GraduationCap className="h-5 w-5 text-emerald-600" />
-              <h3 className="text-lg font-semibold">Por Escuela</h3>
-            </div>
-            <SimpleBarChart
-              data={proyectosPorEscuela.slice(0, 10)}
-              height={300}
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <BookOpen className="h-5 w-5 text-emerald-600" />
-              <h3 className="text-lg font-semibold">Por Carrera</h3>
-            </div>
-            <SimpleBarChart
-              data={proyectosPorCarrera.slice(0, 10)}
-              height={300}
-            />
-          </CardContent>
-        </Card>
-      </div>
+  // ====== Vista: Análisis por Escuela/Sede/Carrera (matriz de pertinencia) ======
+  const VistaAnalisisEscuela = () => {
+    const dims: { value: AnalisisDimension; label: string }[] = [
+      { value: 'sede', label: 'Sedes' },
+      { value: 'escuela', label: 'Escuelas' },
+      { value: 'carrera', label: 'Carreras' },
+      { value: 'comuna', label: 'Comunas' },
+      { value: 'grupos-interes', label: 'Grupos de interés' },
+    ];
+    const formatPresupuesto = (n: number) =>
+      n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n.toLocaleString('es-CL');
 
-      {/* Tablas detalladas */}
-      <div className="grid gap-6 md:grid-cols-3">
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {dims.map((d) => (
+            <Button
+              key={d.value}
+              variant="outline"
+              size="sm"
+              onClick={() => setAnalisisDimension(d.value)}
+              className={
+                analisisDimension === d.value
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+              }
+            >
+              {d.label}
+            </Button>
+          ))}
+        </div>
+
         <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Proyectos por Sede</h3>
-            <div className="space-y-2">
-              {proyectosPorSede.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                >
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <Badge variant="outline">{item.value}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Proyectos por Escuela</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {proyectosPorEscuela.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                >
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <Badge variant="outline">{item.value}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Proyectos por Carrera</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {proyectosPorCarrera.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                >
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <Badge variant="outline">{item.value}</Badge>
-                </div>
-              ))}
-            </div>
+          <CardContent className="p-0">
+            {matrixRowsPertinencia.length === 0 ? (
+              <div className="flex items-center justify-center py-16 text-gray-500">
+                No hay datos para esta dimensión.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-100">
+                      <TableHead className="font-semibold">Dimensión</TableHead>
+                      <TableHead className="text-center font-semibold">Proyectos</TableHead>
+                      <TableHead className="text-center font-semibold">Comunas</TableHead>
+                      <TableHead className="text-center font-semibold">Escuelas</TableHead>
+                      <TableHead className="text-center font-semibold">Carreras</TableHead>
+                      <TableHead className="text-center font-semibold">Avance Gantt prom.</TableHead>
+                      <TableHead className="text-center font-semibold">Avance Objetivos prom.</TableHead>
+                      <TableHead className="text-center font-semibold">Participantes</TableHead>
+                      <TableHead className="text-center font-semibold">Socios comunitarios</TableHead>
+                      <TableHead className="text-center font-semibold">Presupuesto total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matrixRowsPertinencia.map((row, i) => {
+                      const tooltip = (label: string, items: string[]) => (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help underline decoration-dotted decoration-muted-foreground underline-offset-2">
+                              {label}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" variant="light" className="max-w-sm py-2">
+                            {items.length ? (
+                              <ul className="list-disc list-inside space-y-0.5 text-left">
+                                {items.map((name, j) => (
+                                  <li key={j}>{name}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              '—'
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                      return (
+                        <TableRow key={`${row.dimension}-${i}`} className="group">
+                          <TableCell className="font-medium">{row.dimension}</TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(String(row.proyectos), row.proyectosNombres)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(String(row.comunas), row.comunasNombres)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(String(row.escuelas), row.escuelasNombres)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(String(row.carreras), row.carrerasNombres)}
+                          </TableCell>
+                          <TableCell className="text-center">{row.avanceGanttProm.toFixed(1)}%</TableCell>
+                          <TableCell className="text-center">{row.avanceObjetivosProm.toFixed(1)}%</TableCell>
+                          <TableCell className="text-center">{row.participantes}</TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(String(row.sociosComunitarios), row.sociosNombres)}
+                          </TableCell>
+                          <TableCell className="text-center">{formatPresupuesto(row.presupuestoTotal)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ====== Vista: Análisis de Participantes ======
   const VistaAnalisisParticipantes = () => (
@@ -1565,8 +1791,8 @@ export default function DashboardPage() {
       {currentView === 'analisis-participantes' && <VistaAnalisisParticipantes />}
       {currentView === 'analisis-avances' && <VistaAnalisisAvances />}
 
-      {/* Botón de exportar al final (solo en vistas que no sean Lista ni Mirada General) */}
-      {currentView !== 'lista' && currentView !== 'mirada-general' && (
+      {/* Botón de exportar al final (solo en vistas que no sean Lista, Mirada General ni Escuelas y Sedes) */}
+      {currentView !== 'lista' && currentView !== 'mirada-general' && currentView !== 'analisis-escuela' && (
         <div className="flex justify-end">
           <Button
             onClick={exportToExcel}

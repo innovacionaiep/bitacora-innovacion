@@ -50,12 +50,12 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
   });
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       {title && (
         <h3 className="text-lg font-semibold mb-4 text-gray-900">{title}</h3>
       )}
-      <div className="flex items-center justify-center gap-12">
-        {/* Gráfico donut a la izquierda */}
+      <div className="flex flex-col items-center justify-center gap-4 h-full">
+        {/* Gráfico donut centrado */}
         <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="transform -rotate-90">
             {segments.map((segment, index) => (
@@ -75,22 +75,26 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
             ))}
           </svg>
         </div>
-        {/* Leyendas a la derecha */}
-        <div className="flex-shrink-0">
-          <div className="space-y-3">
+        {/* Leyendas debajo del gráfico */}
+        <div className="w-full px-2">
+          <div className="space-y-2">
             {segments.map((segment) => (
-              <div key={segment.label} className="flex items-center justify-between text-sm" style={{ minWidth: '200px' }}>
-                <div className="flex items-center space-x-2">
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: segment.color }}
-                  />
-                  <span className="text-gray-700">{segment.label}</span>
+              <div key={segment.label} className="relative">
+                <div className="flex items-center justify-between text-xs gap-2 pb-1.5">
+                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: segment.color }}
+                    />
+                    <span className="text-gray-700 truncate">{segment.label}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 flex-shrink-0">
+                    <span className="text-gray-900 font-bold">{segment.value}</span>
+                    <span className="text-gray-500">({segment.percentage.toFixed(1)}%)</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1 flex-shrink-0">
-                  <span className="text-gray-900 font-bold">{segment.value}</span>
-                  <span className="text-gray-500">({segment.percentage.toFixed(1)}%)</span>
-                </div>
+                {/* Línea sutil debajo de cada elemento */}
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-200"></div>
               </div>
             ))}
           </div>
