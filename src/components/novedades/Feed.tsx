@@ -41,6 +41,9 @@ export function Feed({
         ...newPost,
         likes: [],
         isLikedByUser: false,
+        userReactionType: null,
+        reactionCounts: { Recomendar: 0, Celebrar: 0, Encantar: 0 },
+        videos: newPost.videos ?? [],
       } as PostWithRelations, ...prev]);
     }
   }, [newPost]);

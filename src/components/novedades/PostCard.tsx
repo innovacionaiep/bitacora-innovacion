@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { LikeButton } from './LikeButton';
+import { ReactionButton } from './ReactionButton';
 import { CommentSection } from './CommentSection';
-import { PostWithRelations, togglePostLike, deletePost } from '@/lib/actions/posts';
+import { PostWithRelations, setPostReaction, deletePost, type PostReactionType } from '@/lib/actions/posts';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
@@ -31,9 +31,17 @@ interface PostCardProps {
 
 export function PostCard({ post, onPostDeleted }: PostCardProps) {
   const { data: session } = useSession();
+  const defaultCounts = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
+  const [reactionCounts, setReactionCounts] = useState<{
+    Recomendar: number;
+    Celebrar: number;
+    Encantar: number;
+  }>(post.reactionCounts ?? defaultCounts);
+  const [reactionsCount, setReactionsCount] = useState(post._count.likes);
+  const [userReaction, setUserReaction] = useState<PostReactionType | null>(
+    post.userReactionType ?? null
+  );
   const [showComments, setShowComments] = useState(false);
-  const [likesCount, setLikesCount] = useState(post._count.likes);
-  const [isLiked, setIsLiked] = useState(post.isLikedByUser || false);
   const [commentsCount, setCommentsCount] = useState(post._count.comentarios);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
@@ -43,11 +51,36 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
   const authorName = post.author.name || post.author.email.split('@')[0];
   const authorInitials = authorName.slice(0, 2).toUpperCase();
 
-  const handleToggleLike = async () => {
-    const result = await togglePostLike(post.id);
-    if (result.success) {
-      setIsLiked(result.liked || false);
-      setLikesCount((prev) => (result.liked ? prev + 1 : prev - 1));
+  const handleSetReaction = async (type: PostReactionType) => {
+    const hadReaction = !!userReaction;
+    const sameReaction = userReaction === type;
+    const prevReaction = userReaction;
+    const prevCount = reactionsCount;
+    const prevCounts = { ...reactionCounts };
+
+    if (sameReaction) {
+      setUserReaction(null);
+      setReactionsCount((c) => Math.max(0, c - 1));
+      setReactionCounts((rc) => ({
+        ...rc,
+        [type]: Math.max(0, (rc[type] ?? 0) - 1),
+      }));
+    } else {
+      setUserReaction(type);
+      setReactionsCount((c) => (hadReaction ? c : c + 1));
+      setReactionCounts((rc) => {
+        const next = { ...rc };
+        if (hadReaction && prevReaction) next[prevReaction] = Math.max(0, (next[prevReaction] ?? 0) - 1);
+        next[type] = (next[type] ?? 0) + 1;
+        return next;
+      });
+    }
+
+    const result = await setPostReaction(post.id, type);
+    if (!result.success) {
+      setUserReaction(prevReaction);
+      setReactionsCount(prevCount);
+      setReactionCounts(prevCounts);
     }
   };
 
@@ -78,6 +111,28 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
   const truncateText = (text: string, maxLength: number = 30): string => {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '...';
+  };
+
+  // Color de texto por rol (sin fondo ni borde) - Ver docs/SISTEMA-ROLES.md
+  const getRoleTextClass = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'text-yellow-600';
+      case 'coordinador':
+        return 'text-blue-600';
+      case 'colaborador':
+        return 'text-violet-600';
+      case 'encargado':
+        return 'text-orange-600';
+      case 'docente':
+        return 'text-green-600';
+      case 'estudiante':
+        return 'text-red-600';
+      case 'beneficiario':
+        return 'text-cyan-600';
+      default:
+        return 'text-gray-600';
+    }
   };
 
   // Procesar proyectos, sedes y escuelas para visualización optimizada
@@ -118,16 +173,25 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
     <div className="relative">
       {/* Tarjeta del post - mantiene su ancho completo */}
       <Card className="overflow-hidden shadow-lg hover:shadow-lg">
-        <CardContent className="p-4">
+        <CardContent className="px-4 pt-4 pb-2">
           {/* Header del post */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={post.author.image || undefined} />
                 <AvatarFallback>{authorInitials}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-sm">{authorName}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-sm">{authorName}</p>
+                  {post.authorRoleAtPost && (
+                    <span
+                      className={`text-xs font-medium shrink-0 ${getRoleTextClass(post.authorRoleAtPost)}`}
+                    >
+                      #{post.authorRoleAtPost}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(post.createdAt), {
                     addSuffix: true,
@@ -159,13 +223,33 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
           </div>
 
           {/* Contenido del post */}
-          <div className="mb-3">
+          <div className="mb-2">
             <p className="text-sm whitespace-pre-wrap break-words">{post.contenido}</p>
           </div>
 
+          {/* Videos de YouTube */}
+          {post.videos && post.videos.length > 0 && (
+            <div className="space-y-2 mb-2">
+              {post.videos.map((v) => (
+                <div
+                  key={v.id}
+                  className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted"
+                >
+                  <iframe
+                    src={`https://www.youtube.com/embed/${v.youtubeVideoId}`}
+                    title="Video de YouTube"
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Imágenes */}
           {imageCount > 0 && (
-            <div className={`grid ${getImageGridClass()} gap-1 mb-3 rounded-lg overflow-hidden`}>
+            <div className={`grid ${getImageGridClass()} gap-1 mb-2 rounded-lg overflow-hidden`}>
               {post.imagenes.slice(0, 4).map((imagen, index) => (
                 <div
                   key={imagen.id}
@@ -192,16 +276,39 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
             </div>
           )}
 
-          {/* Contadores */}
-          {(likesCount > 0 || commentsCount > 0) && (
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 pb-2 border-b">
-              {likesCount > 0 && (
-                <span>{likesCount} me gusta</span>
+          {/* Contadores (solo cuando hay reacciones o comentarios); la línea va aquí */}
+          {(reactionsCount > 0 || commentsCount > 0) && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1 pb-1 border-b">
+              {reactionsCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center [&>*:not(:first-child)]:-ml-1.5">
+                    {(['Recomendar', 'Celebrar', 'Encantar'] as const).map((t) =>
+                      (reactionCounts[t] ?? 0) > 0 ? (
+                        <div
+                          key={t}
+                          className="flex items-center justify-center w-5 h-5 rounded-full bg-background border border-border shrink-0 overflow-hidden"
+                          title={t}
+                        >
+                          {t === 'Recomendar' && (
+                            <ThumbsUp className="h-3 w-3 text-blue-600 fill-blue-600" />
+                          )}
+                          {t === 'Celebrar' && (
+                            <PartyPopper className="h-3 w-3 text-green-600 fill-green-600" />
+                          )}
+                          {t === 'Encantar' && (
+                            <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+                          )}
+                        </div>
+                      ) : null
+                    )}
+                  </div>
+                  <span>{reactionsCount}</span>
+                </div>
               )}
               {commentsCount > 0 && (
                 <button
                   onClick={() => setShowComments(!showComments)}
-                  className=""
+                  className="hover:underline"
                 >
                   {commentsCount} comentario{commentsCount !== 1 ? 's' : ''}
                 </button>
@@ -210,11 +317,10 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
           )}
 
           {/* Acciones */}
-          <div className="flex items-center gap-1 border-b pb-3">
-            <LikeButton
-              isLiked={isLiked}
-              likesCount={0}
-              onToggle={handleToggleLike}
+          <div className="flex items-center gap-1 pt-2 pb-0.5">
+            <ReactionButton
+              userReaction={userReaction}
+              onSelectReaction={handleSetReaction}
             />
             <Button
               variant="ghost"
@@ -228,7 +334,7 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
 
           {/* Sección de comentarios */}
           {showComments && (
-            <div className="mt-3">
+            <div className="mt-2">
               <CommentSection postId={post.id} commentsCount={commentsCount} />
             </div>
           )}

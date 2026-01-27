@@ -426,14 +426,16 @@ model SnapshotMensualProyecto {
 
 // Publicaciones del Feed
 model Post {
-  id          String   @id @default(cuid())
-  contenido   String   @db.Text
-  authorId    String   @map("author_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(cuid())
+  contenido          String   @db.Text
+  authorId           String   @map("author_id")
+  authorRoleAtPost   String?  @map("author_role_at_post") // Rol activo del autor al momento de publicar
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   imagenes    PostImage[]
+  videos      PostVideo[]
   proyectos   PostProyecto[]
   likes       PostLike[]
   comentarios PostComment[]
@@ -457,6 +459,20 @@ model PostImage {
   @@map("post_images")
 }
 
+// Videos de YouTube embebidos en publicaciones
+model PostVideo {
+  id             String @id @default(cuid())
+  postId         String @map("post_id")
+  youtubeUrl     String @map("youtube_url")
+  youtubeVideoId String @map("youtube_video_id")
+  orden          Int    @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_videos")
+}
+
 // Relación many-to-many entre Posts y Proyectos
 model PostProyecto {
   postId     String @map("post_id")
@@ -469,12 +485,16 @@ model PostProyecto {
   @@map("post_proyectos")
 }
 
-// Likes en publicaciones
+// Tipos de reacción en posts (estilo LinkedIn)
+// Recomendar, Celebrar, Encantar
+
+// Likes/reacciones en publicaciones
 model PostLike {
-  id        String   @id @default(cuid())
-  postId    String   @map("post_id")
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  postId       String   @map("post_id")
+  userId       String   @map("user_id")
+  reactionType String   @default("Recomendar") @map("reaction_type") // Recomendar | Celebrar | Encantar
+  createdAt    DateTime @default(now()) @map("created_at")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation("PostLikes", fields: [userId], references: [id], onDelete: Cascade)

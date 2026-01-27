@@ -9,6 +9,7 @@ export interface PostWithRelations {
   id: string;
   contenido: string;
   authorId: string;
+  authorRoleAtPost: string | null;
   createdAt: Date;
   updatedAt: Date;
   author: {
@@ -21,6 +22,12 @@ export interface PostWithRelations {
     id: string;
     url: string;
     publicId: string;
+    orden: number;
+  }[];
+  videos: {
+    id: string;
+    youtubeUrl: string;
+    youtubeVideoId: string;
     orden: number;
   }[];
   proyectos: {
@@ -39,13 +46,19 @@ export interface PostWithRelations {
   likes: {
     id: string;
     userId: string;
+    reactionType: string;
   }[];
   _count: {
     likes: number;
     comentarios: number;
   };
   isLikedByUser?: boolean;
+  userReactionType?: 'Recomendar' | 'Celebrar' | 'Encantar' | null;
+  /** Conteo por tipo (Recomendar, Celebrar, Encantar) para mostrar iconos estilo LinkedIn */
+  reactionCounts?: { Recomendar: number; Celebrar: number; Encantar: number };
 }
+
+export type PostReactionType = 'Recomendar' | 'Celebrar' | 'Encantar';
 
 export interface CreatePostData {
   contenido: string;
@@ -54,6 +67,7 @@ export interface CreatePostData {
     url: string;
     publicId: string;
   }[];
+  videos?: { youtubeUrl: string; youtubeVideoId: string }[];
 }
 
 export interface GetPostsResult {
@@ -80,7 +94,7 @@ export interface GetPostsParams {
  */
 export async function getPosts(
   cursor?: string,
-  limit: number = 10,
+  limit?: number,
   params?: Omit<GetPostsParams, 'cursor' | 'limit'>
 ): Promise<GetPostsResult>;
 export async function getPosts(
@@ -169,9 +183,10 @@ export async function getPosts(
           },
         },
         imagenes: {
-          orderBy: {
-            orden: 'asc',
-          },
+          orderBy: { orden: 'asc' },
+        },
+        videos: {
+          orderBy: { orden: 'asc' },
         },
         proyectos: {
           include: {
@@ -197,14 +212,13 @@ export async function getPosts(
         },
         likes: userId
           ? {
-            where: {
-              userId: userId,
-            },
-            select: {
-              id: true,
-              userId: true,
-            },
-          }
+              where: { userId },
+              select: {
+                id: true,
+                userId: true,
+                reactionType: true,
+              },
+            }
           : false,
         _count: {
           select: {
@@ -234,12 +248,47 @@ export async function getPosts(
     }
 
     const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1]?.id : undefined;
+    const postIds = postsToReturn.map((p) => p.id);
 
-    // Agregar flag de si el usuario dio like
-    const postsWithLikeStatus = postsToReturn.map((post) => ({
-      ...post,
-      isLikedByUser: userId ? post.likes.length > 0 : false,
-    }));
+    const reactionCountsByPost: Record<
+      string,
+      { Recomendar: number; Celebrar: number; Encantar: number }
+    > = {};
+    for (const id of postIds) {
+      reactionCountsByPost[id] = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
+    }
+    if (postIds.length > 0) {
+      const reactionCountsRaw = await prisma.postLike.groupBy({
+        by: ['postId', 'reactionType'],
+        where: {
+          postId: { in: postIds },
+          reactionType: { in: ['Recomendar', 'Celebrar', 'Encantar'] },
+        },
+        _count: { id: true },
+      });
+      for (const r of reactionCountsRaw) {
+        const t = r.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar';
+        if (reactionCountsByPost[r.postId] && (t === 'Recomendar' || t === 'Celebrar' || t === 'Encantar')) {
+          reactionCountsByPost[r.postId][t] = r._count.id;
+        }
+      }
+    }
+
+    const postsWithLikeStatus = postsToReturn.map((post) => {
+      const userLike = userId && post.likes.length > 0 ? post.likes[0] : null;
+      return {
+        ...post,
+        isLikedByUser: !!userLike,
+        userReactionType: userLike
+          ? (userLike.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar')
+          : null,
+        reactionCounts: reactionCountsByPost[post.id] ?? {
+          Recomendar: 0,
+          Celebrar: 0,
+          Encantar: 0,
+        },
+      };
+    });
 
     return {
       success: true,
@@ -289,6 +338,7 @@ export async function createPost(data: CreatePostData) {
       data: {
         contenido: data.contenido.trim(),
         authorId: user.id,
+        authorRoleAtPost: user.activeRole ?? null,
         imagenes: {
           create: data.imagenes.map((img, index) => ({
             url: img.url,
@@ -296,6 +346,15 @@ export async function createPost(data: CreatePostData) {
             orden: index,
           })),
         },
+        videos: (data.videos?.length ?? 0) > 0
+          ? {
+              create: (data.videos ?? []).map((v, index) => ({
+                youtubeUrl: v.youtubeUrl,
+                youtubeVideoId: v.youtubeVideoId,
+                orden: index,
+              })),
+            }
+          : undefined,
         proyectos: {
           create: data.proyectoIds.map((proyectoId) => ({
             proyectoId,
@@ -312,6 +371,7 @@ export async function createPost(data: CreatePostData) {
           },
         },
         imagenes: true,
+        videos: true,
         proyectos: {
           include: {
             proyecto: {
@@ -334,6 +394,7 @@ export async function createPost(data: CreatePostData) {
             },
           },
         },
+        likes: { select: { id: true, userId: true, reactionType: true } },
         _count: {
           select: {
             likes: true,
@@ -410,58 +471,68 @@ export async function deletePost(postId: string) {
   }
 }
 
+const VALID_REACTIONS: PostReactionType[] = ['Recomendar', 'Celebrar', 'Encantar'];
+
 /**
- * Dar o quitar like a una publicación
+ * Establecer o cambiar reacción en una publicación (estilo LinkedIn).
+ * Si ya tiene esa reacción, se quita. Si tiene otra, se actualiza.
  */
-export async function togglePostLike(postId: string) {
+export async function setPostReaction(
+  postId: string,
+  reactionType: PostReactionType
+) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) {
       return {
         success: false,
-        error: 'Debes iniciar sesión para dar like',
+        error: 'Debes iniciar sesión para reaccionar',
+      };
+    }
+    if (!VALID_REACTIONS.includes(reactionType)) {
+      return {
+        success: false,
+        error: 'Reacción no válida',
       };
     }
 
-    // Verificar si ya existe el like
-    const existingLike = await prisma.postLike.findUnique({
+    const existing = await prisma.postLike.findUnique({
       where: {
-        postId_userId: {
-          postId,
-          userId: user.id,
-        },
+        postId_userId: { postId, userId: user.id },
       },
     });
 
-    if (existingLike) {
-      // Quitar like
-      await prisma.postLike.delete({
-        where: { id: existingLike.id },
+    if (existing) {
+      if (existing.reactionType === reactionType) {
+        await prisma.postLike.delete({ where: { id: existing.id } });
+        revalidatePath('/novedades');
+        return {
+          success: true,
+          reaction: null as 'Recomendar' | 'Celebrar' | 'Encantar' | null,
+          added: false,
+        };
+      }
+      await prisma.postLike.update({
+        where: { id: existing.id },
+        data: { reactionType },
       });
-
-      return {
-        success: true,
-        liked: false,
-      };
     } else {
-      // Dar like
       await prisma.postLike.create({
-        data: {
-          postId,
-          userId: user.id,
-        },
+        data: { postId, userId: user.id, reactionType },
       });
-
-      return {
-        success: true,
-        liked: true,
-      };
     }
+
+    revalidatePath('/novedades');
+    return {
+      success: true,
+      reaction: reactionType,
+      added: true,
+    };
   } catch (error) {
-    console.error('Error toggling post like:', error);
+    console.error('Error setting post reaction:', error);
     return {
       success: false,
-      error: 'Error al procesar el like',
+      error: 'Error al procesar la reacción',
     };
   }
 }

@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "resumen:cuentas": "tsx prisma/resumen-cuentas.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed-full.ts"
