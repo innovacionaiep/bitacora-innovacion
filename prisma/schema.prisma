@@ -60,6 +60,12 @@ model User {
   proyectos ProyectoParticipante[]
   comentariosIndicador ComentarioIndicador[]
   historialProyecto HistorialProyecto[]
+  
+  // Relaciones del Feed de Novedades
+  posts         Post[]
+  postLikes     PostLike[]      @relation("PostLikes")
+  postComments  PostComment[]   @relation("PostComments")
+  commentLikes  CommentLike[]   @relation("CommentLikes")
 
   @@map("users")
 }
@@ -115,6 +121,9 @@ model Proyecto {
   indicadores        Indicador[]
   historial          HistorialProyecto[]
   snapshotsMensuales SnapshotMensualProyecto[]
+  
+  // Relación con el Feed de Novedades
+  posts              PostProyecto[]
 
   @@map("proyectos")
 }
@@ -409,4 +418,104 @@ model SnapshotMensualProyecto {
   @@unique([proyectoId, mes, anio])
   @@index([proyectoId])
   @@map("snapshots_mensuales_proyecto")
+}
+
+// ========================
+// FEED DE NOVEDADES
+// ========================
+
+// Publicaciones del Feed
+model Post {
+  id          String   @id @default(cuid())
+  contenido   String   @db.Text
+  authorId    String   @map("author_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  imagenes    PostImage[]
+  proyectos   PostProyecto[]
+  likes       PostLike[]
+  comentarios PostComment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+// Imágenes de las publicaciones (almacenadas en Cloudinary)
+model PostImage {
+  id        String @id @default(cuid())
+  postId    String @map("post_id")
+  url       String
+  publicId  String @map("public_id") // ID de Cloudinary para eliminación
+  orden     Int    @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_images")
+}
+
+// Relación many-to-many entre Posts y Proyectos
+model PostProyecto {
+  postId     String @map("post_id")
+  proyectoId String @map("proyecto_id")
+
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@id([postId, proyectoId])
+  @@map("post_proyectos")
+}
+
+// Likes en publicaciones
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("post_likes")
+}
+
+// Comentarios en publicaciones (con soporte para respuestas anidadas)
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  parentId  String?  @map("parent_id") // Para respuestas anidadas
+  contenido String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User          @relation("PostComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[] @relation("CommentReplies")
+  likes   CommentLike[]
+
+  @@index([postId])
+  @@index([parentId])
+  @@map("post_comments")
+}
+
+// Likes en comentarios
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String   @map("comment_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation("CommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@map("comment_likes")
 }

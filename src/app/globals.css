@@ -191,4 +191,29 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
   }
+
+  /* Scrollbar gris para página de novedades */
+  .scrollbar-gray {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db #f3f4f6;
+  }
+
+  .scrollbar-gray::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-gray::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+
+  .scrollbar-gray::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-gray::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
 }
