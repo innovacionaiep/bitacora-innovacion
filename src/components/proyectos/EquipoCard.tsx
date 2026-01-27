@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Plus, Edit, Trash2 } from 'lucide-react';
 
+// Ver docs/SISTEMA-ROLES.md para documentación de roles
 interface Participante {
   id: string;
   userId: string;
-  rol: 'Encargado' | 'Coordinador' | 'Participante';
+  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
   user: {
     id: string;
     name: string | null;
@@ -32,14 +33,21 @@ export function EquipoCard({
   onRemoveParticipante,
   canEdit = false,
 }: EquipoCardProps) {
+  // Colores según docs/SISTEMA-ROLES.md
   const getRolColor = (rol: string) => {
     switch (rol) {
       case 'Encargado':
-        return 'bg-red-100 text-red-800';
+        return 'bg-orange-100 text-orange-800';
       case 'Coordinador':
         return 'bg-blue-100 text-blue-800';
-      case 'Participante':
+      case 'Colaborador':
+        return 'bg-violet-100 text-violet-800';
+      case 'Docente':
         return 'bg-green-100 text-green-800';
+      case 'Estudiante':
+        return 'bg-red-100 text-red-800';
+      case 'Beneficiario':
+        return 'bg-cyan-100 text-cyan-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -51,8 +59,14 @@ export function EquipoCard({
         return '👑';
       case 'Coordinador':
         return '📋';
-      case 'Participante':
-        return '👤';
+      case 'Colaborador':
+        return '🤝';
+      case 'Docente':
+        return '👨‍🏫';
+      case 'Estudiante':
+        return '🎓';
+      case 'Beneficiario':
+        return '🎯';
       default:
         return '👤';
     }
@@ -60,7 +74,10 @@ export function EquipoCard({
 
   const encargados = participantes?.filter(p => p.rol === 'Encargado') || [];
   const coordinadores = participantes?.filter(p => p.rol === 'Coordinador') || [];
-  const participantes_rol = participantes?.filter(p => p.rol === 'Participante') || [];
+  const colaboradores = participantes?.filter(p => p.rol === 'Colaborador') || [];
+  const docentes = participantes?.filter(p => p.rol === 'Docente') || [];
+  const estudiantes = participantes?.filter(p => p.rol === 'Estudiante') || [];
+  const beneficiarios = participantes?.filter(p => p.rol === 'Beneficiario') || [];
 
   const renderParticipantes = (lista: Participante[], titulo: string) => (
     <div>
@@ -153,7 +170,10 @@ export function EquipoCard({
         <div className="space-y-4">
           {renderParticipantes(encargados, 'Encargados')}
           {renderParticipantes(coordinadores, 'Coordinadores')}
-          {renderParticipantes(participantes_rol, 'Participantes')}
+          {renderParticipantes(colaboradores, 'Colaboradores')}
+          {renderParticipantes(docentes, 'Docentes')}
+          {renderParticipantes(estudiantes, 'Estudiantes')}
+          {renderParticipantes(beneficiarios, 'Beneficiarios')}
         </div>
 
         {(!participantes || participantes.length === 0) && (

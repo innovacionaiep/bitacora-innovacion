@@ -36,16 +36,17 @@ async function main() {
     },
   });
 
-  const evaluadorUser = await prisma.user.create({
+  // Usuario docente con rol Docente y Colaborador - Ver docs/SISTEMA-ROLES.md
+  const docenteUser = await prisma.user.create({
     data: {
-      email: 'evaluador@test.com',
-      name: 'María Evaluadora',
+      email: 'docente@test.com',
+      name: 'María Docente',
       password: passwordHash,
-      activeRole: 'Evaluador',
+      activeRole: 'Docente',
       roles: {
         create: [
-          { role: 'Evaluador' },
-          { role: 'Participante' },
+          { role: 'Docente' },
+          { role: 'Colaborador' },
         ],
       },
     },
@@ -66,7 +67,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Usuarios creados: ${adminUser.email}, ${evaluadorUser.email}, ${coordinadorUser.email}`);
+  console.log(`✅ Usuarios creados: ${adminUser.email}, ${docenteUser.email}, ${coordinadorUser.email}`);
 
   // Crear proyectos
   console.log('📁 Creando proyectos...');
@@ -380,7 +381,7 @@ async function main() {
   console.log('');
   console.log('🔑 Credenciales de prueba:');
   console.log('   admin@test.com / password123 (Admin, Coordinador)');
-  console.log('   evaluador@test.com / password123 (Evaluador, Participante)');
+  console.log('   docente@test.com / password123 (Docente, Colaborador)');
   console.log('   coordinador@test.com / password123 (Coordinador, Encargado)');
   console.log('');
 }

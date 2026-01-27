@@ -35,19 +35,19 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          account_type: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          account_type: 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario';
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          account_type: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          account_type: 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario';
           created_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          account_type?: 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+          account_type?: 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario';
           created_at?: string;
         };
       };
@@ -178,13 +178,15 @@ export type Database = {
   };
 };
 
-// Tipos de cuenta disponibles
+// Tipos de cuenta disponibles - Ver docs/SISTEMA-ROLES.md
 export type AccountType = Database['public']['Tables']['user_account_types']['Row']['account_type'];
 
-// Roles disponibles para registro (sin Admin)
+// Roles disponibles para registro (sin Admin) - Ver docs/SISTEMA-ROLES.md
 export const REGISTER_ROLES: Exclude<AccountType, 'Admin'>[] = [
-  'Evaluador',
   'Coordinador',
+  'Colaborador',
   'Encargado',
-  'Participante',
+  'Docente',
+  'Estudiante',
+  'Beneficiario',
 ];

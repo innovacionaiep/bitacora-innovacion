@@ -275,7 +275,7 @@ async function seedFullDatabase() {
           email: `usuario${i + 1}@test.com`,
           name: nombres[i],
           password: passwordHash,
-          activeRole: 'Participante'
+          activeRole: 'Colaborador'
         }
       });
       usuarios.push(usuario);
@@ -283,7 +283,8 @@ async function seedFullDatabase() {
 
     // Asignar todos los roles a todos los usuarios
     console.log('🔐 Asignando roles a usuarios...');
-    const roles = ['Admin', 'Evaluador', 'Coordinador', 'Encargado', 'Participante'];
+    // Roles según docs/SISTEMA-ROLES.md
+    const roles = ['Admin', 'Coordinador', 'Colaborador', 'Encargado', 'Docente', 'Estudiante', 'Beneficiario'];
 
     // Crear todos los roles de usuario
     const userRolesData = [];
@@ -372,7 +373,8 @@ async function seedFullDatabase() {
       // Participantes del proyecto (asignar 2-5 usuarios)
       const numParticipantes = Math.floor(Math.random() * 4) + 2;
       const participantesSeleccionados = usuarios.sort(() => 0.5 - Math.random()).slice(0, numParticipantes);
-      const rolesParticipacion = ['Encargado', 'Coordinador', 'Participante'];
+      // Roles de proyecto según docs/SISTEMA-ROLES.md
+      const rolesParticipacion = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
 
       for (let j = 0; j < participantesSeleccionados.length; j++) {
         const rolParticipacion = rolesParticipacion[j % rolesParticipacion.length];

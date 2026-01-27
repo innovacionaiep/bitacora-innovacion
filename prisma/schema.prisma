@@ -84,7 +84,7 @@ model VerificationToken {
 model UserRole {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
-  role      String // 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante'
+  role      String // 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario' - Ver docs/SISTEMA-ROLES.md
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -66,36 +66,45 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
   const currentRole = optimisticRole || session?.user?.activeRole || 'Sin rol';
 
   // Función para obtener colores de rol
+  // Colores de roles - Ver docs/SISTEMA-ROLES.md
   const getRoleColors = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'evaluador':
-        return 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200 hover:text-purple-800 hover:border-purple-400';
-      case 'coordinador':
-        return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200 hover:text-blue-800 hover:border-blue-400';
-      case 'encargado':
-        return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:text-orange-800 hover:border-orange-400';
-      case 'participante':
-        return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200 hover:text-green-800 hover:border-green-400';
       case 'admin':
         return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200 hover:text-yellow-800 hover:border-yellow-400';
+      case 'coordinador':
+        return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200 hover:text-blue-800 hover:border-blue-400';
+      case 'colaborador':
+        return 'bg-violet-100 text-violet-700 border-violet-300 hover:bg-violet-200 hover:text-violet-800 hover:border-violet-400';
+      case 'encargado':
+        return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:text-orange-800 hover:border-orange-400';
+      case 'docente':
+        return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200 hover:text-green-800 hover:border-green-400';
+      case 'estudiante':
+        return 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200 hover:text-red-800 hover:border-red-400';
+      case 'beneficiario':
+        return 'bg-cyan-100 text-cyan-700 border-cyan-300 hover:bg-cyan-200 hover:text-cyan-800 hover:border-cyan-400';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800 hover:border-gray-400';
     }
   };
 
-  // Get circle color for role indicators
+  // Get circle color for role indicators - Ver docs/SISTEMA-ROLES.md
   const getRoleCircleColor = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'evaluador':
-        return 'bg-purple-500';
-      case 'coordinador':
-        return 'bg-blue-500';
-      case 'encargado':
-        return 'bg-orange-500';
-      case 'participante':
-        return 'bg-green-500';
       case 'admin':
         return 'bg-yellow-500';
+      case 'coordinador':
+        return 'bg-blue-500';
+      case 'colaborador':
+        return 'bg-violet-500';
+      case 'encargado':
+        return 'bg-orange-500';
+      case 'docente':
+        return 'bg-green-500';
+      case 'estudiante':
+        return 'bg-red-500';
+      case 'beneficiario':
+        return 'bg-cyan-500';
       default:
         return 'bg-gray-500';
     }

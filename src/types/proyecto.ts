@@ -107,11 +107,11 @@ export type GrupoInteresItem = CatalogoItem;
 
 export type SocioComunitarioItem = CatalogoItem;
 
-// Tipos para participantes
+// Tipos para participantes - Ver docs/SISTEMA-ROLES.md
 export type ParticipanteProyecto = {
   id: string;
   userId?: string;
-  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante';
+  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
   nombre?: string;
   email?: string;
   user?: User;

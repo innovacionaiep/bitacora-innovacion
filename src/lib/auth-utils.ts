@@ -3,22 +3,27 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from './prisma';
 
 // Tipos de roles disponibles
-export type Role = 'Admin' | 'Evaluador' | 'Coordinador' | 'Encargado' | 'Participante';
+// Ver docs/SISTEMA-ROLES.md para documentación completa
+export type Role = 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario';
 
 export const AVAILABLE_ROLES: Role[] = [
   'Admin',
-  'Evaluador',
   'Coordinador',
+  'Colaborador',
   'Encargado',
-  'Participante',
+  'Docente',
+  'Estudiante',
+  'Beneficiario',
 ];
 
 // Roles disponibles para registro (sin Admin)
 export const REGISTER_ROLES: Exclude<Role, 'Admin'>[] = [
-  'Evaluador',
   'Coordinador',
+  'Colaborador',
   'Encargado',
-  'Participante',
+  'Docente',
+  'Estudiante',
+  'Beneficiario',
 ];
 
 /**
