@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { NovedadesContent } from './NovedadesContent';
 import { EventosWall } from './EventosWall';
 import { EventoDetallesModal } from './EventoDetallesModal';
+import { DiscoverySidebar } from './DiscoverySidebar';
 import { PostWithRelations } from '@/lib/actions/posts';
 
 interface NovedadesPageWrapperProps {
@@ -41,37 +42,36 @@ export function NovedadesPageWrapper({
   };
 
   return (
-    <div className="h-full bg-gray-100 w-full flex">
-      {/* Sidebar izquierda: título, subtítulo y muro de eventos */}
-      <div className="flex-shrink-0 bg-gray-100 px-8 pt-6 pb-6 w-[500px] border-r border-gray-200 flex flex-col">
-        <div className="sticky top-0 flex flex-col h-full">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Novedades</h1>
-            <p className="text-muted-foreground mt-1">
-              Descubre las últimas actualizaciones de los proyectos
-            </p>
-          </div>
-          
-          {/* Muro de eventos */}
-          <div className="flex-1 overflow-hidden">
-            <EventosWall
-              refreshTrigger={eventosKey}
-              onOpenEvento={handleOpenEvento}
-              onAttendanceChanged={handleAttendanceChanged}
-            />
+    <div className="h-full w-full overflow-y-auto scrollbar-gray">
+      <div className="flex min-h-full">
+        {/* Sidebar izquierda: sticky */}
+        <div className="flex-shrink-0 w-[500px]">
+          <div className="sticky top-0 h-screen bg-gray-100 border-r border-gray-200 px-8 pt-6 pb-6">
+            <div className="flex flex-col h-full">
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-gray-900">Novedades</h1>
+                <p className="text-muted-foreground mt-1">
+                  Descubre las últimas actualizaciones de los proyectos
+                </p>
+              </div>
+              
+              {/* Muro de eventos */}
+              <div className="flex-1 overflow-hidden">
+                <EventosWall
+                  refreshTrigger={eventosKey}
+                  onOpenEvento={handleOpenEvento}
+                  onAttendanceChanged={handleAttendanceChanged}
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Columna del feed: create box, línea + ordenar/filtrar, feed */}
-      <div className="flex-1 overflow-y-auto scrollbar-gray bg-white">
-        <div className="w-full pt-6 pb-6">
+        {/* Columna del feed central */}
+        <div className="flex-1 bg-white pt-6 pb-6">
           <div 
             className="w-full px-8 mx-auto"
-            style={{ 
-              maxWidth: '743px',
-              marginLeft: 'calc(50vw - 500px - 426.5px)' 
-            }}
+            style={{ maxWidth: '743px' }}
           >
             <NovedadesContent
               initialPosts={initialPosts}
@@ -82,6 +82,13 @@ export function NovedadesPageWrapper({
               refreshTrigger={attendanceKey}
               onAttendanceChanged={handleAttendanceChanged}
             />
+          </div>
+        </div>
+
+        {/* Sidebar derecha: sticky */}
+        <div className="flex-shrink-0 w-[480px]">
+          <div className="sticky top-0 h-screen bg-white border-l border-gray-200 p-6">
+            <DiscoverySidebar />
           </div>
         </div>
       </div>
