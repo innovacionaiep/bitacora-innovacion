@@ -66,6 +66,7 @@ model User {
   postLikes     PostLike[]      @relation("PostLikes")
   postComments  PostComment[]   @relation("PostComments")
   commentLikes  CommentLike[]   @relation("CommentLikes")
+  eventoAsistencias EventoAsistente[] @relation("EventoAsistencias")
 
   @@map("users")
 }
@@ -430,6 +431,9 @@ model Post {
   contenido          String   @db.Text
   authorId           String   @map("author_id")
   authorRoleAtPost   String?  @map("author_role_at_post") // Rol activo del autor al momento de publicar
+  eventoFecha        DateTime? @map("evento_fecha") // Fecha del evento (opcional, solo para posts tipo evento)
+  eventoNombre       String?  @map("evento_nombre") // Nombre del evento (opcional, solo para posts tipo evento)
+  eventoDescripcion  String?  @db.Text @map("evento_descripcion") // Descripción breve del evento (opcional)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -439,6 +443,7 @@ model Post {
   proyectos   PostProyecto[]
   likes       PostLike[]
   comentarios PostComment[]
+  asistentes  EventoAsistente[] @relation("EventoAsistentes")
 
   @@index([authorId])
   @@index([createdAt])
@@ -483,6 +488,22 @@ model PostProyecto {
 
   @@id([postId, proyectoId])
   @@map("post_proyectos")
+}
+
+// Asistentes confirmados a eventos (solo aplica a posts tipo evento)
+model EventoAsistente {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation("EventoAsistentes", fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("EventoAsistencias", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("evento_asistentes")
 }
 
 // Tipos de reacción en posts (estilo LinkedIn)

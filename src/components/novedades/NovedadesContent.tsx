@@ -11,6 +11,9 @@ interface NovedadesContentProps {
   initialHasMore?: boolean;
   initialCursor?: string;
   onPostCreated?: (post: PostWithRelations) => void;
+  onOpenEvento?: (postId: string) => void;
+  refreshTrigger?: number;
+  onAttendanceChanged?: () => void;
 }
 
 export function NovedadesContent({
@@ -18,6 +21,9 @@ export function NovedadesContent({
   initialHasMore = true,
   initialCursor,
   onPostCreated: externalOnPostCreated,
+  onOpenEvento,
+  refreshTrigger,
+  onAttendanceChanged,
 }: NovedadesContentProps) {
   const [newPost, setNewPost] = useState<PostWithRelations | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('all');
@@ -31,10 +37,10 @@ export function NovedadesContent({
   };
 
   return (
-    <div className="relative min-h-[600px]">
-      <div className="max-w-2xl" style={{ marginLeft: 'calc(50vw - 550px - 336px)' }}>
+    <div className="relative min-h-[600px] w-full">
+      <div className="w-full">
         {/* Casilla crear publicación (estilo LinkedIn) */}
-        <div className="mb-2">
+        <div className="mb-0">
           <CreatePostForm onPostCreated={handlePostCreated} />
         </div>
 
@@ -56,6 +62,9 @@ export function NovedadesContent({
           filterType={filterType}
           sortType={sortType}
           selectedProyectoIds={selectedProyectoIds}
+          onOpenEvento={onOpenEvento}
+          refreshTrigger={refreshTrigger}
+          onAttendanceChanged={onAttendanceChanged}
         />
       </div>
     </div>

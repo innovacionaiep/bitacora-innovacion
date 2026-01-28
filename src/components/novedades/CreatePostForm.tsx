@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Loader2, Play, ImageIcon, Calendar, X } from 'lucide-react';
+import { Send, Loader2, Play, ImageIcon, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Calendar } from '@/components/ui/calendar';
 import { ImageUploader, UploadedImage } from './ImageUploader';
 import { ProjectSelector } from './ProjectSelector';
 import { createPost, PostWithRelations } from '@/lib/actions/posts';
@@ -30,12 +31,17 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  // Campos específicos para eventos
+  const [eventoFecha, setEventoFecha] = useState<string>('');
+  const [eventoNombre, setEventoNombre] = useState<string>('');
+  const [eventoDescripcion, setEventoDescripcion] = useState<string>('');
 
   const user = session?.user;
   const userName = user?.name || user?.email?.split('@')[0] || 'U';
   const userInitials = userName.slice(0, 2).toUpperCase();
 
-  const canSubmit = contenido.trim().length > 0 && proyectoIds.length > 0;
+  const canSubmit = contenido.trim().length > 0 && proyectoIds.length > 0 && 
+    (mediaMode !== 'evento' || (eventoFecha.trim() && eventoNombre.trim() && eventoDescripcion.trim()));
 
   const handleSubmit = async () => {
     if (!canSubmit || isSubmitting) return;
@@ -61,6 +67,9 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
       proyectoIds,
       imagenes: images,
       videos: videos.length > 0 ? videos : undefined,
+      eventoFecha: mediaMode === 'evento' ? eventoFecha : undefined,
+      eventoNombre: mediaMode === 'evento' ? eventoNombre : undefined,
+      eventoDescripcion: mediaMode === 'evento' ? eventoDescripcion : undefined,
     });
 
     if (result.success && result.data) {
@@ -71,6 +80,9 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
       setYoutubeUrl('');
       setMediaMode(null);
       setIsExpanded(false);
+      setEventoFecha('');
+      setEventoNombre('');
+      setEventoDescripcion('');
     } else {
       setError(result.error || 'Error al crear la publicación');
     }
@@ -83,7 +95,10 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
       contenido.trim() ||
       images.length > 0 ||
       proyectoIds.length > 0 ||
-      youtubeUrl.trim()
+      youtubeUrl.trim() ||
+      eventoFecha.trim() ||
+      eventoNombre.trim() ||
+      eventoDescripcion.trim()
     ) {
       if (confirm('¿Descartar los cambios?')) {
         setContenido('');
@@ -93,6 +108,9 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
         setMediaMode(null);
         setIsExpanded(false);
         setError(null);
+        setEventoFecha('');
+        setEventoNombre('');
+        setEventoDescripcion('');
       }
     } else {
       setIsExpanded(false);
@@ -185,7 +203,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                   if (!isExpanded) setIsExpanded(true);
                 }}
               >
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Evento
               </Button>
             </div>
@@ -245,6 +263,68 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                       >
                         <X className="h-4 w-4" />
                       </Button>
+                    </div>
+                  </div>
+                )}
+
+                {mediaMode === 'evento' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Fecha del evento *
+                      </label>
+                      <Calendar
+                        value={eventoFecha || undefined}
+                        onChange={(date) => {
+                          setEventoFecha(date);
+                          setError(null);
+                        }}
+                        placeholder="Seleccionar fecha"
+                        disabled={isSubmitting}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Nombre del evento *
+                      </label>
+                      <Input
+                        placeholder="Ej: Reunión de coordinación"
+                        value={eventoNombre}
+                        onChange={(e) => {
+                          setEventoNombre(e.target.value);
+                          setError(null);
+                        }}
+                        disabled={isSubmitting}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Descripción breve *
+                      </label>
+                      <Textarea
+                        placeholder="Describe brevemente el evento..."
+                        value={eventoDescripcion}
+                        onChange={(e) => {
+                          setEventoDescripcion(e.target.value);
+                          setError(null);
+                        }}
+                        disabled={isSubmitting}
+                        className="min-h-[80px] resize-none"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Imagen del evento (opcional)
+                      </label>
+                      <ImageUploader
+                        images={images}
+                        onImagesChange={setImages}
+                        disabled={isSubmitting}
+                        maxImages={1}
+                      />
                     </div>
                   </div>
                 )}

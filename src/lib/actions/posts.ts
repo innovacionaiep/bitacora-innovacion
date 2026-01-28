@@ -10,6 +10,9 @@ export interface PostWithRelations {
   contenido: string;
   authorId: string;
   authorRoleAtPost: string | null;
+  eventoFecha: Date | null;
+  eventoNombre: string | null;
+  eventoDescripcion: string | null;
   createdAt: Date;
   updatedAt: Date;
   author: {
@@ -56,6 +59,10 @@ export interface PostWithRelations {
   userReactionType?: 'Recomendar' | 'Celebrar' | 'Encantar' | null;
   /** Conteo por tipo (Recomendar, Celebrar, Encantar) para mostrar iconos estilo LinkedIn */
   reactionCounts?: { Recomendar: number; Celebrar: number; Encantar: number };
+  /** Asistencia a eventos (solo para posts tipo evento) */
+  asistentesCount?: number;
+  isAsistiendo?: boolean;
+  asistentesPreview?: { id: string; name: string | null; email: string; image: string | null }[];
 }
 
 export type PostReactionType = 'Recomendar' | 'Celebrar' | 'Encantar';
@@ -68,6 +75,9 @@ export interface CreatePostData {
     publicId: string;
   }[];
   videos?: { youtubeUrl: string; youtubeVideoId: string }[];
+  eventoFecha?: string; // Fecha en formato string (DD/MM/YYYY)
+  eventoNombre?: string;
+  eventoDescripcion?: string;
 }
 
 export interface GetPostsResult {
@@ -87,6 +97,7 @@ export interface GetPostsParams {
   myPosts?: boolean; // Filtrar solo posts del usuario actual
   proyectoIds?: string[]; // Filtrar por proyectos
   sortBy?: 'recent' | 'relevant'; // Ordenamiento: reciente o relevante
+  eventosOnly?: boolean; // Filtrar solo posts de tipo evento
 }
 
 /**
@@ -126,7 +137,7 @@ export async function getPosts(
       }
     }
 
-    const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent' } = actualParams;
+    const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent', eventosOnly } = actualParams;
 
     // Construir el where clause
     const where: any = {};
@@ -148,9 +159,21 @@ export async function getPosts(
       };
     }
 
+    // Filtrar solo eventos si se solicita
+    if (eventosOnly) {
+      where.eventoFecha = { not: null };
+      where.eventoNombre = { not: null };
+      where.eventoDescripcion = { not: null };
+    }
+
     // Determinar el ordenamiento
     let orderBy: any;
-    if (sortBy === 'relevant') {
+    if (eventosOnly) {
+      // Para eventos, ordenar por fecha del evento (próximos primero)
+      orderBy = {
+        eventoFecha: 'asc',
+      };
+    } else if (sortBy === 'relevant') {
       // Ordenar por relevancia: suma de likes + comentarios
       // Usaremos una consulta raw o múltiples orderBy
       // Por ahora, ordenamos por createdAt y luego ordenaremos en memoria
@@ -274,6 +297,69 @@ export async function getPosts(
       }
     }
 
+    // Conteo y estado de asistencia (solo relevante para eventos)
+    const asistentesCountByPost: Record<string, number> = {};
+    for (const id of postIds) asistentesCountByPost[id] = 0;
+    let asistenciasFeatureAvailable = true;
+    if (postIds.length > 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'EventoAsistente delegate check',data:{hasEventoAsistente:!!(prisma as any).eventoAsistente,groupByType:typeof (prisma as any).eventoAsistente?.groupBy,clientVersion:(prisma as any)?._clientVersion,postIdsCount:postIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      try {
+        const asistentesCountsRaw = await prisma.eventoAsistente.groupBy({
+          by: ['postId'],
+          where: { postId: { in: postIds } },
+          _count: { id: true },
+        });
+        for (const r of asistentesCountsRaw) {
+          asistentesCountByPost[r.postId] = r._count.id;
+        }
+      } catch (e: any) {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'EventoAsistente.groupBy failed',data:{name:e?.name,code:e?.code,message:String(e?.message||e),stack:String(e?.stack||'')?.slice(0,400)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        // Si la tabla aún no existe (migración no aplicada), degradar con gracia (mostrar 0 asistentes)
+        if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+          asistenciasFeatureAvailable = false;
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'Asistencias deshabilitadas: tabla no existe',data:{code:e?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    const isAsistiendoByPost: Record<string, boolean> = {};
+    for (const id of postIds) isAsistiendoByPost[id] = false;
+    if (asistenciasFeatureAvailable && userId && postIds.length > 0) {
+      const asistenciasUsuario = await prisma.eventoAsistente.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      });
+      for (const a of asistenciasUsuario) isAsistiendoByPost[a.postId] = true;
+    }
+
+    const asistentesPreviewByPost: Record<
+      string,
+      { id: string; name: string | null; email: string; image: string | null }[]
+    > = {};
+    for (const id of postIds) asistentesPreviewByPost[id] = [];
+    if (asistenciasFeatureAvailable && postIds.length > 0) {
+      const asistenciasPreview = await prisma.eventoAsistente.findMany({
+        where: { postId: { in: postIds } },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100, // límite razonable para agrupar en memoria
+      });
+      for (const a of asistenciasPreview) {
+        const arr = asistentesPreviewByPost[a.postId];
+        if (arr && arr.length < 3) arr.push(a.user);
+      }
+    }
+
     const postsWithLikeStatus = postsToReturn.map((post) => {
       const userLike = userId && post.likes.length > 0 ? post.likes[0] : null;
       return {
@@ -287,6 +373,9 @@ export async function getPosts(
           Celebrar: 0,
           Encantar: 0,
         },
+        asistentesCount: asistentesCountByPost[post.id] ?? 0,
+        isAsistiendo: isAsistiendoByPost[post.id] ?? false,
+        asistentesPreview: asistentesPreviewByPost[post.id] ?? [],
       };
     });
 
@@ -334,11 +423,51 @@ export async function createPost(data: CreatePostData) {
       };
     }
 
+    // Validar campos de evento si están presentes
+    if (data.eventoFecha || data.eventoNombre || data.eventoDescripcion) {
+      if (!data.eventoFecha || !data.eventoNombre || !data.eventoDescripcion) {
+        return {
+          success: false,
+          error: 'Todos los campos del evento son requeridos',
+        };
+      }
+    }
+
+    // Convertir fecha de string (DD/MM/YYYY o DD-MM-YYYY) a Date
+    let eventoFechaDate: Date | null = null;
+    if (data.eventoFecha) {
+      // El componente Calendar puede devolver formato DD/MM/YYYY o DD-MM-YYYY
+      const separators = ['/', '-'];
+      let day: string | undefined, month: string | undefined, year: string | undefined;
+      
+      for (const sep of separators) {
+        if (data.eventoFecha.includes(sep)) {
+          [day, month, year] = data.eventoFecha.split(sep);
+          break;
+        }
+      }
+      
+      if (day && month && year) {
+        eventoFechaDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        // Ajustar a medianoche para evitar problemas de timezone
+        eventoFechaDate.setHours(0, 0, 0, 0);
+        if (isNaN(eventoFechaDate.getTime())) {
+          return {
+            success: false,
+            error: 'Fecha del evento inválida',
+          };
+        }
+      }
+    }
+
     const post = await prisma.post.create({
       data: {
         contenido: data.contenido.trim(),
         authorId: user.id,
         authorRoleAtPost: user.activeRole ?? null,
+        eventoFecha: eventoFechaDate,
+        eventoNombre: data.eventoNombre?.trim() || null,
+        eventoDescripcion: data.eventoDescripcion?.trim() || null,
         imagenes: {
           create: data.imagenes.map((img, index) => ({
             url: img.url,
@@ -468,6 +597,230 @@ export async function deletePost(postId: string) {
       success: false,
       error: 'Error al eliminar la publicación',
     };
+  }
+}
+
+/**
+ * Alternar asistencia del usuario actual a un evento.
+ * Si ya está confirmado, se cancela. Si no, se confirma.
+ */
+export async function toggleEventoAsistencia(postId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Debes iniciar sesión para confirmar asistencia' };
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, eventoFecha: true, eventoNombre: true, eventoDescripcion: true },
+    });
+    if (!post) {
+      return { success: false, error: 'Evento no encontrado' };
+    }
+    const isEvento = !!(post.eventoFecha && post.eventoNombre && post.eventoDescripcion);
+    if (!isEvento) {
+      return { success: false, error: 'La publicación no es un evento' };
+    }
+
+    let existing: { id: string } | null = null;
+    try {
+      existing = await prisma.eventoAsistente.findUnique({
+        where: { postId_userId: { postId, userId: user.id } },
+        select: { id: true },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+        return {
+          success: false,
+          error:
+            'La tabla de asistencias no existe en la BD (migración pendiente). Aplica la migración de Prisma y vuelve a intentar.',
+        };
+      }
+      throw e;
+    }
+
+    let isAsistiendo: boolean;
+    if (existing) {
+      await prisma.eventoAsistente.delete({ where: { id: existing.id } });
+      isAsistiendo = false;
+    } else {
+      await prisma.eventoAsistente.create({ data: { postId, userId: user.id } });
+      isAsistiendo = true;
+    }
+
+    let asistentesCount = 0;
+    try {
+      asistentesCount = await prisma.eventoAsistente.count({ where: { postId } });
+    } catch (e: any) {
+      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+        asistentesCount = 0;
+      } else {
+        throw e;
+      }
+    }
+
+    revalidatePath('/novedades');
+    return { success: true, data: { isAsistiendo, asistentesCount } };
+  } catch (error) {
+    console.error('Error toggling asistencia evento:', error);
+    return { success: false, error: 'Error al procesar la asistencia' };
+  }
+}
+
+/**
+ * Obtener lista completa de asistentes confirmados a un evento
+ */
+export async function getEventoAsistentes(postId: string) {
+  try {
+    try {
+      const asistentes = await prisma.eventoAsistente.findMany({
+        where: { postId },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { success: true, data: asistentes.map((a) => a.user) };
+    } catch (e: any) {
+      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+        return { success: true, data: [] };
+      }
+      throw e;
+    }
+  } catch (error) {
+    console.error('Error fetching asistentes evento:', error);
+    return { success: false, error: 'Error al cargar asistentes' };
+  }
+}
+
+export interface EventoDetallesResult {
+  success: boolean;
+  data?: {
+    postId: string;
+    eventoNombre: string;
+    eventoFecha: Date;
+    eventoDescripcion: string;
+    imagenUrl?: string | null;
+    author: { id: string; name: string | null; email: string; image: string | null };
+    proyectos: Array<{
+      id: string;
+      proyecto: string;
+      sede: string;
+      escuelas: { id: string; nombre: string }[];
+      encargados: Array<{ id: string; name: string | null; email: string; image: string | null; cargo: string | null }>;
+    }>;
+    sedes: string[];
+    escuelas: { id: string; nombre: string }[];
+    asistentes: { id: string; name: string | null; email: string; image: string | null }[];
+    asistentesCount: number;
+    isAsistiendo: boolean;
+  };
+  error?: string;
+}
+
+/**
+ * Obtener detalles completos del evento (para modal)
+ */
+export async function getEventoDetalles(postId: string): Promise<EventoDetallesResult> {
+  try {
+    const user = await getCurrentUser();
+    const userId = user?.id;
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: { select: { id: true, name: true, email: true, image: true } },
+        imagenes: { orderBy: { orden: 'asc' } },
+        proyectos: {
+          include: {
+            proyecto: {
+              select: {
+                id: true,
+                proyecto: true,
+                sede: true,
+                escuelas: { include: { escuela: { select: { id: true, nombre: true } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!post || !post.eventoFecha || !post.eventoNombre || !post.eventoDescripcion) {
+      return { success: false, error: 'Evento no encontrado' };
+    }
+
+    const proyectoIds = post.proyectos.map((p) => p.proyecto.id);
+    const encargadosByProyecto: Record<string, Array<{ id: string; name: string | null; email: string; image: string | null; cargo: string | null }>> = {};
+    for (const id of proyectoIds) encargadosByProyecto[id] = [];
+
+    if (proyectoIds.length > 0) {
+      const encargados = await prisma.proyectoParticipante.findMany({
+        where: { proyectoId: { in: proyectoIds }, rol: 'Encargado' },
+        include: { user: { select: { id: true, name: true, email: true, image: true } } },
+      });
+      for (const e of encargados) {
+        if (!e.user) continue;
+        const arr = encargadosByProyecto[e.proyectoId] ?? [];
+        arr.push({ ...e.user, cargo: e.cargo ?? null });
+        encargadosByProyecto[e.proyectoId] = arr;
+      }
+    }
+
+    const proyectos = post.proyectos.map(({ proyecto }) => ({
+      id: proyecto.id,
+      proyecto: proyecto.proyecto,
+      sede: proyecto.sede,
+      escuelas: (proyecto.escuelas ?? []).map((e) => e.escuela),
+      encargados: encargadosByProyecto[proyecto.id] ?? [],
+    }));
+
+    const sedes = Array.from(new Set(proyectos.map((p) => p.sede))).filter(Boolean);
+    const escuelasMap = new Map<string, { id: string; nombre: string }>();
+    for (const p of proyectos) {
+      for (const esc of p.escuelas) escuelasMap.set(esc.id, esc);
+    }
+    const escuelas = Array.from(escuelasMap.values());
+
+    let asistentesRows: Array<{ userId: string; user: { id: string; name: string | null; email: string; image: string | null } }> = [];
+    try {
+      asistentesRows = await prisma.eventoAsistente.findMany({
+        where: { postId },
+        include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+        asistentesRows = [];
+      } else {
+        throw e;
+      }
+    }
+    const asistentes = asistentesRows.map((a) => a.user);
+    const asistentesCount = asistentes.length;
+    const isAsistiendo = !!(userId && asistentesRows.some((a) => a.userId === userId));
+
+    return {
+      success: true,
+      data: {
+        postId: post.id,
+        eventoNombre: post.eventoNombre,
+        eventoFecha: post.eventoFecha,
+        eventoDescripcion: post.eventoDescripcion,
+        imagenUrl: post.imagenes?.[0]?.url ?? null,
+        author: post.author,
+        proyectos,
+        sedes,
+        escuelas,
+        asistentes,
+        asistentesCount,
+        isAsistiendo,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching evento detalles:', error);
+    return { success: false, error: 'Error al cargar detalles del evento' };
   }
 }
 

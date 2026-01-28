@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart, Calendar as CalendarIcon, Users, X as XIcon } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,17 +20,20 @@ import {
 } from '@/components/ui/popover';
 import { ReactionButton } from './ReactionButton';
 import { CommentSection } from './CommentSection';
-import { PostWithRelations, setPostReaction, deletePost, type PostReactionType } from '@/lib/actions/posts';
-import { formatDistanceToNow } from 'date-fns';
+import { PostWithRelations, setPostReaction, deletePost, toggleEventoAsistencia, type PostReactionType } from '@/lib/actions/posts';
+import { formatDistanceToNow, format, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
+import { cn } from '@/lib/utils';
 
 interface PostCardProps {
   post: PostWithRelations;
   onPostDeleted?: (postId: string) => void;
+  onOpenEvento?: (postId: string) => void;
+  onAttendanceChanged?: () => void;
 }
 
-export function PostCard({ post, onPostDeleted }: PostCardProps) {
+export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChanged }: PostCardProps) {
   const { data: session } = useSession();
   const defaultCounts = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
   const [reactionCounts, setReactionCounts] = useState<{
@@ -50,6 +54,39 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
   const isAuthor = session?.user?.id === post.authorId;
   const authorName = post.author.name || post.author.email.split('@')[0];
   const authorInitials = authorName.slice(0, 2).toUpperCase();
+  
+  // Detectar si es un evento
+  const isEvento = !!(post.eventoFecha && post.eventoNombre && post.eventoDescripcion);
+
+  const [asistiendoEvento, setAsistiendoEvento] = useState<boolean>(post.isAsistiendo ?? false);
+  const [asistentesEventoCount, setAsistentesEventoCount] = useState<number>(post.asistentesCount ?? 0);
+  
+  // Formatear fecha del evento
+  const formatEventDate = (date: Date | null): string => {
+    if (!date) return '';
+    const fechaEvento = new Date(date);
+    if (isToday(fechaEvento)) return 'Hoy';
+    if (isTomorrow(fechaEvento)) return 'Mañana';
+    return format(fechaEvento, 'd MMM yyyy', { locale: es });
+  };
+
+  const handleToggleAsistenciaEvento = async () => {
+    const prevIs = asistiendoEvento;
+    const prevCount = asistentesEventoCount;
+    const nextIs = !prevIs;
+    setAsistiendoEvento(nextIs);
+    setAsistentesEventoCount(Math.max(0, prevCount + (nextIs ? 1 : -1)));
+
+    const result = await toggleEventoAsistencia(post.id);
+    if (!result.success || !result.data) {
+      setAsistiendoEvento(prevIs);
+      setAsistentesEventoCount(prevCount);
+      return;
+    }
+    setAsistiendoEvento(result.data.isAsistiendo);
+    setAsistentesEventoCount(result.data.asistentesCount);
+    onAttendanceChanged?.();
+  };
 
   const handleSetReaction = async (type: PostReactionType) => {
     const hadReaction = !!userReaction;
@@ -99,7 +136,8 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
   };
 
   // Determinar layout de imágenes
-  const imageCount = post.imagenes.length;
+  // Si es un evento, las imágenes se muestran dentro del badge del evento
+  const imageCount = isEvento ? 0 : post.imagenes.length;
   const getImageGridClass = () => {
     if (imageCount === 1) return 'grid-cols-1';
     if (imageCount === 2) return 'grid-cols-2';
@@ -227,6 +265,106 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
             <p className="text-sm whitespace-pre-wrap break-words">{post.contenido}</p>
           </div>
 
+          {/* Información del evento */}
+          {isEvento && post.eventoFecha && post.eventoNombre && (
+            <div
+              className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-50/70 transition-colors"
+              onClick={() => onOpenEvento?.(post.id)}
+              role="button"
+            >
+              <div className="flex items-start gap-3">
+                <CalendarIcon className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-orange-700 uppercase tracking-wide">
+                      Evento
+                    </span>
+                    <span className="text-xs text-orange-600 font-medium">
+                      {formatEventDate(post.eventoFecha)}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                    {post.eventoNombre}
+                  </h4>
+                  {post.eventoDescripcion && (
+                    <p className="text-xs text-gray-700 line-clamp-2">
+                      {post.eventoDescripcion}
+                    </p>
+                  )}
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-orange-700">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>{asistentesEventoCount}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant={asistiendoEvento ? 'default' : 'outline'}
+                        size="sm"
+                        disabled={asistiendoEvento}
+                        className={cn(
+                          'h-8 px-2.5',
+                          asistiendoEvento && 'bg-emerald-600 hover:bg-emerald-600 cursor-not-allowed'
+                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!asistiendoEvento) {
+                            handleToggleAsistenciaEvento();
+                          }
+                        }}
+                      >
+                        Asistiré
+                      </Button>
+                      {asistiendoEvento && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleAsistenciaEvento();
+                              }}
+                              className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-red-50 transition-colors"
+                            >
+                              <XIcon className="h-4 w-4 text-red-600" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent variant="light" sideOffset={6}>
+                            Cancelar asistencia
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Imagen del evento - pequeña a la derecha */}
+                {post.imagenes && post.imagenes.length > 0 && (
+                  <div className="shrink-0">
+                    {post.imagenes.slice(0, 1).map((imagen) => (
+                      <div
+                        key={imagen.id}
+                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-muted cursor-pointer border border-orange-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImageIndex(post.imagenes.findIndex(img => img.id === imagen.id));
+                        }}
+                      >
+                        <Image
+                          src={imagen.url}
+                          alt={post.eventoNombre || 'Imagen del evento'}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Videos de YouTube */}
           {post.videos && post.videos.length > 0 && (
             <div className="space-y-2 mb-2">
@@ -317,19 +455,134 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
           )}
 
           {/* Acciones */}
-          <div className="flex items-center gap-1 pt-2 pb-0.5">
-            <ReactionButton
-              userReaction={userReaction}
-              onSelectReaction={handleSetReaction}
-            />
-            <Button
-              variant="ghost"
-              onClick={() => setShowComments(!showComments)}
-              className="gap-2"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Comentar
-            </Button>
+          <div className="flex items-center justify-between pt-2 pb-0.5">
+            <div className="flex items-center gap-1">
+              <ReactionButton
+                userReaction={userReaction}
+                onSelectReaction={handleSetReaction}
+              />
+              <Button
+                variant="ghost"
+                onClick={() => setShowComments(!showComments)}
+                className="gap-2"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Comentar
+              </Button>
+            </div>
+
+            {/* Indicador de proyectos, sedes y escuelas */}
+            {post.proyectos.length > 0 && (() => {
+              const proyectosCount = post.proyectos.length;
+              const sedesUnicas = Array.from(new Set(post.proyectos.map(({ proyecto }) => proyecto.sede)));
+              const sedesCount = sedesUnicas.length;
+              const escuelasUnicas = Array.from(
+                new Set(
+                  post.proyectos
+                    .flatMap(({ proyecto }) => proyecto.escuelas?.map(e => e.escuela.nombre) || [])
+                    .filter(Boolean)
+                )
+              );
+              const escuelasCount = escuelasUnicas.length;
+
+              return (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Popover open={hoveredPopover === 'proyectos'} onOpenChange={(open) => setHoveredPopover(open ? 'proyectos' : null)}>
+                    <PopoverTrigger asChild>
+                      <div 
+                        className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                        onMouseEnter={() => setHoveredPopover('proyectos')}
+                        onMouseLeave={() => setHoveredPopover(null)}
+                      >
+                        <FolderKanban className="h-3.5 w-3.5 text-blue-600" />
+                        <span>{proyectosCount} {proyectosCount === 1 ? 'proyecto' : 'proyectos'}</span>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-auto p-2" 
+                      align="end"
+                      onMouseEnter={() => setHoveredPopover('proyectos')}
+                      onMouseLeave={() => setHoveredPopover(null)}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold mb-1">Proyectos relacionados:</p>
+                        {post.proyectos.map(({ proyecto }) => (
+                          <p key={proyecto.id} className="text-xs text-gray-700">
+                            {proyecto.proyecto}
+                          </p>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {sedesCount > 0 && (
+                    <>
+                      <span className="text-gray-300">|</span>
+                      <Popover open={hoveredPopover === 'sedes'} onOpenChange={(open) => setHoveredPopover(open ? 'sedes' : null)}>
+                        <PopoverTrigger asChild>
+                          <div 
+                            className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                            onMouseEnter={() => setHoveredPopover('sedes')}
+                            onMouseLeave={() => setHoveredPopover(null)}
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-green-600" />
+                            <span>{sedesCount} {sedesCount === 1 ? 'sede' : 'sedes'}</span>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                          className="w-auto p-2" 
+                          align="end"
+                          onMouseEnter={() => setHoveredPopover('sedes')}
+                          onMouseLeave={() => setHoveredPopover(null)}
+                        >
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold mb-1">Sedes:</p>
+                            {sedesUnicas.map((sede) => (
+                              <p key={sede} className="text-xs text-gray-700">
+                                {sede}
+                              </p>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  )}
+
+                  {escuelasCount > 0 && (
+                    <>
+                      <span className="text-gray-300">|</span>
+                      <Popover open={hoveredPopover === 'escuelas'} onOpenChange={(open) => setHoveredPopover(open ? 'escuelas' : null)}>
+                        <PopoverTrigger asChild>
+                          <div 
+                            className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                            onMouseEnter={() => setHoveredPopover('escuelas')}
+                            onMouseLeave={() => setHoveredPopover(null)}
+                          >
+                            <GraduationCap className="h-3.5 w-3.5 text-purple-600" />
+                            <span>{escuelasCount} {escuelasCount === 1 ? 'escuela' : 'escuelas'}</span>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                          className="w-auto p-2" 
+                          align="end"
+                          onMouseEnter={() => setHoveredPopover('escuelas')}
+                          onMouseLeave={() => setHoveredPopover(null)}
+                        >
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold mb-1">Escuelas:</p>
+                            {escuelasUnicas.map((escuela) => (
+                              <p key={escuela} className="text-xs text-gray-700">
+                                {escuela}
+                              </p>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Sección de comentarios */}
@@ -340,177 +593,6 @@ export function PostCard({ post, onPostDeleted }: PostCardProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Proyectos flotantes en el espacio vacío a la derecha */}
-      {post.proyectos.length > 0 && (() => {
-        const { 
-          proyectosMostrar, 
-          proyectosRestantes, 
-          sedesMostrar, 
-          sedesRestantes,
-          escuelasMostrar,
-          escuelasRestantes 
-        } = procesarProyectos();
-        
-        return (
-          <div 
-            className="absolute left-full top-4 ml-6 w-96"
-          >
-            <div className="sticky top-4 space-y-2">
-              {/* Nombre del proyecto */}
-              <div className="flex items-center gap-2 relative">
-                {/* Línea horizontal desde el post hasta el icono */}
-                <div className="absolute -left-6 top-1/2 w-6 h-px bg-gray-300 -translate-y-1/2"></div>
-                <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white shadow-lg hover:shadow-xl transition-shadow flex-shrink-0 relative z-10">
-                  <FolderKanban className="h-3.5 w-3.5 text-blue-600" />
-                </div>
-                  <div className="flex items-center gap-1 flex-nowrap min-w-0 flex-1">
-                    {proyectosMostrar.map((proyecto, index) => (
-                      <span key={proyecto.id} className="text-xs font-medium text-gray-900 whitespace-nowrap">
-                        {index > 0 && <span className="text-gray-400 mx-1">|</span>}
-                        {post.proyectos.length === 1 ? proyecto.proyecto : truncateText(proyecto.proyecto)}
-                      </span>
-                    ))}
-                  {proyectosRestantes.length > 0 && (
-                    <>
-                      <Popover open={hoveredPopover === 'proyectos'} onOpenChange={(open) => setHoveredPopover(open ? 'proyectos' : null)}>
-                        <PopoverTrigger asChild>
-                          <div 
-                            className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-400 hover:bg-gray-500 transition-colors cursor-pointer text-white text-[10px] font-medium aspect-square"
-                            onMouseEnter={() => setHoveredPopover('proyectos')}
-                            onMouseLeave={() => setHoveredPopover(null)}
-                          >
-                            +{proyectosRestantes.length}
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-auto p-2" 
-                          align="start"
-                          onMouseEnter={() => setHoveredPopover('proyectos')}
-                          onMouseLeave={() => setHoveredPopover(null)}
-                        >
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold mb-1">Todos los proyectos:</p>
-                            {post.proyectos.map(({ proyecto }) => (
-                              <p key={proyecto.id} className="text-xs text-gray-700">
-                                {proyecto.proyecto}
-                              </p>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              {/* Sede */}
-              {sedesMostrar.length > 0 && (
-                <div className="flex items-center gap-2 relative">
-                  {/* Línea horizontal desde el post hasta el icono */}
-                  <div className="absolute -left-6 top-1/2 w-6 h-px bg-gray-300 -translate-y-1/2"></div>
-                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white shadow-lg hover:shadow-xl transition-shadow flex-shrink-0 relative z-10">
-                    <MapPin className="h-3.5 w-3.5 text-green-600" />
-                  </div>
-                  <div className="flex items-center gap-1 flex-nowrap min-w-0 flex-1">
-                    {sedesMostrar.map((sede, index) => (
-                      <span key={sede} className="text-xs font-medium text-gray-900 whitespace-nowrap">
-                        {index > 0 && <span className="text-gray-400 mx-1">|</span>}
-                        {sede}
-                      </span>
-                    ))}
-                    {sedesRestantes.length > 0 && (
-                      <>
-                        <Popover open={hoveredPopover === 'sedes'} onOpenChange={(open) => setHoveredPopover(open ? 'sedes' : null)}>
-                          <PopoverTrigger asChild>
-                            <div 
-                              className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-400 hover:bg-gray-500 transition-colors cursor-pointer text-white text-[10px] font-medium aspect-square"
-                              onMouseEnter={() => setHoveredPopover('sedes')}
-                              onMouseLeave={() => setHoveredPopover(null)}
-                            >
-                              +{sedesRestantes.length}
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-auto p-2" 
-                            align="start"
-                            onMouseEnter={() => setHoveredPopover('sedes')}
-                            onMouseLeave={() => setHoveredPopover(null)}
-                          >
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold mb-1">Todas las sedes:</p>
-                              {Array.from(new Set(post.proyectos.map(({ proyecto }) => proyecto.sede))).map((sede) => (
-                                <p key={sede} className="text-xs text-gray-700">
-                                  {sede}
-                                </p>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Escuela */}
-              {escuelasMostrar.length > 0 && (
-                <div className="flex items-center gap-2 relative">
-                  {/* Línea horizontal desde el post hasta el icono */}
-                  <div className="absolute -left-6 top-1/2 w-6 h-px bg-gray-300 -translate-y-1/2"></div>
-                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white shadow-lg hover:shadow-xl transition-shadow flex-shrink-0 relative z-10">
-                    <GraduationCap className="h-3.5 w-3.5 text-purple-600" />
-                  </div>
-                  <div className="flex items-center gap-1 flex-nowrap min-w-0 flex-1">
-                    {escuelasMostrar.map((escuela, index) => (
-                      <span key={escuela} className="text-xs font-medium text-gray-900 whitespace-nowrap">
-                        {index > 0 && <span className="text-gray-400 mx-1">|</span>}
-                        {escuela}
-                      </span>
-                    ))}
-                    {escuelasRestantes.length > 0 && (
-                      <>
-                        <Popover open={hoveredPopover === 'escuelas'} onOpenChange={(open) => setHoveredPopover(open ? 'escuelas' : null)}>
-                          <PopoverTrigger asChild>
-                            <div 
-                              className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-400 hover:bg-gray-500 transition-colors cursor-pointer text-white text-[10px] font-medium aspect-square"
-                              onMouseEnter={() => setHoveredPopover('escuelas')}
-                              onMouseLeave={() => setHoveredPopover(null)}
-                            >
-                              +{escuelasRestantes.length}
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-auto p-2" 
-                            align="start"
-                            onMouseEnter={() => setHoveredPopover('escuelas')}
-                            onMouseLeave={() => setHoveredPopover(null)}
-                          >
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold mb-1">Todas las escuelas:</p>
-                              {Array.from(
-                                new Set(
-                                  post.proyectos
-                                    .flatMap(({ proyecto }) => proyecto.escuelas?.map(e => e.escuela.nombre) || [])
-                                    .filter(Boolean)
-                                )
-                              ).map((escuela) => (
-                                <p key={escuela} className="text-xs text-gray-700">
-                                  {escuela}
-                                </p>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Modal de imagen ampliada */}
       {selectedImageIndex !== null && (

@@ -15,6 +15,9 @@ interface FeedProps {
   filterType?: FilterType;
   sortType?: SortType;
   selectedProyectoIds?: string[];
+  onOpenEvento?: (postId: string) => void;
+  refreshTrigger?: number;
+  onAttendanceChanged?: () => void;
 }
 
 export function Feed({
@@ -25,6 +28,9 @@ export function Feed({
   filterType = 'all',
   sortType = 'recent',
   selectedProyectoIds = [],
+  onOpenEvento,
+  refreshTrigger,
+  onAttendanceChanged,
 }: FeedProps) {
   const { data: session } = useSession();
   const [posts, setPosts] = useState<PostWithRelations[]>(initialPosts);
@@ -43,6 +49,9 @@ export function Feed({
         isLikedByUser: false,
         userReactionType: null,
         reactionCounts: { Recomendar: 0, Celebrar: 0, Encantar: 0 },
+        asistentesCount: 0,
+        isAsistiendo: false,
+        asistentesPreview: [],
         videos: newPost.videos ?? [],
       } as PostWithRelations, ...prev]);
     }
@@ -95,6 +104,13 @@ export function Feed({
     }
   }, [loadPosts, hasLoadedInitial]);
 
+  // Recargar cuando cambia la asistencia (conteos/listados)
+  useEffect(() => {
+    if (hasLoadedInitial) {
+      loadPosts(undefined, true);
+    }
+  }, [refreshTrigger, hasLoadedInitial, loadPosts]);
+
   // Cargar posts iniciales si no se proporcionaron
   useEffect(() => {
     if (initialPosts.length === 0 && !hasLoadedInitial) {
@@ -135,7 +151,7 @@ export function Feed({
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       {/* Lista de posts */}
       {initialLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -154,6 +170,8 @@ export function Feed({
               key={post.id}
               post={post}
               onPostDeleted={handlePostDeleted}
+              onOpenEvento={onOpenEvento}
+              onAttendanceChanged={onAttendanceChanged}
             />
           ))}
 
