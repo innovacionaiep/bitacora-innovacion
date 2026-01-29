@@ -16,6 +16,7 @@ interface FeedProps {
   sortType?: SortType;
   selectedProyectoIds?: string[];
   onOpenEvento?: (postId: string) => void;
+  onPostDeleted?: (postId: string) => void;
   refreshTrigger?: number;
   onAttendanceChanged?: () => void;
 }
@@ -29,6 +30,7 @@ export function Feed({
   sortType = 'recent',
   selectedProyectoIds = [],
   onOpenEvento,
+  onPostDeleted: externalOnPostDeleted,
   refreshTrigger,
   onAttendanceChanged,
 }: FeedProps) {
@@ -161,6 +163,7 @@ export function Feed({
 
   const handlePostDeleted = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
+    externalOnPostDeleted?.(postId);
   };
 
   return (

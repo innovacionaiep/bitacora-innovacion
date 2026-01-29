@@ -20,7 +20,8 @@ export interface RandomProject {
   id: string;
   nombre: string;
   sede: string;
-  escuela: string | null;
+  fondo: string;
+  focalizacion: string | null;
   avanceGantt: number;
   participantesCount: number;
 }
@@ -30,6 +31,8 @@ export interface TrendingItem {
   nombre: string;
   postCount: number;
   image?: string | null;
+  /** Rol activo actual del usuario (solo en tendencias de personas) */
+  rol?: string | null;
 }
 
 export interface TrendingSede {
@@ -118,10 +121,6 @@ async function _fetchRandomProjects(limit: number): Promise<RandomProject[]> {
   // Obtener proyectos en una sola query
   const proyectos = await prisma.proyecto.findMany({
     include: {
-      escuelas: {
-        include: { escuela: { select: { nombre: true } } },
-        take: 1,
-      },
       _count: { select: { participantes_rel: true } },
     },
     take: 30, // Limitar para no traer demasiados
@@ -134,7 +133,8 @@ async function _fetchRandomProjects(limit: number): Promise<RandomProject[]> {
     id: p.id,
     nombre: p.proyecto,
     sede: p.sede,
-    escuela: p.escuelas[0]?.escuela.nombre || null,
+    fondo: p.fondo,
+    focalizacion: p.focalizacion,
     avanceGantt: p.avanceGantt,
     participantesCount: p._count.participantes_rel,
   }));
@@ -187,7 +187,7 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
       where: { post: { createdAt: { gte: startOfMonth } } },
       _count: { postId: true },
       orderBy: { _count: { postId: 'desc' } },
-      take: 5,
+      take: 10,
     }),
     // 2. Personas que más han posteado
     prisma.post.groupBy({
@@ -195,7 +195,7 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
       where: { createdAt: { gte: startOfMonth } },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
-      take: 5,
+      take: 10,
     }),
     // 3. Posts con proyectos, escuelas y sedes (una sola query para escuelas y sedes)
     prisma.post.findMany({
@@ -229,7 +229,7 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
     }),
     prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, name: true, image: true },
+      select: { id: true, name: true, image: true, activeRole: true },
     }),
   ]);
 
@@ -241,13 +241,16 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
     postCount: p._count.postId,
   }));
 
-  // Mapear usuarios
-  const usersMap = new Map(usersDetails.map((u) => [u.id, { name: u.name, image: u.image }]));
+  // Mapear usuarios (incluye rol activo para mostrar en tendencias de personas)
+  const usersMap = new Map(
+    usersDetails.map((u) => [u.id, { name: u.name, image: u.image, activeRole: u.activeRole }])
+  );
   const personas: TrendingItem[] = personasTrending.map((p) => ({
     id: p.authorId,
     nombre: usersMap.get(p.authorId)?.name || 'Usuario desconocido',
     image: usersMap.get(p.authorId)?.image,
     postCount: p._count.id,
+    rol: usersMap.get(p.authorId)?.activeRole ?? null,
   }));
 
   // Procesar escuelas y sedes del resultado consolidado
@@ -281,12 +284,12 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
   const escuelas: TrendingItem[] = Array.from(escuelasCount.entries())
     .map(([id, data]) => ({ id, nombre: data.nombre, postCount: data.count }))
     .sort((a, b) => b.postCount - a.postCount)
-    .slice(0, 5);
+    .slice(0, 10);
 
   const sedes: TrendingSede[] = Array.from(sedesCount.entries())
     .map(([sede, count]) => ({ sede, postCount: count }))
     .sort((a, b) => b.postCount - a.postCount)
-    .slice(0, 5);
+    .slice(0, 10);
 
   return { proyectos, escuelas, sedes, personas };
 }

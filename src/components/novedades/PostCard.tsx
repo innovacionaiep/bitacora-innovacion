@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart, Calendar as CalendarIcon, Users, X as XIcon } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart, Calendar as CalendarIcon, Users, X as XIcon, Tag } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -401,6 +401,17 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                     fill
                     className="object-cover"
                   />
+                  {/* Nombre del proyecto flotante (esquina superior izquierda) */}
+                  {post.proyectos.length > 0 && (
+                    <div className="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 w-fit max-w-[85%] flex items-center gap-1">
+                      <Tag className="h-3 w-3 text-white shrink-0" aria-hidden />
+                      <span className="font-bold text-xs text-white drop-shadow-sm line-clamp-2 leading-tight">
+                        {post.proyectos.length === 1
+                          ? post.proyectos[0].proyecto.proyecto
+                          : `${post.proyectos[0].proyecto.proyecto} +${post.proyectos.length - 1}`}
+                      </span>
+                    </div>
+                  )}
                   {imageCount > 4 && index === 3 && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <span className="text-white text-xl font-bold">
@@ -606,6 +617,20 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
               fill
               className="object-contain"
             />
+            {/* Nombre del proyecto flotante en lightbox */}
+            {post.proyectos.length > 0 && (
+              <div
+                className="absolute left-4 top-4 z-10 rounded bg-black/60 px-2 py-1 w-fit max-w-[85%] flex items-center gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Tag className="h-3 w-3 text-white shrink-0" aria-hidden />
+                <span className="font-bold text-xs text-white drop-shadow-sm line-clamp-2 leading-tight">
+                  {post.proyectos.length === 1
+                    ? post.proyectos[0].proyecto.proyecto
+                    : `${post.proyectos[0].proyecto.proyecto} +${post.proyectos.length - 1}`}
+                </span>
+              </div>
+            )}
           </div>
           <button
             className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full"

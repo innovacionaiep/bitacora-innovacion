@@ -142,7 +142,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
 
           <div className="flex-1 min-w-0 space-y-3">
             <Textarea
-              placeholder="Crear publicación"
+              placeholder="¿Qué novedades sobre tus proyectos te gustaría compartir?"
               value={contenido}
               onChange={(e) => {
                 setContenido(e.target.value);
@@ -150,7 +150,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
               }}
               onFocus={() => setIsExpanded(true)}
               className={cn(
-                'resize-none border-0 shadow-none focus-visible:ring-0 p-0 bg-muted/50 rounded-lg',
+                'resize-none border-0 shadow-none focus-visible:ring-0 bg-muted/50 rounded-lg pl-3 pr-3 py-2',
                 isExpanded ? 'min-h-[100px]' : 'min-h-[40px]'
               )}
               rows={isExpanded ? 4 : 1}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { TrendingUp, Loader2, FolderKanban, GraduationCap, MapPin, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Flame, Loader2, FolderKanban, GraduationCap, MapPin, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MonthlyTrends, TrendingItem, TrendingSede } from '@/lib/actions/discovery';
@@ -18,6 +18,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
   const [trends, setTrends] = useState<MonthlyTrends | null>(initialTrends);
   const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
   const [activeTab, setActiveTab] = useState<TrendingTab>('proyectos');
+
+  useEffect(() => {
+    setTrends(initialTrends);
+  }, [initialTrends]);
 
   // NO useEffect para carga inicial - los datos vienen del servidor
 
@@ -37,6 +41,28 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
     return 'text-gray-500';
   };
 
+  // Color de texto por rol (igual que en PostCard) - Ver docs/SISTEMA-ROLES.md
+  const getRoleTextClass = (role: string): string => {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'text-yellow-600';
+      case 'coordinador':
+        return 'text-blue-600';
+      case 'colaborador':
+        return 'text-violet-600';
+      case 'encargado':
+        return 'text-orange-600';
+      case 'docente':
+        return 'text-green-600';
+      case 'estudiante':
+        return 'text-red-600';
+      case 'beneficiario':
+        return 'text-cyan-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
   const renderTrendingItem = (
     item: TrendingItem | TrendingSede,
     index: number,
@@ -50,12 +76,12 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
     return (
       <div
         key={isSede ? (item as TrendingSede).sede : (item as TrendingItem).id}
-        className="flex items-center gap-3 py-2 hover:bg-gray-50 rounded-lg px-2 transition-colors cursor-pointer"
+        className="flex items-center gap-2 py-1 hover:bg-gray-50 rounded px-1.5 transition-colors cursor-pointer"
       >
         {/* Posición */}
         <span
           className={cn(
-            'w-5 text-sm tabular-nums',
+            'w-4 text-xs tabular-nums shrink-0',
             getRankingColor(index)
           )}
         >
@@ -64,9 +90,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
 
         {/* Avatar para personas */}
         {isPersona && (
-          <Avatar className="h-8 w-8 border border-gray-200">
+          <Avatar className="h-6 w-6 border border-gray-200 shrink-0">
             <AvatarImage src={image || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-[10px]">
               {getInitials(nombre)}
             </AvatarFallback>
           </Avatar>
@@ -74,19 +100,31 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
 
         {/* Icono para otros tipos */}
         {!isPersona && (
-          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            {type === 'proyectos' && <FolderKanban className="h-4 w-4 text-emerald-600" />}
-            {type === 'escuelas' && <GraduationCap className="h-4 w-4 text-blue-600" />}
-            {type === 'sedes' && <MapPin className="h-4 w-4 text-purple-600" />}
+          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+            {type === 'proyectos' && <FolderKanban className="h-3 w-3 text-emerald-600" />}
+            {type === 'escuelas' && <GraduationCap className="h-3 w-3 text-blue-600" />}
+            {type === 'sedes' && <MapPin className="h-3 w-3 text-purple-600" />}
           </div>
         )}
 
-        {/* Nombre y contador */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {nombre}
-          </p>
-          <p className="text-xs text-muted-foreground">
+        {/* Nombre, rol (solo personas) y contador */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            <p className="text-xs font-medium text-gray-900 truncate" title={nombre}>
+              {nombre}
+            </p>
+            {isPersona && (item as TrendingItem).rol && (
+              <span
+                className={cn(
+                  'text-xs font-bold shrink-0',
+                  getRoleTextClass((item as TrendingItem).rol!)
+                )}
+              >
+                #{(item as TrendingItem).rol}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
             {item.postCount} {item.postCount === 1 ? 'publicación' : 'publicaciones'}
           </p>
         </div>
@@ -123,7 +161,7 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
   if (!trends) {
     return (
       <div className="text-center py-6">
-        <TrendingUp className="h-6 w-6 mx-auto text-gray-300 mb-2" />
+        <Flame className="h-6 w-6 mx-auto text-gray-300 mb-2" />
         <p className="text-xs text-muted-foreground">
           No se pudieron cargar las tendencias
         </p>
@@ -134,8 +172,8 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-orange-600" />
-        <h3 className="text-sm font-semibold text-gray-900">Tendencias del mes</h3>
+        <Flame className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
+        <h3 className="text-[18px] font-semibold text-emerald-600">Tendencias del mes</h3>
       </div>
 
       <Tabs
@@ -143,7 +181,7 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
         onValueChange={(v) => setActiveTab(v as TrendingTab)}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-4 h-8 bg-gray-100">
+        <TabsList className="grid w-full grid-cols-4 h-7 bg-gray-100">
           <TabsTrigger value="proyectos" className="text-xs px-1 py-1">
             Proyectos
           </TabsTrigger>
@@ -158,9 +196,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="proyectos" className="mt-3">
+        <TabsContent value="proyectos" className="mt-5 data-[state=inactive]:hidden">
           {trends.proyectos.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-[7px]">
               {trends.proyectos.map((item, index) =>
                 renderTrendingItem(item, index, 'proyectos')
               )}
@@ -170,9 +208,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="escuelas" className="mt-3">
+        <TabsContent value="escuelas" className="mt-5 data-[state=inactive]:hidden">
           {trends.escuelas.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-[15px]">
               {trends.escuelas.map((item, index) =>
                 renderTrendingItem(item, index, 'escuelas')
               )}
@@ -182,9 +220,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="sedes" className="mt-3">
+        <TabsContent value="sedes" className="mt-5 data-[state=inactive]:hidden">
           {trends.sedes.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-[7px]">
               {trends.sedes.map((item, index) =>
                 renderTrendingItem(item, index, 'sedes')
               )}
@@ -194,9 +232,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="personas" className="mt-3">
+        <TabsContent value="personas" className="mt-5 data-[state=inactive]:hidden">
           {trends.personas.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-[7px]">
               {trends.personas.map((item, index) =>
                 renderTrendingItem(item, index, 'personas')
               )}

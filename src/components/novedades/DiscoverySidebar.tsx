@@ -1,59 +1,58 @@
 'use client';
 
 import { useState } from 'react';
-import { Compass } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DiscoveryParticipants } from './DiscoveryParticipants';
+import { Compass, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { DiscoveryProjects } from './DiscoveryProjects';
 import { TrendingSection } from './TrendingSection';
-import { RandomParticipant, RandomProject, MonthlyTrends } from '@/lib/actions/discovery';
-
-type DiscoveryTab = 'personas' | 'proyectos';
+import { RandomProject, MonthlyTrends, getRandomProjects } from '@/lib/actions/discovery';
+import { cn } from '@/lib/utils';
 
 interface DiscoverySidebarProps {
-  initialParticipants?: RandomParticipant[];
   initialProjects?: RandomProject[];
   initialTrends?: MonthlyTrends | null;
 }
 
 export function DiscoverySidebar({
-  initialParticipants = [],
   initialProjects = [],
   initialTrends = null,
 }: DiscoverySidebarProps) {
-  const [activeTab, setActiveTab] = useState<DiscoveryTab>('personas');
+  const [projects, setProjects] = useState<RandomProject[]>(initialProjects);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProjects = async () => {
+    setRefreshing(true);
+    const result = await getRandomProjects(6, true);
+    if (result.success && result.data) {
+      setProjects(result.data);
+    }
+    setRefreshing(false);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Sección de Descubrimientos con Tabs */}
+      {/* Sección Descubre proyectos */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Compass className="h-5 w-5 text-blue-600" />
-          <h2 className="text-base font-bold text-gray-900">Descubre</h2>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Compass className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
+            <h2 className="text-[18px] font-semibold text-emerald-600">Descubre proyectos</h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadProjects}
+            disabled={refreshing}
+            className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+          >
+            <RefreshCw
+              className={cn('h-3.5 w-3.5 mr-1', refreshing && 'animate-spin')}
+            />
+            Actualizar
+          </Button>
         </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as DiscoveryTab)}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-2 h-9 bg-gray-100">
-            <TabsTrigger value="personas" className="text-sm">
-              Personas
-            </TabsTrigger>
-            <TabsTrigger value="proyectos" className="text-sm">
-              Proyectos
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="personas" className="mt-4">
-            <DiscoveryParticipants initialParticipants={initialParticipants} />
-          </TabsContent>
-
-          <TabsContent value="proyectos" className="mt-4">
-            <DiscoveryProjects initialProjects={initialProjects} />
-          </TabsContent>
-        </Tabs>
+        <DiscoveryProjects projects={projects} />
       </div>
 
       {/* Separador principal */}

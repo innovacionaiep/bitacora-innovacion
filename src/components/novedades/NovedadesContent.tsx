@@ -12,6 +12,7 @@ interface NovedadesContentProps {
   initialCursor?: string;
   initialProyectosParaFiltro?: Proyecto[];
   onPostCreated?: (post: PostWithRelations) => void;
+  onPostDeleted?: (postId: string) => void;
   onOpenEvento?: (postId: string) => void;
   refreshTrigger?: number;
   onAttendanceChanged?: () => void;
@@ -23,6 +24,7 @@ export function NovedadesContent({
   initialCursor,
   initialProyectosParaFiltro = [],
   onPostCreated: externalOnPostCreated,
+  onPostDeleted: onPostDeleted,
   onOpenEvento,
   refreshTrigger,
   onAttendanceChanged,
@@ -66,6 +68,7 @@ export function NovedadesContent({
           sortType={sortType}
           selectedProyectoIds={selectedProyectoIds}
           onOpenEvento={onOpenEvento}
+          onPostDeleted={onPostDeleted}
           refreshTrigger={refreshTrigger}
           onAttendanceChanged={onAttendanceChanged}
         />

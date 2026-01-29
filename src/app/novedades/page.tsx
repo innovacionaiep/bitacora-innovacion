@@ -1,14 +1,13 @@
 import { NovedadesPageWrapper } from '@/components/novedades/NovedadesPageWrapper';
 import { getPosts, getUpcomingEvents, getProyectosParaPost } from '@/lib/actions/posts';
-import { getRandomParticipants, getRandomProjects, getMonthlyTrends } from '@/lib/actions/discovery';
+import { getRandomProjects, getMonthlyTrends } from '@/lib/actions/discovery';
 
 export default async function NovedadesPage() {
   // Cargar TODOS los datos en paralelo en el servidor
-  const [postsResult, eventosResult, participantsResult, projectsResult, trendsResult, proyectosParaFiltroResult] = await Promise.all([
+  const [postsResult, eventosResult, projectsResult, trendsResult, proyectosParaFiltroResult] = await Promise.all([
     getPosts(),
     getUpcomingEvents(10),
-    getRandomParticipants(4),
-    getRandomProjects(3),
+    getRandomProjects(6),
     getMonthlyTrends(),
     getProyectosParaPost(), // Proyectos para el filtro
   ]);
@@ -19,7 +18,6 @@ export default async function NovedadesPage() {
   
   // Datos del sidebar
   const initialEventos = eventosResult.success && eventosResult.data ? eventosResult.data.posts : [];
-  const initialParticipants = participantsResult.success && participantsResult.data ? participantsResult.data : [];
   const initialProjects = projectsResult.success && projectsResult.data ? projectsResult.data : [];
   const initialTrends = trendsResult.success && trendsResult.data ? trendsResult.data : null;
   
@@ -34,7 +32,6 @@ export default async function NovedadesPage() {
       initialHasMore={initialHasMore}
       initialCursor={initialCursor}
       initialEventos={initialEventos}
-      initialParticipants={initialParticipants}
       initialProjects={initialProjects}
       initialTrends={initialTrends}
       initialProyectosParaFiltro={initialProyectosParaFiltro}
