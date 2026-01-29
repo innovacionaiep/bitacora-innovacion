@@ -54,13 +54,13 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
   const isAuthor = session?.user?.id === post.authorId;
   const authorName = post.author.name || post.author.email.split('@')[0];
   const authorInitials = authorName.slice(0, 2).toUpperCase();
-  
+
   // Detectar si es un evento
   const isEvento = !!(post.eventoFecha && post.eventoNombre && post.eventoDescripcion);
 
   const [asistiendoEvento, setAsistiendoEvento] = useState<boolean>(post.isAsistiendo ?? false);
   const [asistentesEventoCount, setAsistentesEventoCount] = useState<number>(post.asistentesCount ?? 0);
-  
+
   // Formatear fecha del evento
   const formatEventDate = (date: Date | null): string => {
     if (!date) return '';
@@ -123,12 +123,12 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
 
   const handleDelete = async () => {
     if (isDeleting) return;
-    
+
     if (!confirm('¿Estás seguro de eliminar esta publicación?')) return;
 
     setIsDeleting(true);
     const result = await deletePost(post.id);
-    
+
     if (result.success) {
       onPostDeleted?.(post.id);
     }
@@ -176,16 +176,16 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
   // Procesar proyectos, sedes y escuelas para visualización optimizada
   const procesarProyectos = () => {
     const proyectos = post.proyectos.map(({ proyecto }) => proyecto);
-    
+
     // Proyectos: mostrar máximo 2
     const proyectosMostrar = proyectos.slice(0, 2);
     const proyectosRestantes = proyectos.slice(2);
-    
+
     // Sedes únicas: mostrar máximo 4
     const sedesUnicas = Array.from(new Set(proyectos.map(p => p.sede)));
     const sedesMostrar = sedesUnicas.slice(0, 4);
     const sedesRestantes = sedesUnicas.slice(4);
-    
+
     // Escuelas únicas: mostrar máximo 2
     const escuelasUnicas = Array.from(
       new Set(
@@ -196,7 +196,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
     );
     const escuelasMostrar = escuelasUnicas.slice(0, 2);
     const escuelasRestantes = escuelasUnicas.slice(2);
-    
+
     return {
       proyectosMostrar,
       proyectosRestantes,
@@ -391,9 +391,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
               {post.imagenes.slice(0, 4).map((imagen, index) => (
                 <div
                   key={imagen.id}
-                  className={`relative cursor-pointer bg-muted ${
-                    imageCount === 3 && index === 0 ? 'row-span-2' : ''
-                  } ${imageCount === 1 ? 'aspect-video' : 'aspect-square'}`}
+                  className={`relative cursor-pointer bg-muted ${imageCount === 3 && index === 0 ? 'row-span-2' : ''
+                    } ${imageCount === 1 ? 'aspect-video' : 'aspect-square'}`}
                   onClick={() => setSelectedImageIndex(index)}
                 >
                   <Image
@@ -489,7 +488,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Popover open={hoveredPopover === 'proyectos'} onOpenChange={(open) => setHoveredPopover(open ? 'proyectos' : null)}>
                     <PopoverTrigger asChild>
-                      <div 
+                      <div
                         className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
                         onMouseEnter={() => setHoveredPopover('proyectos')}
                         onMouseLeave={() => setHoveredPopover(null)}
@@ -498,8 +497,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                         <span>{proyectosCount} {proyectosCount === 1 ? 'proyecto' : 'proyectos'}</span>
                       </div>
                     </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-auto p-2" 
+                    <PopoverContent
+                      className="w-auto p-2"
                       align="end"
                       onMouseEnter={() => setHoveredPopover('proyectos')}
                       onMouseLeave={() => setHoveredPopover(null)}
@@ -520,7 +519,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                       <span className="text-gray-300">|</span>
                       <Popover open={hoveredPopover === 'sedes'} onOpenChange={(open) => setHoveredPopover(open ? 'sedes' : null)}>
                         <PopoverTrigger asChild>
-                          <div 
+                          <div
                             className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
                             onMouseEnter={() => setHoveredPopover('sedes')}
                             onMouseLeave={() => setHoveredPopover(null)}
@@ -529,8 +528,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                             <span>{sedesCount} {sedesCount === 1 ? 'sede' : 'sedes'}</span>
                           </div>
                         </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-auto p-2" 
+                        <PopoverContent
+                          className="w-auto p-2"
                           align="end"
                           onMouseEnter={() => setHoveredPopover('sedes')}
                           onMouseLeave={() => setHoveredPopover(null)}
@@ -553,7 +552,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                       <span className="text-gray-300">|</span>
                       <Popover open={hoveredPopover === 'escuelas'} onOpenChange={(open) => setHoveredPopover(open ? 'escuelas' : null)}>
                         <PopoverTrigger asChild>
-                          <div 
+                          <div
                             className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
                             onMouseEnter={() => setHoveredPopover('escuelas')}
                             onMouseLeave={() => setHoveredPopover(null)}
@@ -562,8 +561,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                             <span>{escuelasCount} {escuelasCount === 1 ? 'escuela' : 'escuelas'}</span>
                           </div>
                         </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-auto p-2" 
+                        <PopoverContent
+                          className="w-auto p-2"
                           align="end"
                           onMouseEnter={() => setHoveredPopover('escuelas')}
                           onMouseLeave={() => setHoveredPopover(null)}
@@ -614,7 +613,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
           >
             ✕
           </button>
-          
+
           {/* Navegación entre imágenes */}
           {imageCount > 1 && (
             <>

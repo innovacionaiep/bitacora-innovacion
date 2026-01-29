@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { RefreshCw, FolderKanban, MapPin, GraduationCap, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { getRandomProjects, RandomProject } from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
-export function DiscoveryProjects() {
-  const [projects, setProjects] = useState<RandomProject[]>([]);
-  const [loading, setLoading] = useState(true);
+interface DiscoveryProjectsProps {
+  initialProjects?: RandomProject[];
+}
+
+export function DiscoveryProjects({ initialProjects = [] }: DiscoveryProjectsProps) {
+  // Usar datos iniciales directamente - sin carga en useEffect
+  const [projects, setProjects] = useState<RandomProject[]>(initialProjects);
+  const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
   const [refreshing, setRefreshing] = useState(false);
 
   const loadProjects = async () => {
-    const result = await getRandomProjects(3);
+    // forceRefresh: true para obtener datos frescos sin caché
+    const result = await getRandomProjects(3, true);
     if (result.success && result.data) {
       setProjects(result.data);
     }
@@ -21,9 +27,7 @@ export function DiscoveryProjects() {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  // NO useEffect para carga inicial - los datos vienen del servidor
 
   const handleRefresh = () => {
     setRefreshing(true);

@@ -40,7 +40,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const userName = user?.name || user?.email?.split('@')[0] || 'U';
   const userInitials = userName.slice(0, 2).toUpperCase();
 
-  const canSubmit = contenido.trim().length > 0 && proyectoIds.length > 0 && 
+  const canSubmit = contenido.trim().length > 0 && proyectoIds.length > 0 &&
     (mediaMode !== 'evento' || (eventoFecha.trim() && eventoNombre.trim() && eventoDescripcion.trim()));
 
   const handleSubmit = async () => {

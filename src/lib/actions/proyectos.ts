@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { Proyecto } from '@prisma/client';
 import { ProyectoFormData, ProyectoWithRelations, CatalogoResponse } from '@/types/proyecto';
 import { getMesAnteriorInfo } from '@/lib/utils/fecha';
@@ -15,28 +15,22 @@ export type ProyectoConVariaciones = ProyectoWithRelations & {
 };
 
 /**
- * Obtener todos los proyectos con relaciones y variaciones mensuales
+ * Función interna para obtener proyectos de la BD (sin caché)
  */
-export async function getProyectos() {
-  try {
-    console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
-    
-    // Obtener información del mes anterior para calcular variaciones
-    const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
-    
-    const proyectos = await prisma.proyecto.findMany({
+async function _getProyectosFromDB() {
+  // Obtener información del mes anterior para calcular variaciones
+  const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
+  
+  // NOTA: Incluimos activities con tasks completas para compatibilidad de tipos
+  const proyectos = await prisma.proyecto.findMany({
       include: {
         activities: {
           include: {
             tasks: {
-              orderBy: {
-                createdAt: 'asc',
-              },
+              orderBy: { createdAt: 'asc' },
             },
           },
-          orderBy: {
-            orderIndex: 'asc',
-          },
+          orderBy: { orderIndex: 'asc' },
         },
         participantes_rel: {
           include: {
@@ -87,44 +81,57 @@ export async function getProyectos() {
         createdAt: 'desc',
       },
     });
+  
+  // Calcular variaciones para cada proyecto
+  const proyectosConVariaciones: ProyectoConVariaciones[] = proyectos.map(proyecto => {
+    const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
     
-    console.log(`✅ [getProyectos] Encontrados ${proyectos.length} proyectos`);
-    console.log('📊 [getProyectos] Primer proyecto:', proyectos[0] ? {
-      id: proyectos[0].id,
-      proyecto: proyectos[0].proyecto,
-      escuelas: proyectos[0].escuelas?.length || 0,
-      carreras: proyectos[0].carreras?.length || 0,
-      objetivos: proyectos[0].objetivos_rel?.length || 0,
-      desarrolloTecnico: proyectos[0].desarrolloTecnico ? 'Sí' : 'No',
-    } : 'No hay proyectos');
+    // Si hay snapshot del mes anterior, calcular la diferencia
+    // Si no hay snapshot, la variación es 0 (sin datos de comparación)
+    const variacionGantt = snapshotMesAnterior 
+      ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
+      : 0;
     
-    // Log detallado sobre desarrollo técnico
-    const proyectosConDesarrolloTecnico = proyectos.filter(p => p.desarrolloTecnico !== null);
-    console.log(`📈 [getProyectos] Proyectos con desarrollo técnico: ${proyectosConDesarrolloTecnico.length} de ${proyectos.length}`);
+    const variacionObjetivos = snapshotMesAnterior
+      ? proyecto.objetivos - snapshotMesAnterior.objetivos
+      : 0;
     
-    // Calcular variaciones para cada proyecto
-    const proyectosConVariaciones: ProyectoConVariaciones[] = proyectos.map(proyecto => {
-      const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
-      
-      // Si hay snapshot del mes anterior, calcular la diferencia
-      // Si no hay snapshot, la variación es 0 (sin datos de comparación)
-      const variacionGantt = snapshotMesAnterior 
-        ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
-        : 0;
-      
-      const variacionObjetivos = snapshotMesAnterior
-        ? proyecto.objetivos - snapshotMesAnterior.objetivos
-        : 0;
-      
-      // Remover snapshotsMensuales del objeto final (no necesario en frontend)
-      const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
-      
-      return {
-        ...proyectoSinSnapshots,
-        variacionGantt,
-        variacionObjetivos,
-      } as ProyectoConVariaciones;
-    });
+    // Remover snapshotsMensuales del objeto final (no necesario en frontend)
+    const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
+    
+    return {
+      ...proyectoSinSnapshots,
+      variacionGantt,
+      variacionObjetivos,
+    } as ProyectoConVariaciones;
+  });
+  
+  return proyectosConVariaciones;
+}
+
+/**
+ * Obtener todos los proyectos con relaciones y variaciones mensuales
+ * Con caché de 30 segundos para mejorar rendimiento
+ */
+export async function getProyectos() {
+  try {
+    console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
+    
+    // Usar caché con revalidación cada 30 segundos
+    const cachedGetProyectos = unstable_cache(
+      async () => {
+        return await _getProyectosFromDB();
+      },
+      ['proyectos-list'],
+      {
+        revalidate: 30, // Revalidar cada 30 segundos
+        tags: ['proyectos'],
+      }
+    );
+    
+    const proyectosConVariaciones = await cachedGetProyectos();
+    
+    console.log(`✅ [getProyectos] Encontrados ${proyectosConVariaciones.length} proyectos`);
     
     return { success: true, data: proyectosConVariaciones };
   } catch (error) {
@@ -307,6 +314,7 @@ export async function createProyecto(data: ProyectoFormData) {
     });
 
     revalidatePath('/proyectos');
+    revalidateTag('proyectos');
     return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error creating proyecto:', error);
@@ -350,6 +358,7 @@ export async function updateProyecto(
     });
 
     revalidatePath('/proyectos');
+    revalidateTag('proyectos');
     revalidatePath(`/gantt`);
     return { success: true, data: proyecto };
   } catch (error) {
@@ -368,6 +377,7 @@ export async function deleteProyecto(id: string) {
     });
 
     revalidatePath('/proyectos');
+    revalidateTag('proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error deleting proyecto:', error);

@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Feed } from './Feed';
 import { CreatePostForm } from './CreatePostForm';
-import { PostFilters, FilterType, SortType } from './PostFilters';
+import { PostFilters, FilterType, SortType, Proyecto } from './PostFilters';
 import { PostWithRelations } from '@/lib/actions/posts';
 
 interface NovedadesContentProps {
   initialPosts?: PostWithRelations[];
   initialHasMore?: boolean;
   initialCursor?: string;
+  initialProyectosParaFiltro?: Proyecto[];
   onPostCreated?: (post: PostWithRelations) => void;
   onOpenEvento?: (postId: string) => void;
   refreshTrigger?: number;
@@ -20,6 +21,7 @@ export function NovedadesContent({
   initialPosts = [],
   initialHasMore = true,
   initialCursor,
+  initialProyectosParaFiltro = [],
   onPostCreated: externalOnPostCreated,
   onOpenEvento,
   refreshTrigger,
@@ -46,6 +48,7 @@ export function NovedadesContent({
 
         {/* Línea + Ordenar por / Filtrar */}
         <PostFilters
+          initialProyectos={initialProyectosParaFiltro}
           filterType={filterType}
           sortType={sortType}
           selectedProyectoIds={selectedProyectoIds}

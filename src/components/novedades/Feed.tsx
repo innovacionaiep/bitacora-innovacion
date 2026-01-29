@@ -95,30 +95,43 @@ export function Feed({
     setInitialLoading(false);
   }, [filterType, sortType, selectedProyectoIds]);
 
-  // Cargar posts cuando cambian los filtros u ordenamiento (solo si ya se cargaron posts iniciales)
-  const [hasLoadedInitial, setHasLoadedInitial] = useState(initialPosts.length > 0);
+  // Refs para evitar recargas innecesarias
+  const hasLoadedInitialRef = useRef(initialPosts.length > 0);
+  const prevFilterRef = useRef({ filterType, sortType, proyectoIds: selectedProyectoIds.join(',') });
+  const prevRefreshTriggerRef = useRef(refreshTrigger);
   
+  // Cargar posts iniciales SOLO si no se proporcionaron
   useEffect(() => {
-    if (hasLoadedInitial) {
+    if (initialPosts.length === 0 && !hasLoadedInitialRef.current) {
+      hasLoadedInitialRef.current = true;
+      loadPosts();
+    }
+  }, []); // Solo al montar
+
+  // Recargar cuando cambian los filtros u ordenamiento (NO al montar inicial)
+  useEffect(() => {
+    const currentFilter = { filterType, sortType, proyectoIds: selectedProyectoIds.join(',') };
+    const prevFilter = prevFilterRef.current;
+    
+    // Solo recargar si los filtros realmente cambiaron
+    if (hasLoadedInitialRef.current && 
+        (currentFilter.filterType !== prevFilter.filterType ||
+         currentFilter.sortType !== prevFilter.sortType ||
+         currentFilter.proyectoIds !== prevFilter.proyectoIds)) {
+      prevFilterRef.current = currentFilter;
       loadPosts(undefined, true);
     }
-  }, [loadPosts, hasLoadedInitial]);
+  }, [filterType, sortType, selectedProyectoIds, loadPosts]);
 
-  // Recargar cuando cambia la asistencia (conteos/listados)
+  // Recargar cuando cambia refreshTrigger (para asistencia)
   useEffect(() => {
-    if (hasLoadedInitial) {
+    if (refreshTrigger !== undefined && 
+        refreshTrigger !== prevRefreshTriggerRef.current && 
+        hasLoadedInitialRef.current) {
+      prevRefreshTriggerRef.current = refreshTrigger;
       loadPosts(undefined, true);
     }
-  }, [refreshTrigger, hasLoadedInitial, loadPosts]);
-
-  // Cargar posts iniciales si no se proporcionaron
-  useEffect(() => {
-    if (initialPosts.length === 0 && !hasLoadedInitial) {
-      loadPosts().then(() => setHasLoadedInitial(true));
-    } else if (initialPosts.length > 0) {
-      setHasLoadedInitial(true);
-    }
-  }, [initialPosts.length, loadPosts, hasLoadedInitial]);
+  }, [refreshTrigger, loadPosts]);
 
   // Infinite scroll
   const handleLoadMore = useCallback(() => {

@@ -63,7 +63,7 @@ import {
   Minimize2,
   Crown,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { ProyectoWithRelations } from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';

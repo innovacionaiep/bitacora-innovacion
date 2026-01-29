@@ -6,17 +6,34 @@ import { EventosWall } from './EventosWall';
 import { EventoDetallesModal } from './EventoDetallesModal';
 import { DiscoverySidebar } from './DiscoverySidebar';
 import { PostWithRelations } from '@/lib/actions/posts';
+import { RandomParticipant, RandomProject, MonthlyTrends } from '@/lib/actions/discovery';
+import { Separator } from '@/components/ui/separator';
+
+interface ProyectoParaFiltro {
+  id: string;
+  proyecto: string;
+}
 
 interface NovedadesPageWrapperProps {
   initialPosts?: PostWithRelations[];
   initialHasMore?: boolean;
   initialCursor?: string;
+  initialEventos?: PostWithRelations[];
+  initialParticipants?: RandomParticipant[];
+  initialProjects?: RandomProject[];
+  initialTrends?: MonthlyTrends | null;
+  initialProyectosParaFiltro?: ProyectoParaFiltro[];
 }
 
 export function NovedadesPageWrapper({
   initialPosts = [],
   initialHasMore = true,
   initialCursor,
+  initialEventos = [],
+  initialParticipants = [],
+  initialProjects = [],
+  initialTrends = null,
+  initialProyectosParaFiltro = [],
 }: NovedadesPageWrapperProps) {
   const [eventosKey, setEventosKey] = useState(0);
   const [attendanceKey, setAttendanceKey] = useState(0);
@@ -53,11 +70,13 @@ export function NovedadesPageWrapper({
                 <p className="text-muted-foreground mt-1">
                   Descubre las últimas actualizaciones de los proyectos
                 </p>
+                <Separator className="mt-4" />
               </div>
               
               {/* Muro de eventos */}
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden mt-6">
                 <EventosWall
+                  initialEventos={initialEventos}
                   refreshTrigger={eventosKey}
                   onOpenEvento={handleOpenEvento}
                   onAttendanceChanged={handleAttendanceChanged}
@@ -77,6 +96,7 @@ export function NovedadesPageWrapper({
               initialPosts={initialPosts}
               initialHasMore={initialHasMore}
               initialCursor={initialCursor}
+              initialProyectosParaFiltro={initialProyectosParaFiltro}
               onPostCreated={handlePostCreated}
               onOpenEvento={handleOpenEvento}
               refreshTrigger={attendanceKey}
@@ -88,7 +108,11 @@ export function NovedadesPageWrapper({
         {/* Sidebar derecha: sticky */}
         <div className="flex-shrink-0 w-[480px]">
           <div className="sticky top-0 h-screen bg-white border-l border-gray-200 p-6">
-            <DiscoverySidebar />
+            <DiscoverySidebar
+              initialParticipants={initialParticipants}
+              initialProjects={initialProjects}
+              initialTrends={initialTrends}
+            />
           </div>
         </div>
       </div>

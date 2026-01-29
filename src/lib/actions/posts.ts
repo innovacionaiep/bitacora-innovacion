@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
 
 // Tipos para las respuestas
@@ -139,7 +139,46 @@ export async function getPosts(
 
     const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent', eventosOnly } = actualParams;
 
-    // Construir el where clause
+    // Determinar si podemos usar caché (solo para carga inicial sin filtros ni cursor)
+    // NO cachear si hay userId porque los likes y asistencias son específicos del usuario
+    const isInitialLoad = !cursor && !authorId && !myPosts && (!proyectoIds || proyectoIds.length === 0) && sortBy === 'recent' && !eventosOnly;
+
+    // Solo usar caché si NO hay userId (datos públicos)
+    // Si hay userId, los datos son específicos del usuario y no podemos cachear
+    if (isInitialLoad && !userId) {
+      const cachedGetPosts = unstable_cache(
+        async () => {
+          // Ejecutar sin userId (datos públicos)
+          return await _executeGetPosts(actualParams, undefined);
+        },
+        ['posts-initial'],
+        {
+          revalidate: 15, // Revalidar cada 15 segundos
+          tags: ['posts'],
+        }
+      );
+      return await cachedGetPosts();
+    }
+
+    // Para otras cargas (con filtros, cursor, userId, etc.), ejecutar directamente sin caché
+    return await _executeGetPosts(actualParams, userId);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return {
+      success: false,
+      error: 'Error al cargar las publicaciones',
+    };
+  }
+}
+
+/**
+ * Función interna para ejecutar la query de posts
+ */
+async function _executeGetPosts(actualParams: GetPostsParams, userId: string | undefined): Promise<GetPostsResult> {
+  const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent', eventosOnly } = actualParams;
+  const postsStartTime = Date.now();
+
+  // Construir el where clause
     const where: any = {};
     
     if (myPosts && userId) {
@@ -302,9 +341,6 @@ export async function getPosts(
     for (const id of postIds) asistentesCountByPost[id] = 0;
     let asistenciasFeatureAvailable = true;
     if (postIds.length > 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'EventoAsistente delegate check',data:{hasEventoAsistente:!!(prisma as any).eventoAsistente,groupByType:typeof (prisma as any).eventoAsistente?.groupBy,clientVersion:(prisma as any)?._clientVersion,postIdsCount:postIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       try {
         const asistentesCountsRaw = await prisma.eventoAsistente.groupBy({
           by: ['postId'],
@@ -379,21 +415,29 @@ export async function getPosts(
       };
     });
 
-    return {
-      success: true,
-      data: {
-        posts: postsWithLikeStatus as PostWithRelations[],
-        hasMore,
-        nextCursor,
-      },
-    };
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    return {
-      success: false,
-      error: 'Error al cargar las publicaciones',
-    };
-  }
+  return {
+    success: true,
+    data: {
+      posts: postsWithLikeStatus as PostWithRelations[],
+      hasMore,
+      nextCursor,
+    },
+  };
+}
+
+/**
+ * Obtener eventos próximos (con caché de 60s)
+ * Optimizado para EventosWall
+ */
+export async function getUpcomingEvents(limit: number = 10): Promise<GetPostsResult> {
+  const cachedFetch = unstable_cache(
+    async () => {
+      return await _executeGetPosts({ eventosOnly: true, limit, sortBy: 'recent' }, undefined);
+    },
+    ['upcoming-events', String(limit)],
+    { revalidate: 60, tags: ['posts', 'events'] }
+  );
+  return await cachedFetch();
 }
 
 /**
@@ -534,6 +578,7 @@ export async function createPost(data: CreatePostData) {
     });
 
     revalidatePath('/novedades');
+    revalidateTag('posts');
 
     return {
       success: true,
@@ -587,6 +632,7 @@ export async function deletePost(postId: string) {
     });
 
     revalidatePath('/novedades');
+    revalidateTag('posts');
 
     return {
       success: true,
@@ -661,6 +707,7 @@ export async function toggleEventoAsistencia(postId: string) {
     }
 
     revalidatePath('/novedades');
+    revalidateTag('posts');
     return { success: true, data: { isAsistiendo, asistentesCount } };
   } catch (error) {
     console.error('Error toggling asistencia evento:', error);
@@ -859,6 +906,7 @@ export async function setPostReaction(
       if (existing.reactionType === reactionType) {
         await prisma.postLike.delete({ where: { id: existing.id } });
         revalidatePath('/novedades');
+    revalidateTag('posts');
         return {
           success: true,
           reaction: null as 'Recomendar' | 'Celebrar' | 'Encantar' | null,
@@ -876,6 +924,7 @@ export async function setPostReaction(
     }
 
     revalidatePath('/novedades');
+    revalidateTag('posts');
     return {
       success: true,
       reaction: reactionType,
@@ -892,7 +941,8 @@ export async function setPostReaction(
 
 /**
  * Obtener los proyectos disponibles para el usuario actual
- * (proyectos donde es participante)
+ * (proyectos donde es participante o todos si es Admin)
+ * Optimizado: queries en paralelo
  */
 export async function getProyectosParaPost() {
   try {
@@ -904,40 +954,31 @@ export async function getProyectosParaPost() {
       };
     }
 
-    // Obtener proyectos donde el usuario es participante
-    const participaciones = await prisma.proyectoParticipante.findMany({
-      where: {
-        userId: user.id,
-      },
-      select: {
-        proyecto: {
-          select: {
-            id: true,
-            proyecto: true,
+    // Ejecutar queries en paralelo para mejor rendimiento
+    const [participaciones, userRoles] = await Promise.all([
+      // Obtener proyectos donde el usuario es participante
+      prisma.proyectoParticipante.findMany({
+        where: { userId: user.id },
+        select: {
+          proyecto: {
+            select: { id: true, proyecto: true },
           },
         },
-      },
-    });
-
-    const proyectos = participaciones.map((p) => p.proyecto);
-
-    // Si el usuario es Admin, obtener todos los proyectos
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId: user.id },
-      select: { role: true },
-    });
+      }),
+      // Obtener roles del usuario
+      prisma.userRole.findMany({
+        where: { userId: user.id },
+        select: { role: true },
+      }),
+    ]);
 
     const isAdmin = userRoles.some((r) => r.role === 'Admin');
 
+    // Si es Admin, obtener todos los proyectos
     if (isAdmin) {
       const todosLosProyectos = await prisma.proyecto.findMany({
-        select: {
-          id: true,
-          proyecto: true,
-        },
-        orderBy: {
-          proyecto: 'asc',
-        },
+        select: { id: true, proyecto: true },
+        orderBy: { proyecto: 'asc' },
       });
 
       return {
@@ -945,6 +986,9 @@ export async function getProyectosParaPost() {
         data: todosLosProyectos,
       };
     }
+
+    // Si no es Admin, devolver solo sus proyectos
+    const proyectos = participaciones.map((p) => p.proyecto);
 
     return {
       success: true,

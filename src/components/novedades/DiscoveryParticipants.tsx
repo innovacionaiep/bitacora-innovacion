@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { RefreshCw, User, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getRandomParticipants, RandomParticipant } from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
-export function DiscoveryParticipants() {
-  const [participants, setParticipants] = useState<RandomParticipant[]>([]);
-  const [loading, setLoading] = useState(true);
+interface DiscoveryParticipantsProps {
+  initialParticipants?: RandomParticipant[];
+}
+
+export function DiscoveryParticipants({ initialParticipants = [] }: DiscoveryParticipantsProps) {
+  // Usar datos iniciales directamente - sin carga en useEffect
+  const [participants, setParticipants] = useState<RandomParticipant[]>(initialParticipants);
+  const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
   const [refreshing, setRefreshing] = useState(false);
 
   const loadParticipants = async () => {
-    const result = await getRandomParticipants(4);
+    // forceRefresh: true para obtener datos frescos sin caché
+    const result = await getRandomParticipants(4, true);
     if (result.success && result.data) {
       setParticipants(result.data);
     }
@@ -21,9 +27,7 @@ export function DiscoveryParticipants() {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    loadParticipants();
-  }, []);
+  // NO useEffect para carga inicial - los datos vienen del servidor
 
   const handleRefresh = () => {
     setRefreshing(true);

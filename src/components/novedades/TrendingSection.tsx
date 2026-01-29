@@ -1,30 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { TrendingUp, Loader2, FolderKanban, GraduationCap, MapPin, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getMonthlyTrends, MonthlyTrends, TrendingItem, TrendingSede } from '@/lib/actions/discovery';
+import { MonthlyTrends, TrendingItem, TrendingSede } from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
 type TrendingTab = 'proyectos' | 'escuelas' | 'sedes' | 'personas';
 
-export function TrendingSection() {
-  const [trends, setTrends] = useState<MonthlyTrends | null>(null);
-  const [loading, setLoading] = useState(true);
+interface TrendingSectionProps {
+  initialTrends?: MonthlyTrends | null;
+}
+
+export function TrendingSection({ initialTrends = null }: TrendingSectionProps) {
+  // Usar datos iniciales directamente - sin carga en useEffect
+  const [trends, setTrends] = useState<MonthlyTrends | null>(initialTrends);
+  const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
   const [activeTab, setActiveTab] = useState<TrendingTab>('proyectos');
 
-  useEffect(() => {
-    const loadTrends = async () => {
-      const result = await getMonthlyTrends();
-      if (result.success && result.data) {
-        setTrends(result.data);
-      }
-      setLoading(false);
-    };
-
-    loadTrends();
-  }, []);
+  // NO useEffect para carga inicial - los datos vienen del servidor
 
   const getInitials = (name: string): string => {
     return name

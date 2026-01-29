@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,9 +13,9 @@ import {
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
-import { getProyectosParaPost } from '@/lib/actions/posts';
 
-interface Proyecto {
+// Exportar el tipo para uso externo
+export interface Proyecto {
   id: string;
   proyecto: string;
 }
@@ -24,6 +24,7 @@ export type FilterType = 'all' | 'my-posts' | 'by-project';
 export type SortType = 'recent' | 'relevant';
 
 interface PostFiltersProps {
+  initialProyectos?: Proyecto[];
   filterType: FilterType;
   sortType: SortType;
   selectedProyectoIds: string[];
@@ -44,6 +45,7 @@ const FILTER_LABELS: Record<FilterType, string> = {
 };
 
 export function PostFilters({
+  initialProyectos = [],
   filterType,
   sortType,
   selectedProyectoIds,
@@ -51,18 +53,11 @@ export function PostFilters({
   onSortChange,
   onProyectoIdsChange,
 }: PostFiltersProps) {
-  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
-  const [loadingProyectos, setLoadingProyectos] = useState(true);
+  // Usar datos iniciales directamente - sin carga en useEffect
+  const [proyectos] = useState<Proyecto[]>(initialProyectos);
+  const loadingProyectos = false; // No loading si hay datos iniciales
 
-  useEffect(() => {
-    async function loadProyectos() {
-      setLoadingProyectos(true);
-      const result = await getProyectosParaPost();
-      if (result.success && result.data) setProyectos(result.data);
-      setLoadingProyectos(false);
-    }
-    loadProyectos();
-  }, []);
+  // NO useEffect para carga inicial - los datos vienen del servidor
 
   const toggleProyecto = (proyectoId: string) => {
     if (selectedProyectoIds.includes(proyectoId)) {

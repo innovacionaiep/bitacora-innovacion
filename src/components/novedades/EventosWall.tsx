@@ -1,57 +1,69 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Calendar, Loader2, Users, X as XIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getPosts, PostWithRelations, toggleEventoAsistencia } from '@/lib/actions/posts';
+import { getUpcomingEvents, PostWithRelations, toggleEventoAsistencia } from '@/lib/actions/posts';
 import { format, isPast, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 interface EventosWallProps {
+  initialEventos?: PostWithRelations[];
   refreshTrigger?: number;
   onOpenEvento?: (postId: string) => void;
   onAttendanceChanged?: () => void;
 }
 
-export function EventosWall({ refreshTrigger, onOpenEvento, onAttendanceChanged }: EventosWallProps = {}) {
-  const [eventos, setEventos] = useState<PostWithRelations[]>([]);
-  const [loading, setLoading] = useState(true);
+// Función para filtrar y ordenar eventos
+function filterAndSortEventos(posts: PostWithRelations[]): PostWithRelations[] {
+  return posts
+    .filter((post) => {
+      if (!post.eventoFecha) return false;
+      const fechaEvento = new Date(post.eventoFecha);
+      return !isPast(fechaEvento) || isToday(fechaEvento);
+    })
+    .sort((a, b) => {
+      if (!a.eventoFecha || !b.eventoFecha) return 0;
+      return new Date(a.eventoFecha).getTime() - new Date(b.eventoFecha).getTime();
+    });
+}
 
+export function EventosWall({ initialEventos = [], refreshTrigger, onOpenEvento, onAttendanceChanged }: EventosWallProps = {}) {
+  // Usar datos iniciales si están disponibles
+  const [eventos, setEventos] = useState<PostWithRelations[]>(() => filterAndSortEventos(initialEventos));
+  const [loading, setLoading] = useState(initialEventos.length === 0);
+  const prevRefreshTriggerRef = useRef(refreshTrigger);
+
+  // Solo recargar cuando refreshTrigger cambia (no al montar si hay datos iniciales)
   useEffect(() => {
+    // Si hay datos iniciales y es el primer render, no cargar
+    if (initialEventos.length > 0 && refreshTrigger === prevRefreshTriggerRef.current) {
+      return;
+    }
+    
+    // Solo recargar si refreshTrigger realmente cambió
+    if (refreshTrigger === prevRefreshTriggerRef.current) {
+      return;
+    }
+    
+    prevRefreshTriggerRef.current = refreshTrigger;
+    
     const loadEventos = async () => {
       setLoading(true);
-      const result = await getPosts({
-        eventosOnly: true,
-        limit: 10,
-        sortBy: 'recent',
-      });
+      const result = await getUpcomingEvents(10);
 
       if (result.success && result.data) {
-        // Filtrar solo eventos futuros o de hoy, ordenados por fecha
-        const eventosFiltrados = result.data.posts
-          .filter((post) => {
-            if (!post.eventoFecha) {
-              return false;
-            }
-            const fechaEvento = new Date(post.eventoFecha);
-            // Mostrar eventos de hoy y futuros
-            return !isPast(fechaEvento) || isToday(fechaEvento);
-          })
-          .sort((a, b) => {
-            if (!a.eventoFecha || !b.eventoFecha) return 0;
-            return new Date(a.eventoFecha).getTime() - new Date(b.eventoFecha).getTime();
-          });
-        setEventos(eventosFiltrados);
+        setEventos(filterAndSortEventos(result.data.posts));
       }
       setLoading(false);
     };
 
     loadEventos();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, initialEventos.length]);
 
   const formatEventDate = (date: Date | null): string => {
     if (!date) return '';
@@ -141,8 +153,8 @@ export function EventosWall({ refreshTrigger, onOpenEvento, onAttendanceChanged 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-4">
-        <Calendar className="h-4 w-4 text-orange-600" />
-        <h2 className="text-sm font-semibold text-gray-900">Próximos eventos</h2>
+        <Calendar className="h-4 w-4 text-gray-700" />
+        <h2 className="text-base font-semibold text-gray-900">Próximos eventos</h2>
       </div>
       
       <div className="space-y-2.5 max-h-[calc(100vh-200px)] overflow-y-auto pr-2 custom-scrollbar">
@@ -150,106 +162,84 @@ export function EventosWall({ refreshTrigger, onOpenEvento, onAttendanceChanged 
           if (!evento.eventoFecha || !evento.eventoNombre) return null;
           
           const fechaEvento = new Date(evento.eventoFecha);
-          const fechaFormateada = format(fechaEvento, 'd MMM yyyy', { locale: es });
           
           return (
             <Card
               key={evento.id}
-              className={cn(
-                'hover:shadow-md transition-shadow cursor-pointer border-l-4',
-                isToday(fechaEvento)
-                  ? 'border-l-orange-500'
-                  : isTomorrow(fechaEvento)
-                  ? 'border-l-amber-500'
-                  : 'border-l-blue-400'
-              )}
+              className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => onOpenEvento?.(evento.id)}
             >
-              <CardContent className="p-3">
-                {/* Fecha destacada */}
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div
-                    className={cn(
-                      'px-2 py-1 rounded-md text-xs font-medium border shrink-0',
-                      getDateBadgeColor(evento.eventoFecha)
-                    )}
-                  >
-                    {formatEventDate(evento.eventoFecha)}
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {fechaFormateada}
-                  </span>
-                </div>
-
-                {/* Contenido del evento con imagen a la derecha */}
+              <CardContent className="p-2">
+                {/* Dos contenedores independientes: columna izq (fecha + título + resto) y columna dcha (solo imagen) */}
                 <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    {/* Nombre del evento */}
-                    <h3 className="font-semibold text-sm text-gray-900 mb-1.5 line-clamp-2">
+                  {/* Columna izquierda: flujo normal — fecha, título y pie; la posición del título no depende de la imagen */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                    <div
+                      className={cn(
+                        'px-1.5 py-0.5 rounded-md text-xs font-medium border w-fit shrink-0',
+                        getDateBadgeColor(evento.eventoFecha)
+                      )}
+                    >
+                      {formatEventDate(evento.eventoFecha)}
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-tight">
                       {evento.eventoNombre}
                     </h3>
-
-                    {/* Descripción */}
-                    {evento.eventoDescripcion && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                        {truncateText(evento.eventoDescripcion, 80)}
-                      </p>
-                    )}
                   </div>
-                  {/* Imagen del evento - pequeña a la derecha del texto, debajo de la fecha */}
-                  {evento.imagenes && evento.imagenes.length > 0 && (
-                    <div className="shrink-0">
-                      {evento.imagenes.slice(0, 1).map((imagen) => (
-                        <div
+                  {/* Columna derecha: solo imagen, alineada arriba; no afecta la posición del título */}
+                  <div className="relative w-16 h-12 rounded overflow-hidden bg-muted border border-gray-200 shrink-0">
+                    {evento.imagenes && evento.imagenes.length > 0 ? (
+                      evento.imagenes.slice(0, 1).map((imagen) => (
+                        <Image
                           key={imagen.id}
-                          className="relative w-20 h-14 rounded overflow-hidden bg-muted border border-gray-200"
-                        >
-                          <Image
-                            src={imagen.url}
-                            alt={evento.eventoNombre || 'Imagen del evento'}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          src={imagen.url}
+                          alt={evento.eventoNombre || 'Imagen del evento'}
+                          fill
+                          className="object-cover"
+                        />
+                      ))
+                    ) : null}
+                  </div>
                 </div>
-
-                {/* Proyectos asociados */}
-                {evento.proyectos.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap mt-2 pt-2 border-t border-gray-100">
-                    {evento.proyectos.slice(0, 2).map(({ proyecto }) => (
-                      <span
-                        key={proyecto.id}
-                        className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded"
-                      >
-                        {proyecto.proyecto}
-                      </span>
-                    ))}
-                    {evento.proyectos.length > 2 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{evento.proyectos.length - 2}
-                      </span>
+                {/* Fila a ancho completo: proyectos a la izquierda, contador y Asistiré a la derecha */}
+                <div className="flex items-center justify-between gap-2 pt-1 mt-1 border-t border-gray-100 w-full">
+                  {/* Nombre del o los proyectos — alineado a la izquierda */}
+                  <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                    {evento.proyectos.length > 0 ? (
+                      <>
+                        {evento.proyectos.slice(0, 1).map(({ proyecto }) => (
+                          <span
+                            key={proyecto.id}
+                            className="text-xs px-1 py-0.5 bg-gray-100 text-gray-600 rounded truncate max-w-[140px]"
+                            title={proyecto.proyecto}
+                          >
+                            {proyecto.proyecto}
+                          </span>
+                        ))}
+                        {evento.proyectos.length > 1 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{evento.proyectos.length - 1}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground" />
                     )}
                   </div>
-                )}
-
-                {/* Asistencia */}
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{evento.asistentesCount ?? 0}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
+                  {/* Contador y botón Asistiré — alineados a la derecha */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      <span>{evento.asistentesCount ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
                     <Button
                       type="button"
                       variant={evento.isAsistiendo ? 'default' : 'outline'}
                       size="sm"
                       disabled={evento.isAsistiendo}
                       className={cn(
-                        'h-8 px-2.5',
+                        'h-7 px-2 text-xs',
                         evento.isAsistiendo && 'bg-emerald-600 hover:bg-emerald-600 cursor-not-allowed'
                       )}
                       onClick={(e) => {
@@ -270,9 +260,9 @@ export function EventosWall({ refreshTrigger, onOpenEvento, onAttendanceChanged 
                               e.stopPropagation();
                               handleToggleAsistencia(evento.id);
                             }}
-                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-red-50 transition-colors"
+                            className="flex items-center justify-center h-7 w-7 rounded-md hover:bg-red-50 transition-colors"
                           >
-                            <XIcon className="h-4 w-4 text-red-600" />
+                            <XIcon className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent variant="light" sideOffset={6}>
@@ -281,6 +271,7 @@ export function EventosWall({ refreshTrigger, onOpenEvento, onAttendanceChanged 
                       </Tooltip>
                     )}
                   </div>
+                </div>
                 </div>
               </CardContent>
             </Card>

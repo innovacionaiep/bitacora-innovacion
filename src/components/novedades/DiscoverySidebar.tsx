@@ -6,10 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscoveryParticipants } from './DiscoveryParticipants';
 import { DiscoveryProjects } from './DiscoveryProjects';
 import { TrendingSection } from './TrendingSection';
+import { RandomParticipant, RandomProject, MonthlyTrends } from '@/lib/actions/discovery';
 
 type DiscoveryTab = 'personas' | 'proyectos';
 
-export function DiscoverySidebar() {
+interface DiscoverySidebarProps {
+  initialParticipants?: RandomParticipant[];
+  initialProjects?: RandomProject[];
+  initialTrends?: MonthlyTrends | null;
+}
+
+export function DiscoverySidebar({
+  initialParticipants = [],
+  initialProjects = [],
+  initialTrends = null,
+}: DiscoverySidebarProps) {
   const [activeTab, setActiveTab] = useState<DiscoveryTab>('personas');
 
   return (
@@ -36,11 +47,11 @@ export function DiscoverySidebar() {
           </TabsList>
 
           <TabsContent value="personas" className="mt-4">
-            <DiscoveryParticipants />
+            <DiscoveryParticipants initialParticipants={initialParticipants} />
           </TabsContent>
 
           <TabsContent value="proyectos" className="mt-4">
-            <DiscoveryProjects />
+            <DiscoveryProjects initialProjects={initialProjects} />
           </TabsContent>
         </Tabs>
       </div>
@@ -49,7 +60,7 @@ export function DiscoverySidebar() {
       <div className="border-t border-gray-200" />
 
       {/* Sección de Tendencias */}
-      <TrendingSection />
+      <TrendingSection initialTrends={initialTrends} />
     </div>
   );
 }
