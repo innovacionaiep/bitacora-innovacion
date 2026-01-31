@@ -68,6 +68,9 @@ model User {
   commentLikes  CommentLike[]   @relation("CommentLikes")
   eventoAsistencias EventoAsistente[] @relation("EventoAsistencias")
 
+  // Reuniones de seguimiento como coordinador
+  reunionesCoordinadas ReunionSeguimiento[]
+
   @@map("users")
 }
 
@@ -125,6 +128,10 @@ model Proyecto {
   
   // Relación con el Feed de Novedades
   posts              PostProyecto[]
+
+  // Módulo de Seguimiento
+  reunionesSeguimiento ReunionSeguimiento[]
+  compromisos          CompromisoProyecto[]
 
   @@map("proyectos")
 }
@@ -316,6 +323,7 @@ model Task {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  tareasMarcadasEnReunion TareaMarcadaEnReunion[]
 
   @@map("tasks")
 }
@@ -364,6 +372,7 @@ model Indicador {
   proyecto           Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   objetivoEspecifico ObjetivoProyecto @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
   comentarios       ComentarioIndicador[]
+  actualizacionesEnReunion IndicadorActualizadoEnReunion[]
 
   @@map("indicadores")
 }
@@ -419,6 +428,126 @@ model SnapshotMensualProyecto {
   @@unique([proyectoId, mes, anio])
   @@index([proyectoId])
   @@map("snapshots_mensuales_proyecto")
+}
+
+// ========================
+// MÓDULO DE SEGUIMIENTO
+// ========================
+
+model ReunionSeguimiento {
+  id               String   @id @default(cuid())
+  proyectoId       String   @map("proyecto_id")
+  coordinadorId    String   @map("coordinador_id")
+  fecha            DateTime
+  duracionMinutos  Int?     @map("duracion_minutos")
+  resumen          String?  @db.Text
+  notas            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  proyecto    Proyecto   @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  coordinador User       @relation(fields: [coordinadorId], references: [id], onDelete: Cascade)
+
+  puntosTratados           PuntoReunion[]
+  tareasMarcadas           TareaMarcadaEnReunion[]
+  indicadoresActualizados  IndicadorActualizadoEnReunion[]
+  oportunidadesAmenazas    PuntoFODA[]
+  temasPresupuesto         TemaPresupuestoReunion[]
+  compromisos              CompromisoProyecto[]
+
+  @@index([proyectoId])
+  @@index([coordinadorId])
+  @@index([fecha])
+  @@map("reuniones_seguimiento")
+}
+
+model PuntoReunion {
+  id          String   @id @default(cuid())
+  reunionId   String   @map("reunion_id")
+  titulo      String
+  descripcion String?  @db.Text
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  reunion ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId])
+  @@map("puntos_reunion")
+}
+
+model TareaMarcadaEnReunion {
+  id        String   @id @default(cuid())
+  reunionId String   @map("reunion_id")
+  taskId    String   @map("task_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reunion ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  task   Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([reunionId, taskId])
+  @@index([reunionId])
+  @@map("tareas_marcadas_en_reunion")
+}
+
+model IndicadorActualizadoEnReunion {
+  id             String   @id @default(cuid())
+  reunionId      String   @map("reunion_id")
+  indicadorId    String   @map("indicador_id")
+  valorAnterior  String   @map("valor_anterior")
+  valorNuevo     String   @map("valor_nuevo")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  reunion   ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  indicador Indicador          @relation(fields: [indicadorId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId])
+  @@map("indicadores_actualizados_en_reunion")
+}
+
+model PuntoFODA {
+  id          String   @id @default(cuid())
+  reunionId   String   @map("reunion_id")
+  tipo        String   // 'Oportunidad' | 'Amenaza'
+  descripcion String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  reunion ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId])
+  @@map("puntos_foda")
+}
+
+model TemaPresupuestoReunion {
+  id              String   @id @default(cuid())
+  reunionId       String   @map("reunion_id")
+  tema            String
+  descripcion     String?  @db.Text
+  cambioPropuesto String?  @map("cambio_propuesto") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  reunion ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId])
+  @@map("temas_presupuesto_reunion")
+}
+
+model CompromisoProyecto {
+  id          String    @id @default(cuid())
+  reunionId   String    @map("reunion_id")
+  proyectoId  String    @map("proyecto_id")
+  descripcion String    @db.Text
+  fechaLimite DateTime? @map("fecha_limite")
+  completado  Boolean   @default(false)
+  asignadoA   String?   @map("asignado_a")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  reunion  ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  proyecto Proyecto           @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId])
+  @@index([proyectoId])
+  @@map("compromisos_proyecto")
 }
 
 // ========================

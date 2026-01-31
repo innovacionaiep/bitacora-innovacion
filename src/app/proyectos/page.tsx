@@ -71,6 +71,7 @@ import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
 import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
 import { HistorialCard } from '@/components/proyectos/HistorialCard';
+import { SeguimientoCard } from '@/components/seguimiento/SeguimientoCard';
 import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
 import { ProyectoParticipante } from '@prisma/client';
 import { User as UserType } from '@prisma/client';
@@ -120,7 +121,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto' | 'Historial'>('General');
+  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto' | 'Historial' | 'Seguimiento'>('General');
   
   // Estado para el modal de participante
   const [selectedParticipante, setSelectedParticipante] = useState<(ProyectoParticipante & { user?: UserType | null }) | null>(null);
@@ -872,6 +873,16 @@ export default function ProyectosPage() {
                       }`}
                   >
                     Historial
+                  </Button>
+                  <Button
+                    onClick={() => setSelectedTab('Seguimiento')}
+                    size="sm"
+                    className={`text-sm font-medium ${selectedTab === 'Seguimiento'
+                        ? 'bg-gray-800 text-white hover:bg-gray-800'
+                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                  >
+                    Seguimiento
                   </Button>
                 </div>
               </div>
@@ -1736,6 +1747,15 @@ export default function ProyectosPage() {
               {selectedTab === 'Historial' && (
                 <div className="h-full pt-4">
                   <HistorialCard projectId={selectedProject.id} />
+                </div>
+              )}
+
+              {selectedTab === 'Seguimiento' && (
+                <div className="h-full pt-4">
+                  <SeguimientoCard
+                    projectId={selectedProject.id}
+                    projectName={selectedProject.proyecto}
+                  />
                 </div>
               )}
             </div>

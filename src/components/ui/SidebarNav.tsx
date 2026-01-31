@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Newspaper,
+  AtSign,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -35,6 +36,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
   { href: '/seguimiento', label: 'Seguimiento', icon: ClipboardCheck },
+  { href: '/reportes', label: 'Reportes', icon: AtSign },
 ];
 
 export default function SidebarNav() {

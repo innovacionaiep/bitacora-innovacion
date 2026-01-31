@@ -1,6 +1,6 @@
 'use server';
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import prisma from './prisma';
 import { getUserRoles, isValidActiveRole, type Role } from './auth-utils';
 import { revalidatePath } from 'next/cache';

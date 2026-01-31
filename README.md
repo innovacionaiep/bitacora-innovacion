@@ -62,6 +62,16 @@ openssl rand -base64 32
 
 O visita: https://generate-secret.vercel.app/32
 
+**SMTP (opcional, para la página Reportes):** Si quieres enviar correos desde la app (p. ej. a tu Outlook), añade en `.env.local`:
+
+- `SMTP_HOST`: para Outlook/Office 365 usa `smtp.office365.com`
+- `SMTP_PORT`: `587`
+- `SMTP_SECURE`: `false`
+- `SMTP_USER`: tu correo (ej. `tu@outlook.com`)
+- `SMTP_PASS`: contraseña de la cuenta o contraseña de aplicación (recomendado si tienes 2FA)
+
+Puedes copiar la plantilla desde `.env.example`.
+
 ### 4. Configurar la base de datos
 
 Ejecuta las migraciones de Prisma:
