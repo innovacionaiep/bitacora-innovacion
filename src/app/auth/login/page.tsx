@@ -6,7 +6,13 @@ import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
@@ -117,11 +123,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
             </form>
@@ -131,7 +133,10 @@ export default function LoginPage() {
         <div className="text-center text-sm text-gray-600">
           <p>
             ¿No tienes cuenta?{' '}
-            <a href="/auth/register" className="font-medium text-primary hover:text-primary/80">
+            <a
+              href="/auth/register"
+              className="font-medium text-primary hover:text-primary/80"
+            >
               Regístrate aquí
             </a>
           </p>

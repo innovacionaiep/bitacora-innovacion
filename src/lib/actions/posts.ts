@@ -1,5 +1,6 @@
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
@@ -62,7 +63,12 @@ export interface PostWithRelations {
   /** Asistencia a eventos (solo para posts tipo evento) */
   asistentesCount?: number;
   isAsistiendo?: boolean;
-  asistentesPreview?: { id: string; name: string | null; email: string; image: string | null }[];
+  asistentesPreview?: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+  }[];
 }
 
 export type PostReactionType = 'Recomendar' | 'Celebrar' | 'Encantar';
@@ -137,11 +143,25 @@ export async function getPosts(
       }
     }
 
-    const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent', eventosOnly } = actualParams;
+    const {
+      cursor,
+      limit: actualLimit,
+      authorId,
+      myPosts,
+      proyectoIds,
+      sortBy = 'recent',
+      eventosOnly,
+    } = actualParams;
 
     // Determinar si podemos usar caché (solo para carga inicial sin filtros ni cursor)
     // NO cachear si hay userId porque los likes y asistencias son específicos del usuario
-    const isInitialLoad = !cursor && !authorId && !myPosts && (!proyectoIds || proyectoIds.length === 0) && sortBy === 'recent' && !eventosOnly;
+    const isInitialLoad =
+      !cursor &&
+      !authorId &&
+      !myPosts &&
+      (!proyectoIds || proyectoIds.length === 0) &&
+      sortBy === 'recent' &&
+      !eventosOnly;
 
     // Solo usar caché si NO hay userId (datos públicos)
     // Si hay userId, los datos son específicos del usuario y no podemos cachear
@@ -174,246 +194,308 @@ export async function getPosts(
 /**
  * Función interna para ejecutar la query de posts
  */
-async function _executeGetPosts(actualParams: GetPostsParams, userId: string | undefined): Promise<GetPostsResult> {
-  const { cursor, limit: actualLimit, authorId, myPosts, proyectoIds, sortBy = 'recent', eventosOnly } = actualParams;
+async function _executeGetPosts(
+  actualParams: GetPostsParams,
+  userId: string | undefined
+): Promise<GetPostsResult> {
+  const {
+    cursor,
+    limit: actualLimit,
+    authorId,
+    myPosts,
+    proyectoIds,
+    sortBy = 'recent',
+    eventosOnly,
+  } = actualParams;
   const postsStartTime = Date.now();
 
   // Construir el where clause
-    const where: any = {};
-    
-    if (myPosts && userId) {
-      // Filtrar solo posts del usuario actual
-      where.authorId = userId;
-    } else if (authorId) {
-      where.authorId = authorId;
-    }
+  const where: Prisma.PostWhereInput = {};
 
-    if (proyectoIds && proyectoIds.length > 0) {
-      where.proyectos = {
-        some: {
-          proyectoId: {
-            in: proyectoIds,
-          },
-        },
-      };
-    }
+  if (myPosts && userId) {
+    // Filtrar solo posts del usuario actual
+    where.authorId = userId;
+  } else if (authorId) {
+    where.authorId = authorId;
+  }
 
-    // Filtrar solo eventos si se solicita
-    if (eventosOnly) {
-      where.eventoFecha = { not: null };
-      where.eventoNombre = { not: null };
-      where.eventoDescripcion = { not: null };
-    }
+  if (proyectoIds && proyectoIds.length > 0) {
+    where.proyectos = {
+      some: {
+        proyectoId: {
+          in: proyectoIds,
+        },
+      },
+    };
+  }
 
-    // Determinar el ordenamiento
-    let orderBy: any;
-    if (eventosOnly) {
-      // Para eventos, ordenar por fecha del evento (próximos primero)
-      orderBy = {
-        eventoFecha: 'asc',
-      };
-    } else if (sortBy === 'relevant') {
-      // Ordenar por relevancia: suma de likes + comentarios
-      // Usaremos una consulta raw o múltiples orderBy
-      // Por ahora, ordenamos por createdAt y luego ordenaremos en memoria
-      // En producción, podrías usar una vista materializada o un campo calculado
-      orderBy = {
-        createdAt: 'desc',
-      };
-    } else {
-      // Orden por fecha (más reciente)
-      orderBy = {
-        createdAt: 'desc',
-      };
-    }
+  // Filtrar solo eventos si se solicita
+  if (eventosOnly) {
+    where.eventoFecha = { not: null };
+    where.eventoNombre = { not: null };
+    where.eventoDescripcion = { not: null };
+  }
 
-    const posts = await prisma.post.findMany({
-      take: (actualLimit || 10) + 1, // +1 para saber si hay más
-      ...(cursor && {
-        cursor: { id: cursor },
-        skip: 1, // Saltar el cursor
-      }),
-      where,
-      orderBy,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
+  // Determinar el ordenamiento
+  let orderBy: Prisma.PostOrderByWithRelationInput;
+  if (eventosOnly) {
+    // Para eventos, ordenar por fecha del evento (próximos primero)
+    orderBy = {
+      eventoFecha: 'asc',
+    };
+  } else if (sortBy === 'relevant') {
+    // Ordenar por relevancia: suma de likes + comentarios
+    // Usaremos una consulta raw o múltiples orderBy
+    // Por ahora, ordenamos por createdAt y luego ordenaremos en memoria
+    // En producción, podrías usar una vista materializada o un campo calculado
+    orderBy = {
+      createdAt: 'desc',
+    };
+  } else {
+    // Orden por fecha (más reciente)
+    orderBy = {
+      createdAt: 'desc',
+    };
+  }
+
+  const posts = await prisma.post.findMany({
+    take: (actualLimit || 10) + 1, // +1 para saber si hay más
+    ...(cursor && {
+      cursor: { id: cursor },
+      skip: 1, // Saltar el cursor
+    }),
+    where,
+    orderBy,
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
         },
-        imagenes: {
-          orderBy: { orden: 'asc' },
-        },
-        videos: {
-          orderBy: { orden: 'asc' },
-        },
-        proyectos: {
-          include: {
-            proyecto: {
-              select: {
-                id: true,
-                proyecto: true,
-                sede: true,
-                escuelas: {
-                  include: {
-                    escuela: {
-                      select: {
-                        id: true,
-                        nombre: true,
-                      },
+      },
+      imagenes: {
+        orderBy: { orden: 'asc' },
+      },
+      videos: {
+        orderBy: { orden: 'asc' },
+      },
+      proyectos: {
+        include: {
+          proyecto: {
+            select: {
+              id: true,
+              proyecto: true,
+              sede: true,
+              escuelas: {
+                include: {
+                  escuela: {
+                    select: {
+                      id: true,
+                      nombre: true,
                     },
                   },
-                  take: 1, // Solo traer la primera escuela para no sobrecargar
                 },
+                take: 1, // Solo traer la primera escuela para no sobrecargar
               },
             },
           },
         },
-        likes: userId
-          ? {
-              where: { userId },
-              select: {
-                id: true,
-                userId: true,
-                reactionType: true,
-              },
-            }
-          : false,
-        _count: {
-          select: {
-            likes: true,
-            comentarios: true,
-          },
+      },
+      likes: userId
+        ? {
+            where: { userId },
+            select: {
+              id: true,
+              userId: true,
+              reactionType: true,
+            },
+          }
+        : false,
+      _count: {
+        select: {
+          likes: true,
+          comentarios: true,
         },
       },
+    },
+  });
+
+  const actualLimitValue = actualLimit || 10;
+  const hasMore = posts.length > actualLimitValue;
+  let postsToReturn = hasMore ? posts.slice(0, -1) : posts;
+
+  // Si el ordenamiento es por relevancia, ordenar por interacciones
+  if (sortBy === 'relevant') {
+    postsToReturn = postsToReturn.sort((a, b) => {
+      const aRelevance = (a._count.likes || 0) + (a._count.comentarios || 0);
+      const bRelevance = (b._count.likes || 0) + (b._count.comentarios || 0);
+      // Ordenar descendente (más relevante primero)
+      // Si tienen la misma relevancia, ordenar por fecha (más reciente primero)
+      if (aRelevance === bRelevance) {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+      return bRelevance - aRelevance;
     });
+  }
 
-    const actualLimitValue = actualLimit || 10;
-    const hasMore = posts.length > actualLimitValue;
-    let postsToReturn = hasMore ? posts.slice(0, -1) : posts;
+  const nextCursor = hasMore
+    ? postsToReturn[postsToReturn.length - 1]?.id
+    : undefined;
+  const postIds = postsToReturn.map((p) => p.id);
 
-    // Si el ordenamiento es por relevancia, ordenar por interacciones
-    if (sortBy === 'relevant') {
-      postsToReturn = postsToReturn.sort((a, b) => {
-        const aRelevance = (a._count.likes || 0) + (a._count.comentarios || 0);
-        const bRelevance = (b._count.likes || 0) + (b._count.comentarios || 0);
-        // Ordenar descendente (más relevante primero)
-        // Si tienen la misma relevancia, ordenar por fecha (más reciente primero)
-        if (aRelevance === bRelevance) {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        }
-        return bRelevance - aRelevance;
-      });
+  const reactionCountsByPost: Record<
+    string,
+    { Recomendar: number; Celebrar: number; Encantar: number }
+  > = {};
+  for (const id of postIds) {
+    reactionCountsByPost[id] = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
+  }
+  if (postIds.length > 0) {
+    const reactionCountsRaw = await prisma.postLike.groupBy({
+      by: ['postId', 'reactionType'],
+      where: {
+        postId: { in: postIds },
+        reactionType: { in: ['Recomendar', 'Celebrar', 'Encantar'] },
+      },
+      _count: { id: true },
+    });
+    for (const r of reactionCountsRaw) {
+      const t = r.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar';
+      if (
+        reactionCountsByPost[r.postId] &&
+        (t === 'Recomendar' || t === 'Celebrar' || t === 'Encantar')
+      ) {
+        reactionCountsByPost[r.postId][t] = r._count.id;
+      }
     }
+  }
 
-    const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1]?.id : undefined;
-    const postIds = postsToReturn.map((p) => p.id);
-
-    const reactionCountsByPost: Record<
-      string,
-      { Recomendar: number; Celebrar: number; Encantar: number }
-    > = {};
-    for (const id of postIds) {
-      reactionCountsByPost[id] = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
-    }
-    if (postIds.length > 0) {
-      const reactionCountsRaw = await prisma.postLike.groupBy({
-        by: ['postId', 'reactionType'],
-        where: {
-          postId: { in: postIds },
-          reactionType: { in: ['Recomendar', 'Celebrar', 'Encantar'] },
-        },
+  // Conteo y estado de asistencia (solo relevante para eventos)
+  const asistentesCountByPost: Record<string, number> = {};
+  for (const id of postIds) asistentesCountByPost[id] = 0;
+  let asistenciasFeatureAvailable = true;
+  if (postIds.length > 0) {
+    try {
+      const asistentesCountsRaw = await prisma.eventoAsistente.groupBy({
+        by: ['postId'],
+        where: { postId: { in: postIds } },
         _count: { id: true },
       });
-      for (const r of reactionCountsRaw) {
-        const t = r.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar';
-        if (reactionCountsByPost[r.postId] && (t === 'Recomendar' || t === 'Celebrar' || t === 'Encantar')) {
-          reactionCountsByPost[r.postId][t] = r._count.id;
-        }
+      for (const r of asistentesCountsRaw) {
+        asistentesCountByPost[r.postId] = r._count.id;
       }
-    }
-
-    // Conteo y estado de asistencia (solo relevante para eventos)
-    const asistentesCountByPost: Record<string, number> = {};
-    for (const id of postIds) asistentesCountByPost[id] = 0;
-    let asistenciasFeatureAvailable = true;
-    if (postIds.length > 0) {
-      try {
-        const asistentesCountsRaw = await prisma.eventoAsistente.groupBy({
-          by: ['postId'],
-          where: { postId: { in: postIds } },
-          _count: { id: true },
-        });
-        for (const r of asistentesCountsRaw) {
-          asistentesCountByPost[r.postId] = r._count.id;
-        }
-      } catch (e: any) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'EventoAsistente.groupBy failed',data:{name:e?.name,code:e?.code,message:String(e?.message||e),stack:String(e?.stack||'')?.slice(0,400)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        // Si la tabla aún no existe (migración no aplicada), degradar con gracia (mostrar 0 asistentes)
-        if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
-          asistenciasFeatureAvailable = false;
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'posts.ts:getPosts',message:'Asistencias deshabilitadas: tabla no existe',data:{code:e?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    const isAsistiendoByPost: Record<string, boolean> = {};
-    for (const id of postIds) isAsistiendoByPost[id] = false;
-    if (asistenciasFeatureAvailable && userId && postIds.length > 0) {
-      const asistenciasUsuario = await prisma.eventoAsistente.findMany({
-        where: { userId, postId: { in: postIds } },
-        select: { postId: true },
-      });
-      for (const a of asistenciasUsuario) isAsistiendoByPost[a.postId] = true;
-    }
-
-    const asistentesPreviewByPost: Record<
-      string,
-      { id: string; name: string | null; email: string; image: string | null }[]
-    > = {};
-    for (const id of postIds) asistentesPreviewByPost[id] = [];
-    if (asistenciasFeatureAvailable && postIds.length > 0) {
-      const asistenciasPreview = await prisma.eventoAsistente.findMany({
-        where: { postId: { in: postIds } },
-        include: {
-          user: { select: { id: true, name: true, email: true, image: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100, // límite razonable para agrupar en memoria
-      });
-      for (const a of asistenciasPreview) {
-        const arr = asistentesPreviewByPost[a.postId];
-        if (arr && arr.length < 3) arr.push(a.user);
-      }
-    }
-
-    const postsWithLikeStatus = postsToReturn.map((post) => {
-      const userLike = userId && post.likes.length > 0 ? post.likes[0] : null;
-      return {
-        ...post,
-        isLikedByUser: !!userLike,
-        userReactionType: userLike
-          ? (userLike.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar')
-          : null,
-        reactionCounts: reactionCountsByPost[post.id] ?? {
-          Recomendar: 0,
-          Celebrar: 0,
-          Encantar: 0,
-        },
-        asistentesCount: asistentesCountByPost[post.id] ?? 0,
-        isAsistiendo: isAsistiendoByPost[post.id] ?? false,
-        asistentesPreview: asistentesPreviewByPost[post.id] ?? [],
+    } catch (e: unknown) {
+      const err = e as {
+        name?: string;
+        code?: string;
+        message?: string;
+        stack?: string;
       };
+      // #region agent log
+      fetch(
+        'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'posts.ts:getPosts',
+            message: 'EventoAsistente.groupBy failed',
+            data: {
+              name: err?.name,
+              code: err?.code,
+              message: String(err?.message ?? e),
+              stack: String(err?.stack ?? '').slice(0, 400),
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'B',
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+      // Si la tabla aún no existe (migración no aplicada), degradar con gracia (mostrar 0 asistentes)
+      if (
+        err?.code === 'P2021' &&
+        String(err?.message ?? '').includes('evento_asistentes')
+      ) {
+        asistenciasFeatureAvailable = false;
+        // #region agent log
+        fetch(
+          'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'posts.ts:getPosts',
+              message: 'Asistencias deshabilitadas: tabla no existe',
+              data: { code: err?.code },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'C',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  const isAsistiendoByPost: Record<string, boolean> = {};
+  for (const id of postIds) isAsistiendoByPost[id] = false;
+  if (asistenciasFeatureAvailable && userId && postIds.length > 0) {
+    const asistenciasUsuario = await prisma.eventoAsistente.findMany({
+      where: { userId, postId: { in: postIds } },
+      select: { postId: true },
     });
+    for (const a of asistenciasUsuario) isAsistiendoByPost[a.postId] = true;
+  }
+
+  const asistentesPreviewByPost: Record<
+    string,
+    { id: string; name: string | null; email: string; image: string | null }[]
+  > = {};
+  for (const id of postIds) asistentesPreviewByPost[id] = [];
+  if (asistenciasFeatureAvailable && postIds.length > 0) {
+    const asistenciasPreview = await prisma.eventoAsistente.findMany({
+      where: { postId: { in: postIds } },
+      include: {
+        user: { select: { id: true, name: true, email: true, image: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100, // límite razonable para agrupar en memoria
+    });
+    for (const a of asistenciasPreview) {
+      const arr = asistentesPreviewByPost[a.postId];
+      if (arr && arr.length < 3) arr.push(a.user);
+    }
+  }
+
+  const postsWithLikeStatus = postsToReturn.map((post) => {
+    const userLike = userId && post.likes.length > 0 ? post.likes[0] : null;
+    return {
+      ...post,
+      isLikedByUser: !!userLike,
+      userReactionType: userLike
+        ? (userLike.reactionType as 'Recomendar' | 'Celebrar' | 'Encantar')
+        : null,
+      reactionCounts: reactionCountsByPost[post.id] ?? {
+        Recomendar: 0,
+        Celebrar: 0,
+        Encantar: 0,
+      },
+      asistentesCount: asistentesCountByPost[post.id] ?? 0,
+      isAsistiendo: isAsistiendoByPost[post.id] ?? false,
+      asistentesPreview: asistentesPreviewByPost[post.id] ?? [],
+    };
+  });
 
   return {
     success: true,
@@ -429,10 +511,15 @@ async function _executeGetPosts(actualParams: GetPostsParams, userId: string | u
  * Obtener eventos próximos (con caché de 60s)
  * Optimizado para EventosWall
  */
-export async function getUpcomingEvents(limit: number = 10): Promise<GetPostsResult> {
+export async function getUpcomingEvents(
+  limit: number = 10
+): Promise<GetPostsResult> {
   const cachedFetch = unstable_cache(
     async () => {
-      return await _executeGetPosts({ eventosOnly: true, limit, sortBy: 'recent' }, undefined);
+      return await _executeGetPosts(
+        { eventosOnly: true, limit, sortBy: 'recent' },
+        undefined
+      );
     },
     ['upcoming-events', String(limit)],
     { revalidate: 60, tags: ['posts', 'events'] }
@@ -482,17 +569,23 @@ export async function createPost(data: CreatePostData) {
     if (data.eventoFecha) {
       // El componente Calendar puede devolver formato DD/MM/YYYY o DD-MM-YYYY
       const separators = ['/', '-'];
-      let day: string | undefined, month: string | undefined, year: string | undefined;
-      
+      let day: string | undefined,
+        month: string | undefined,
+        year: string | undefined;
+
       for (const sep of separators) {
         if (data.eventoFecha.includes(sep)) {
           [day, month, year] = data.eventoFecha.split(sep);
           break;
         }
       }
-      
+
       if (day && month && year) {
-        eventoFechaDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        eventoFechaDate = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
         // Ajustar a medianoche para evitar problemas de timezone
         eventoFechaDate.setHours(0, 0, 0, 0);
         if (isNaN(eventoFechaDate.getTime())) {
@@ -519,15 +612,16 @@ export async function createPost(data: CreatePostData) {
             orden: index,
           })),
         },
-        videos: (data.videos?.length ?? 0) > 0
-          ? {
-              create: (data.videos ?? []).map((v, index) => ({
-                youtubeUrl: v.youtubeUrl,
-                youtubeVideoId: v.youtubeVideoId,
-                orden: index,
-              })),
-            }
-          : undefined,
+        videos:
+          (data.videos?.length ?? 0) > 0
+            ? {
+                create: (data.videos ?? []).map((v, index) => ({
+                  youtubeUrl: v.youtubeUrl,
+                  youtubeVideoId: v.youtubeVideoId,
+                  orden: index,
+                })),
+              }
+            : undefined,
         proyectos: {
           create: data.proyectoIds.map((proyectoId) => ({
             proyectoId,
@@ -654,17 +748,29 @@ export async function toggleEventoAsistencia(postId: string) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) {
-      return { success: false, error: 'Debes iniciar sesión para confirmar asistencia' };
+      return {
+        success: false,
+        error: 'Debes iniciar sesión para confirmar asistencia',
+      };
     }
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true, eventoFecha: true, eventoNombre: true, eventoDescripcion: true },
+      select: {
+        id: true,
+        eventoFecha: true,
+        eventoNombre: true,
+        eventoDescripcion: true,
+      },
     });
     if (!post) {
       return { success: false, error: 'Evento no encontrado' };
     }
-    const isEvento = !!(post.eventoFecha && post.eventoNombre && post.eventoDescripcion);
+    const isEvento = !!(
+      post.eventoFecha &&
+      post.eventoNombre &&
+      post.eventoDescripcion
+    );
     if (!isEvento) {
       return { success: false, error: 'La publicación no es un evento' };
     }
@@ -675,8 +781,12 @@ export async function toggleEventoAsistencia(postId: string) {
         where: { postId_userId: { postId, userId: user.id } },
         select: { id: true },
       });
-    } catch (e: any) {
-      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (
+        err?.code === 'P2021' &&
+        String(err?.message ?? '').includes('evento_asistentes')
+      ) {
         return {
           success: false,
           error:
@@ -691,15 +801,23 @@ export async function toggleEventoAsistencia(postId: string) {
       await prisma.eventoAsistente.delete({ where: { id: existing.id } });
       isAsistiendo = false;
     } else {
-      await prisma.eventoAsistente.create({ data: { postId, userId: user.id } });
+      await prisma.eventoAsistente.create({
+        data: { postId, userId: user.id },
+      });
       isAsistiendo = true;
     }
 
     let asistentesCount = 0;
     try {
-      asistentesCount = await prisma.eventoAsistente.count({ where: { postId } });
-    } catch (e: any) {
-      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+      asistentesCount = await prisma.eventoAsistente.count({
+        where: { postId },
+      });
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (
+        err?.code === 'P2021' &&
+        String(err?.message ?? '').includes('evento_asistentes')
+      ) {
         asistentesCount = 0;
       } else {
         throw e;
@@ -729,8 +847,12 @@ export async function getEventoAsistentes(postId: string) {
         orderBy: { createdAt: 'asc' },
       });
       return { success: true, data: asistentes.map((a) => a.user) };
-    } catch (e: any) {
-      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (
+        err?.code === 'P2021' &&
+        String(err?.message ?? '').includes('evento_asistentes')
+      ) {
         return { success: true, data: [] };
       }
       throw e;
@@ -749,17 +871,33 @@ export interface EventoDetallesResult {
     eventoFecha: Date;
     eventoDescripcion: string;
     imagenUrl?: string | null;
-    author: { id: string; name: string | null; email: string; image: string | null };
+    author: {
+      id: string;
+      name: string | null;
+      email: string;
+      image: string | null;
+    };
     proyectos: Array<{
       id: string;
       proyecto: string;
       sede: string;
       escuelas: { id: string; nombre: string }[];
-      encargados: Array<{ id: string; name: string | null; email: string; image: string | null; cargo: string | null }>;
+      encargados: Array<{
+        id: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+        cargo: string | null;
+      }>;
     }>;
     sedes: string[];
     escuelas: { id: string; nombre: string }[];
-    asistentes: { id: string; name: string | null; email: string; image: string | null }[];
+    asistentes: {
+      id: string;
+      name: string | null;
+      email: string;
+      image: string | null;
+    }[];
     asistentesCount: number;
     isAsistiendo: boolean;
   };
@@ -769,7 +907,9 @@ export interface EventoDetallesResult {
 /**
  * Obtener detalles completos del evento (para modal)
  */
-export async function getEventoDetalles(postId: string): Promise<EventoDetallesResult> {
+export async function getEventoDetalles(
+  postId: string
+): Promise<EventoDetallesResult> {
   try {
     const user = await getCurrentUser();
     const userId = user?.id;
@@ -786,7 +926,9 @@ export async function getEventoDetalles(postId: string): Promise<EventoDetallesR
                 id: true,
                 proyecto: true,
                 sede: true,
-                escuelas: { include: { escuela: { select: { id: true, nombre: true } } } },
+                escuelas: {
+                  include: { escuela: { select: { id: true, nombre: true } } },
+                },
               },
             },
           },
@@ -794,18 +936,34 @@ export async function getEventoDetalles(postId: string): Promise<EventoDetallesR
       },
     });
 
-    if (!post || !post.eventoFecha || !post.eventoNombre || !post.eventoDescripcion) {
+    if (
+      !post ||
+      !post.eventoFecha ||
+      !post.eventoNombre ||
+      !post.eventoDescripcion
+    ) {
       return { success: false, error: 'Evento no encontrado' };
     }
 
     const proyectoIds = post.proyectos.map((p) => p.proyecto.id);
-    const encargadosByProyecto: Record<string, Array<{ id: string; name: string | null; email: string; image: string | null; cargo: string | null }>> = {};
+    const encargadosByProyecto: Record<
+      string,
+      Array<{
+        id: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+        cargo: string | null;
+      }>
+    > = {};
     for (const id of proyectoIds) encargadosByProyecto[id] = [];
 
     if (proyectoIds.length > 0) {
       const encargados = await prisma.proyectoParticipante.findMany({
         where: { proyectoId: { in: proyectoIds }, rol: 'Encargado' },
-        include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
       });
       for (const e of encargados) {
         if (!e.user) continue;
@@ -823,22 +981,38 @@ export async function getEventoDetalles(postId: string): Promise<EventoDetallesR
       encargados: encargadosByProyecto[proyecto.id] ?? [],
     }));
 
-    const sedes = Array.from(new Set(proyectos.map((p) => p.sede))).filter(Boolean);
+    const sedes = Array.from(new Set(proyectos.map((p) => p.sede))).filter(
+      Boolean
+    );
     const escuelasMap = new Map<string, { id: string; nombre: string }>();
     for (const p of proyectos) {
       for (const esc of p.escuelas) escuelasMap.set(esc.id, esc);
     }
     const escuelas = Array.from(escuelasMap.values());
 
-    let asistentesRows: Array<{ userId: string; user: { id: string; name: string | null; email: string; image: string | null } }> = [];
+    let asistentesRows: Array<{
+      userId: string;
+      user: {
+        id: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+      };
+    }> = [];
     try {
       asistentesRows = await prisma.eventoAsistente.findMany({
         where: { postId },
-        include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
         orderBy: { createdAt: 'asc' },
       });
-    } catch (e: any) {
-      if (e?.code === 'P2021' && String(e?.message || '').includes('evento_asistentes')) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (
+        err?.code === 'P2021' &&
+        String(err?.message ?? '').includes('evento_asistentes')
+      ) {
         asistentesRows = [];
       } else {
         throw e;
@@ -846,7 +1020,9 @@ export async function getEventoDetalles(postId: string): Promise<EventoDetallesR
     }
     const asistentes = asistentesRows.map((a) => a.user);
     const asistentesCount = asistentes.length;
-    const isAsistiendo = !!(userId && asistentesRows.some((a) => a.userId === userId));
+    const isAsistiendo = !!(
+      userId && asistentesRows.some((a) => a.userId === userId)
+    );
 
     return {
       success: true,
@@ -871,7 +1047,11 @@ export async function getEventoDetalles(postId: string): Promise<EventoDetallesR
   }
 }
 
-const VALID_REACTIONS: PostReactionType[] = ['Recomendar', 'Celebrar', 'Encantar'];
+const VALID_REACTIONS: PostReactionType[] = [
+  'Recomendar',
+  'Celebrar',
+  'Encantar',
+];
 
 /**
  * Establecer o cambiar reacción en una publicación (estilo LinkedIn).
@@ -906,7 +1086,7 @@ export async function setPostReaction(
       if (existing.reactionType === reactionType) {
         await prisma.postLike.delete({ where: { id: existing.id } });
         revalidatePath('/novedades');
-    revalidateTag('posts');
+        revalidateTag('posts');
         return {
           success: true,
           reaction: null as 'Recomendar' | 'Celebrar' | 'Encantar' | null,

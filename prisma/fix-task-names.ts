@@ -27,26 +27,36 @@ async function fixTaskNames() {
   );
 
   if (tasksWithLongNames.length === 0) {
-    console.log(`✅ Todas las tareas tienen nombres válidos (máximo ${MAX_NAME_LENGTH} caracteres).`);
+    console.log(
+      `✅ Todas las tareas tienen nombres válidos (máximo ${MAX_NAME_LENGTH} caracteres).`
+    );
     return;
   }
 
-  console.log(`❌ Tareas con nombres que exceden ${MAX_NAME_LENGTH} caracteres (incluyendo espacios): ${tasksWithLongNames.length}\n`);
+  console.log(
+    `❌ Tareas con nombres que exceden ${MAX_NAME_LENGTH} caracteres (incluyendo espacios): ${tasksWithLongNames.length}\n`
+  );
   console.log('Detalles de las tareas a actualizar:');
   tasksWithLongNames.forEach((task, index) => {
     console.log(`  ${index + 1}. ID: ${task.id}`);
-    console.log(`     Nombre actual (${task.name.length} caracteres): "${task.name}"`);
-    console.log(`     Nombre truncado: "${task.name.substring(0, MAX_NAME_LENGTH)}"\n`);
+    console.log(
+      `     Nombre actual (${task.name.length} caracteres): "${task.name}"`
+    );
+    console.log(
+      `     Nombre truncado: "${task.name.substring(0, MAX_NAME_LENGTH)}"\n`
+    );
   });
 
   // Actualizar tareas con nombres truncados
-  console.log(`🔧 Actualizando ${tasksWithLongNames.length} tarea(s) con nombres truncados...\n`);
+  console.log(
+    `🔧 Actualizando ${tasksWithLongNames.length} tarea(s) con nombres truncados...\n`
+  );
 
   const updatePromises = tasksWithLongNames.map((task) =>
     prisma.task.update({
       where: { id: task.id },
-      data: { 
-        name: task.name.substring(0, MAX_NAME_LENGTH)
+      data: {
+        name: task.name.substring(0, MAX_NAME_LENGTH),
       },
     })
   );
@@ -57,7 +67,9 @@ async function fixTaskNames() {
   console.log('Resumen:');
   console.log(`  - Total de tareas: ${allTasks.length}`);
   console.log(`  - Tareas actualizadas: ${tasksWithLongNames.length}`);
-  console.log(`  - Tareas correctas: ${allTasks.length - tasksWithLongNames.length}`);
+  console.log(
+    `  - Tareas correctas: ${allTasks.length - tasksWithLongNames.length}`
+  );
 }
 
 fixTaskNames()

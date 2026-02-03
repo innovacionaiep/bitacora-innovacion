@@ -14,7 +14,7 @@ const PROJECT_NAMES = [
   'ArtEdu: Plataforma Digital para Educación Artística',
   'GreenTech: Soluciones Tecnológicas para la Agricultura',
   'Cultural Hub: Centro de Innovación Cultural y Creativa',
-  'EcoFashion: Moda Sustentable y Diseño Textil'
+  'EcoFashion: Moda Sustentable y Diseño Textil',
 ];
 
 const SEDES = [
@@ -27,7 +27,7 @@ const SEDES = [
   'Concepción',
   'Temuco',
   'Iquique',
-  'Rancagua'
+  'Rancagua',
 ];
 
 const FONDOS = ['IMPULSA', 'CORFO', 'FONDART', 'SERCOTEC', 'FOSIS'];
@@ -44,26 +44,26 @@ const ACTIVITY_NAMES = [
   'Evaluación y Monitoreo',
   'Escalamiento y Expansión',
   'Documentación y Reportes',
-  'Cierre y Entrega Final'
+  'Cierre y Entrega Final',
 ];
 
 const TASK_TEMPLATES = [
   {
     name: 'Definir objetivos y alcance',
-    description: 'Establecer metas claras y delimitaciones del proyecto'
+    description: 'Establecer metas claras y delimitaciones del proyecto',
   },
   {
     name: 'Crear plan de trabajo detallado',
-    description: 'Desarrollar cronograma y asignación de recursos'
+    description: 'Desarrollar cronograma y asignación de recursos',
   },
   {
     name: 'Implementar solución piloto',
-    description: 'Ejecutar primera fase del proyecto'
+    description: 'Ejecutar primera fase del proyecto',
   },
   {
     name: 'Evaluar resultados y ajustar',
-    description: 'Analizar progreso y realizar mejoras necesarias'
-  }
+    description: 'Analizar progreso y realizar mejoras necesarias',
+  },
 ];
 
 const COLORS = [
@@ -76,28 +76,29 @@ const COLORS = [
   'bg-pink-600',
   'bg-indigo-600',
   'bg-yellow-600',
-  'bg-cyan-600'
+  'bg-cyan-600',
 ];
 
 // Función para generar fechas aleatorias en 2025
 function generateRandomDate2025() {
   const start = new Date('2025-01-01');
   const end = new Date('2025-12-31');
-  const randomTime = start.getTime() + Math.random() * (end.getTime() - start.getTime());
+  const randomTime =
+    start.getTime() + Math.random() * (end.getTime() - start.getTime());
   return new Date(randomTime);
 }
 
 // Función para generar fechas secuenciales para tareas
 function generateTaskDates(baseDate: Date, taskIndex: number) {
   const startDate = new Date(baseDate);
-  startDate.setDate(startDate.getDate() + (taskIndex * 7)); // 1 semana entre tareas
+  startDate.setDate(startDate.getDate() + taskIndex * 7); // 1 semana entre tareas
 
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 14); // 2 semanas de duración por tarea
 
   return {
     startDate: startDate.toISOString().split('T')[0],
-    endDate: endDate.toISOString().split('T')[0]
+    endDate: endDate.toISOString().split('T')[0],
   };
 }
 
@@ -127,19 +128,19 @@ async function seedFullDatabase() {
       where: {
         user: {
           email: {
-            not: 'admin@test.com'
-          }
-        }
-      }
+            not: 'admin@test.com',
+          },
+        },
+      },
     });
 
     // Eliminar usuarios (excepto admin)
     await prisma.user.deleteMany({
       where: {
         email: {
-          not: 'admin@test.com'
-        }
-      }
+          not: 'admin@test.com',
+        },
+      },
     });
 
     // 2. Crear catálogos si no existen
@@ -150,28 +151,28 @@ async function seedFullDatabase() {
       prisma.escuela.upsert({
         where: { codigo: 'AIC' },
         update: {},
-        create: { nombre: 'Artes e Industrias Creativas', codigo: 'AIC' }
+        create: { nombre: 'Artes e Industrias Creativas', codigo: 'AIC' },
       }),
       prisma.escuela.upsert({
         where: { codigo: 'GHT' },
         update: {},
-        create: { nombre: 'Gastronomía, Hotelería y Turismo', codigo: 'GHT' }
+        create: { nombre: 'Gastronomía, Hotelería y Turismo', codigo: 'GHT' },
       }),
       prisma.escuela.upsert({
         where: { codigo: 'EI' },
         update: {},
-        create: { nombre: 'Estética Integral', codigo: 'EI' }
+        create: { nombre: 'Estética Integral', codigo: 'EI' },
       }),
       prisma.escuela.upsert({
         where: { codigo: 'TEC' },
         update: {},
-        create: { nombre: 'Tecnología', codigo: 'TEC' }
+        create: { nombre: 'Tecnología', codigo: 'TEC' },
       }),
       prisma.escuela.upsert({
         where: { codigo: 'NEG' },
         update: {},
-        create: { nombre: 'Negocios', codigo: 'NEG' }
-      })
+        create: { nombre: 'Negocios', codigo: 'NEG' },
+      }),
     ]);
 
     // Carreras
@@ -180,13 +181,13 @@ async function seedFullDatabase() {
       { nombre: 'Administración de Empresas', escuelaId: escuelas[4].id },
       { nombre: 'Desarrollo de Software', escuelaId: escuelas[3].id },
       { nombre: 'Gastronomía', escuelaId: escuelas[1].id },
-      { nombre: 'Artes Visuales', escuelaId: escuelas[0].id }
+      { nombre: 'Artes Visuales', escuelaId: escuelas[0].id },
     ];
 
     // Limpiar carreras existentes y crear nuevas
     await prisma.carrera.deleteMany();
     const carreras = await Promise.all(
-      carrerasData.map(data => prisma.carrera.create({ data }))
+      carrerasData.map((data) => prisma.carrera.create({ data }))
     );
 
     // Comunas
@@ -195,37 +196,57 @@ async function seedFullDatabase() {
       { nombre: 'Antofagasta', region: 'Antofagasta' },
       { nombre: 'La Serena', region: 'Coquimbo' },
       { nombre: 'Los Ángeles', region: 'Biobío' },
-      { nombre: 'Santiago', region: 'Metropolitana' }
+      { nombre: 'Santiago', region: 'Metropolitana' },
     ];
 
     await prisma.comuna.deleteMany();
     const comunas = await Promise.all(
-      comunasData.map(data => prisma.comuna.create({ data }))
+      comunasData.map((data) => prisma.comuna.create({ data }))
     );
 
     // Grupos de Interés
     const gruposInteresData = [
-      { nombre: 'Sociedad civil', descripcion: 'Organizaciones de la sociedad civil' },
-      { nombre: 'Organizaciones sociales', descripcion: 'Organizaciones sociales y comunitarias' },
-      { nombre: 'Sector productivo y de servicios', descripcion: 'Empresas del sector productivo y de servicios' },
-      { nombre: 'Municipalidades y organismos públicos', descripcion: 'Instituciones públicas y municipales' }
+      {
+        nombre: 'Sociedad civil',
+        descripcion: 'Organizaciones de la sociedad civil',
+      },
+      {
+        nombre: 'Organizaciones sociales',
+        descripcion: 'Organizaciones sociales y comunitarias',
+      },
+      {
+        nombre: 'Sector productivo y de servicios',
+        descripcion: 'Empresas del sector productivo y de servicios',
+      },
+      {
+        nombre: 'Municipalidades y organismos públicos',
+        descripcion: 'Instituciones públicas y municipales',
+      },
     ];
 
     await prisma.grupoInteres.deleteMany();
     const gruposInteres = await Promise.all(
-      gruposInteresData.map(data => prisma.grupoInteres.create({ data }))
+      gruposInteresData.map((data) => prisma.grupoInteres.create({ data }))
     );
 
     // Socios Comunitarios
     const sociosComunitariosData = [
       { nombre: 'Sercotec', descripcion: 'Servicio de Cooperación Técnica' },
-      { nombre: 'Dideco San Bernardo', descripcion: 'Dirección de Desarrollo Comunitario' },
-      { nombre: 'Organizaciones Civiles', descripcion: 'Organizaciones de la sociedad civil' }
+      {
+        nombre: 'Dideco San Bernardo',
+        descripcion: 'Dirección de Desarrollo Comunitario',
+      },
+      {
+        nombre: 'Organizaciones Civiles',
+        descripcion: 'Organizaciones de la sociedad civil',
+      },
     ];
 
     await prisma.socioComunitario.deleteMany();
     const sociosComunitarios = await Promise.all(
-      sociosComunitariosData.map(data => prisma.socioComunitario.create({ data }))
+      sociosComunitariosData.map((data) =>
+        prisma.socioComunitario.create({ data })
+      )
     );
 
     // 3. Crear usuarios (preservar admin y crear 10 nuevos)
@@ -234,7 +255,7 @@ async function seedFullDatabase() {
 
     // Verificar si admin existe, si no, crearlo. Si existe, actualizar contraseña.
     let adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@test.com' }
+      where: { email: 'admin@test.com' },
     });
 
     if (!adminUser) {
@@ -243,14 +264,14 @@ async function seedFullDatabase() {
           email: 'admin@test.com',
           name: 'Administrador del Sistema',
           password: passwordHash,
-          activeRole: 'Admin'
-        }
+          activeRole: 'Admin',
+        },
       });
     } else {
       // Actualizar la contraseña del admin si ya existe
       adminUser = await prisma.user.update({
         where: { email: 'admin@test.com' },
-        data: { password: passwordHash }
+        data: { password: passwordHash },
       });
     }
 
@@ -266,7 +287,7 @@ async function seedFullDatabase() {
       'Isabel Torres Vega',
       'Miguel Herrera Ramos',
       'Elena Castro Díaz',
-      'Antonio Moreno Flores'
+      'Antonio Moreno Flores',
     ];
 
     for (let i = 0; i < 10; i++) {
@@ -275,8 +296,8 @@ async function seedFullDatabase() {
           email: `usuario${i + 1}@test.com`,
           name: nombres[i],
           password: passwordHash,
-          activeRole: 'Colaborador'
-        }
+          activeRole: 'Colaborador',
+        },
       });
       usuarios.push(usuario);
     }
@@ -284,7 +305,15 @@ async function seedFullDatabase() {
     // Asignar todos los roles a todos los usuarios
     console.log('🔐 Asignando roles a usuarios...');
     // Roles según docs/SISTEMA-ROLES.md
-    const roles = ['Admin', 'Coordinador', 'Colaborador', 'Encargado', 'Docente', 'Estudiante', 'Beneficiario'];
+    const roles = [
+      'Admin',
+      'Coordinador',
+      'Colaborador',
+      'Encargado',
+      'Docente',
+      'Estudiante',
+      'Beneficiario',
+    ];
 
     // Crear todos los roles de usuario
     const userRolesData = [];
@@ -292,14 +321,14 @@ async function seedFullDatabase() {
       for (const rol of roles) {
         userRolesData.push({
           userId: usuario.id,
-          role: rol
+          role: rol,
         });
       }
     }
 
     await prisma.userRole.createMany({
       data: userRolesData,
-      skipDuplicates: true
+      skipDuplicates: true,
     });
 
     // 4. Crear 10 proyectos con todas sus relaciones
@@ -312,78 +341,99 @@ async function seedFullDatabase() {
           proyecto: PROJECT_NAMES[i],
           fondo: FONDOS[Math.floor(Math.random() * FONDOS.length)],
           sede: SEDES[Math.floor(Math.random() * SEDES.length)],
-          focalizacion: FOCALIZACIONES[Math.floor(Math.random() * FOCALIZACIONES.length)],
+          focalizacion:
+            FOCALIZACIONES[Math.floor(Math.random() * FOCALIZACIONES.length)],
           avanceGantt: Math.floor(Math.random() * 100),
           objetivos: Math.floor(Math.random() * 100),
           presupuestoUsado: Math.floor(Math.random() * 3000000) + 1000000,
           presupuestoTotal: Math.floor(Math.random() * 5000000) + 3000000,
           reunionesHechas: Math.floor(Math.random() * 8) + 1,
           reunionesTotales: Math.floor(Math.random() * 12) + 8,
-          participantes: Math.floor(Math.random() * 20) + 10
-        }
+          participantes: Math.floor(Math.random() * 20) + 10,
+        },
       });
       proyectos.push(proyecto);
 
       // Crear relaciones del proyecto
       // Escuelas (asignar 1-3 escuelas aleatorias)
       const numEscuelas = Math.floor(Math.random() * 3) + 1;
-      const escuelasSeleccionadas = escuelas.sort(() => 0.5 - Math.random()).slice(0, numEscuelas);
+      const escuelasSeleccionadas = escuelas
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numEscuelas);
       for (const escuela of escuelasSeleccionadas) {
         await prisma.proyectoEscuela.create({
-          data: { proyectoId: proyecto.id, escuelaId: escuela.id }
+          data: { proyectoId: proyecto.id, escuelaId: escuela.id },
         });
       }
 
       // Carreras
       const numCarreras = Math.floor(Math.random() * 3) + 1;
-      const carrerasSeleccionadas = carreras.sort(() => 0.5 - Math.random()).slice(0, numCarreras);
+      const carrerasSeleccionadas = carreras
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numCarreras);
       for (const carrera of carrerasSeleccionadas) {
         await prisma.proyectoCarrera.create({
-          data: { proyectoId: proyecto.id, carreraId: carrera.id }
+          data: { proyectoId: proyecto.id, carreraId: carrera.id },
         });
       }
 
       // Comunas (asignar 1-2 comunas)
       const numComunas = Math.floor(Math.random() * 2) + 1;
-      const comunasSeleccionadas = comunas.sort(() => 0.5 - Math.random()).slice(0, numComunas);
+      const comunasSeleccionadas = comunas
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numComunas);
       for (const comuna of comunasSeleccionadas) {
         await prisma.proyectoComuna.create({
-          data: { proyectoId: proyecto.id, comunaId: comuna.id }
+          data: { proyectoId: proyecto.id, comunaId: comuna.id },
         });
       }
 
       // Grupos de Interés (asignar 2-4 grupos)
       const numGrupos = Math.floor(Math.random() * 3) + 2;
-      const gruposSeleccionados = gruposInteres.sort(() => 0.5 - Math.random()).slice(0, numGrupos);
+      const gruposSeleccionados = gruposInteres
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numGrupos);
       for (const grupo of gruposSeleccionados) {
         await prisma.proyectoGrupoInteres.create({
-          data: { proyectoId: proyecto.id, grupoInteresId: grupo.id }
+          data: { proyectoId: proyecto.id, grupoInteresId: grupo.id },
         });
       }
 
       // Socios Comunitarios (asignar 1-3 socios)
       const numSocios = Math.floor(Math.random() * 3) + 1;
-      const sociosSeleccionados = sociosComunitarios.sort(() => 0.5 - Math.random()).slice(0, numSocios);
+      const sociosSeleccionados = sociosComunitarios
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numSocios);
       for (const socio of sociosSeleccionados) {
         await prisma.proyectoSocioComunitario.create({
-          data: { proyectoId: proyecto.id, socioComunitarioId: socio.id }
+          data: { proyectoId: proyecto.id, socioComunitarioId: socio.id },
         });
       }
 
       // Participantes del proyecto (asignar 2-5 usuarios)
       const numParticipantes = Math.floor(Math.random() * 4) + 2;
-      const participantesSeleccionados = usuarios.sort(() => 0.5 - Math.random()).slice(0, numParticipantes);
+      const participantesSeleccionados = usuarios
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numParticipantes);
       // Roles de proyecto según docs/SISTEMA-ROLES.md
-      const rolesParticipacion = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
+      const rolesParticipacion = [
+        'Encargado',
+        'Coordinador',
+        'Colaborador',
+        'Docente',
+        'Estudiante',
+        'Beneficiario',
+      ];
 
       for (let j = 0; j < participantesSeleccionados.length; j++) {
-        const rolParticipacion = rolesParticipacion[j % rolesParticipacion.length];
+        const rolParticipacion =
+          rolesParticipacion[j % rolesParticipacion.length];
         await prisma.proyectoParticipante.create({
           data: {
             proyectoId: proyecto.id,
             userId: participantesSeleccionados[j].id,
-            rol: rolParticipacion
-          }
+            rol: rolParticipacion,
+          },
         });
       }
 
@@ -394,8 +444,8 @@ async function seedFullDatabase() {
           proyectoId: proyecto.id,
           tipo: 'General',
           descripcion: `Objetivo general del proyecto ${proyecto.proyecto}: Desarrollar e implementar soluciones innovadoras que generen impacto positivo en la comunidad.`,
-          orden: 0
-        }
+          orden: 0,
+        },
       });
 
       // Plantilla de objetivos específicos variados
@@ -407,7 +457,7 @@ async function seedFullDatabase() {
         `Establecer alianzas estratégicas con actores clave del sector para fortalecer la sostenibilidad del proyecto.`,
         `Evaluar y monitorear continuamente el progreso y los resultados del proyecto ${proyecto.proyecto}.`,
         `Fortalecer las capacidades técnicas y organizacionales de los participantes del proyecto.`,
-        `Generar evidencia y documentación que permita replicar y escalar las soluciones implementadas.`
+        `Generar evidencia y documentación que permita replicar y escalar las soluciones implementadas.`,
       ];
 
       // Generar entre 3 y 4 objetivos específicos aleatorios por proyecto
@@ -417,15 +467,17 @@ async function seedFullDatabase() {
         .slice(0, numObjetivosEspecificos);
 
       // Crear los objetivos específicos seleccionados
-      const objetivosEspecificosData = objetivosSeleccionados.map((descripcion, index) => ({
-        proyectoId: proyecto.id,
-        tipo: 'Especifico' as const,
-        descripcion: descripcion,
-        orden: index + 1
-      }));
+      const objetivosEspecificosData = objetivosSeleccionados.map(
+        (descripcion, index) => ({
+          proyectoId: proyecto.id,
+          tipo: 'Especifico' as const,
+          descripcion: descripcion,
+          orden: index + 1,
+        })
+      );
 
       await prisma.objetivoProyecto.createMany({
-        data: objetivosEspecificosData
+        data: objetivosEspecificosData,
       });
     }
 
@@ -447,8 +499,8 @@ async function seedFullDatabase() {
             progress: progresoActividad,
             projectId: proyecto.id,
             color: color,
-            orderIndex: i
-          }
+            orderIndex: i,
+          },
         });
 
         // Crear 4 tareas para cada actividad
@@ -456,7 +508,9 @@ async function seedFullDatabase() {
           const taskTemplate = TASK_TEMPLATES[j];
           const taskDates = generateTaskDates(fechaBaseProyecto, i * 4 + j);
           const estaCompletada = Math.random() > 0.4; // 60% de probabilidad de estar completada
-          const progresoTarea = estaCompletada ? 100 : Math.floor(Math.random() * 90);
+          const progresoTarea = estaCompletada
+            ? 100
+            : Math.floor(Math.random() * 90);
 
           await prisma.task.create({
             data: {
@@ -466,8 +520,8 @@ async function seedFullDatabase() {
               startDate: taskDates.startDate,
               endDate: taskDates.endDate,
               progress: progresoTarea,
-              activityId: actividad.id
-            }
+              activityId: actividad.id,
+            },
           });
         }
       }
@@ -478,49 +532,75 @@ async function seedFullDatabase() {
     console.log('');
     console.log('📊 Resumen de datos creados:');
     console.log(`   👥 ${usuarios.length} usuarios (incluyendo admin)`);
-    console.log(`   🔐 ${usuarios.length * roles.length} roles de usuario asignados`);
+    console.log(
+      `   🔐 ${usuarios.length * roles.length} roles de usuario asignados`
+    );
     console.log(`   📁 ${proyectos.length} proyectos creados`);
     console.log(`   📊 ${proyectos.length * 10} actividades creadas`);
     console.log(`   ✅ ${proyectos.length * 40} tareas creadas`);
-    console.log(`   📚 ${escuelas.length} escuelas, ${carreras.length} carreras, ${comunas.length} comunas`);
+    console.log(
+      `   📚 ${escuelas.length} escuelas, ${carreras.length} carreras, ${comunas.length} comunas`
+    );
     console.log('');
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(
+      '═══════════════════════════════════════════════════════════════'
+    );
     console.log('🔑 CREDENCIALES DE PRUEBA - TODOS LOS USUARIOS');
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(
+      '═══════════════════════════════════════════════════════════════'
+    );
     console.log('');
     console.log('📝 Contraseña para TODOS los usuarios: password123');
     console.log('');
-    console.log('┌─────────────────────────────────────────────────────────────┐');
-    console.log('│ Usuario                  │ Email                    │ Rol Activo │');
-    console.log('├─────────────────────────────────────────────────────────────┤');
+    console.log(
+      '┌─────────────────────────────────────────────────────────────┐'
+    );
+    console.log(
+      '│ Usuario                  │ Email                    │ Rol Activo │'
+    );
+    console.log(
+      '├─────────────────────────────────────────────────────────────┤'
+    );
 
     // Mostrar admin
-    console.log(`│ ${usuarios[0].name.padEnd(24)} │ ${usuarios[0].email.padEnd(24)} │ ${usuarios[0].activeRole.padEnd(10)} │`);
+    const u0 = usuarios[0];
+    console.log(
+      `│ ${(u0.name ?? '').padEnd(24)} │ ${u0.email.padEnd(24)} │ ${(u0.activeRole ?? '').padEnd(10)} │`
+    );
 
     // Mostrar los 10 usuarios adicionales
     for (let i = 1; i < usuarios.length; i++) {
       const usuario = usuarios[i];
-      console.log(`│ ${usuario.name.padEnd(24)} │ ${usuario.email.padEnd(24)} │ ${usuario.activeRole.padEnd(10)} │`);
+      console.log(
+        `│ ${(usuario.name ?? '').padEnd(24)} │ ${usuario.email.padEnd(24)} │ ${(usuario.activeRole ?? '').padEnd(10)} │`
+      );
     }
 
-    console.log('└─────────────────────────────────────────────────────────────┘');
+    console.log(
+      '└─────────────────────────────────────────────────────────────┘'
+    );
     console.log('');
     console.log('📋 FORMATO DE CREDENCIALES:');
     console.log('');
     for (const usuario of usuarios) {
       console.log(`   Email: ${usuario.email}`);
       console.log(`   Contraseña: password123`);
-      console.log(`   Nombre: ${usuario.name}`);
-      console.log(`   Rol Activo: ${usuario.activeRole}`);
+      console.log(`   Nombre: ${usuario.name ?? ''}`);
+      console.log(`   Rol Activo: ${usuario.activeRole ?? ''}`);
       console.log(`   Roles Disponibles: ${roles.join(', ')}`);
       console.log('');
     }
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(
+      '═══════════════════════════════════════════════════════════════'
+    );
     console.log('');
-    console.log('📅 Fechas: Todas las tareas están distribuidas entre enero-diciembre 2025');
-    console.log('🎨 Colores: Las actividades tienen colores variados para mejor visualización');
+    console.log(
+      '📅 Fechas: Todas las tareas están distribuidas entre enero-diciembre 2025'
+    );
+    console.log(
+      '🎨 Colores: Las actividades tienen colores variados para mejor visualización'
+    );
     console.log('');
-
   } catch (error) {
     console.error('❌ Error durante el seed completo:', error);
     throw error;
@@ -531,11 +611,10 @@ async function seedFullDatabase() {
 
 // Ejecutar si es llamado directamente
 if (require.main === module) {
-  seedFullDatabase()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    });
+  seedFullDatabase().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
 
 export { seedFullDatabase };

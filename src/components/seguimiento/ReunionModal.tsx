@@ -42,9 +42,8 @@ export function ReunionModal({
   onOpenChange,
   onUpdated,
 }: ReunionModalProps) {
-  const [reunion, setReunion] = useState<Awaited<
-    ReturnType<typeof getReunionById>
-  >['data']>(null);
+  const [reunion, setReunion] =
+    useState<Awaited<ReturnType<typeof getReunionById>>['data']>(null);
   const [loading, setLoading] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDetalleForm, setShowDetalleForm] = useState(false);
@@ -173,28 +172,30 @@ export function ReunionModal({
                 </div>
               )}
 
-              {reunion.tareasMarcadas &&
-                reunion.tareasMarcadas.length > 0 && (
-                  <div>
-                    <h4 className="font-medium flex items-center gap-2 mb-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Tareas completadas
-                    </h4>
-                    <ul className="space-y-1">
-                      {reunion.tareasMarcadas.map((tm) => (
-                        <li key={tm.id} className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          {tm.task.name}
-                          {tm.task.activity && (
-                            <span className="text-gray-500">
-                              · {tm.task.activity.name}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              {reunion.tareasMarcadas && reunion.tareasMarcadas.length > 0 && (
+                <div>
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Tareas completadas
+                  </h4>
+                  <ul className="space-y-1">
+                    {reunion.tareasMarcadas.map((tm) => (
+                      <li
+                        key={tm.id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        {tm.task.name}
+                        {tm.task.activity && (
+                          <span className="text-gray-500">
+                            · {tm.task.activity.name}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {reunion.indicadoresActualizados &&
                 reunion.indicadoresActualizados.length > 0 && (
@@ -206,7 +207,8 @@ export function ReunionModal({
                     <ul className="space-y-1">
                       {reunion.indicadoresActualizados.map((ia) => (
                         <li key={ia.id} className="text-sm">
-                          {ia.indicador?.nombre}: {ia.valorAnterior} → {ia.valorNuevo}
+                          {ia.indicador?.nombre}: {ia.valorAnterior} →{' '}
+                          {ia.valorNuevo}
                         </li>
                       ))}
                     </ul>
@@ -276,7 +278,6 @@ export function ReunionModal({
                     compromisos={reunion.compromisos.map((c) => ({
                       id: c.id,
                       descripcion: c.descripcion,
-                      fechaLimite: c.fechaLimite,
                       completado: c.completado,
                       reunion: reunion,
                     }))}
@@ -287,13 +288,15 @@ export function ReunionModal({
               )}
 
               {!reunion.resumen &&
-                (!reunion.puntosTratados || reunion.puntosTratados.length === 0) &&
-                (!reunion.tareasMarcadas || reunion.tareasMarcadas.length === 0) &&
+                (!reunion.puntosTratados ||
+                  reunion.puntosTratados.length === 0) &&
+                (!reunion.tareasMarcadas ||
+                  reunion.tareasMarcadas.length === 0) &&
                 (!reunion.compromisos || reunion.compromisos.length === 0) && (
                   <p className="text-gray-500 text-sm py-4">
-                    Esta reunión aún no tiene contenido registrado. Usa &quot;Completar
-                    reunión&quot; para agregar puntos tratados, tareas, indicadores y
-                    compromisos.
+                    Esta reunión aún no tiene contenido registrado. Usa
+                    &quot;Completar reunión&quot; para agregar puntos tratados,
+                    tareas, indicadores y compromisos.
                   </p>
                 )}
             </div>

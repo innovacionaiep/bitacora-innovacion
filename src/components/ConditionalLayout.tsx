@@ -14,7 +14,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // Rutas que NO deben mostrar sidebar
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
-  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
   // Ruta de novedades que necesita fondo gris completo
   const isNovedadesRoute = pathname === '/novedades';
@@ -30,7 +30,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       <SidebarProvider defaultOpen={true}>
         <SidebarNav />
         <ResponsiveMain>
-          <div className={`flex flex-col flex-1 h-full overflow-x-hidden ${isNovedadesRoute ? '' : 'overflow-y-auto p-4 pt-2'}`}>
+          <div
+            className={`flex flex-col flex-1 h-full overflow-x-hidden ${isNovedadesRoute ? '' : 'overflow-y-auto p-4 pt-2'}`}
+          >
             {children}
           </div>
         </ResponsiveMain>

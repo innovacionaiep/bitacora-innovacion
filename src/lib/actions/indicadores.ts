@@ -59,13 +59,13 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
           include: {
             _count: {
               select: {
-                comentarios: true
-              }
-            }
-          }
-        }
+                comentarios: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { orden: 'asc' }
+      orderBy: { orden: 'asc' },
     });
 
     if (objetivos.length === 0) {
@@ -73,14 +73,18 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
         success: true,
         data: {
           objetivosGenerales: [],
-          progresoGeneral: 0
-        }
+          progresoGeneral: 0,
+        },
       };
     }
 
     // Group objectives by type (General/Especifico)
-    const objetivosGenerales = objetivos.filter(obj => obj.tipo === 'General');
-    const objetivosEspecificos = objetivos.filter(obj => obj.tipo === 'Especifico');
+    const objetivosGenerales = objetivos.filter(
+      (obj) => obj.tipo === 'General'
+    );
+    const objetivosEspecificos = objetivos.filter(
+      (obj) => obj.tipo === 'Especifico'
+    );
 
     // Create the structure: General -> Specific -> Indicators
     const objetivosGeneralesData: ObjetivoGeneralData[] = [];
@@ -88,15 +92,22 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
     for (const objetivoGeneral of objetivosGenerales) {
       // Find specific objectives that belong to this general objective
       // For now, we'll assume they're related by order or we'll create a simple mapping
-      const objetivosEspecificosRelacionados = objetivosEspecificos.filter(obj => 
-        obj.orden >= objetivoGeneral.orden && 
-        obj.orden < (objetivosGenerales.find(og => og.orden > objetivoGeneral.orden)?.orden || Infinity)
+      const objetivosEspecificosRelacionados = objetivosEspecificos.filter(
+        (obj) =>
+          obj.orden >= objetivoGeneral.orden &&
+          obj.orden <
+            (objetivosGenerales.find((og) => og.orden > objetivoGeneral.orden)
+              ?.orden || Infinity)
       );
 
       // Función auxiliar para parsear valores numéricos (remover % y otros símbolos)
       const parseValue = (value: string | null | undefined): number => {
         if (!value || value === '') return 0;
-        const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+        const cleaned = value
+          .toString()
+          .replace(/%/g, '')
+          .replace(/,/g, '.')
+          .trim();
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
       };
@@ -110,25 +121,42 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
               const resultadoAlcanzado = parseValue(ind.resultadoAlcanzado);
 
               // Calcular porcentaje de cumplimiento: (alcanzado / esperado) * 100
-              const porcentajeCumplimiento = resultadoEsperado > 0
-                ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-                : 0;
+              const porcentajeCumplimiento =
+                resultadoEsperado > 0
+                  ? Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        (resultadoAlcanzado / resultadoEsperado) * 100
+                      )
+                    )
+                  : 0;
 
               // Calcular porcentaje de avance: (alcanzado / esperado) * 100
               // Si el resultado alcanzado >= resultado esperado, entonces 100%
-              const porcentajeAvance = resultadoEsperado > 0
-                ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-                : 0;
+              const porcentajeAvance =
+                resultadoEsperado > 0
+                  ? Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        (resultadoAlcanzado / resultadoEsperado) * 100
+                      )
+                    )
+                  : 0;
 
               // Actualizar en la base de datos si los valores han cambiado
-              if (Math.abs(ind.porcentajeCumplimiento - porcentajeCumplimiento) > 0.01 || 
-                  Math.abs(ind.porcentajeAvance - porcentajeAvance) > 0.01) {
+              if (
+                Math.abs(ind.porcentajeCumplimiento - porcentajeCumplimiento) >
+                  0.01 ||
+                Math.abs(ind.porcentajeAvance - porcentajeAvance) > 0.01
+              ) {
                 await prisma.indicador.update({
                   where: { id: ind.id },
                   data: {
                     porcentajeCumplimiento,
-                    porcentajeAvance
-                  }
+                    porcentajeAvance,
+                  },
                 });
               }
 
@@ -151,9 +179,9 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                   orden: obj.orden,
                   objetivoGeneral: {
                     id: objetivoGeneral.id,
-                    descripcion: objetivoGeneral.descripcion
-                  }
-                }
+                    descripcion: objetivoGeneral.descripcion,
+                  },
+                },
               };
             })
           );
@@ -162,7 +190,7 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
             id: obj.id,
             descripcion: obj.descripcion,
             orden: obj.orden,
-            indicadores
+            indicadores,
           };
         })
       );
@@ -170,38 +198,45 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
       objetivosGeneralesData.push({
         id: objetivoGeneral.id,
         descripcion: objetivoGeneral.descripcion,
-        objetivosEspecificos: objetivosEspecificosData
+        objetivosEspecificos: objetivosEspecificosData,
       });
     }
 
     // Calculate overall progress from specific objectives' progress
     // Each specific objective's progress is the average of its indicators' % Avance
-    const progresosObjetivosEspecificos = objetivosGeneralesData.flatMap(og => 
-      og.objetivosEspecificos.map(oe => {
-        const progresoObjetivo = oe.indicadores.length > 0
-          ? oe.indicadores.reduce((sum, ind) => sum + ind.porcentajeAvance, 0) / oe.indicadores.length
-          : 0;
+    const progresosObjetivosEspecificos = objetivosGeneralesData.flatMap((og) =>
+      og.objetivosEspecificos.map((oe) => {
+        const progresoObjetivo =
+          oe.indicadores.length > 0
+            ? oe.indicadores.reduce(
+                (sum, ind) => sum + ind.porcentajeAvance,
+                0
+              ) / oe.indicadores.length
+            : 0;
         return progresoObjetivo;
       })
     );
-    
-    const progresoGeneral = progresosObjetivosEspecificos.length > 0
-      ? Math.round(progresosObjetivosEspecificos.reduce((sum, prog) => sum + prog, 0) / progresosObjetivosEspecificos.length)
-      : 0;
+
+    const progresoGeneral =
+      progresosObjetivosEspecificos.length > 0
+        ? Math.round(
+            progresosObjetivosEspecificos.reduce((sum, prog) => sum + prog, 0) /
+              progresosObjetivosEspecificos.length
+          )
+        : 0;
 
     return {
       success: true,
       data: {
         objetivosGenerales: objetivosGeneralesData,
-        progresoGeneral
-      }
+        progresoGeneral,
+      },
     };
-
   } catch (error) {
     console.error('Error fetching indicadores:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -221,13 +256,13 @@ export async function updateIndicadorResultado(
         proyectoId: true,
         resultadoAlcanzado: true,
         porcentajeAvance: true,
-      }
+      },
     });
 
     if (!indicadorActual) {
       return {
         success: false,
-        error: 'Indicador no encontrado'
+        error: 'Indicador no encontrado',
       };
     }
 
@@ -236,8 +271,8 @@ export async function updateIndicadorResultado(
       data: {
         resultadoAlcanzado,
         porcentajeCumplimiento,
-        porcentajeAvance
-      }
+        porcentajeAvance,
+      },
     });
 
     // Registrar en historial si hubo cambio en el resultado alcanzado
@@ -257,12 +292,11 @@ export async function updateIndicadorResultado(
     // Eliminado revalidatePath para evitar refresh completo de página
     // El estado se actualizará mediante fetchIndicadores en el cliente
     return { success: true };
-
   } catch (error) {
     console.error('Error updating indicador:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -283,55 +317,83 @@ export async function updateIndicador(
   try {
     // Obtener el indicador actual para calcular porcentajes
     const indicadorActual = await prisma.indicador.findUnique({
-      where: { id: indicadorId }
+      where: { id: indicadorId },
     });
 
     if (!indicadorActual) {
       return {
         success: false,
-        error: 'Indicador no encontrado'
+        error: 'Indicador no encontrado',
       };
     }
 
     // Función auxiliar para parsear valores numéricos (remover % y otros símbolos)
     const parseValue = (value: string | null | undefined): number => {
       if (!value || value === '') return 0;
-      const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+      const cleaned = value
+        .toString()
+        .replace(/%/g, '')
+        .replace(/,/g, '.')
+        .trim();
       const parsed = parseFloat(cleaned);
       return isNaN(parsed) ? 0 : parsed;
     };
 
     // Usar los valores actualizados o los existentes
-    const resultadoEsperado = parseValue(data.resultadoEsperado ?? indicadorActual.resultadoEsperado);
-    const resultadoAlcanzado = parseValue(data.resultadoAlcanzado ?? indicadorActual.resultadoAlcanzado);
+    const resultadoEsperado = parseValue(
+      data.resultadoEsperado ?? indicadorActual.resultadoEsperado
+    );
+    const resultadoAlcanzado = parseValue(
+      data.resultadoAlcanzado ?? indicadorActual.resultadoAlcanzado
+    );
 
     // Calcular porcentaje de cumplimiento: (alcanzado / esperado) * 100
-    const porcentajeCumplimiento = resultadoEsperado > 0
-      ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-      : 0;
+    const porcentajeCumplimiento =
+      resultadoEsperado > 0
+        ? Math.max(
+            0,
+            Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100)
+          )
+        : 0;
 
     // Calcular porcentaje de avance: (alcanzado / esperado) * 100
-    const porcentajeAvance = resultadoEsperado > 0
-      ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-      : 0;
+    const porcentajeAvance =
+      resultadoEsperado > 0
+        ? Math.max(
+            0,
+            Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100)
+          )
+        : 0;
 
     // Preparar los datos de actualización incluyendo los porcentajes calculados
-    const updateData: any = { ...data };
+    const updateData: Parameters<typeof prisma.indicador.update>[0]['data'] = {
+      ...data,
+    };
     updateData.porcentajeCumplimiento = porcentajeCumplimiento;
     updateData.porcentajeAvance = porcentajeAvance;
 
     await prisma.indicador.update({
       where: { id: indicadorId },
-      data: updateData
+      data: updateData,
     });
 
     // Registrar en historial si hay cambios en valores
     const cambios: string[] = [];
-    if (data.resultadoEsperado !== undefined && data.resultadoEsperado !== indicadorActual.resultadoEsperado) {
-      cambios.push(`Resultado esperado: ${indicadorActual.resultadoEsperado} → ${data.resultadoEsperado}`);
+    if (
+      data.resultadoEsperado !== undefined &&
+      data.resultadoEsperado !== indicadorActual.resultadoEsperado
+    ) {
+      cambios.push(
+        `Resultado esperado: ${indicadorActual.resultadoEsperado} → ${data.resultadoEsperado}`
+      );
     }
-    if (data.resultadoAlcanzado !== undefined && data.resultadoAlcanzado !== indicadorActual.resultadoAlcanzado) {
-      cambios.push(`Resultado alcanzado: ${indicadorActual.resultadoAlcanzado} → ${data.resultadoAlcanzado}`);
+    if (
+      data.resultadoAlcanzado !== undefined &&
+      data.resultadoAlcanzado !== indicadorActual.resultadoAlcanzado
+    ) {
+      cambios.push(
+        `Resultado alcanzado: ${indicadorActual.resultadoAlcanzado} → ${data.resultadoAlcanzado}`
+      );
     }
 
     if (cambios.length > 0) {
@@ -345,19 +407,21 @@ export async function updateIndicador(
     }
 
     // Sincronizar el campo objetivos del proyecto si cambiaron los resultados
-    if (data.resultadoAlcanzado !== undefined || data.resultadoEsperado !== undefined) {
+    if (
+      data.resultadoAlcanzado !== undefined ||
+      data.resultadoEsperado !== undefined
+    ) {
       await sincronizarObjetivosProyecto(indicadorActual.proyectoId);
     }
 
     // Eliminado revalidatePath para evitar refresh completo de página
     // El estado se actualizará mediante onUpdate callback y fetchIndicadores
     return { success: true };
-
   } catch (error) {
     console.error('Error updating indicador:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -369,13 +433,17 @@ export async function recalcularPorcentajesProyecto(
   try {
     // Obtener todos los indicadores del proyecto
     const indicadores = await prisma.indicador.findMany({
-      where: { proyectoId }
+      where: { proyectoId },
     });
 
     // Función auxiliar para parsear valores numéricos
     const parseValue = (value: string | null | undefined): number => {
       if (!value || value === '') return 0;
-      const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+      const cleaned = value
+        .toString()
+        .replace(/%/g, '')
+        .replace(/,/g, '.')
+        .trim();
       const parsed = parseFloat(cleaned);
       return isNaN(parsed) ? 0 : parsed;
     };
@@ -388,24 +456,34 @@ export async function recalcularPorcentajesProyecto(
       const resultadoAlcanzado = parseValue(ind.resultadoAlcanzado);
 
       // Calcular porcentajes
-      const porcentajeCumplimiento = resultadoEsperado > 0
-        ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-        : 0;
+      const porcentajeCumplimiento =
+        resultadoEsperado > 0
+          ? Math.max(
+              0,
+              Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100)
+            )
+          : 0;
 
       // Calcular porcentaje de avance: (alcanzado / esperado) * 100
-      const porcentajeAvance = resultadoEsperado > 0
-        ? Math.max(0, Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100))
-        : 0;
+      const porcentajeAvance =
+        resultadoEsperado > 0
+          ? Math.max(
+              0,
+              Math.min(100, (resultadoAlcanzado / resultadoEsperado) * 100)
+            )
+          : 0;
 
       // Actualizar solo si los valores han cambiado
-      if (ind.porcentajeCumplimiento !== porcentajeCumplimiento || 
-          ind.porcentajeAvance !== porcentajeAvance) {
+      if (
+        ind.porcentajeCumplimiento !== porcentajeCumplimiento ||
+        ind.porcentajeAvance !== porcentajeAvance
+      ) {
         await prisma.indicador.update({
           where: { id: ind.id },
           data: {
             porcentajeCumplimiento,
-            porcentajeAvance
-          }
+            porcentajeAvance,
+          },
         });
         updatedCount++;
       }
@@ -413,12 +491,11 @@ export async function recalcularPorcentajesProyecto(
 
     revalidatePath(`/proyectos/[id]`, 'page');
     return { success: true, updated: updatedCount };
-
   } catch (error) {
     console.error('Error recalculating porcentajes:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -427,18 +504,20 @@ export async function recalcularPorcentajesProyecto(
  * Sincronizar el campo objetivos del proyecto con el progreso general de indicadores
  * Esta función calcula el promedio de avance de todos los indicadores y actualiza el proyecto
  */
-export async function sincronizarObjetivosProyecto(proyectoId: string): Promise<{
+export async function sincronizarObjetivosProyecto(
+  proyectoId: string
+): Promise<{
   success: boolean;
   progresoGeneral?: number;
   error?: string;
 }> {
   try {
     const result = await getIndicadoresByProyecto(proyectoId);
-    
+
     if (!result.success || !result.data) {
       return {
         success: false,
-        error: result.error || 'Error al obtener indicadores'
+        error: result.error || 'Error al obtener indicadores',
       };
     }
 
@@ -446,19 +525,18 @@ export async function sincronizarObjetivosProyecto(proyectoId: string): Promise<
 
     await prisma.proyecto.update({
       where: { id: proyectoId },
-      data: { objetivos: progresoGeneral }
+      data: { objetivos: progresoGeneral },
     });
 
     return {
       success: true,
-      progresoGeneral
+      progresoGeneral,
     };
   } catch (error) {
     console.error('Error al sincronizar objetivos del proyecto:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
-

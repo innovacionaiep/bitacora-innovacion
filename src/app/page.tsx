@@ -94,25 +94,37 @@ export default function HomePage() {
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Link href="/dashboard">
-                <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-auto py-4 flex-col gap-2"
+                >
                   <HomeIcon className="h-5 w-5" />
                   <span>Dashboard</span>
                 </Button>
               </Link>
               <Link href="/proyectos">
-                <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-auto py-4 flex-col gap-2"
+                >
                   <FolderKanban className="h-5 w-5" />
                   <span>Proyectos</span>
                 </Button>
               </Link>
               <Link href="/gantt">
-                <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-auto py-4 flex-col gap-2"
+                >
                   <BarChart3 className="h-5 w-5" />
                   <span>Gantt</span>
                 </Button>
               </Link>
               <Link href="/indicadores">
-                <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-auto py-4 flex-col gap-2"
+                >
                   <BarChart3 className="h-5 w-5" />
                   <span>Indicadores</span>
                 </Button>

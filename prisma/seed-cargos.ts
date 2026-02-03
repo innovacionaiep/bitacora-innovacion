@@ -108,12 +108,14 @@ async function asignarCargos() {
       return;
     }
 
-    console.log(`📋 Encontrados ${participantes.length} participantes sin cargo`);
+    console.log(
+      `📋 Encontrados ${participantes.length} participantes sin cargo`
+    );
 
     let actualizados = 0;
     for (const participante of participantes) {
       const cargo = obtenerCargoAleatorio(participante.rol);
-      
+
       if (cargo) {
         await prisma.proyectoParticipante.update({
           where: { id: participante.id },
@@ -134,8 +136,7 @@ async function asignarCargos() {
 }
 
 // Ejecutar el script
-asignarCargos()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+asignarCargos().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

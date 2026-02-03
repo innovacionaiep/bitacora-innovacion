@@ -5,8 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Handshake } from 'lucide-react';
 
 interface StakeholdersCardProps {
-  gruposInteres?: Array<{ grupoInteres: { nombre: string; descripcion?: string } }>;
-  sociosComunitarios?: Array<{ socioComunitario: { nombre: string; descripcion?: string } }>;
+  gruposInteres?: Array<{
+    grupoInteres: { nombre: string; descripcion?: string };
+  }>;
+  sociosComunitarios?: Array<{
+    socioComunitario: { nombre: string; descripcion?: string };
+  }>;
 }
 
 export function StakeholdersCard({
@@ -19,7 +23,7 @@ export function StakeholdersCard({
         <h3 className="text-sm font-semibold mb-3 text-gray-900">
           GRUPOS DE INTERÉS Y SOCIOS
         </h3>
-        
+
         <div className="space-y-4">
           {/* Grupos de Interés */}
           <div>

@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 async function asignarSociosABeneficiarios() {
   try {
     console.log('🔄 Obteniendo todos los beneficiarios...');
-    
+
     // Obtener todos los beneficiarios con sus proyectos
     const beneficiarios = await prisma.proyectoParticipante.findMany({
       where: {
@@ -42,20 +42,25 @@ async function asignarSociosABeneficiarios() {
       const sociosDelProyecto = beneficiario.proyecto.sociosComunitarios;
 
       if (sociosDelProyecto.length === 0) {
-        console.log(`⚠️  El proyecto "${beneficiario.proyecto.proyecto}" no tiene socios comunitarios asignados. Beneficiario "${beneficiario.nombre || beneficiario.id}" sin socio.`);
+        console.log(
+          `⚠️  El proyecto "${beneficiario.proyecto.proyecto}" no tiene socios comunitarios asignados. Beneficiario "${beneficiario.nombre || beneficiario.id}" sin socio.`
+        );
         sinSocio++;
         continue;
       }
 
       // Si ya tiene un socio asignado, lo saltamos
       if (beneficiario.socioComunitarioId) {
-        console.log(`⏭️  Beneficiario "${beneficiario.nombre || beneficiario.id}" ya tiene socio asignado.`);
+        console.log(
+          `⏭️  Beneficiario "${beneficiario.nombre || beneficiario.id}" ya tiene socio asignado.`
+        );
         continue;
       }
 
       // Asignar un socio aleatorio del proyecto
-      const socioAleatorio = sociosDelProyecto[Math.floor(Math.random() * sociosDelProyecto.length)];
-      
+      const socioAleatorio =
+        sociosDelProyecto[Math.floor(Math.random() * sociosDelProyecto.length)];
+
       await prisma.proyectoParticipante.update({
         where: {
           id: beneficiario.id,
@@ -66,14 +71,20 @@ async function asignarSociosABeneficiarios() {
       });
 
       asignados++;
-      console.log(`  ✅ Asignado socio "${socioAleatorio.socioComunitario.nombre}" a beneficiario "${beneficiario.nombre || beneficiario.id}"`);
+      console.log(
+        `  ✅ Asignado socio "${socioAleatorio.socioComunitario.nombre}" a beneficiario "${beneficiario.nombre || beneficiario.id}"`
+      );
     }
 
     console.log('\n✨ ¡Proceso completado exitosamente!');
     console.log(`📊 Resumen:`);
     console.log(`   - Beneficiarios con socio asignado: ${asignados}`);
-    console.log(`   - Beneficiarios sin socio (proyecto sin socios): ${sinSocio}`);
-    console.log(`   - Beneficiarios que ya tenían socio: ${beneficiarios.length - asignados - sinSocio}`);
+    console.log(
+      `   - Beneficiarios sin socio (proyecto sin socios): ${sinSocio}`
+    );
+    console.log(
+      `   - Beneficiarios que ya tenían socio: ${beneficiarios.length - asignados - sinSocio}`
+    );
   } catch (error) {
     console.error('❌ Error al asignar socios a beneficiarios:', error);
     throw error;
@@ -83,8 +94,7 @@ async function asignarSociosABeneficiarios() {
 }
 
 // Ejecutar el script
-asignarSociosABeneficiarios()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+asignarSociosABeneficiarios().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

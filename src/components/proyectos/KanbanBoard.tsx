@@ -27,7 +27,10 @@ import {
 } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { ActivityStatus } from '@prisma/client';
 
 // Tipos para las columnas del Kanban
@@ -44,37 +47,45 @@ interface KanbanBoardProps {
   activities: Activity[];
   onStatusChange: (activityId: string, status: KanbanStatus) => Promise<void>;
   onToggleTaskCompletion: (taskId: string) => Promise<void>;
-  onReorderActivities?: (activityId: string, targetActivityId: string, status: KanbanStatus) => Promise<void>;
-  onOptimisticReorder?: (activityId: string, targetActivityId: string, status: KanbanStatus) => void;
+  onReorderActivities?: (
+    activityId: string,
+    targetActivityId: string,
+    status: KanbanStatus
+  ) => Promise<void>;
+  onOptimisticReorder?: (
+    activityId: string,
+    targetActivityId: string,
+    status: KanbanStatus
+  ) => void;
   onAddActivity: () => void;
   isFullscreen?: boolean;
 }
 
-// Definición de columnas
+// Definición de columnas (colores un poco más marcados)
 const KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'TODO',
     title: 'Por hacer',
     color: 'text-gray-800',
-    bgColor: 'bg-gray-100',
+    bgColor: 'bg-gray-200',
   },
   {
     id: 'WAITING',
     title: 'En espera',
     color: 'text-amber-800',
-    bgColor: 'bg-amber-100',
+    bgColor: 'bg-amber-200',
   },
   {
     id: 'IN_PROGRESS',
     title: 'En proceso',
     color: 'text-blue-800',
-    bgColor: 'bg-blue-100',
+    bgColor: 'bg-blue-200',
   },
   {
     id: 'DONE',
-    title: 'Hecho',
+    title: 'Finalizada',
     color: 'text-emerald-800',
-    bgColor: 'bg-emerald-100',
+    bgColor: 'bg-emerald-200',
   },
 ];
 
@@ -91,6 +102,38 @@ const getColumnContentBgColor = (columnId: KanbanStatus): string => {
       return 'bg-emerald-50';
     default:
       return 'bg-gray-50';
+  }
+};
+
+// Color de las tarjetas (tono más suave que el encabezado)
+const getCardBgColor = (status: KanbanStatus): string => {
+  switch (status) {
+    case 'TODO':
+      return 'bg-gray-100';
+    case 'WAITING':
+      return 'bg-amber-100';
+    case 'IN_PROGRESS':
+      return 'bg-blue-100';
+    case 'DONE':
+      return 'bg-emerald-100';
+    default:
+      return 'bg-gray-100';
+  }
+};
+
+// Color de las tarjetas de tarea (mismo color que la actividad pero un tono más claro)
+const getTaskItemBgClasses = (status: KanbanStatus): string => {
+  switch (status) {
+    case 'TODO':
+      return 'bg-gray-50 hover:bg-gray-100';
+    case 'WAITING':
+      return 'bg-amber-50 hover:bg-amber-100';
+    case 'IN_PROGRESS':
+      return 'bg-blue-50 hover:bg-blue-100';
+    case 'DONE':
+      return 'bg-emerald-50 hover:bg-emerald-100';
+    default:
+      return 'bg-gray-50 hover:bg-gray-100';
   }
 };
 
@@ -115,7 +158,7 @@ function DraggableActivityCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: activity.id,
     data: {
       type: 'activity',
@@ -124,10 +167,7 @@ function DraggableActivityCard({
   });
 
   // También hacer esta actividad droppable para interceptar drops
-  const {
-    setNodeRef: setDroppableRef,
-    isOver: isOverActivity,
-  } = useDroppable({
+  const { setNodeRef: setDroppableRef, isOver: isOverActivity } = useDroppable({
     id: `activity-${activity.id}`,
     data: {
       type: 'activity',
@@ -147,33 +187,33 @@ function DraggableActivityCard({
   // Calcular progreso de la actividad
   const getActivityProgress = () => {
     if (!activity.tasks || activity.tasks.length === 0) return 0;
-    const completedTasks = activity.tasks.filter((task) => task.completed).length;
+    const completedTasks = activity.tasks.filter(
+      (task) => task.completed
+    ).length;
     return Math.round((completedTasks / activity.tasks.length) * 100);
   };
 
   const progress = getActivityProgress();
 
-  // Formatear fecha para mostrar
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    return `${day}/${month}`;
-  };
-
   return (
-    <div 
+    <div
       ref={(node) => {
         setNodeRef(node);
         setDroppableRef(node);
-      }} 
-      style={style} 
-      {...attributes} 
+      }}
+      style={style}
+      {...attributes}
       {...listeners}
     >
-      <Card className={`mb-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${
-        isBeingDraggedOver ? 'ring-2 ring-blue-400 bg-blue-50 border-blue-300' : ''
-      }`}>
+      <Card
+        className={`mb-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${getCardBgColor(
+          activity.status || 'TODO'
+        )} ${
+          isBeingDraggedOver
+            ? 'ring-2 ring-blue-400 border-blue-300'
+            : 'border-gray-200'
+        }`}
+      >
         <CardContent className="p-4">
           {/* Header de la tarjeta */}
           <div className="flex items-start justify-between mb-3">
@@ -198,29 +238,26 @@ function DraggableActivityCard({
             </Button>
           </div>
 
-          {/* Barra de progreso */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-500">Progreso</span>
-              <span className="text-xs font-medium text-gray-700">
+          {/* Tareas completadas + barra de progreso en la misma línea */}
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <CheckCircle className="h-3.5 w-3.5" />
+              <span>
+                {activity.tasks.filter((t) => t.completed).length} /{' '}
+                {activity.tasks.length} tareas completadas
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-1 min-w-0 bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium text-gray-700 flex-shrink-0">
                 {progress}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Contador de tareas */}
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
-            <CheckCircle className="h-3.5 w-3.5" />
-            <span>
-              {activity.tasks.filter((t) => t.completed).length} /{' '}
-              {activity.tasks.length} tareas completadas
-            </span>
           </div>
 
           {/* Lista de tareas expandible */}
@@ -235,7 +272,9 @@ function DraggableActivityCard({
                 .map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-start space-x-2 p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+                    className={`flex items-start space-x-2 p-2 rounded-md transition-colors ${getTaskItemBgClasses(
+                      activity.status || 'TODO'
+                    )}`}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
                     {/* Checkbox */}
@@ -283,15 +322,6 @@ function DraggableActivityCard({
                       >
                         {task.name}
                       </p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge
-                          variant="outline"
-                          className="text-xs px-1.5 py-0 h-5"
-                        >
-                          {formatDate(task.startDate)} -{' '}
-                          {formatDate(task.endDate)}
-                        </Badge>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -317,7 +347,9 @@ export default function KanbanBoard({
     new Set()
   );
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [optimisticActivities, setOptimisticActivities] = useState<Activity[] | null>(null);
+  const [optimisticActivities, setOptimisticActivities] = useState<
+    Activity[] | null
+  >(null);
 
   // Configuración de sensores para drag and drop
   const sensors = useSensors(
@@ -361,14 +393,16 @@ export default function KanbanBoard({
   // Manejar drag over para mejorar la detección
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    
+
     // Si estamos arrastrando sobre una actividad, encontrar su columna padre
     if (over && over.data.current?.type === 'activity') {
       const activity = over.data.current.activity;
       const targetStatus = activity.status || ActivityStatus.TODO;
-      
+
       // Forzar la detección del drop zone de la columna
-      const columnElement = document.querySelector(`[data-rbd-droppable-id="${targetStatus}"]`);
+      const columnElement = document.querySelector(
+        `[data-rbd-droppable-id="${targetStatus}"]`
+      );
       if (columnElement) {
         columnElement.classList.add('drop-zone-active');
       }
@@ -376,12 +410,20 @@ export default function KanbanBoard({
   };
 
   // Función para calcular la posición de inserción basada en la posición del mouse
-  const calculateInsertionIndex = (targetActivityId: string, currentActivityId: string, activitiesInColumn: Activity[]) => {
-    const currentIndex = activitiesInColumn.findIndex(a => a.id === currentActivityId);
-    const targetIndex = activitiesInColumn.findIndex(a => a.id === targetActivityId);
-    
+  const calculateInsertionIndex = (
+    targetActivityId: string,
+    currentActivityId: string,
+    activitiesInColumn: Activity[]
+  ) => {
+    const currentIndex = activitiesInColumn.findIndex(
+      (a) => a.id === currentActivityId
+    );
+    const targetIndex = activitiesInColumn.findIndex(
+      (a) => a.id === targetActivityId
+    );
+
     if (currentIndex === -1 || targetIndex === -1) return currentIndex;
-    
+
     // Si se mueve hacia abajo (currentIndex < targetIndex), insertar después del target
     if (currentIndex < targetIndex) {
       return targetIndex;
@@ -397,8 +439,8 @@ export default function KanbanBoard({
 
     if (over && active.id !== over.id) {
       const activityId = active.id as string;
-      const activeActivity = activities.find(a => a.id === activityId);
-      
+      const activeActivity = activities.find((a) => a.id === activityId);
+
       if (!activeActivity) return;
 
       // Limpiar el estado de expansión para la actividad que se está moviendo
@@ -419,7 +461,7 @@ export default function KanbanBoard({
         // Drop sobre actividad - determinar si es reordenamiento o cambio de columna
         const targetActivity = over.data.current.activity;
         const targetStatus = targetActivity.status || ActivityStatus.TODO;
-        
+
         if (activeActivity.status === targetStatus) {
           // Misma columna - es reordenamiento
           isReorder = true;
@@ -431,9 +473,9 @@ export default function KanbanBoard({
       } else if (over.id.toString().startsWith('activity-')) {
         // ID con prefijo activity-
         const realActivityId = over.id.toString().replace('activity-', '');
-        const targetActivity = activities.find(a => a.id === realActivityId);
+        const targetActivity = activities.find((a) => a.id === realActivityId);
         const targetStatus = targetActivity?.status || ActivityStatus.TODO;
-        
+
         if (activeActivity.status === targetStatus) {
           // Misma columna - es reordenamiento
           isReorder = true;
@@ -451,40 +493,57 @@ export default function KanbanBoard({
         // Reordenamiento dentro de la misma columna
         // Actualización optimista primero
         const activitiesInColumn = currentActivities
-          .filter(a => a.status === activeActivity.status)
-          .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
-        
-        const currentIndex = activitiesInColumn.findIndex(a => a.id === activityId);
-        const targetIndex = activitiesInColumn.findIndex(a => a.id === over.id);
-        
-        if (currentIndex !== -1 && targetIndex !== -1 && currentIndex !== targetIndex) {
+          .filter((a) => a.status === activeActivity.status)
+          .sort(
+            (a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0)
+          );
+
+        const currentIndex = activitiesInColumn.findIndex(
+          (a) => a.id === activityId
+        );
+        const targetIndex = activitiesInColumn.findIndex(
+          (a) => a.id === over.id
+        );
+
+        if (
+          currentIndex !== -1 &&
+          targetIndex !== -1 &&
+          currentIndex !== targetIndex
+        ) {
           // Crear una copia de solo las actividades de esta columna
           const reorderedColumnActivities = [...activitiesInColumn];
-          const [movedActivity] = reorderedColumnActivities.splice(currentIndex, 1);
+          const [movedActivity] = reorderedColumnActivities.splice(
+            currentIndex,
+            1
+          );
           reorderedColumnActivities.splice(targetIndex, 0, movedActivity);
-          
+
           // Calcular el kanbanOrderIndex para las actividades de esta columna
           const updates = reorderedColumnActivities.map((activity, index) => ({
             id: activity.id,
             kanbanOrderIndex: index,
           }));
-          
+
           // Actualización optimista: actualizar el estado local inmediatamente
-          const updatedActivities = currentActivities.map(activity => {
-            const update = updates.find(u => u.id === activity.id);
+          const updatedActivities = currentActivities.map((activity) => {
+            const update = updates.find((u) => u.id === activity.id);
             if (update) {
               return { ...activity, kanbanOrderIndex: update.kanbanOrderIndex };
             }
             return activity;
           });
-          
+
           // Aplicar la actualización optimista
           setOptimisticActivities(updatedActivities);
         }
-        
+
         // Luego la actualización del servidor
         try {
-          await onReorderActivities(activityId, over.id as string, activeActivity.status);
+          await onReorderActivities(
+            activityId,
+            over.id as string,
+            activeActivity.status
+          );
           // Limpiar el estado optimista inmediatamente después de confirmar
           // El estado del padre ya está actualizado correctamente
           setOptimisticActivities(null);
@@ -513,7 +572,9 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-135px)]' : 'h-[calc(100vh-300px)]'}`}>
+      <div
+        className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-135px)]' : 'h-[calc(100vh-300px)]'}`}
+      >
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -530,7 +591,11 @@ export default function KanbanBoard({
       {/* Overlay para mostrar la tarjeta mientras se arrastra */}
       <DragOverlay>
         {activeActivity ? (
-          <Card className="shadow-lg opacity-90 w-80">
+          <Card
+            className={`shadow-lg opacity-90 w-80 ${getCardBgColor(
+              activeActivity.status || 'TODO'
+            )} border-gray-200`}
+          >
             <CardContent className="p-4">
               <h4 className="font-semibold text-sm text-gray-900">
                 {activeActivity.name}
@@ -561,10 +626,7 @@ function KanbanColumn({
   onToggleTaskCompletion,
   onAddActivity,
 }: KanbanColumnProps) {
-  const {
-    setNodeRef,
-    isOver,
-  } = useDroppable({ 
+  const { setNodeRef, isOver } = useDroppable({
     id: column.id,
     data: {
       type: 'column',
@@ -576,15 +638,17 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={`flex-1 min-w-[250px] h-full flex flex-col ${
-        isOver 
-          ? 'bg-blue-50 border-2 border-blue-400 shadow-lg' 
+        isOver
+          ? 'bg-blue-50 border-2 border-blue-400 shadow-lg'
           : 'border-2 border-transparent'
       } rounded-lg transition-all duration-200`}
     >
       {/* Header de la columna */}
-      <div className={`${column.bgColor} rounded-t-lg p-4 border-b-2 border-gray-200 transition-all duration-200 flex-shrink-0 ${
-        isOver ? 'bg-blue-100 border-blue-300' : ''
-      }`}>
+      <div
+        className={`${column.bgColor} rounded-t-lg p-4 border-b-2 border-gray-200 transition-all duration-200 flex-shrink-0 ${
+          isOver ? 'bg-blue-100 border-blue-300' : ''
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="relative group">
@@ -600,9 +664,11 @@ function KanbanColumn({
                 Agregar actividad
               </div>
             </div>
-            <h3 className={`font-semibold text-sm transition-colors duration-200 ${
-              isOver ? 'text-blue-700' : column.color
-            }`}>
+            <h3
+              className={`font-semibold text-sm transition-colors duration-200 ${
+                isOver ? 'text-blue-700' : column.color
+              }`}
+            >
               {column.title}
               {isOver && <span className="ml-2 text-xs">← Suelta aquí</span>}
             </h3>
@@ -614,20 +680,26 @@ function KanbanColumn({
       </div>
 
       {/* Lista de tarjetas - Toda esta área es droppable */}
-      <div className={`p-4 space-y-3 flex-1 overflow-y-auto transition-all duration-200 ${
-        isOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : getColumnContentBgColor(column.id)
-      }`}>
+      <div
+        className={`p-4 space-y-3 flex-1 overflow-y-auto transition-all duration-200 ${
+          isOver
+            ? 'bg-blue-50 border-2 border-dashed border-blue-300'
+            : getColumnContentBgColor(column.id)
+        }`}
+      >
         {activities.length === 0 ? (
-          <div className={`flex flex-col items-center justify-center py-8 transition-colors duration-200 ${
-            isOver ? 'text-blue-600' : 'text-gray-400'
-          }`}>
+          <div
+            className={`flex flex-col items-center justify-center py-8 transition-colors duration-200 ${
+              isOver ? 'text-blue-600' : 'text-gray-400'
+            }`}
+          >
             <Circle className="h-8 w-8 mb-2" />
             <p className="text-sm">No hay actividades</p>
             <p className="text-xs mt-1">Arrastra una actividad aquí</p>
           </div>
         ) : (
-          <SortableContext 
-            items={activities.map(a => a.id)} 
+          <SortableContext
+            items={activities.map((a) => a.id)}
             strategy={verticalListSortingStrategy}
           >
             {activities.map((activity) => (
@@ -651,4 +723,3 @@ function KanbanColumn({
     </div>
   );
 }
-

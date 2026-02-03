@@ -29,7 +29,8 @@ async function seedComplete() {
       data: {
         name: 'Administrador',
         email: 'admin@test.com',
-        password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K', // password
+        password:
+          '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K', // password
         activeRole: 'Admin',
       },
     });
@@ -38,7 +39,8 @@ async function seedComplete() {
       data: {
         name: 'Rosa Diaz Soto',
         email: 'rosa.diaz.s@aiep.cl',
-        password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K',
+        password:
+          '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K',
         activeRole: 'Encargado',
       },
     });
@@ -47,7 +49,8 @@ async function seedComplete() {
       data: {
         name: 'Carlos Mendez',
         email: 'carlos.mendez@aiep.cl',
-        password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K',
+        password:
+          '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJbtJjXvEB4yF59lW3K',
         activeRole: 'Coordinador',
       },
     });
@@ -57,44 +60,108 @@ async function seedComplete() {
 
     // Escuelas
     const escuelas = await Promise.all([
-      prisma.escuela.create({ data: { nombre: 'Artes e Industrias Creativas', codigo: 'AIC' } }),
-      prisma.escuela.create({ data: { nombre: 'Gastronomía, Hotelería y Turismo', codigo: 'GHT' } }),
-      prisma.escuela.create({ data: { nombre: 'Estética Integral', codigo: 'EI' } }),
+      prisma.escuela.create({
+        data: { nombre: 'Artes e Industrias Creativas', codigo: 'AIC' },
+      }),
+      prisma.escuela.create({
+        data: { nombre: 'Gastronomía, Hotelería y Turismo', codigo: 'GHT' },
+      }),
+      prisma.escuela.create({
+        data: { nombre: 'Estética Integral', codigo: 'EI' },
+      }),
       prisma.escuela.create({ data: { nombre: 'Tecnología', codigo: 'TEC' } }),
       prisma.escuela.create({ data: { nombre: 'Negocios', codigo: 'NEG' } }),
     ]);
 
     // Carreras
     const carreras = await Promise.all([
-      prisma.carrera.create({ data: { nombre: 'Contabilidad', escuelaId: escuelas[4].id } }),
-      prisma.carrera.create({ data: { nombre: 'Administración de Empresas', escuelaId: escuelas[4].id } }),
-      prisma.carrera.create({ data: { nombre: 'Operaciones Logísticas', escuelaId: escuelas[4].id } }),
-      prisma.carrera.create({ data: { nombre: 'Desarrollo Social', escuelaId: escuelas[0].id } }),
-      prisma.carrera.create({ data: { nombre: 'Educación', escuelaId: escuelas[0].id } }),
+      prisma.carrera.create({
+        data: { nombre: 'Contabilidad', escuelaId: escuelas[4].id },
+      }),
+      prisma.carrera.create({
+        data: {
+          nombre: 'Administración de Empresas',
+          escuelaId: escuelas[4].id,
+        },
+      }),
+      prisma.carrera.create({
+        data: { nombre: 'Operaciones Logísticas', escuelaId: escuelas[4].id },
+      }),
+      prisma.carrera.create({
+        data: { nombre: 'Desarrollo Social', escuelaId: escuelas[0].id },
+      }),
+      prisma.carrera.create({
+        data: { nombre: 'Educación', escuelaId: escuelas[0].id },
+      }),
     ]);
 
     // Comunas
     const comunas = await Promise.all([
-      prisma.comuna.create({ data: { nombre: 'San Bernardo', region: 'Metropolitana' } }),
-      prisma.comuna.create({ data: { nombre: 'Antofagasta', region: 'Antofagasta' } }),
-      prisma.comuna.create({ data: { nombre: 'La Serena', region: 'Coquimbo' } }),
-      prisma.comuna.create({ data: { nombre: 'Los Ángeles', region: 'Biobío' } }),
-      prisma.comuna.create({ data: { nombre: 'Santiago', region: 'Metropolitana' } }),
+      prisma.comuna.create({
+        data: { nombre: 'San Bernardo', region: 'Metropolitana' },
+      }),
+      prisma.comuna.create({
+        data: { nombre: 'Antofagasta', region: 'Antofagasta' },
+      }),
+      prisma.comuna.create({
+        data: { nombre: 'La Serena', region: 'Coquimbo' },
+      }),
+      prisma.comuna.create({
+        data: { nombre: 'Los Ángeles', region: 'Biobío' },
+      }),
+      prisma.comuna.create({
+        data: { nombre: 'Santiago', region: 'Metropolitana' },
+      }),
     ]);
 
     // Grupos de Interés
     const gruposInteres = await Promise.all([
-      prisma.grupoInteres.create({ data: { nombre: 'Sociedad civil', descripcion: 'Organizaciones de la sociedad civil' } }),
-      prisma.grupoInteres.create({ data: { nombre: 'Organizaciones sociales', descripcion: 'Organizaciones sociales y comunitarias' } }),
-      prisma.grupoInteres.create({ data: { nombre: 'Sector productivo y de servicios', descripcion: 'Empresas del sector productivo y de servicios' } }),
-      prisma.grupoInteres.create({ data: { nombre: 'Municipalidades y organismos públicos', descripcion: 'Instituciones públicas y municipales' } }),
+      prisma.grupoInteres.create({
+        data: {
+          nombre: 'Sociedad civil',
+          descripcion: 'Organizaciones de la sociedad civil',
+        },
+      }),
+      prisma.grupoInteres.create({
+        data: {
+          nombre: 'Organizaciones sociales',
+          descripcion: 'Organizaciones sociales y comunitarias',
+        },
+      }),
+      prisma.grupoInteres.create({
+        data: {
+          nombre: 'Sector productivo y de servicios',
+          descripcion: 'Empresas del sector productivo y de servicios',
+        },
+      }),
+      prisma.grupoInteres.create({
+        data: {
+          nombre: 'Municipalidades y organismos públicos',
+          descripcion: 'Instituciones públicas y municipales',
+        },
+      }),
     ]);
 
     // Socios Comunitarios
     const sociosComunitarios = await Promise.all([
-      prisma.socioComunitario.create({ data: { nombre: 'Sercotec', descripcion: 'Servicio de Cooperación Técnica' } }),
-      prisma.socioComunitario.create({ data: { nombre: 'Dideco San Bernardo', descripcion: 'Dirección de Desarrollo Comunitario' } }),
-      prisma.socioComunitario.create({ data: { nombre: 'Organizaciones Civiles', descripcion: 'Organizaciones de la sociedad civil' } }),
+      prisma.socioComunitario.create({
+        data: {
+          nombre: 'Sercotec',
+          descripcion: 'Servicio de Cooperación Técnica',
+        },
+      }),
+      prisma.socioComunitario.create({
+        data: {
+          nombre: 'Dideco San Bernardo',
+          descripcion: 'Dirección de Desarrollo Comunitario',
+        },
+      }),
+      prisma.socioComunitario.create({
+        data: {
+          nombre: 'Organizaciones Civiles',
+          descripcion: 'Organizaciones de la sociedad civil',
+        },
+      }),
     ]);
 
     // 4. Crear proyectos de ejemplo
@@ -102,10 +169,11 @@ async function seedComplete() {
 
     const proyecto1 = await prisma.proyecto.create({
       data: {
-        proyecto: "TechLakou: Alfabetización digital y emprendimiento tecnológico para haitianos",
-        fondo: "IMPULSA",
-        sede: "San Bernardo",
-        focalizacion: "Social",
+        proyecto:
+          'TechLakou: Alfabetización digital y emprendimiento tecnológico para haitianos',
+        fondo: 'IMPULSA',
+        sede: 'San Bernardo',
+        focalizacion: 'Social',
         avanceGantt: 45,
         objetivos: 60,
         presupuestoUsado: 3500000,
@@ -147,16 +215,29 @@ async function seedComplete() {
 
     await prisma.proyectoSocioComunitario.createMany({
       data: [
-        { proyectoId: proyecto1.id, socioComunitarioId: sociosComunitarios[0].id }, // Sercotec
-        { proyectoId: proyecto1.id, socioComunitarioId: sociosComunitarios[1].id }, // Dideco San Bernardo
-        { proyectoId: proyecto1.id, socioComunitarioId: sociosComunitarios[2].id }, // Organizaciones Civiles
+        {
+          proyectoId: proyecto1.id,
+          socioComunitarioId: sociosComunitarios[0].id,
+        }, // Sercotec
+        {
+          proyectoId: proyecto1.id,
+          socioComunitarioId: sociosComunitarios[1].id,
+        }, // Dideco San Bernardo
+        {
+          proyectoId: proyecto1.id,
+          socioComunitarioId: sociosComunitarios[2].id,
+        }, // Organizaciones Civiles
       ],
     });
 
     await prisma.proyectoParticipante.createMany({
       data: [
         { proyectoId: proyecto1.id, userId: encargado.id, rol: 'Encargado' },
-        { proyectoId: proyecto1.id, userId: coordinador.id, rol: 'Coordinador' },
+        {
+          proyectoId: proyecto1.id,
+          userId: coordinador.id,
+          rol: 'Coordinador',
+        },
       ],
     });
 
@@ -165,25 +246,29 @@ async function seedComplete() {
         {
           proyectoId: proyecto1.id,
           tipo: 'General',
-          descripcion: 'Fortalecer los emprendimientos de la comunidad haitiana en San Bernardo, mediante competencias en alfabetización digital, marketing y gestión contable, con enfoque inclusivo e intercultural.',
+          descripcion:
+            'Fortalecer los emprendimientos de la comunidad haitiana en San Bernardo, mediante competencias en alfabetización digital, marketing y gestión contable, con enfoque inclusivo e intercultural.',
           orden: 0,
         },
         {
           proyectoId: proyecto1.id,
           tipo: 'Especifico',
-          descripcion: 'Identificar las brechas digitales y necesidades de formación de la comunidad haitiana',
+          descripcion:
+            'Identificar las brechas digitales y necesidades de formación de la comunidad haitiana',
           orden: 1,
         },
         {
           proyectoId: proyecto1.id,
           tipo: 'Especifico',
-          descripcion: 'Implementar talleres formativos en herramientas digitales aplicadas al emprendimiento',
+          descripcion:
+            'Implementar talleres formativos en herramientas digitales aplicadas al emprendimiento',
           orden: 2,
         },
         {
           proyectoId: proyecto1.id,
           tipo: 'Especifico',
-          descripcion: 'Capacitar a la comunidad haitiana en competencias lingüísticas funcionales en español y creolé, orientadas al uso de plataformas digitales y la promoción de sus emprendimientos.',
+          descripcion:
+            'Capacitar a la comunidad haitiana en competencias lingüísticas funcionales en español y creolé, orientadas al uso de plataformas digitales y la promoción de sus emprendimientos.',
           orden: 3,
         },
       ],
@@ -192,10 +277,10 @@ async function seedComplete() {
     // Proyecto 2
     const proyecto2 = await prisma.proyecto.create({
       data: {
-        proyecto: "AntofaSuena 2025. Música-Industria-Territorio",
-        fondo: "IMPULSA",
-        sede: "Antofagasta",
-        focalizacion: "Productiva",
+        proyecto: 'AntofaSuena 2025. Música-Industria-Territorio',
+        fondo: 'IMPULSA',
+        sede: 'Antofagasta',
+        focalizacion: 'Productiva',
         avanceGantt: 30,
         objetivos: 40,
         presupuestoUsado: 2000000,
@@ -226,29 +311,35 @@ async function seedComplete() {
         {
           proyectoId: proyecto2.id,
           tipo: 'General',
-          descripcion: 'Fortalecer la industria musical de Antofagasta mediante la creación de espacios de encuentro entre artistas locales, productores y la comunidad.',
+          descripcion:
+            'Fortalecer la industria musical de Antofagasta mediante la creación de espacios de encuentro entre artistas locales, productores y la comunidad.',
           orden: 0,
         },
         {
           proyectoId: proyecto2.id,
           tipo: 'Especifico',
-          descripcion: 'Organizar festivales musicales que promuevan el talento local',
+          descripcion:
+            'Organizar festivales musicales que promuevan el talento local',
           orden: 1,
         },
         {
           proyectoId: proyecto2.id,
           tipo: 'Especifico',
-          descripcion: 'Desarrollar una plataforma digital para promover el talento regional',
+          descripcion:
+            'Desarrollar una plataforma digital para promover el talento regional',
           orden: 2,
         },
       ],
     });
 
     console.log('✅ Seed completo finalizado exitosamente');
-    console.log(`📊 Creados: ${escuelas.length} escuelas, ${carreras.length} carreras, ${comunas.length} comunas`);
-    console.log(`📊 Creados: ${gruposInteres.length} grupos de interés, ${sociosComunitarios.length} socios comunitarios`);
+    console.log(
+      `📊 Creados: ${escuelas.length} escuelas, ${carreras.length} carreras, ${comunas.length} comunas`
+    );
+    console.log(
+      `📊 Creados: ${gruposInteres.length} grupos de interés, ${sociosComunitarios.length} socios comunitarios`
+    );
     console.log(`📊 Creados: 2 proyectos con todas sus relaciones`);
-
   } catch (error) {
     console.error('❌ Error durante el seed:', error);
     throw error;
@@ -258,10 +349,8 @@ async function seedComplete() {
 }
 
 if (require.main === module) {
-  seedComplete()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    });
+  seedComplete().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
-

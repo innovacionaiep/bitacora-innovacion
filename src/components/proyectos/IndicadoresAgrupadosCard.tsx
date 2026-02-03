@@ -39,21 +39,28 @@ interface IndicadoresAgrupadosCardProps {
   }>;
 }
 
-export function IndicadoresAgrupadosCard({ 
-  indicadores, 
+export function IndicadoresAgrupadosCard({
+  indicadores,
   onIndicadorClick,
-  indicadoresCompletos
+  indicadoresCompletos,
 }: IndicadoresAgrupadosCardProps) {
   // Parsear los valores numéricos de los resultados
   const parseValue = (value: string): number => {
     if (!value || value === '') return 0;
-    const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+    const cleaned = value
+      .toString()
+      .replace(/%/g, '')
+      .replace(/,/g, '.')
+      .trim();
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   };
-  
+
   // Formatear el resultado según el formato del número
-  const formatResultado = (value: string, formato: string | null | undefined): string => {
+  const formatResultado = (
+    value: string,
+    formato: string | null | undefined
+  ): string => {
     const numValue = parseValue(value);
     if (formato === 'Porcentaje') {
       return `${Math.round(numValue)}%`;
@@ -72,10 +79,11 @@ export function IndicadoresAgrupadosCard({
   const getColorActual = (indicador: IndicadorData): string => {
     const resultadoEsperadoNum = parseValue(indicador.resultadoEsperado);
     const resultadoAlcanzadoNum = parseValue(indicador.resultadoAlcanzado);
-    
+
     let porcentajeCumplimiento = 0;
     if (resultadoEsperadoNum > 0) {
-      porcentajeCumplimiento = (resultadoAlcanzadoNum / resultadoEsperadoNum) * 100;
+      porcentajeCumplimiento =
+        (resultadoAlcanzadoNum / resultadoEsperadoNum) * 100;
     } else if (resultadoAlcanzadoNum > 0) {
       porcentajeCumplimiento = 100;
     }
@@ -93,10 +101,18 @@ export function IndicadoresAgrupadosCard({
     <div className="relative flex-shrink-0">
       <div className="relative bg-white border border-gray-200 text-gray-900 rounded-lg shadow-sm w-[580px]">
         {indicadores.map((indicador, index) => {
-          const resultadoEsperadoFormateado = formatResultado(indicador.resultadoEsperado, indicador.formatoNumero);
-          const resultadoAlcanzadoFormateado = formatResultado(indicador.resultadoAlcanzado, indicador.formatoNumero);
+          const resultadoEsperadoFormateado = formatResultado(
+            indicador.resultadoEsperado,
+            indicador.formatoNumero
+          );
+          const resultadoAlcanzadoFormateado = formatResultado(
+            indicador.resultadoAlcanzado,
+            indicador.formatoNumero
+          );
           const colorActual = getColorActual(indicador);
-          const indicadorCompleto = indicadoresCompletos.find(ic => ic.id === indicador.id);
+          const indicadorCompleto = indicadoresCompletos.find(
+            (ic) => ic.id === indicador.id
+          );
 
           return (
             <div key={indicador.id}>
@@ -114,31 +130,43 @@ export function IndicadoresAgrupadosCard({
                       </h5>
                     </div>
                   </div>
-                  
+
                   {/* Valores Esperado y Actual - a la derecha del texto */}
                   <div className="flex items-center gap-3 flex-shrink-0">
                     {/* Esperado */}
-                    <div className="flex flex-col items-end" style={{ width: '80px' }}>
-                      <span className="text-xs font-bold text-blue-600">Esperado</span>
+                    <div
+                      className="flex flex-col items-end"
+                      style={{ width: '80px' }}
+                    >
+                      <span className="text-xs font-bold text-blue-600">
+                        Esperado
+                      </span>
                       <span className="text-lg font-bold text-blue-600 whitespace-nowrap">
                         {resultadoEsperadoFormateado}
                       </span>
                     </div>
-                    
+
                     {/* Separador vertical */}
                     <div className="h-8 w-px bg-gray-300"></div>
-                    
+
                     {/* Actual */}
-                    <div className="flex flex-col items-end" style={{ width: '80px' }}>
-                      <span className={`text-xs font-bold ${colorActual}`}>Actual</span>
-                      <span className={`text-lg font-bold ${colorActual} whitespace-nowrap`}>
+                    <div
+                      className="flex flex-col items-end"
+                      style={{ width: '80px' }}
+                    >
+                      <span className={`text-xs font-bold ${colorActual}`}>
+                        Actual
+                      </span>
+                      <span
+                        className={`text-lg font-bold ${colorActual} whitespace-nowrap`}
+                      >
                         {resultadoAlcanzadoFormateado}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               {/* Separador horizontal entre indicadores (excepto el último) */}
               {index < indicadores.length - 1 && (
                 <div className="h-px bg-gray-300 mx-4"></div>

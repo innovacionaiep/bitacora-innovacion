@@ -1,7 +1,7 @@
 /**
  * Seed script para crear snapshots del mes anterior como línea base
  * Este script genera datos de diciembre 2025 para todos los proyectos existentes
- * 
+ *
  * Ejecutar con: npx ts-node prisma/seed-snapshots.ts
  * O: npx tsx prisma/seed-snapshots.ts
  */
@@ -19,7 +19,7 @@ function randomVariation(min: number, max: number): number {
 
 async function main() {
   console.log('🌱 Iniciando seed de snapshots mensuales...');
-  
+
   // Obtener todos los proyectos con sus valores actuales
   const proyectos = await prisma.proyecto.findMany({
     select: {
@@ -48,9 +48,15 @@ async function main() {
       // Los valores serán menores que los actuales, simulando que hubo avance durante el mes
       const variacionGantt = randomVariation(5, 25);
       const variacionObjetivos = randomVariation(5, 20);
-      
-      const avanceGanttAnterior = Math.max(0, proyecto.avanceGantt - variacionGantt);
-      const objetivosAnterior = Math.max(0, proyecto.objetivos - variacionObjetivos);
+
+      const avanceGanttAnterior = Math.max(
+        0,
+        proyecto.avanceGantt - variacionGantt
+      );
+      const objetivosAnterior = Math.max(
+        0,
+        proyecto.objetivos - variacionObjetivos
+      );
 
       // Crear o actualizar el snapshot
       const resultado = await prisma.snapshotMensualProyecto.upsert({
@@ -85,7 +91,7 @@ async function main() {
             },
           },
         });
-        
+
         if (existente) {
           creados++;
         } else {
@@ -93,7 +99,9 @@ async function main() {
         }
       }
 
-      console.log(`  ✅ ${proyecto.proyecto.substring(0, 40)}... | Gantt: ${proyecto.avanceGantt}% → ${avanceGanttAnterior}% | Obj: ${proyecto.objetivos}% → ${objetivosAnterior}%`);
+      console.log(
+        `  ✅ ${proyecto.proyecto.substring(0, 40)}... | Gantt: ${proyecto.avanceGantt}% → ${avanceGanttAnterior}% | Obj: ${proyecto.objetivos}% → ${objetivosAnterior}%`
+      );
     } catch (error) {
       console.error(`  ❌ Error con proyecto ${proyecto.id}:`, error);
       errores++;

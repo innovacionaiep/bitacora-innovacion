@@ -7,8 +7,20 @@ import { signUp } from '@/lib/auth-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Eye, EyeOff, Mail, Lock, User, CheckCircle } from 'lucide-react';
 import { REGISTER_ROLES, type Role } from '@/lib/auth-utils';
 
@@ -266,11 +278,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
               </Button>
             </form>
@@ -280,7 +288,10 @@ export default function RegisterPage() {
         <div className="text-center text-sm text-gray-600">
           <p>
             ¿Ya tienes cuenta?{' '}
-            <a href="/auth/login" className="font-medium text-primary hover:text-primary/80">
+            <a
+              href="/auth/login"
+              className="font-medium text-primary hover:text-primary/80"
+            >
               Inicia sesión aquí
             </a>
           </p>

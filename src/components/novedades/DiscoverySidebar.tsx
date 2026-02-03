@@ -5,7 +5,11 @@ import { Compass, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DiscoveryProjects } from './DiscoveryProjects';
 import { TrendingSection } from './TrendingSection';
-import { RandomProject, MonthlyTrends, getRandomProjects } from '@/lib/actions/discovery';
+import {
+  RandomProject,
+  MonthlyTrends,
+  getRandomProjects,
+} from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
 interface DiscoverySidebarProps {
@@ -36,7 +40,9 @@ export function DiscoverySidebar({
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <Compass className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
-            <h2 className="text-[18px] font-semibold text-emerald-600">Descubre proyectos</h2>
+            <h2 className="text-[18px] font-semibold text-emerald-600">
+              Descubre proyectos
+            </h2>
           </div>
           <Button
             variant="ghost"

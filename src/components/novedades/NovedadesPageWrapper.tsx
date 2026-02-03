@@ -5,11 +5,21 @@ import { useSession } from 'next-auth/react';
 import { NovedadesContent } from './NovedadesContent';
 import { EventosWall } from './EventosWall';
 import { EventoDetallesModal } from './EventoDetallesModal';
-import { ConvocatoriasWall, type ConvocatoriaPlaceholder } from './ConvocatoriasWall';
-import { ConvocatoriaDetallesModal, type ConvocatoriaSavedData } from './ConvocatoriaDetallesModal';
+import {
+  ConvocatoriasWall,
+  type ConvocatoriaPlaceholder,
+} from './ConvocatoriasWall';
+import {
+  ConvocatoriaDetallesModal,
+  type ConvocatoriaSavedData,
+} from './ConvocatoriaDetallesModal';
 import { DiscoverySidebar } from './DiscoverySidebar';
 import { PostWithRelations } from '@/lib/actions/posts';
-import { RandomProject, MonthlyTrends, getMonthlyTrends } from '@/lib/actions/discovery';
+import {
+  RandomProject,
+  MonthlyTrends,
+  getMonthlyTrends,
+} from '@/lib/actions/discovery';
 import { Separator } from '@/components/ui/separator';
 
 const CONVOCATORIAS_INITIAL: ConvocatoriaPlaceholder[] = [
@@ -60,11 +70,17 @@ export function NovedadesPageWrapper({
   const [attendanceKey, setAttendanceKey] = useState(0);
   const [eventoModalOpen, setEventoModalOpen] = useState(false);
   const [selectedEventoId, setSelectedEventoId] = useState<string | null>(null);
-  const [trends, setTrends] = useState<MonthlyTrends | null>(initialTrends ?? null);
+  const [trends, setTrends] = useState<MonthlyTrends | null>(
+    initialTrends ?? null
+  );
 
-  const [convocatorias, setConvocatorias] = useState<ConvocatoriaPlaceholder[]>(CONVOCATORIAS_INITIAL);
+  const [convocatorias, setConvocatorias] = useState<ConvocatoriaPlaceholder[]>(
+    CONVOCATORIAS_INITIAL
+  );
   const [convocatoriaModalOpen, setConvocatoriaModalOpen] = useState(false);
-  const [selectedConvocatoriaId, setSelectedConvocatoriaId] = useState<string | null>(null);
+  const [selectedConvocatoriaId, setSelectedConvocatoriaId] = useState<
+    string | null
+  >(null);
   const selectedConvocatoria = useMemo(
     () => convocatorias.find((c) => c.id === selectedConvocatoriaId) ?? null,
     [convocatorias, selectedConvocatoriaId]
@@ -160,7 +176,7 @@ export function NovedadesPageWrapper({
                 </p>
                 <Separator className="mt-4" />
               </div>
-              
+
               {/* Muro de eventos y convocatorias */}
               <div className="flex-1 min-h-0 overflow-y-auto mt-2 pr-1 custom-scrollbar">
                 <EventosWall
@@ -182,10 +198,7 @@ export function NovedadesPageWrapper({
 
         {/* Columna del feed central */}
         <div className="flex-1 bg-white pt-6 pb-6">
-          <div 
-            className="w-full px-8 mx-auto"
-            style={{ maxWidth: '743px' }}
-          >
+          <div className="w-full px-8 mx-auto" style={{ maxWidth: '743px' }}>
             <NovedadesContent
               initialPosts={initialPosts}
               initialHasMore={initialHasMore}

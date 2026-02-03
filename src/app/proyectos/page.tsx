@@ -63,7 +63,8 @@ import {
   Minimize2,
   Crown,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useProyectos } from '@/hooks/useProyectos';
 import { ProyectoWithRelations } from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
@@ -71,6 +72,8 @@ import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
 import { IndicadoresCard } from '@/components/proyectos/IndicadoresCard';
 import { HistorialCard } from '@/components/proyectos/HistorialCard';
+import { PresupuestoCard } from '@/components/proyectos/PresupuestoCard';
+import { ResumenProyectoCard } from '@/components/proyectos/ResumenProyectoCard';
 import { SeguimientoCard } from '@/components/seguimiento/SeguimientoCard';
 import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
 import { ProyectoParticipante } from '@prisma/client';
@@ -82,7 +85,10 @@ const extractYouTubeVideoId = (url: string): string | null => {
     const urlObj = new URL(url);
 
     // Formato: youtube.com/watch?v=VIDEO_ID
-    if (urlObj.hostname.includes('youtube.com') && urlObj.pathname === '/watch') {
+    if (
+      urlObj.hostname.includes('youtube.com') &&
+      urlObj.pathname === '/watch'
+    ) {
       return urlObj.searchParams.get('v');
     }
 
@@ -106,6 +112,7 @@ const truncateTitle = (title: string, maxLength: number = 58): string => {
 };
 
 export default function ProyectosPage() {
+  const { data: session } = useSession();
   const {
     proyectos: proyectosIniciales,
     loading,
@@ -116,27 +123,45 @@ export default function ProyectosPage() {
   } = useProyectos();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState<ProyectoWithRelations | null>(null);
+  const [selectedProject, setSelectedProject] =
+    useState<ProyectoWithRelations | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'General' | 'Equipo' | 'Actividades' | 'Indicadores' | 'Presupuesto' | 'Historial' | 'Seguimiento'>('General');
-  
+  const [selectedTab, setSelectedTab] = useState<
+    | 'Resumen'
+    | 'General'
+    | 'Equipo'
+    | 'Gantt'
+    | 'Indicadores'
+    | 'Presupuesto'
+    | 'Historial'
+    | 'Seguimiento'
+  >('General');
+
   // Estado para el modal de participante
-  const [selectedParticipante, setSelectedParticipante] = useState<(ProyectoParticipante & { user?: UserType | null }) | null>(null);
+  const [selectedParticipante, setSelectedParticipante] = useState<
+    (ProyectoParticipante & { user?: UserType | null }) | null
+  >(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Estado para videos de YouTube por proyecto
-  const [projectVideos, setProjectVideos] = useState<Record<string, string>>({});
+  const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
+    {}
+  );
   const [tempVideoUrl, setTempVideoUrl] = useState('');
 
   // Estado para secciones expandidas del desarrollo técnico
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({});
   // Estado para el tab activo del desarrollo técnico
-  const [activeDesarrolloTecnicoTab, setActiveDesarrolloTecnicoTab] = useState<string>('fases-anteriores');
+  const [activeDesarrolloTecnicoTab, setActiveDesarrolloTecnicoTab] =
+    useState<string>('fases-anteriores');
   // Estado para el tab activo de información básica
-  const [activeInfoBasicaTab, setActiveInfoBasicaTab] = useState<string>('local-disciplinar');
+  const [activeInfoBasicaTab, setActiveInfoBasicaTab] =
+    useState<string>('local-disciplinar');
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -156,9 +181,12 @@ export default function ProyectosPage() {
     (project) =>
       project.proyecto.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.sede.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.escuelas?.some(escuelaRel =>
-        escuelaRel.escuela.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-      ) || false
+      project.escuelas?.some((escuelaRel) =>
+        escuelaRel.escuela.nombre
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      ) ||
+      false
   );
 
   if (
@@ -193,7 +221,27 @@ export default function ProyectosPage() {
           alert('Proyecto actualizado exitosamente');
         }
       } else {
-        const { error } = await createProyecto(formData);
+        const { error } = await createProyecto({
+          proyecto: formData.proyecto,
+          fondo: formData.fondo,
+          sede: formData.sede,
+          focalizacion: null,
+          objetivoGeneral: '',
+          objetivosEspecificos: [],
+          avanceGantt: formData.avanceGantt,
+          objetivos: formData.objetivos,
+          presupuestoUsado: formData.presupuestoUsado,
+          presupuestoTotal: formData.presupuestoTotal,
+          reunionesHechas: formData.reunionesHechas,
+          reunionesTotales: formData.reunionesTotales,
+          participantes: formData.participantes,
+          escuelasIds: formData.escuela ? [formData.escuela] : [],
+          carrerasIds: [],
+          comunasIds: [],
+          gruposInteresIds: [],
+          sociosComunitariosIds: [],
+          participantes_rel: [],
+        });
         if (error) {
           alert('Error al crear el proyecto: ' + error);
         } else {
@@ -296,7 +344,7 @@ export default function ProyectosPage() {
 
     if (!tempVideoUrl.trim()) {
       // Si está vacío, eliminar el video
-      setProjectVideos(prev => {
+      setProjectVideos((prev) => {
         const newVideos = { ...prev };
         delete newVideos[selectedProject.id];
         return newVideos;
@@ -311,9 +359,9 @@ export default function ProyectosPage() {
     }
 
     // Guardar la URL del video para este proyecto
-    setProjectVideos(prev => ({
+    setProjectVideos((prev) => ({
       ...prev,
-      [selectedProject.id]: tempVideoUrl
+      [selectedProject.id]: tempVideoUrl,
     }));
   };
 
@@ -331,7 +379,8 @@ export default function ProyectosPage() {
         'Proyecto que combina técnicas de reciclaje creativo con elementos culturales de diferentes comunidades. Busca crear productos únicos que representen la diversidad cultural de la región, promoviendo la sostenibilidad y el respeto por las tradiciones locales.',
     };
 
-    const escuelaNombre = project.escuelas?.[0]?.escuela.nombre || 'la escuela correspondiente';
+    const escuelaNombre =
+      project.escuelas?.[0]?.escuela.nombre || 'la escuela correspondiente';
 
     return (
       summaries[project.proyecto as keyof typeof summaries] ||
@@ -403,10 +452,11 @@ export default function ProyectosPage() {
                 filteredProjects.map((project, index) => (
                   <Card
                     key={index}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedProject?.proyecto === project.proyecto
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      selectedProject?.proyecto === project.proyecto
                         ? 'ring-2 ring-blue-500 bg-blue-50'
                         : 'hover:bg-gray-50'
-                      }`}
+                    }`}
                     onClick={() => handleSelectProject(project)}
                   >
                     <CardContent className="p-4">
@@ -417,7 +467,10 @@ export default function ProyectosPage() {
                             {project.proyecto}
                           </h3>
                           <p className="text-xs text-gray-500 mt-1">
-                            {project.sede} • {project.escuelas?.map(e => e.escuela.nombre).join(', ') || 'Sin escuela'}
+                            {project.sede} •{' '}
+                            {project.escuelas
+                              ?.map((e) => e.escuela.nombre)
+                              .join(', ') || 'Sin escuela'}
                           </p>
                         </div>
                       </div>
@@ -437,7 +490,6 @@ export default function ProyectosPage() {
 
       {/* Main Content - Full Width */}
       <div className="h-full flex flex-col">
-
         {showAddForm || showEditForm ? (
           /* Formulario de agregar/editar proyecto */
           <Card className="border-2 border-gray-200">
@@ -788,157 +840,204 @@ export default function ProyectosPage() {
         ) : selectedProject ? (
           <div className="flex flex-col h-full px-8 pt-6 pb-6">
             {/* Header del proyecto - Fixed, no scroll */}
-            <div className="flex-shrink-0 space-y-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  {/* Botón de cambiar proyecto */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => setIsSheetOpen(true)}
-                          className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
-                        >
-                          <ArrowLeftRight size={20} strokeWidth={2.5} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Cambiar proyecto</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <h1 className="text-4xl font-bold text-gray-900">
-                    {truncateTitle(selectedProject.proyecto)}
-                  </h1>
-                </div>
-
-                {/* Botones de navegación */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => setSelectedTab('General')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'General'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    General
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Equipo')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Equipo'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Equipo
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Actividades')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Actividades'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Actividades
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Indicadores')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Indicadores'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Indicadores
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Presupuesto')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Presupuesto'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Presupuesto
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Historial')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Historial'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Historial
-                  </Button>
-                  <Button
-                    onClick={() => setSelectedTab('Seguimiento')}
-                    size="sm"
-                    className={`text-sm font-medium ${selectedTab === 'Seguimiento'
-                        ? 'bg-gray-800 text-white hover:bg-gray-800'
-                        : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                  >
-                    Seguimiento
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
-                <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                  <HandCoins className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    Fondo {selectedProject.fondo}
-                  </span>
-                </div>
-                {selectedProject.focalizacion && (
-                  <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                    <Target className="h-4 w-4 text-gray-600" />
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${selectedProject.focalizacion === 'Ambiental'
-                        ? 'bg-green-100 text-green-700'
-                        : selectedProject.focalizacion === 'Social'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : selectedProject.focalizacion === 'Productiva'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}>
-                      Foco {selectedProject.focalizacion}
-                    </span>
+            <div className="flex-shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                {/* Columna izquierda: título + línea de información juntos */}
+                <div className="flex flex-col gap-[5px] min-w-0 flex-1">
+                  <div className="flex items-center gap-3">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={() => setIsSheetOpen(true)}
+                            className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                          >
+                            <ArrowLeftRight size={20} strokeWidth={2.5} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>Cambiar proyecto</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <h1 className="text-4xl font-bold text-gray-900">
+                      {truncateTitle(selectedProject.proyecto)}
+                    </h1>
                   </div>
-                )}
-                <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                  <Users className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    {selectedProject.participantes_rel?.length || 0} participantes
-                  </span>
-                </div>
-                <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                  <Calendar className="h-4 w-4 text-gray-600" />
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                    {selectedProject.reunionesHechas}/{selectedProject.reunionesTotales} reuniones
-                  </span>
-                </div>
-                {selectedProject.sociosComunitarios && selectedProject.sociosComunitarios.length > 0 && (
-                  <div className="flex items-center space-x-1.5">
-                    <Handshake className="h-4 w-4 text-gray-600" />
-                    <span className="text-xs text-gray-600 font-medium">Socios Comunitarios:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProject.sociosComunitarios.map((socioRel, idx) => (
-                        <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                          {socioRel.socioComunitario.nombre}
-                        </span>
-                      ))}
+                  <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
+                    <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                      <HandCoins className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        Fondo {selectedProject.fondo}
+                      </span>
                     </div>
+                    {selectedProject.focalizacion && (
+                      <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
+                        <Target className="h-4 w-4 text-gray-600" />
+                        <span
+                          className={`text-xs px-2 py-1 rounded font-medium ${
+                            selectedProject.focalizacion === 'Ambiental'
+                              ? 'bg-green-100 text-green-700'
+                              : selectedProject.focalizacion === 'Social'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : selectedProject.focalizacion === 'Productiva'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          Foco {selectedProject.focalizacion}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                      <Users className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.participantes_rel?.length || 0}{' '}
+                        participantes
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
+                        {selectedProject.reunionesHechas}/
+                        {selectedProject.reunionesTotales} reuniones
+                      </span>
+                    </div>
+                    {selectedProject.sociosComunitarios &&
+                      selectedProject.sociosComunitarios.length > 0 && (
+                        <div className="flex items-center space-x-1.5">
+                          <Handshake className="h-4 w-4 text-gray-600" />
+                          <span className="text-xs text-gray-600 font-medium">
+                            Socios Comunitarios:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProject.sociosComunitarios.map(
+                              (socioRel, idx) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium"
+                                >
+                                  {socioRel.socioComunitario.nombre}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
                   </div>
-                )}
+                </div>
+
+                {/* Botones de navegación - Dos filas */}
+                <div className="flex flex-col gap-[6px] w-[450px] flex-shrink-0">
+                  {/* Primera fila: Resumen, General, Equipo, Historial */}
+                  <div className="flex items-center gap-1.5 w-full">
+                    <Button
+                      onClick={() => setSelectedTab('Resumen')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Resumen'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Resumen
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('General')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'General'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      General
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('Equipo')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Equipo'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Equipo
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('Historial')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Historial'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Historial
+                    </Button>
+                  </div>
+                  {/* Segunda fila: Actividades, Indicadores, Presupuesto, Seguimiento */}
+                  <div className="flex items-center gap-1.5 w-full">
+                    <Button
+                      onClick={() => setSelectedTab('Gantt')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Gantt'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Actividades
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('Indicadores')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Indicadores'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Indicadores
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('Presupuesto')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Presupuesto'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Presupuesto
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedTab('Seguimiento')}
+                      size="sm"
+                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
+                        selectedTab === 'Seguimiento'
+                          ? 'bg-gray-800 text-white hover:bg-gray-800'
+                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      Seguimiento
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Contenido condicional según tab seleccionado - Scrollable */}
             <div className="flex-1 overflow-hidden mt-6">
+              {selectedTab === 'Resumen' && selectedProject && (
+                <div className="h-full overflow-hidden pt-4">
+                  <ResumenProyectoCard
+                    projectId={selectedProject.id}
+                    project={selectedProject}
+                    presupuestoTotal={selectedProject.presupuestoTotal ?? 0}
+                  />
+                </div>
+              )}
               {selectedTab === 'General' && selectedProject && (
                 <div className="h-full overflow-hidden pt-4">
                   <div className="grid grid-cols-1 xl:grid-cols-[0.85fr_0.80fr_1.00fr] h-full">
@@ -948,10 +1047,13 @@ export default function ProyectosPage() {
                         <div className="space-y-6">
                           {/* Objetivos */}
                           {(() => {
-                            const objetivos = selectedProject.objetivos_rel || [];
-                            const objetivoGeneral = objetivos.find(obj => obj.tipo === 'General');
+                            const objetivos =
+                              selectedProject.objetivos_rel || [];
+                            const objetivoGeneral = objetivos.find(
+                              (obj) => obj.tipo === 'General'
+                            );
                             const objetivosEspecificos = objetivos
-                              .filter(obj => obj.tipo === 'Especifico')
+                              .filter((obj) => obj.tipo === 'Especifico')
                               .sort((a, b) => a.orden - b.orden);
 
                             return (
@@ -985,19 +1087,21 @@ export default function ProyectosPage() {
                                       </h4>
                                     </div>
                                     <div className="ml-8 space-y-6">
-                                      {objetivosEspecificos.map((objetivo, index) => (
-                                        <div
-                                          key={objetivo.id}
-                                          className="flex items-start space-x-4"
-                                        >
-                                          <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
-                                            {index + 1}
+                                      {objetivosEspecificos.map(
+                                        (objetivo, index) => (
+                                          <div
+                                            key={objetivo.id}
+                                            className="flex items-start space-x-4"
+                                          >
+                                            <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
+                                              {index + 1}
+                                            </div>
+                                            <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
+                                              {objetivo.descripcion}
+                                            </p>
                                           </div>
-                                          <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
-                                            {objetivo.descripcion}
-                                          </p>
-                                        </div>
-                                      ))}
+                                        )
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -1005,7 +1109,10 @@ export default function ProyectosPage() {
                                 {objetivos.length === 0 && (
                                   <div className="text-center py-12 text-gray-500">
                                     <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                                    <p className="text-base">No hay objetivos definidos para este proyecto</p>
+                                    <p className="text-base">
+                                      No hay objetivos definidos para este
+                                      proyecto
+                                    </p>
                                   </div>
                                 )}
                               </div>
@@ -1014,7 +1121,10 @@ export default function ProyectosPage() {
 
                           {/* Video del Proyecto */}
                           <div className="space-y-4 pt-8">
-                            <div className="relative w-full max-w-[60%] mx-auto" style={{ paddingBottom: '35%' }}>
+                            <div
+                              className="relative w-full max-w-[60%] mx-auto"
+                              style={{ paddingBottom: '35%' }}
+                            >
                               <iframe
                                 className="absolute top-0 left-0 w-full h-full rounded-lg"
                                 src="https://www.youtube.com/embed/7zsPRwIsC-I"
@@ -1048,7 +1158,9 @@ export default function ProyectosPage() {
                             {/* Sección 1: Contribución Local */}
                             <div className="mb-4">
                               <div className="flex items-center gap-3 mb-3">
-                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Local</span>
+                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">
+                                  Contribución Local
+                                </span>
                                 <div className="h-px bg-gray-200 flex-1"></div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
@@ -1061,105 +1173,140 @@ export default function ProyectosPage() {
                                     </h3>
                                   </div>
                                   <div className="flex flex-wrap gap-3">
-                                    <Badge variant="secondary" className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                    >
                                       {selectedProject.sede}
                                     </Badge>
                                   </div>
                                 </div>
 
                                 {/* Comunas */}
-                                {selectedProject.comunas && selectedProject.comunas.length > 0 && (
-                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Building2 className="h-4 w-4 text-emerald-600" />
-                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Comunas
-                                      </h3>
+                                {selectedProject.comunas &&
+                                  selectedProject.comunas.length > 0 && (
+                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Building2 className="h-4 w-4 text-emerald-600" />
+                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                          Comunas
+                                        </h3>
+                                      </div>
+                                      <div className="flex flex-wrap gap-3">
+                                        {selectedProject.comunas.map(
+                                          (comunaRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {comunaRel.comuna.nombre}
+                                            </Badge>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3">
-                                      {selectedProject.comunas.map((comunaRel, idx) => (
-                                        <Badge key={idx} variant="outline" className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                          {comunaRel.comuna.nombre}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                             </div>
 
                             {/* Sección 2: Contribución Disciplinar */}
                             <div className="mb-4">
                               <div className="flex items-center gap-3 mb-3">
-                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Disciplinar</span>
+                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">
+                                  Contribución Disciplinar
+                                </span>
                                 <div className="h-px bg-gray-200 flex-1"></div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
                                 {/* Escuelas */}
-                                {selectedProject.escuelas && selectedProject.escuelas.length > 0 && (
-                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <GraduationCap className="h-4 w-4 text-emerald-600" />
-                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Escuelas
-                                      </h3>
+                                {selectedProject.escuelas &&
+                                  selectedProject.escuelas.length > 0 && (
+                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <GraduationCap className="h-4 w-4 text-emerald-600" />
+                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                          Escuelas
+                                        </h3>
+                                      </div>
+                                      <div className="flex flex-wrap gap-3">
+                                        {selectedProject.escuelas.map(
+                                          (escuelaRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="secondary"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                            >
+                                              {escuelaRel.escuela.nombre}
+                                            </Badge>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3">
-                                      {selectedProject.escuelas.map((escuelaRel, idx) => (
-                                        <Badge key={idx} variant="secondary" className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
-                                          {escuelaRel.escuela.nombre}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                  )}
 
                                 {/* Carreras */}
-                                {selectedProject.carreras && selectedProject.carreras.length > 0 && (
-                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <BookOpen className="h-4 w-4 text-emerald-600" />
-                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Carreras
-                                      </h3>
+                                {selectedProject.carreras &&
+                                  selectedProject.carreras.length > 0 && (
+                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <BookOpen className="h-4 w-4 text-emerald-600" />
+                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                          Carreras
+                                        </h3>
+                                      </div>
+                                      <div className="flex flex-wrap gap-3">
+                                        {selectedProject.carreras.map(
+                                          (carreraRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {carreraRel.carrera.nombre}
+                                            </Badge>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3">
-                                      {selectedProject.carreras.map((carreraRel, idx) => (
-                                        <Badge key={idx} variant="outline" className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                          {carreraRel.carrera.nombre}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                             </div>
 
                             {/* Sección 3: Contribución Comunitaria */}
                             <div className="mb-4">
                               <div className="flex items-center gap-3 mb-3">
-                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">Contribución Comunitaria</span>
+                                <span className="text-xs font-semibold text-gray-400 tracking-wider pr-4">
+                                  Contribución Comunitaria
+                                </span>
                                 <div className="h-px bg-gray-200 flex-1"></div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
                                 {/* Grupos de Interés */}
-                                {selectedProject.gruposInteres && selectedProject.gruposInteres.length > 0 && (
-                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <UsersRound className="h-4 w-4 text-emerald-600" />
-                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Grupos de Interés
-                                      </h3>
+                                {selectedProject.gruposInteres &&
+                                  selectedProject.gruposInteres.length > 0 && (
+                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <UsersRound className="h-4 w-4 text-emerald-600" />
+                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                          Grupos de Interés
+                                        </h3>
+                                      </div>
+                                      <div className="flex flex-wrap gap-3">
+                                        {selectedProject.gruposInteres.map(
+                                          (grupoRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {grupoRel.grupoInteres.nombre}
+                                            </Badge>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3">
-                                      {selectedProject.gruposInteres.map((grupoRel, idx) => (
-                                        <Badge key={idx} variant="outline" className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300">
-                                          {grupoRel.grupoInteres.nombre}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                             </div>
                           </div>
@@ -1171,13 +1318,17 @@ export default function ProyectosPage() {
                     <div className="h-full flex flex-col pl-6 xl:pl-8 overflow-hidden">
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                         {(() => {
-                          const desarrolloTecnico = selectedProject.desarrolloTecnico;
+                          const desarrolloTecnico =
+                            selectedProject.desarrolloTecnico;
 
                           if (!desarrolloTecnico) {
                             return (
                               <div className="text-center py-8 text-gray-500">
                                 <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                <p>Información de desarrollo técnico no disponible</p>
+                                <p>
+                                  Información de desarrollo técnico no
+                                  disponible
+                                </p>
                               </div>
                             );
                           }
@@ -1186,7 +1337,8 @@ export default function ProyectosPage() {
                             {
                               key: 'continuidad',
                               title: 'Continuidad de Fases Anteriores',
-                              content: desarrolloTecnico.continuidadFasesAnteriores,
+                              content:
+                                desarrolloTecnico.continuidadFasesAnteriores,
                               icon: <History className="h-4 w-4" />,
                               group: 'fases-anteriores',
                             },
@@ -1270,18 +1422,28 @@ export default function ProyectosPage() {
                           ];
 
                           const tabs = [
-                            { id: 'fases-anteriores', label: 'Fases anteriores' },
+                            {
+                              id: 'fases-anteriores',
+                              label: 'Fases anteriores',
+                            },
                             { id: 'impacto', label: 'Impacto' },
-                            { id: 'publico-objetivo', label: 'Público Objetivo' },
-                            { id: 'innovacion-escalabilidad', label: 'Innovación' },
+                            {
+                              id: 'publico-objetivo',
+                              label: 'Público Objetivo',
+                            },
+                            {
+                              id: 'innovacion-escalabilidad',
+                              label: 'Innovación',
+                            },
                             { id: 'escalabilidad', label: 'Escalabilidad' },
                             { id: 'resultados', label: 'Resultados' },
                           ];
 
-                          const activeSections = sections.filter(section =>
-                            section.group === activeDesarrolloTecnicoTab &&
-                            section.content &&
-                            section.content.trim() !== ''
+                          const activeSections = sections.filter(
+                            (section) =>
+                              section.group === activeDesarrolloTecnicoTab &&
+                              section.content &&
+                              section.content.trim() !== ''
                           );
 
                           return (
@@ -1297,17 +1459,25 @@ export default function ProyectosPage() {
                                 {/* Tabs */}
                                 <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
                                   {tabs.map((tab) => {
-                                    const tabSections = sections.filter(s => s.group === tab.id && s.content && s.content.trim() !== '');
+                                    const tabSections = sections.filter(
+                                      (s) =>
+                                        s.group === tab.id &&
+                                        s.content &&
+                                        s.content.trim() !== ''
+                                    );
                                     if (tabSections.length === 0) return null;
 
                                     return (
                                       <button
                                         key={tab.id}
-                                        onClick={() => setActiveDesarrolloTecnicoTab(tab.id)}
-                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeDesarrolloTecnicoTab === tab.id
+                                        onClick={() =>
+                                          setActiveDesarrolloTecnicoTab(tab.id)
+                                        }
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                          activeDesarrolloTecnicoTab === tab.id
                                             ? 'bg-emerald-600 text-white'
                                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                          }`}
+                                        }`}
                                       >
                                         {tab.label}
                                       </button>
@@ -1322,8 +1492,12 @@ export default function ProyectosPage() {
                                   activeSections.map((section) => (
                                     <div key={section.key}>
                                       <div className="px-2 py-2 flex items-center gap-2">
-                                        <div className="text-emerald-600">{section.icon}</div>
-                                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.title}</h4>
+                                        <div className="text-emerald-600">
+                                          {section.icon}
+                                        </div>
+                                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                          {section.title}
+                                        </h4>
                                       </div>
                                       <div className="px-2 pb-3">
                                         <div className="text-[15px] text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -1335,7 +1509,10 @@ export default function ProyectosPage() {
                                 ) : (
                                   <div className="text-center py-8 text-gray-500">
                                     <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                    <p>No hay información disponible en esta categoría</p>
+                                    <p>
+                                      No hay información disponible en esta
+                                      categoría
+                                    </p>
                                   </div>
                                 )}
                               </div>
@@ -1348,7 +1525,6 @@ export default function ProyectosPage() {
                 </div>
               )}
 
-
               {selectedTab === 'Equipo' && selectedProject && (
                 <div className="h-full overflow-hidden pt-4">
                   <div className="grid grid-cols-1 lg:grid-cols-4 h-full">
@@ -1357,167 +1533,203 @@ export default function ProyectosPage() {
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                         <div className="space-y-6">
                           {/* Encargados */}
-                          {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Encargado').length > 0 && (
-                            <div className="mb-8">
-                              <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Crown className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Encargados
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Encargado')
-                                  .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    return (
-                                      <div 
-                                        key={participante.id} 
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                      >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                          {selectedProject.participantes_rel &&
+                            selectedProject.participantes_rel.filter(
+                              (p) => p.rol === 'Encargado'
+                            ).length > 0 && (
+                              <div className="mb-8">
+                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                                  <Crown className="h-5 w-5 text-emerald-600" />
+                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                    Encargados
+                                  </h4>
+                                </div>
+                                <div className="space-y-3">
+                                  {selectedProject.participantes_rel
+                                    .filter((p) => p.rol === 'Encargado')
+                                    .map((participante) => {
+                                      const nombre =
+                                        participante.user?.name ||
+                                        participante.nombre ||
+                                        'Sin nombre';
+                                      const cargo = participante.cargo || '';
+                                      const imagen = participante.user?.image;
+                                      return (
+                                        <div
+                                          key={participante.id}
+                                          onClick={() => {
+                                            setSelectedParticipante(
+                                              participante
+                                            );
+                                            setIsModalOpen(true);
+                                          }}
+                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                        >
+                                          {imagen ? (
+                                            <img
+                                              src={imagen}
+                                              alt={nombre}
+                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                            />
+                                          ) : (
+                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                              <Users className="h-5 w-5 text-gray-800" />
+                                            </div>
                                           )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                              {nombre}
+                                            </p>
+                                            {cargo && (
+                                              <p className="text-xs text-gray-600 truncate">
+                                                {cargo}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <Crown className="h-5 w-5 text-emerald-600 flex-shrink-0" />
                                         </div>
-                                        <Crown className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
                           {/* Coordinadores */}
-                          {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Coordinador').length > 0 && (
-                            <div className="mb-8">
-                              <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Users className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Coordinadores
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Coordinador')
-                                  .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    return (
-                                      <div 
-                                        key={participante.id} 
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                      >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                          {selectedProject.participantes_rel &&
+                            selectedProject.participantes_rel.filter(
+                              (p) => p.rol === 'Coordinador'
+                            ).length > 0 && (
+                              <div className="mb-8">
+                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                                  <Users className="h-5 w-5 text-emerald-600" />
+                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                    Coordinadores
+                                  </h4>
+                                </div>
+                                <div className="space-y-3">
+                                  {selectedProject.participantes_rel
+                                    .filter((p) => p.rol === 'Coordinador')
+                                    .map((participante) => {
+                                      const nombre =
+                                        participante.user?.name ||
+                                        participante.nombre ||
+                                        'Sin nombre';
+                                      const cargo = participante.cargo || '';
+                                      const imagen = participante.user?.image;
+                                      return (
+                                        <div
+                                          key={participante.id}
+                                          onClick={() => {
+                                            setSelectedParticipante(
+                                              participante
+                                            );
+                                            setIsModalOpen(true);
+                                          }}
+                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                        >
+                                          {imagen ? (
+                                            <img
+                                              src={imagen}
+                                              alt={nombre}
+                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                            />
+                                          ) : (
+                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                              <Users className="h-5 w-5 text-gray-800" />
+                                            </div>
                                           )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                              {nombre}
+                                            </p>
+                                            {cargo && (
+                                              <p className="text-xs text-gray-600 truncate">
+                                                {cargo}
+                                              </p>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
                           {/* Colaboradores */}
-                          {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Colaborador').length > 0 && (
-                            <div className="mb-8">
-                              <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Users className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Colaboradores
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Colaborador')
-                                  .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    return (
-                                      <div 
-                                        key={participante.id} 
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                      >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                          {selectedProject.participantes_rel &&
+                            selectedProject.participantes_rel.filter(
+                              (p) => p.rol === 'Colaborador'
+                            ).length > 0 && (
+                              <div className="mb-8">
+                                <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
+                                  <Users className="h-5 w-5 text-emerald-600" />
+                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                    Colaboradores
+                                  </h4>
+                                </div>
+                                <div className="space-y-3">
+                                  {selectedProject.participantes_rel
+                                    .filter((p) => p.rol === 'Colaborador')
+                                    .map((participante) => {
+                                      const nombre =
+                                        participante.user?.name ||
+                                        participante.nombre ||
+                                        'Sin nombre';
+                                      const cargo = participante.cargo || '';
+                                      const imagen = participante.user?.image;
+                                      return (
+                                        <div
+                                          key={participante.id}
+                                          onClick={() => {
+                                            setSelectedParticipante(
+                                              participante
+                                            );
+                                            setIsModalOpen(true);
+                                          }}
+                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                                        >
+                                          {imagen ? (
+                                            <img
+                                              src={imagen}
+                                              alt={nombre}
+                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
+                                            />
+                                          ) : (
+                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                                              <Users className="h-5 w-5 text-gray-800" />
+                                            </div>
                                           )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                              {nombre}
+                                            </p>
+                                            {cargo && (
+                                              <p className="text-xs text-gray-600 truncate">
+                                                {cargo}
+                                              </p>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
                           {/* Mensaje si no hay equipo */}
                           {(!selectedProject.participantes_rel ||
-                            (selectedProject.participantes_rel.filter(p => ['Encargado', 'Coordinador', 'Colaborador'].includes(p.rol)).length === 0)) && (
-                              <div className="text-center py-8 text-gray-500">
-                                <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                <p>No hay equipo asignado</p>
-                              </div>
-                            )}
+                            selectedProject.participantes_rel.filter((p) =>
+                              [
+                                'Encargado',
+                                'Coordinador',
+                                'Colaborador',
+                              ].includes(p.rol)
+                            ).length === 0) && (
+                            <div className="text-center py-8 text-gray-500">
+                              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                              <p>No hay equipo asignado</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1525,7 +1737,10 @@ export default function ProyectosPage() {
                     {/* Columna 2: Docentes */}
                     <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Docente').length > 0 ? (
+                        {selectedProject.participantes_rel &&
+                        selectedProject.participantes_rel.filter(
+                          (p) => p.rol === 'Docente'
+                        ).length > 0 ? (
                           <div className="space-y-6">
                             <div className="mb-8">
                               <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
@@ -1536,14 +1751,17 @@ export default function ProyectosPage() {
                               </div>
                               <div className="space-y-3">
                                 {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Docente')
+                                  .filter((p) => p.rol === 'Docente')
                                   .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                    const nombre =
+                                      participante.user?.name ||
+                                      participante.nombre ||
+                                      'Sin nombre';
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div 
-                                        key={participante.id} 
+                                      <div
+                                        key={participante.id}
                                         onClick={() => {
                                           setSelectedParticipante(participante);
                                           setIsModalOpen(true);
@@ -1566,7 +1784,9 @@ export default function ProyectosPage() {
                                             {nombre}
                                           </p>
                                           {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                            <p className="text-xs text-gray-600 truncate">
+                                              {cargo}
+                                            </p>
                                           )}
                                         </div>
                                       </div>
@@ -1587,7 +1807,10 @@ export default function ProyectosPage() {
                     {/* Columna 3: Estudiantes */}
                     <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Estudiante').length > 0 ? (
+                        {selectedProject.participantes_rel &&
+                        selectedProject.participantes_rel.filter(
+                          (p) => p.rol === 'Estudiante'
+                        ).length > 0 ? (
                           <div className="space-y-6">
                             <div className="mb-8">
                               <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
@@ -1598,14 +1821,17 @@ export default function ProyectosPage() {
                               </div>
                               <div className="space-y-3">
                                 {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Estudiante')
+                                  .filter((p) => p.rol === 'Estudiante')
                                   .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                    const nombre =
+                                      participante.user?.name ||
+                                      participante.nombre ||
+                                      'Sin nombre';
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
                                     return (
-                                      <div 
-                                        key={participante.id} 
+                                      <div
+                                        key={participante.id}
                                         onClick={() => {
                                           setSelectedParticipante(participante);
                                           setIsModalOpen(true);
@@ -1628,7 +1854,9 @@ export default function ProyectosPage() {
                                             {nombre}
                                           </p>
                                           {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                            <p className="text-xs text-gray-600 truncate">
+                                              {cargo}
+                                            </p>
                                           )}
                                         </div>
                                       </div>
@@ -1649,7 +1877,10 @@ export default function ProyectosPage() {
                     {/* Columna 4: Beneficiarios */}
                     <div className="h-full flex flex-col px-6 lg:px-8 overflow-hidden">
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel && selectedProject.participantes_rel.filter(p => p.rol === 'Beneficiario').length > 0 ? (
+                        {selectedProject.participantes_rel &&
+                        selectedProject.participantes_rel.filter(
+                          (p) => p.rol === 'Beneficiario'
+                        ).length > 0 ? (
                           <div className="space-y-6">
                             <div className="mb-8">
                               <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
@@ -1660,15 +1891,19 @@ export default function ProyectosPage() {
                               </div>
                               <div className="space-y-3">
                                 {selectedProject.participantes_rel
-                                  .filter(p => p.rol === 'Beneficiario')
+                                  .filter((p) => p.rol === 'Beneficiario')
                                   .map((participante) => {
-                                    const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+                                    const nombre =
+                                      participante.user?.name ||
+                                      participante.nombre ||
+                                      'Sin nombre';
                                     const cargo = participante.cargo || '';
                                     const imagen = participante.user?.image;
-                                    const socioComunitario = participante.socioComunitario?.nombre;
+                                    const socioComunitario =
+                                      participante.socioComunitario?.nombre;
                                     return (
-                                      <div 
-                                        key={participante.id} 
+                                      <div
+                                        key={participante.id}
                                         onClick={() => {
                                           setSelectedParticipante(participante);
                                           setIsModalOpen(true);
@@ -1691,7 +1926,9 @@ export default function ProyectosPage() {
                                             {nombre}
                                           </p>
                                           {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">{cargo}</p>
+                                            <p className="text-xs text-gray-600 truncate">
+                                              {cargo}
+                                            </p>
                                           )}
                                           {socioComunitario && (
                                             <p className="text-xs text-blue-600 truncate font-medium mt-0.5">
@@ -1717,7 +1954,7 @@ export default function ProyectosPage() {
                 </div>
               )}
 
-              {selectedTab === 'Actividades' && (
+              {selectedTab === 'Gantt' && (
                 <div className="h-full pt-4">
                   <GanttChart
                     projectId={selectedProject.id}
@@ -1734,13 +1971,11 @@ export default function ProyectosPage() {
               )}
 
               {selectedTab === 'Presupuesto' && (
-                <div className="h-full pt-4">
-                  <Card className="h-full shadow-md flex flex-col">
-                    <CardContent className="p-6 flex-1 overflow-auto">
-                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Presupuesto</h2>
-                      <p className="text-gray-500">Contenido de presupuesto próximamente...</p>
-                    </CardContent>
-                  </Card>
+                <div className="h-full pt-2">
+                  <PresupuestoCard
+                    projectId={selectedProject.id}
+                    presupuestoTotal={selectedProject.presupuestoTotal ?? 0}
+                  />
                 </div>
               )}
 
@@ -1755,6 +1990,21 @@ export default function ProyectosPage() {
                   <SeguimientoCard
                     projectId={selectedProject.id}
                     projectName={selectedProject.proyecto}
+                    rolEnProyecto={
+                      selectedProject.participantes_rel?.find(
+                        (p) => p.userId === session?.user?.id
+                      )?.rol ?? null
+                    }
+                    activeRole={session?.user?.activeRole ?? null}
+                    currentUser={
+                      session?.user
+                        ? {
+                            id: session.user.id,
+                            name: session.user.name ?? null,
+                            image: session.user.image ?? null,
+                          }
+                        : null
+                    }
                   />
                 </div>
               )}

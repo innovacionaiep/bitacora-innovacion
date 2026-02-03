@@ -21,14 +21,21 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
   const parseValue = (value: string): number => {
     if (!value || value === '') return 0;
     // Remover símbolos de porcentaje, espacios y caracteres no numéricos excepto punto y coma
-    const cleaned = value.toString().replace(/%/g, '').replace(/,/g, '.').trim();
+    const cleaned = value
+      .toString()
+      .replace(/%/g, '')
+      .replace(/,/g, '.')
+      .trim();
     // Intentar parsear como número
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   };
-  
+
   // Formatear el resultado según el formato del número
-  const formatResultado = (value: string, formato: string | null | undefined): string => {
+  const formatResultado = (
+    value: string,
+    formato: string | null | undefined
+  ): string => {
     const numValue = parseValue(value);
     if (formato === 'Porcentaje') {
       return `${Math.round(numValue)}%`;
@@ -43,18 +50,25 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
     }
     return Math.round(numValue).toString();
   };
-  
-  const resultadoEsperadoFormateado = formatResultado(indicador.resultadoEsperado, indicador.formatoNumero);
-  const resultadoAlcanzadoFormateado = formatResultado(indicador.resultadoAlcanzado, indicador.formatoNumero);
+
+  const resultadoEsperadoFormateado = formatResultado(
+    indicador.resultadoEsperado,
+    indicador.formatoNumero
+  );
+  const resultadoAlcanzadoFormateado = formatResultado(
+    indicador.resultadoAlcanzado,
+    indicador.formatoNumero
+  );
 
   // Calcular el porcentaje de cumplimiento
   const resultadoEsperadoNum = parseValue(indicador.resultadoEsperado);
   const resultadoAlcanzadoNum = parseValue(indicador.resultadoAlcanzado);
-  
+
   // Calcular porcentaje de cumplimiento
   let porcentajeCumplimiento = 0;
   if (resultadoEsperadoNum > 0) {
-    porcentajeCumplimiento = (resultadoAlcanzadoNum / resultadoEsperadoNum) * 100;
+    porcentajeCumplimiento =
+      (resultadoAlcanzadoNum / resultadoEsperadoNum) * 100;
   } else if (resultadoAlcanzadoNum > 0) {
     // Si el esperado es 0 pero hay un valor alcanzado, considerar como 100%
     porcentajeCumplimiento = 100;
@@ -86,7 +100,7 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
               </h5>
             </div>
           </div>
-          
+
           {/* Valores Esperado y Actual - a la derecha del texto */}
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Esperado */}
@@ -96,14 +110,16 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
                 {resultadoEsperadoFormateado}
               </span>
             </div>
-            
+
             {/* Separador vertical */}
             <div className="h-8 w-px bg-gray-300"></div>
-            
+
             {/* Actual */}
             <div className="flex flex-col items-end" style={{ width: '80px' }}>
               <span className={`text-xs font-bold ${colorActual}`}>Actual</span>
-              <span className={`text-lg font-bold ${colorActual} whitespace-nowrap`}>
+              <span
+                className={`text-lg font-bold ${colorActual} whitespace-nowrap`}
+              >
                 {resultadoAlcanzadoFormateado}
               </span>
             </div>

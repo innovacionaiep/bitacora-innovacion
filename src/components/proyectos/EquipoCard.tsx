@@ -9,7 +9,13 @@ import { User, Mail, Plus, Edit, Trash2 } from 'lucide-react';
 interface Participante {
   id: string;
   userId: string;
-  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
+  rol:
+    | 'Encargado'
+    | 'Coordinador'
+    | 'Colaborador'
+    | 'Docente'
+    | 'Estudiante'
+    | 'Beneficiario';
   user: {
     id: string;
     name: string | null;
@@ -72,12 +78,16 @@ export function EquipoCard({
     }
   };
 
-  const encargados = participantes?.filter(p => p.rol === 'Encargado') || [];
-  const coordinadores = participantes?.filter(p => p.rol === 'Coordinador') || [];
-  const colaboradores = participantes?.filter(p => p.rol === 'Colaborador') || [];
-  const docentes = participantes?.filter(p => p.rol === 'Docente') || [];
-  const estudiantes = participantes?.filter(p => p.rol === 'Estudiante') || [];
-  const beneficiarios = participantes?.filter(p => p.rol === 'Beneficiario') || [];
+  const encargados = participantes?.filter((p) => p.rol === 'Encargado') || [];
+  const coordinadores =
+    participantes?.filter((p) => p.rol === 'Coordinador') || [];
+  const colaboradores =
+    participantes?.filter((p) => p.rol === 'Colaborador') || [];
+  const docentes = participantes?.filter((p) => p.rol === 'Docente') || [];
+  const estudiantes =
+    participantes?.filter((p) => p.rol === 'Estudiante') || [];
+  const beneficiarios =
+    participantes?.filter((p) => p.rol === 'Beneficiario') || [];
 
   const renderParticipantes = (lista: Participante[], titulo: string) => (
     <div>

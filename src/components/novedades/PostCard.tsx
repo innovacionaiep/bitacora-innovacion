@@ -1,12 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, MoreHorizontal, Trash2, FolderKanban, MapPin, GraduationCap, ThumbsUp, PartyPopper, Heart, Calendar as CalendarIcon, Users, X as XIcon, Tag } from 'lucide-react';
+import {
+  MessageCircle,
+  MoreHorizontal,
+  Trash2,
+  FolderKanban,
+  MapPin,
+  GraduationCap,
+  ThumbsUp,
+  PartyPopper,
+  Heart,
+  Calendar as CalendarIcon,
+  Users,
+  X as XIcon,
+  Tag,
+} from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +38,13 @@ import {
 } from '@/components/ui/popover';
 import { ReactionButton } from './ReactionButton';
 import { CommentSection } from './CommentSection';
-import { PostWithRelations, setPostReaction, deletePost, toggleEventoAsistencia, type PostReactionType } from '@/lib/actions/posts';
+import {
+  PostWithRelations,
+  setPostReaction,
+  deletePost,
+  toggleEventoAsistencia,
+  type PostReactionType,
+} from '@/lib/actions/posts';
 import { formatDistanceToNow, format, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
@@ -33,7 +57,12 @@ interface PostCardProps {
   onAttendanceChanged?: () => void;
 }
 
-export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChanged }: PostCardProps) {
+export function PostCard({
+  post,
+  onPostDeleted,
+  onOpenEvento,
+  onAttendanceChanged,
+}: PostCardProps) {
   const { data: session } = useSession();
   const defaultCounts = { Recomendar: 0, Celebrar: 0, Encantar: 0 };
   const [reactionCounts, setReactionCounts] = useState<{
@@ -48,7 +77,9 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
   const [showComments, setShowComments] = useState(false);
   const [commentsCount, setCommentsCount] = useState(post._count.comentarios);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null
+  );
   const [hoveredPopover, setHoveredPopover] = useState<string | null>(null);
 
   const isAuthor = session?.user?.id === post.authorId;
@@ -56,10 +87,18 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
   const authorInitials = authorName.slice(0, 2).toUpperCase();
 
   // Detectar si es un evento
-  const isEvento = !!(post.eventoFecha && post.eventoNombre && post.eventoDescripcion);
+  const isEvento = !!(
+    post.eventoFecha &&
+    post.eventoNombre &&
+    post.eventoDescripcion
+  );
 
-  const [asistiendoEvento, setAsistiendoEvento] = useState<boolean>(post.isAsistiendo ?? false);
-  const [asistentesEventoCount, setAsistentesEventoCount] = useState<number>(post.asistentesCount ?? 0);
+  const [asistiendoEvento, setAsistiendoEvento] = useState<boolean>(
+    post.isAsistiendo ?? false
+  );
+  const [asistentesEventoCount, setAsistentesEventoCount] = useState<number>(
+    post.asistentesCount ?? 0
+  );
 
   // Formatear fecha del evento
   const formatEventDate = (date: Date | null): string => {
@@ -107,7 +146,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
       setReactionsCount((c) => (hadReaction ? c : c + 1));
       setReactionCounts((rc) => {
         const next = { ...rc };
-        if (hadReaction && prevReaction) next[prevReaction] = Math.max(0, (next[prevReaction] ?? 0) - 1);
+        if (hadReaction && prevReaction)
+          next[prevReaction] = Math.max(0, (next[prevReaction] ?? 0) - 1);
         next[type] = (next[type] ?? 0) + 1;
         return next;
       });
@@ -182,7 +222,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
     const proyectosRestantes = proyectos.slice(2);
 
     // Sedes únicas: mostrar máximo 4
-    const sedesUnicas = Array.from(new Set(proyectos.map(p => p.sede)));
+    const sedesUnicas = Array.from(new Set(proyectos.map((p) => p.sede)));
     const sedesMostrar = sedesUnicas.slice(0, 4);
     const sedesRestantes = sedesUnicas.slice(4);
 
@@ -190,7 +230,7 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
     const escuelasUnicas = Array.from(
       new Set(
         proyectos
-          .flatMap(p => p.escuelas?.map(e => e.escuela.nombre) || [])
+          .flatMap((p) => p.escuelas?.map((e) => e.escuela.nombre) || [])
           .filter(Boolean)
       )
     );
@@ -262,7 +302,9 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
 
           {/* Contenido del post */}
           <div className="mb-2">
-            <p className="text-sm whitespace-pre-wrap break-words">{post.contenido}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">
+              {post.contenido}
+            </p>
           </div>
 
           {/* Información del evento */}
@@ -306,7 +348,8 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                         disabled={asistiendoEvento}
                         className={cn(
                           'h-8 px-2.5',
-                          asistiendoEvento && 'bg-emerald-600 hover:bg-emerald-600 cursor-not-allowed'
+                          asistiendoEvento &&
+                            'bg-emerald-600 hover:bg-emerald-600 cursor-not-allowed'
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -348,7 +391,11 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                         className="relative w-32 h-20 rounded-lg overflow-hidden bg-muted cursor-pointer border border-orange-300"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedImageIndex(post.imagenes.findIndex(img => img.id === imagen.id));
+                          setSelectedImageIndex(
+                            post.imagenes.findIndex(
+                              (img) => img.id === imagen.id
+                            )
+                          );
                         }}
                       >
                         <Image
@@ -387,12 +434,15 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
 
           {/* Imágenes */}
           {imageCount > 0 && (
-            <div className={`grid ${getImageGridClass()} gap-1 mb-2 rounded-lg overflow-hidden`}>
+            <div
+              className={`grid ${getImageGridClass()} gap-1 mb-2 rounded-lg overflow-hidden`}
+            >
               {post.imagenes.slice(0, 4).map((imagen, index) => (
                 <div
                   key={imagen.id}
-                  className={`relative cursor-pointer bg-muted ${imageCount === 3 && index === 0 ? 'row-span-2' : ''
-                    } ${imageCount === 1 ? 'aspect-video' : 'aspect-square'}`}
+                  className={`relative cursor-pointer bg-muted ${
+                    imageCount === 3 && index === 0 ? 'row-span-2' : ''
+                  } ${imageCount === 1 ? 'aspect-video' : 'aspect-square'}`}
                   onClick={() => setSelectedImageIndex(index)}
                 >
                   <Image
@@ -404,7 +454,10 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
                   {/* Nombre del proyecto flotante (esquina superior izquierda) */}
                   {post.proyectos.length > 0 && (
                     <div className="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 w-fit max-w-[85%] flex items-center gap-1">
-                      <Tag className="h-3 w-3 text-white shrink-0" aria-hidden />
+                      <Tag
+                        className="h-3 w-3 text-white shrink-0"
+                        aria-hidden
+                      />
                       <span className="font-bold text-xs text-white drop-shadow-sm line-clamp-2 leading-tight">
                         {post.proyectos.length === 1
                           ? post.proyectos[0].proyecto.proyecto
@@ -430,24 +483,25 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
               {reactionsCount > 0 && (
                 <div className="flex items-center gap-1.5">
                   <div className="flex items-center [&>*:not(:first-child)]:-ml-1.5">
-                    {(['Recomendar', 'Celebrar', 'Encantar'] as const).map((t) =>
-                      (reactionCounts[t] ?? 0) > 0 ? (
-                        <div
-                          key={t}
-                          className="flex items-center justify-center w-5 h-5 rounded-full bg-background border border-border shrink-0 overflow-hidden"
-                          title={t}
-                        >
-                          {t === 'Recomendar' && (
-                            <ThumbsUp className="h-3 w-3 text-blue-600 fill-blue-600" />
-                          )}
-                          {t === 'Celebrar' && (
-                            <PartyPopper className="h-3 w-3 text-green-600 fill-green-600" />
-                          )}
-                          {t === 'Encantar' && (
-                            <Heart className="h-3 w-3 text-red-500 fill-red-500" />
-                          )}
-                        </div>
-                      ) : null
+                    {(['Recomendar', 'Celebrar', 'Encantar'] as const).map(
+                      (t) =>
+                        (reactionCounts[t] ?? 0) > 0 ? (
+                          <div
+                            key={t}
+                            className="flex items-center justify-center w-5 h-5 rounded-full bg-background border border-border shrink-0 overflow-hidden"
+                            title={t}
+                          >
+                            {t === 'Recomendar' && (
+                              <ThumbsUp className="h-3 w-3 text-blue-600 fill-blue-600" />
+                            )}
+                            {t === 'Celebrar' && (
+                              <PartyPopper className="h-3 w-3 text-green-600 fill-green-600" />
+                            )}
+                            {t === 'Encantar' && (
+                              <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+                            )}
+                          </div>
+                        ) : null
                     )}
                   </div>
                   <span>{reactionsCount}</span>
@@ -482,117 +536,159 @@ export function PostCard({ post, onPostDeleted, onOpenEvento, onAttendanceChange
             </div>
 
             {/* Indicador de proyectos, sedes y escuelas */}
-            {post.proyectos.length > 0 && (() => {
-              const proyectosCount = post.proyectos.length;
-              const sedesUnicas = Array.from(new Set(post.proyectos.map(({ proyecto }) => proyecto.sede)));
-              const sedesCount = sedesUnicas.length;
-              const escuelasUnicas = Array.from(
-                new Set(
-                  post.proyectos
-                    .flatMap(({ proyecto }) => proyecto.escuelas?.map(e => e.escuela.nombre) || [])
-                    .filter(Boolean)
-                )
-              );
-              const escuelasCount = escuelasUnicas.length;
+            {post.proyectos.length > 0 &&
+              (() => {
+                const proyectosCount = post.proyectos.length;
+                const sedesUnicas = Array.from(
+                  new Set(post.proyectos.map(({ proyecto }) => proyecto.sede))
+                );
+                const sedesCount = sedesUnicas.length;
+                const escuelasUnicas = Array.from(
+                  new Set(
+                    post.proyectos
+                      .flatMap(
+                        ({ proyecto }) =>
+                          proyecto.escuelas?.map((e) => e.escuela.nombre) || []
+                      )
+                      .filter(Boolean)
+                  )
+                );
+                const escuelasCount = escuelasUnicas.length;
 
-              return (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Popover open={hoveredPopover === 'proyectos'} onOpenChange={(open) => setHoveredPopover(open ? 'proyectos' : null)}>
-                    <PopoverTrigger asChild>
-                      <div
-                        className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                return (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Popover
+                      open={hoveredPopover === 'proyectos'}
+                      onOpenChange={(open) =>
+                        setHoveredPopover(open ? 'proyectos' : null)
+                      }
+                    >
+                      <PopoverTrigger asChild>
+                        <div
+                          className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                          onMouseEnter={() => setHoveredPopover('proyectos')}
+                          onMouseLeave={() => setHoveredPopover(null)}
+                        >
+                          <FolderKanban className="h-3.5 w-3.5 text-blue-600" />
+                          <span>
+                            {proyectosCount}{' '}
+                            {proyectosCount === 1 ? 'proyecto' : 'proyectos'}
+                          </span>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto p-2"
+                        align="end"
                         onMouseEnter={() => setHoveredPopover('proyectos')}
                         onMouseLeave={() => setHoveredPopover(null)}
                       >
-                        <FolderKanban className="h-3.5 w-3.5 text-blue-600" />
-                        <span>{proyectosCount} {proyectosCount === 1 ? 'proyecto' : 'proyectos'}</span>
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto p-2"
-                      align="end"
-                      onMouseEnter={() => setHoveredPopover('proyectos')}
-                      onMouseLeave={() => setHoveredPopover(null)}
-                    >
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold mb-1">Proyectos relacionados:</p>
-                        {post.proyectos.map(({ proyecto }) => (
-                          <p key={proyecto.id} className="text-xs text-gray-700">
-                            {proyecto.proyecto}
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold mb-1">
+                            Proyectos relacionados:
                           </p>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                          {post.proyectos.map(({ proyecto }) => (
+                            <p
+                              key={proyecto.id}
+                              className="text-xs text-gray-700"
+                            >
+                              {proyecto.proyecto}
+                            </p>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
 
-                  {sedesCount > 0 && (
-                    <>
-                      <span className="text-gray-300">|</span>
-                      <Popover open={hoveredPopover === 'sedes'} onOpenChange={(open) => setHoveredPopover(open ? 'sedes' : null)}>
-                        <PopoverTrigger asChild>
-                          <div
-                            className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                    {sedesCount > 0 && (
+                      <>
+                        <span className="text-gray-300">|</span>
+                        <Popover
+                          open={hoveredPopover === 'sedes'}
+                          onOpenChange={(open) =>
+                            setHoveredPopover(open ? 'sedes' : null)
+                          }
+                        >
+                          <PopoverTrigger asChild>
+                            <div
+                              className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                              onMouseEnter={() => setHoveredPopover('sedes')}
+                              onMouseLeave={() => setHoveredPopover(null)}
+                            >
+                              <MapPin className="h-3.5 w-3.5 text-green-600" />
+                              <span>
+                                {sedesCount}{' '}
+                                {sedesCount === 1 ? 'sede' : 'sedes'}
+                              </span>
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-2"
+                            align="end"
                             onMouseEnter={() => setHoveredPopover('sedes')}
                             onMouseLeave={() => setHoveredPopover(null)}
                           >
-                            <MapPin className="h-3.5 w-3.5 text-green-600" />
-                            <span>{sedesCount} {sedesCount === 1 ? 'sede' : 'sedes'}</span>
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-auto p-2"
-                          align="end"
-                          onMouseEnter={() => setHoveredPopover('sedes')}
-                          onMouseLeave={() => setHoveredPopover(null)}
-                        >
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold mb-1">Sedes:</p>
-                            {sedesUnicas.map((sede) => (
-                              <p key={sede} className="text-xs text-gray-700">
-                                {sede}
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold mb-1">
+                                Sedes:
                               </p>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </>
-                  )}
+                              {sedesUnicas.map((sede) => (
+                                <p key={sede} className="text-xs text-gray-700">
+                                  {sede}
+                                </p>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </>
+                    )}
 
-                  {escuelasCount > 0 && (
-                    <>
-                      <span className="text-gray-300">|</span>
-                      <Popover open={hoveredPopover === 'escuelas'} onOpenChange={(open) => setHoveredPopover(open ? 'escuelas' : null)}>
-                        <PopoverTrigger asChild>
-                          <div
-                            className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                    {escuelasCount > 0 && (
+                      <>
+                        <span className="text-gray-300">|</span>
+                        <Popover
+                          open={hoveredPopover === 'escuelas'}
+                          onOpenChange={(open) =>
+                            setHoveredPopover(open ? 'escuelas' : null)
+                          }
+                        >
+                          <PopoverTrigger asChild>
+                            <div
+                              className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                              onMouseEnter={() => setHoveredPopover('escuelas')}
+                              onMouseLeave={() => setHoveredPopover(null)}
+                            >
+                              <GraduationCap className="h-3.5 w-3.5 text-purple-600" />
+                              <span>
+                                {escuelasCount}{' '}
+                                {escuelasCount === 1 ? 'escuela' : 'escuelas'}
+                              </span>
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-2"
+                            align="end"
                             onMouseEnter={() => setHoveredPopover('escuelas')}
                             onMouseLeave={() => setHoveredPopover(null)}
                           >
-                            <GraduationCap className="h-3.5 w-3.5 text-purple-600" />
-                            <span>{escuelasCount} {escuelasCount === 1 ? 'escuela' : 'escuelas'}</span>
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-auto p-2"
-                          align="end"
-                          onMouseEnter={() => setHoveredPopover('escuelas')}
-                          onMouseLeave={() => setHoveredPopover(null)}
-                        >
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold mb-1">Escuelas:</p>
-                            {escuelasUnicas.map((escuela) => (
-                              <p key={escuela} className="text-xs text-gray-700">
-                                {escuela}
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold mb-1">
+                                Escuelas:
                               </p>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
+                              {escuelasUnicas.map((escuela) => (
+                                <p
+                                  key={escuela}
+                                  className="text-xs text-gray-700"
+                                >
+                                  {escuela}
+                                </p>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
           </div>
 
           {/* Sección de comentarios */}

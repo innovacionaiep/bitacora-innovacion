@@ -1,10 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Flame, Loader2, FolderKanban, GraduationCap, MapPin, User } from 'lucide-react';
+import {
+  Flame,
+  Loader2,
+  FolderKanban,
+  GraduationCap,
+  MapPin,
+  User,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MonthlyTrends, TrendingItem, TrendingSede } from '@/lib/actions/discovery';
+import {
+  MonthlyTrends,
+  TrendingItem,
+  TrendingSede,
+} from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
 type TrendingTab = 'proyectos' | 'escuelas' | 'sedes' | 'personas';
@@ -13,7 +24,9 @@ interface TrendingSectionProps {
   initialTrends?: MonthlyTrends | null;
 }
 
-export function TrendingSection({ initialTrends = null }: TrendingSectionProps) {
+export function TrendingSection({
+  initialTrends = null,
+}: TrendingSectionProps) {
   // Usar datos iniciales directamente - sin carga en useEffect
   const [trends, setTrends] = useState<MonthlyTrends | null>(initialTrends);
   const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
@@ -70,7 +83,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
   ) => {
     const isSede = type === 'sedes';
     const isPersona = type === 'personas';
-    const nombre = isSede ? (item as TrendingSede).sede : (item as TrendingItem).nombre;
+    const nombre = isSede
+      ? (item as TrendingSede).sede
+      : (item as TrendingItem).nombre;
     const image = isPersona ? (item as TrendingItem).image : null;
 
     return (
@@ -101,8 +116,12 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
         {/* Icono para otros tipos */}
         {!isPersona && (
           <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-            {type === 'proyectos' && <FolderKanban className="h-3 w-3 text-emerald-600" />}
-            {type === 'escuelas' && <GraduationCap className="h-3 w-3 text-blue-600" />}
+            {type === 'proyectos' && (
+              <FolderKanban className="h-3 w-3 text-emerald-600" />
+            )}
+            {type === 'escuelas' && (
+              <GraduationCap className="h-3 w-3 text-blue-600" />
+            )}
             {type === 'sedes' && <MapPin className="h-3 w-3 text-purple-600" />}
           </div>
         )}
@@ -110,7 +129,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
         {/* Nombre, rol (solo personas) y contador */}
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            <p className="text-xs font-medium text-gray-900 truncate" title={nombre}>
+            <p
+              className="text-xs font-medium text-gray-900 truncate"
+              title={nombre}
+            >
               {nombre}
             </p>
             {isPersona && (item as TrendingItem).rol && (
@@ -125,7 +147,8 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
             )}
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {item.postCount} {item.postCount === 1 ? 'publicación' : 'publicaciones'}
+            {item.postCount}{' '}
+            {item.postCount === 1 ? 'publicación' : 'publicaciones'}
           </p>
         </div>
       </div>
@@ -143,9 +166,7 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
     return (
       <div className="text-center py-6">
         {icons[type]}
-        <p className="text-xs text-muted-foreground mt-2">
-          Sin datos este mes
-        </p>
+        <p className="text-xs text-muted-foreground mt-2">Sin datos este mes</p>
       </div>
     );
   };
@@ -173,7 +194,9 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Flame className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
-        <h3 className="text-[18px] font-semibold text-emerald-600">Tendencias del mes</h3>
+        <h3 className="text-[18px] font-semibold text-emerald-600">
+          Tendencias del mes
+        </h3>
       </div>
 
       <Tabs
@@ -196,7 +219,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="proyectos" className="mt-5 data-[state=inactive]:hidden">
+        <TabsContent
+          value="proyectos"
+          className="mt-5 data-[state=inactive]:hidden"
+        >
           {trends.proyectos.length > 0 ? (
             <div className="space-y-[7px]">
               {trends.proyectos.map((item, index) =>
@@ -208,7 +234,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="escuelas" className="mt-5 data-[state=inactive]:hidden">
+        <TabsContent
+          value="escuelas"
+          className="mt-5 data-[state=inactive]:hidden"
+        >
           {trends.escuelas.length > 0 ? (
             <div className="space-y-[15px]">
               {trends.escuelas.map((item, index) =>
@@ -220,7 +249,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="sedes" className="mt-5 data-[state=inactive]:hidden">
+        <TabsContent
+          value="sedes"
+          className="mt-5 data-[state=inactive]:hidden"
+        >
           {trends.sedes.length > 0 ? (
             <div className="space-y-[7px]">
               {trends.sedes.map((item, index) =>
@@ -232,7 +264,10 @@ export function TrendingSection({ initialTrends = null }: TrendingSectionProps) 
           )}
         </TabsContent>
 
-        <TabsContent value="personas" className="mt-5 data-[state=inactive]:hidden">
+        <TabsContent
+          value="personas"
+          className="mt-5 data-[state=inactive]:hidden"
+        >
           {trends.personas.length > 0 ? (
             <div className="space-y-[7px]">
               {trends.personas.map((item, index) =>

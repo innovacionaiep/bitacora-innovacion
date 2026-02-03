@@ -1,12 +1,12 @@
-import { 
-  Proyecto, 
-  Escuela, 
-  Carrera, 
-  Comuna, 
-  GrupoInteres, 
-  SocioComunitario, 
-  ObjetivoProyecto, 
-  User, 
+import {
+  Proyecto,
+  Escuela,
+  Carrera,
+  Comuna,
+  GrupoInteres,
+  SocioComunitario,
+  ObjetivoProyecto,
+  User,
   DesarrolloTecnico,
   ProyectoParticipante,
   ProyectoEscuela,
@@ -15,7 +15,7 @@ import {
   ProyectoGrupoInteres,
   ProyectoSocioComunitario,
   Activity,
-  Task
+  Task,
 } from '@prisma/client';
 
 // Tipos base para relaciones
@@ -76,7 +76,13 @@ export type ProyectoFormData = {
   // Participantes
   participantes_rel: Array<{
     userId?: string;
-    rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
+    rol:
+      | 'Encargado'
+      | 'Coordinador'
+      | 'Colaborador'
+      | 'Docente'
+      | 'Estudiante'
+      | 'Beneficiario';
     nombre?: string;
     email?: string;
     cargo?: string;
@@ -111,7 +117,13 @@ export type SocioComunitarioItem = CatalogoItem;
 export type ParticipanteProyecto = {
   id: string;
   userId?: string;
-  rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
+  rol:
+    | 'Encargado'
+    | 'Coordinador'
+    | 'Colaborador'
+    | 'Docente'
+    | 'Estudiante'
+    | 'Beneficiario';
   nombre?: string;
   email?: string;
   user?: User;
@@ -164,4 +176,3 @@ export type ProyectoStats = {
   presupuestoUsado: number;
   avancePromedio: number;
 };
-

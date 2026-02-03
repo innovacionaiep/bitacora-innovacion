@@ -12,7 +12,11 @@ interface SimpleDonutChartProps {
   size?: number;
 }
 
-export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartProps) {
+export function SimpleDonutChart({
+  data,
+  title,
+  size = 200,
+}: SimpleDonutChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-gray-500">
@@ -26,7 +30,14 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const colors = [
+    '#10b981',
+    '#3b82f6',
+    '#f59e0b',
+    '#ef4444',
+    '#8b5cf6',
+    '#ec4899',
+  ];
 
   let currentOffset = 0;
   const segments = data.map((item, index) => {
@@ -56,7 +67,10 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
       )}
       <div className="flex flex-col items-center justify-center gap-4 h-full">
         {/* Gráfico donut centrado */}
-        <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+        <div
+          className="relative flex-shrink-0"
+          style={{ width: size, height: size }}
+        >
           <svg width={size} height={size} className="transform -rotate-90">
             {segments.map((segment, index) => (
               <circle
@@ -86,11 +100,17 @@ export function SimpleDonutChart({ data, title, size = 200 }: SimpleDonutChartPr
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: segment.color }}
                     />
-                    <span className="text-gray-700 truncate">{segment.label}</span>
+                    <span className="text-gray-700 truncate">
+                      {segment.label}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-1 flex-shrink-0">
-                    <span className="text-gray-900 font-bold">{segment.value}</span>
-                    <span className="text-gray-500">({segment.percentage.toFixed(1)}%)</span>
+                    <span className="text-gray-900 font-bold">
+                      {segment.value}
+                    </span>
+                    <span className="text-gray-500">
+                      ({segment.percentage.toFixed(1)}%)
+                    </span>
                   </div>
                 </div>
                 {/* Línea sutil debajo de cada elemento */}

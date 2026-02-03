@@ -57,7 +57,8 @@ export function ModalParticipante({
   if (!participante) return null;
 
   const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
-  const email = participante.user?.email || participante.email || 'No disponible';
+  const email =
+    participante.user?.email || participante.email || 'No disponible';
   const cargo = participante.cargo || 'No especificado';
   const imagen = participante.user?.image;
   const rol = participante.rol;
@@ -111,7 +112,9 @@ export function ModalParticipante({
             <div className="flex items-start space-x-3">
               <Mail className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-500">Correo Electrónico</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Correo Electrónico
+                </p>
                 <a
                   href={`mailto:${email}`}
                   className="text-base text-blue-600 hover:text-blue-800 break-words hover:underline"
@@ -126,13 +129,18 @@ export function ModalParticipante({
               <div className="flex items-start space-x-3">
                 <Calendar className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-500">Fecha de Incorporación</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    Fecha de Incorporación
+                  </p>
                   <p className="text-base text-gray-900">
-                    {new Date(participante.createdAt).toLocaleDateString('es-ES', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    {new Date(participante.createdAt).toLocaleDateString(
+                      'es-ES',
+                      {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      }
+                    )}
                   </p>
                 </div>
               </div>
@@ -142,28 +150,39 @@ export function ModalParticipante({
             <div className="flex items-start space-x-3">
               <User className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-500">ID de Participante</p>
-                <p className="text-xs text-gray-600 font-mono break-all">{participante.id}</p>
+                <p className="text-sm font-medium text-gray-500">
+                  ID de Participante
+                </p>
+                <p className="text-xs text-gray-600 font-mono break-all">
+                  {participante.id}
+                </p>
               </div>
             </div>
 
             {/* Información adicional si tiene cuenta de usuario */}
             {participante.user && (
               <div className="border-t pt-4 mt-4">
-                <p className="text-sm font-medium text-gray-500 mb-2">Información de Usuario</p>
+                <p className="text-sm font-medium text-gray-500 mb-2">
+                  Información de Usuario
+                </p>
                 <div className="space-y-2 text-sm text-gray-600">
                   <p>
                     <span className="font-medium">ID de Usuario:</span>{' '}
-                    <span className="font-mono text-xs">{participante.user.id}</span>
+                    <span className="font-mono text-xs">
+                      {participante.user.id}
+                    </span>
                   </p>
                   {participante.user.createdAt && (
                     <p>
                       <span className="font-medium">Cuenta creada:</span>{' '}
-                      {new Date(participante.user.createdAt).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                      {new Date(participante.user.createdAt).toLocaleDateString(
+                        'es-ES',
+                        {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        }
+                      )}
                     </p>
                   )}
                 </div>

@@ -2,7 +2,14 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, GraduationCap, Building, Users, Handshake, Info } from 'lucide-react';
+import {
+  MapPin,
+  GraduationCap,
+  Building,
+  Users,
+  Handshake,
+  Info,
+} from 'lucide-react';
 
 interface ProjectInfoCardProps {
   sede: string;
@@ -21,7 +28,6 @@ export function ProjectInfoCard({
   gruposInteres,
   sociosComunitarios,
 }: ProjectInfoCardProps) {
-
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
       <CardContent className="p-0">
@@ -51,7 +57,9 @@ export function ProjectInfoCard({
           <div>
             <div className="flex items-center space-x-2 mb-1">
               <GraduationCap className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Escuelas:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Escuelas:
+              </span>
             </div>
             <div className="flex flex-wrap gap-1">
               {escuelas?.map((item, index) => (
@@ -59,7 +67,9 @@ export function ProjectInfoCard({
                   {item.escuela.nombre}
                 </Badge>
               )) || (
-                <p className="text-sm text-gray-500 italic">No hay escuelas asignadas</p>
+                <p className="text-sm text-gray-500 italic">
+                  No hay escuelas asignadas
+                </p>
               )}
             </div>
           </div>
@@ -68,7 +78,9 @@ export function ProjectInfoCard({
           <div>
             <div className="flex items-center space-x-2 mb-1">
               <Building className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Carreras:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Carreras:
+              </span>
             </div>
             <div className="flex flex-wrap gap-1">
               {carreras?.map((item, index) => (
@@ -76,7 +88,9 @@ export function ProjectInfoCard({
                   {item.carrera.nombre}
                 </Badge>
               )) || (
-                <p className="text-sm text-gray-500 italic">No hay carreras asignadas</p>
+                <p className="text-sm text-gray-500 italic">
+                  No hay carreras asignadas
+                </p>
               )}
             </div>
           </div>
@@ -85,7 +99,9 @@ export function ProjectInfoCard({
           <div>
             <div className="flex items-center space-x-2 mb-1">
               <MapPin className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Comunas:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Comunas:
+              </span>
             </div>
             <div className="flex flex-wrap gap-1">
               {comunas?.map((item, index) => (
@@ -93,7 +109,9 @@ export function ProjectInfoCard({
                   {item.comuna.nombre}
                 </Badge>
               )) || (
-                <p className="text-sm text-gray-500 italic">No hay comunas asignadas</p>
+                <p className="text-sm text-gray-500 italic">
+                  No hay comunas asignadas
+                </p>
               )}
             </div>
           </div>
@@ -103,7 +121,9 @@ export function ProjectInfoCard({
             <div>
               <div className="flex items-center space-x-2 mb-1">
                 <Users className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Grupos de Interés:</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Grupos de Interés:
+                </span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {gruposInteres.map((item, index) => (
@@ -120,7 +140,9 @@ export function ProjectInfoCard({
             <div>
               <div className="flex items-center space-x-2 mb-1">
                 <Handshake className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Socios Comunitarios:</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Socios Comunitarios:
+                </span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {sociosComunitarios.map((item, index) => (

@@ -24,20 +24,47 @@ export function ProgressBarWithMarks({
 
   // Calcular porcentajes para posicionamiento basado en el rango
   // Asegurar que los valores estén dentro del rango [valorMinimo, valorMaximo]
-  const resultadoEsperadoClamped = Math.max(valorMinimo, Math.min(valorMaximo, resultadoEsperado));
-  const resultadoAlcanzadoClamped = Math.max(valorMinimo, Math.min(valorMaximo, resultadoAlcanzado));
+  const resultadoEsperadoClamped = Math.max(
+    valorMinimo,
+    Math.min(valorMaximo, resultadoEsperado)
+  );
+  const resultadoAlcanzadoClamped = Math.max(
+    valorMinimo,
+    Math.min(valorMaximo, resultadoAlcanzado)
+  );
 
-  const esperadoPercent = rango > 0
-    ? Math.max(0, Math.min(100, ((resultadoEsperadoClamped - valorMinimo) / rango) * 100))
-    : 0;
-  const alcanzadoPercent = rango > 0
-    ? Math.max(0, Math.min(100, ((resultadoAlcanzadoClamped - valorMinimo) / rango) * 100))
-    : 0;
+  const esperadoPercent =
+    rango > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((resultadoEsperadoClamped - valorMinimo) / rango) * 100
+          )
+        )
+      : 0;
+  const alcanzadoPercent =
+    rango > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((resultadoAlcanzadoClamped - valorMinimo) / rango) * 100
+          )
+        )
+      : 0;
 
   // Calcular el ancho de la barra basado en el resultado alcanzado dentro del rango
-  const barraWidth = rango > 0
-    ? Math.max(0, Math.min(100, ((resultadoAlcanzadoClamped - valorMinimo) / rango) * 100))
-    : 0;
+  const barraWidth =
+    rango > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((resultadoAlcanzadoClamped - valorMinimo) / rango) * 100
+          )
+        )
+      : 0;
 
   return (
     <div className="relative w-full">
@@ -60,7 +87,7 @@ export function ProgressBarWithMarks({
               className="absolute w-0.5 bg-blue-600"
               style={{
                 top: '-32px',
-                height: '32px'
+                height: '32px',
               }}
             />
             {/* Badge posicionado arriba */}

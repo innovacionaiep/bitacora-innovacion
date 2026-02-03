@@ -11,7 +11,8 @@ interface IndicadoresCardProps {
 }
 
 export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
-  const { data, loading, error, progresoGeneral, fetchIndicadores } = useIndicadores(projectId);
+  const { data, loading, error, progresoGeneral, fetchIndicadores } =
+    useIndicadores(projectId);
   const [selectedIndicador, setSelectedIndicador] = useState<{
     id: string;
     nombre: string;
@@ -37,17 +38,23 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
       for (const objetivoGeneral of data.objetivosGenerales) {
         for (const objetivoEspecifico of objetivoGeneral.objetivosEspecificos) {
           const indicadorActualizado = objetivoEspecifico.indicadores.find(
-            ind => ind.id === selectedIndicador.id
+            (ind) => ind.id === selectedIndicador.id
           );
           if (indicadorActualizado) {
             // Solo actualizar si hay cambios
             if (
-              indicadorActualizado.formatoNumero !== selectedIndicador.formatoNumero ||
-              indicadorActualizado.resultadoEsperado !== selectedIndicador.resultadoEsperado ||
-              indicadorActualizado.resultadoAlcanzado !== selectedIndicador.resultadoAlcanzado ||
-              indicadorActualizado.descripcion !== selectedIndicador.descripcion ||
-              indicadorActualizado.formaCalculo !== selectedIndicador.formaCalculo ||
-              indicadorActualizado.fechaInicio !== selectedIndicador.fechaInicio ||
+              indicadorActualizado.formatoNumero !==
+                selectedIndicador.formatoNumero ||
+              indicadorActualizado.resultadoEsperado !==
+                selectedIndicador.resultadoEsperado ||
+              indicadorActualizado.resultadoAlcanzado !==
+                selectedIndicador.resultadoAlcanzado ||
+              indicadorActualizado.descripcion !==
+                selectedIndicador.descripcion ||
+              indicadorActualizado.formaCalculo !==
+                selectedIndicador.formaCalculo ||
+              indicadorActualizado.fechaInicio !==
+                selectedIndicador.fechaInicio ||
               indicadorActualizado.fechaFin !== selectedIndicador.fechaFin
             ) {
               setSelectedIndicador({
@@ -84,7 +91,9 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-500 mb-4">Error al cargar indicadores: {error}</p>
+          <p className="text-red-500 mb-4">
+            Error al cargar indicadores: {error}
+          </p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-500 text-white rounded"
@@ -100,7 +109,9 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">No hay indicadores configurados para este proyecto</p>
+          <p className="text-gray-500 mb-4">
+            No hay indicadores configurados para este proyecto
+          </p>
         </div>
       </div>
     );

@@ -86,16 +86,15 @@ export async function createActivity(data: ActivityData) {
 /**
  * Actualizar una actividad
  */
-export async function updateActivity(
-  id: string,
-  data: Partial<ActivityData>
-) {
+export async function updateActivity(id: string, data: Partial<ActivityData>) {
   try {
     const activity = await prisma.activity.update({
       where: { id },
       data: {
         ...(data.name !== undefined && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.progress !== undefined && { progress: data.progress }),
         ...(data.color !== undefined && { color: data.color }),
         ...(data.orderIndex !== undefined && { orderIndex: data.orderIndex }),
@@ -134,7 +133,9 @@ export async function deleteActivity(id: string) {
 /**
  * Reordenar actividades
  */
-export async function reorderActivities(updates: { id: string; orderIndex: number }[]) {
+export async function reorderActivities(
+  updates: { id: string; orderIndex: number }[]
+) {
   try {
     await prisma.$transaction(
       updates.map((update) =>
@@ -156,7 +157,9 @@ export async function reorderActivities(updates: { id: string; orderIndex: numbe
 /**
  * Reordenar actividades en Kanban (usa kanbanOrderIndex)
  */
-export async function reorderActivitiesKanban(updates: { id: string; kanbanOrderIndex: number }[]) {
+export async function reorderActivitiesKanban(
+  updates: { id: string; kanbanOrderIndex: number }[]
+) {
   try {
     await prisma.$transaction(
       updates.map((update) =>
@@ -171,7 +174,10 @@ export async function reorderActivitiesKanban(updates: { id: string; kanbanOrder
     return { success: true };
   } catch (error) {
     console.error('Error reordering activities in Kanban:', error);
-    return { success: false, error: 'Error al reordenar actividades en Kanban' };
+    return {
+      success: false,
+      error: 'Error al reordenar actividades en Kanban',
+    };
   }
 }
 
@@ -182,7 +188,10 @@ export async function createTask(data: TaskData) {
   try {
     // Validar que el nombre de la tarea no exceda 62 caracteres
     if (data.name && data.name.length > 62) {
-      return { success: false, error: 'El nombre de la tarea no puede exceder 62 caracteres' };
+      return {
+        success: false,
+        error: 'El nombre de la tarea no puede exceder 62 caracteres',
+      };
     }
 
     const task = await prisma.task.create({
@@ -215,16 +224,21 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
   try {
     // Validar que el nombre de la tarea no exceda 62 caracteres
     if (data.name !== undefined && data.name.length > 62) {
-      return { success: false, error: 'El nombre de la tarea no puede exceder 62 caracteres' };
+      return {
+        success: false,
+        error: 'El nombre de la tarea no puede exceder 62 caracteres',
+      };
     }
 
     const task = await prisma.task.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { 
-          name: data.name.length > 62 ? data.name.substring(0, 62) : data.name 
+        ...(data.name !== undefined && {
+          name: data.name.length > 62 ? data.name.substring(0, 62) : data.name,
         }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.completed !== undefined && { completed: data.completed }),
         ...(data.startDate !== undefined && { startDate: data.startDate }),
         ...(data.endDate !== undefined && { endDate: data.endDate }),
@@ -279,8 +293,8 @@ export async function toggleTaskCompletion(id: string) {
   try {
     const task = await prisma.task.findUnique({
       where: { id },
-      select: { 
-        completed: true, 
+      select: {
+        completed: true,
         activityId: true,
         name: true,
         activity: {
@@ -393,7 +407,10 @@ export async function calculateProjectProgress(projectId: string) {
       return { success: true, progress: 0 };
     }
 
-    const totalProgress = activities.reduce((sum, act) => sum + act.progress, 0);
+    const totalProgress = activities.reduce(
+      (sum, act) => sum + act.progress,
+      0
+    );
     const progress = Math.round(totalProgress / activities.length);
 
     return { success: true, progress };
@@ -448,7 +465,9 @@ export async function updateActivityStatus(
     return { success: true, data: activity };
   } catch (error) {
     console.error('Error updating activity status:', error);
-    return { success: false, error: 'Error al actualizar el status de la actividad' };
+    return {
+      success: false,
+      error: 'Error al actualizar el status de la actividad',
+    };
   }
 }
-

@@ -84,14 +84,18 @@ export function PostFilters({
     <div className="flex items-center pt-0 pb-3 mb-4">
       {/* Segmento de línea izquierdo */}
       <div className="flex-1 border-t border-border"></div>
-      
+
       {/* Controles alineados a la derecha */}
       <div className="flex items-center gap-4 pl-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Ordenar por:</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 h-8 px-2 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 h-8 px-2 text-muted-foreground hover:text-foreground"
+              >
                 {SORT_LABELS[sortType]}
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -115,7 +119,11 @@ export function PostFilters({
           <span className="text-sm text-muted-foreground">Filtrar:</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 h-8 px-2 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 h-8 px-2 text-muted-foreground hover:text-foreground"
+              >
                 {filterLabel}
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -127,12 +135,17 @@ export function PostFilters({
                 Todos
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleFilterSelect('my-posts')}>
-                {filterType === 'my-posts' && <Check className="h-4 w-4 mr-2" />}
+                {filterType === 'my-posts' && (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
                 {filterType !== 'my-posts' && <span className="w-4 mr-2" />}
                 Mis posts
               </DropdownMenuItem>
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger disabled={loadingProyectos} className="flex items-center">
+                <DropdownMenuSubTrigger
+                  disabled={loadingProyectos}
+                  className="flex items-center"
+                >
                   <span className="w-4 mr-2"></span>
                   Proyecto
                 </DropdownMenuSubTrigger>

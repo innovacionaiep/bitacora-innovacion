@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LikeButton } from './LikeButton';
-import { toggleCommentLike, createComment, deleteComment, CommentWithRelations } from '@/lib/actions/post-comments';
+import {
+  toggleCommentLike,
+  createComment,
+  deleteComment,
+  CommentWithRelations,
+} from '@/lib/actions/post-comments';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';

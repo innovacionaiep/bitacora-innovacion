@@ -71,6 +71,9 @@ model User {
   // Reuniones de seguimiento como coordinador
   reunionesCoordinadas ReunionSeguimiento[]
 
+  // Oportunidades/amenazas donde dio OK coordinador
+  oportunidadesAmenazasOkPor OportunidadAmenaza[] @relation("OportunidadAmenazaOkPor")
+
   @@map("users")
 }
 
@@ -130,10 +133,60 @@ model Proyecto {
   posts              PostProyecto[]
 
   // Módulo de Seguimiento
-  reunionesSeguimiento ReunionSeguimiento[]
-  compromisos          CompromisoProyecto[]
+  reunionesSeguimiento   ReunionSeguimiento[]
+  compromisos            CompromisoProyecto[]
+  oportunidadesAmenazas  OportunidadAmenaza[]
+  itemsPresupuesto       ItemPresupuesto[]
 
   @@map("proyectos")
+}
+
+enum CuentaPresupuesto {
+  RRHH
+  OPERACION
+  INVERSION
+}
+
+enum EstadoGastoPresupuesto {
+  PENDIENTE
+  SOLICITADO
+  EN_PEDIDO
+  EJECUTADO_OK
+}
+
+model ItemPresupuesto {
+  id           String                 @id @default(cuid())
+  proyectoId   String                 @map("proyecto_id")
+  cuenta       CuentaPresupuesto
+  item         String
+  detalle      String?
+  monto        Int
+  estado       EstadoGastoPresupuesto @default(PENDIENTE)
+  idSolicitud  String?                @map("id_solicitud")
+  idPedido     String?                @map("id_pedido")
+  idRecepcion  String?                @map("id_recepcion")
+  orden        Int                    @default(0)
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  proyecto     Proyecto               @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  proyecciones ProyeccionPresupuesto[]
+
+  @@map("items_presupuesto")
+}
+
+model ProyeccionPresupuesto {
+  id                 String          @id @default(cuid())
+  itemPresupuestoId  String          @map("item_presupuesto_id")
+  mes                Int // 1-12
+  anio               Int
+  monto              Int             @default(0)
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  itemPresupuesto ItemPresupuesto @relation(fields: [itemPresupuestoId], references: [id], onDelete: Cascade)
+
+  @@unique([itemPresupuestoId, mes, anio])
+  @@map("proyecciones_presupuesto")
 }
 
 // Participación en Proyectos (many-to-many con roles)
@@ -531,18 +584,41 @@ model TemaPresupuestoReunion {
   @@map("temas_presupuesto_reunion")
 }
 
-model CompromisoProyecto {
-  id          String    @id @default(cuid())
-  reunionId   String    @map("reunion_id")
-  proyectoId  String    @map("proyecto_id")
-  descripcion String    @db.Text
-  fechaLimite DateTime? @map("fecha_limite")
-  completado  Boolean   @default(false)
-  asignadoA   String?   @map("asignado_a")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+model OportunidadAmenaza {
+  id                      String   @id @default(cuid())
+  proyectoId              String   @map("proyecto_id")
+  tipo                    String   // 'Oportunidad' | 'Amenaza'
+  nombre                  String   @default("") // Nombre/título de la oportunidad o amenaza
+  descripcion             String   @db.Text
+  planDeAccion            String?  @db.Text @map("plan_de_accion")
+  okCoordinador           Boolean  @default(false) @map("ok_coordinador")
+  okCoordinadorPorId      String?  @map("ok_coordinador_por_id")
+  okCoordinadorPorRolActivo String? @map("ok_coordinador_por_rol_activo")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
 
-  reunion  ReunionSeguimiento @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  proyecto         Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  okCoordinadorPor User?    @relation("OportunidadAmenazaOkPor", fields: [okCoordinadorPorId], references: [id], onDelete: SetNull)
+
+  @@index([proyectoId])
+  @@index([okCoordinadorPorId])
+  @@map("oportunidades_amenazas")
+}
+
+model CompromisoProyecto {
+  id                     String    @id @default(cuid())
+  reunionId              String?   @map("reunion_id")
+  proyectoId             String    @map("proyecto_id")
+  titulo                 String?   // Título breve para la tarjeta (opcional; si no hay, se usa la primera línea de descripcion)
+  descripcion            String    @db.Text
+  fechaLimite            DateTime? @map("fecha_limite")
+  completado             Boolean   @default(false)
+  validadoPorCoordinador Boolean   @default(false) @map("validado_por_coordinador")
+  asignadoA              String?   @map("asignado_a")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  reunion  ReunionSeguimiento? @relation(fields: [reunionId], references: [id], onDelete: SetNull)
   proyecto Proyecto           @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
   @@index([reunionId])

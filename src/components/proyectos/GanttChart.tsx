@@ -559,11 +559,11 @@ function SortableActivity({
   );
 }
 
-export default function GanttChart({ 
-  projectId, 
+export default function GanttChart({
+  projectId,
   projectName,
   showProjectSelector = false,
-  onProjectChange
+  onProjectChange,
 }: GanttChartProps) {
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -795,14 +795,16 @@ export default function GanttChart({
     const calculateScrollbarWidth = () => {
       if (scrollContainerRef.current) {
         // Calcular el ancho del scrollbar (diferencia entre offsetWidth y clientWidth)
-        const scrollbarWidth = scrollContainerRef.current.offsetWidth - scrollContainerRef.current.clientWidth;
-        
+        const scrollbarWidth =
+          scrollContainerRef.current.offsetWidth -
+          scrollContainerRef.current.clientWidth;
+
         console.log('Scrollbar width calculation:', {
           offsetWidth: scrollContainerRef.current.offsetWidth,
           clientWidth: scrollContainerRef.current.clientWidth,
-          scrollbarWidth: scrollbarWidth
+          scrollbarWidth: scrollbarWidth,
         });
-        
+
         setScrollbarWidth(scrollbarWidth);
       }
     };
@@ -1056,35 +1058,43 @@ export default function GanttChart({
     try {
       // Filtrar actividades solo de la columna específica y ordenar por kanbanOrderIndex
       const activitiesInColumn = activities
-        .filter(a => a.status === status)
+        .filter((a) => a.status === status)
         .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
-      
-      const currentIndex = activitiesInColumn.findIndex(a => a.id === activityId);
-      const targetIndex = activitiesInColumn.findIndex(a => a.id === targetActivityId);
-      
-      if (currentIndex === -1 || targetIndex === -1 || currentIndex === targetIndex) {
+
+      const currentIndex = activitiesInColumn.findIndex(
+        (a) => a.id === activityId
+      );
+      const targetIndex = activitiesInColumn.findIndex(
+        (a) => a.id === targetActivityId
+      );
+
+      if (
+        currentIndex === -1 ||
+        targetIndex === -1 ||
+        currentIndex === targetIndex
+      ) {
         return; // No hay nada que reordenar
       }
-      
+
       // Crear una copia de solo las actividades de esta columna
       const reorderedColumnActivities = [...activitiesInColumn];
       const [movedActivity] = reorderedColumnActivities.splice(currentIndex, 1);
       reorderedColumnActivities.splice(targetIndex, 0, movedActivity);
-      
+
       // Calcular el kanbanOrderIndex para las actividades de esta columna
       const updates = reorderedColumnActivities.map((activity, index) => ({
         id: activity.id,
         kanbanOrderIndex: index,
       }));
-      
+
       // Llamar a la server action de reordenamiento de Kanban
       const result = await reorderActivitiesKanban(updates);
-      
+
       if (result?.success) {
         // Actualizar el estado local manualmente sin hacer fetch
         updateActivitiesState((prevActivities) => {
-          return prevActivities.map(activity => {
-            const update = updates.find(u => u.id === activity.id);
+          return prevActivities.map((activity) => {
+            const update = updates.find((u) => u.id === activity.id);
             if (update) {
               return { ...activity, kanbanOrderIndex: update.kanbanOrderIndex };
             }
@@ -1109,36 +1119,44 @@ export default function GanttChart({
   ) => {
     // Actualizar el estado local inmediatamente para una experiencia fluida
     const activitiesInColumn = activities
-      .filter(a => a.status === status)
+      .filter((a) => a.status === status)
       .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
-    
-    const currentIndex = activitiesInColumn.findIndex(a => a.id === activityId);
-    const targetIndex = activitiesInColumn.findIndex(a => a.id === targetActivityId);
-    
-    if (currentIndex === -1 || targetIndex === -1 || currentIndex === targetIndex) {
+
+    const currentIndex = activitiesInColumn.findIndex(
+      (a) => a.id === activityId
+    );
+    const targetIndex = activitiesInColumn.findIndex(
+      (a) => a.id === targetActivityId
+    );
+
+    if (
+      currentIndex === -1 ||
+      targetIndex === -1 ||
+      currentIndex === targetIndex
+    ) {
       return;
     }
-    
+
     // Crear una copia de solo las actividades de esta columna
     const reorderedColumnActivities = [...activitiesInColumn];
     const [movedActivity] = reorderedColumnActivities.splice(currentIndex, 1);
     reorderedColumnActivities.splice(targetIndex, 0, movedActivity);
-    
+
     // Calcular el kanbanOrderIndex para las actividades de esta columna
     const updates = reorderedColumnActivities.map((activity, index) => ({
       id: activity.id,
       kanbanOrderIndex: index,
     }));
-    
+
     // Actualizar el estado local inmediatamente
-    const updatedActivities = activities.map(activity => {
-      const update = updates.find(u => u.id === activity.id);
+    const updatedActivities = activities.map((activity) => {
+      const update = updates.find((u) => u.id === activity.id);
       if (update) {
         return { ...activity, kanbanOrderIndex: update.kanbanOrderIndex };
       }
       return activity;
     });
-    
+
     // Actualizar el estado local (esto requeriría acceso al setter del hook)
     // Por ahora, la actualización optimista se maneja en el componente KanbanBoard
   };
@@ -1599,9 +1617,7 @@ export default function GanttChart({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-red-500 mb-4">
-            Error: {ganttError}
-          </p>
+          <p className="text-red-500 mb-4">Error: {ganttError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-500 text-white rounded"
@@ -1615,7 +1631,9 @@ export default function GanttChart({
 
   return (
     <TooltipProvider>
-      <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white overflow-auto' : ''} ${isFullscreen ? 'p-4' : 'pt-2 px-4 pb-8'}`}>
+      <div
+        className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white overflow-auto' : ''} ${isFullscreen ? 'p-4' : 'pt-2 px-4 pb-8'}`}
+      >
         {/* Header compacto de progreso */}
         <div className="mb-3">
           <div className="flex items-center justify-between">
@@ -1639,7 +1657,11 @@ export default function GanttChart({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{isFullscreen ? "Salir de pantalla completa" : "Ver en pantalla completa"}</p>
+                  <p>
+                    {isFullscreen
+                      ? 'Salir de pantalla completa'
+                      : 'Ver en pantalla completa'}
+                  </p>
                 </TooltipContent>
               </Tooltip>
 
@@ -1669,9 +1691,11 @@ export default function GanttChart({
                   </h1>
                 </div>
               )}
-              
+
               {/* Contenedor de botones Gantt/Kanban con espaciado solo en fullscreen */}
-              <div className={`flex items-center space-x-2 ${isFullscreen ? 'ml-8' : ''}`}>
+              <div
+                className={`flex items-center space-x-2 ${isFullscreen ? 'ml-8' : ''}`}
+              >
                 <Button
                   type="button"
                   onClick={() => setViewMode('gantt')}
@@ -1748,146 +1772,178 @@ export default function GanttChart({
 
         {/* Calendario Gantt - Siempre visible */}
         <div className="mt-0">
-          <Card className={isFullscreen ? (viewMode === 'gantt' ? 'h-[calc(100vh-160px)]' : 'h-[calc(100vh-100px)]') : ''}>
+          <Card
+            className={
+              isFullscreen
+                ? viewMode === 'gantt'
+                  ? 'h-[calc(100vh-160px)]'
+                  : 'h-[calc(100vh-100px)]'
+                : ''
+            }
+          >
             <CardContent className="p-0 h-full">
-              <div className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}>
+              <div
+                className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}
+              >
                 {/* Contenedor con scroll horizontal que incluye todo */}
-                <div className={`overflow-x-auto ${isFullscreen ? 'h-full' : ''}`}>
-                  <div className={`w-full min-w-[800px] relative ${isFullscreen ? 'h-full' : ''}`}>
+                <div
+                  className={`overflow-x-auto ${isFullscreen ? 'h-full' : ''}`}
+                >
+                  <div
+                    className={`w-full min-w-[800px] relative ${isFullscreen ? 'h-full' : ''}`}
+                  >
                     {/* Header del calendario - solo en vista Gantt */}
                     {viewMode === 'gantt' && (
                       <div className="flex border-b border-white">
-                      <div
-                        className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
-                        data-column="activities"
-                      >
-                        <div className="flex items-center relative">
-                          <div className="flex items-center space-x-2">
-                            {viewMode === 'gantt' && (
-                              <div className="relative group">
-                                <Button
-                                  type="button"
-                                  onClick={toggleAllDescriptions}
-                                  disabled={activities.length === 0 || ganttLoading}
-                                  variant="ghost"
-                                  size="sm"
-                                  aria-pressed={allExpanded}
-                                  aria-label={
-                                    allExpanded
-                                      ? 'Contraer todas las actividades'
-                                      : 'Expandir todas las actividades'
-                                  }
-                                  className="h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                                  onMouseEnter={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    const tooltip = document.getElementById('chevron-tooltip');
-                                    if (tooltip) {
-                                      tooltip.style.left = `${rect.left + rect.width / 2}px`;
-                                      tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
-                                      tooltip.style.transform = 'translateX(-50%)';
-                                      tooltip.style.opacity = '1';
+                        <div
+                          className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
+                          data-column="activities"
+                        >
+                          <div className="flex items-center relative">
+                            <div className="flex items-center space-x-2">
+                              {viewMode === 'gantt' && (
+                                <div className="relative group">
+                                  <Button
+                                    type="button"
+                                    onClick={toggleAllDescriptions}
+                                    disabled={
+                                      activities.length === 0 || ganttLoading
                                     }
-                                  }}
-                                  onMouseLeave={() => {
-                                    const tooltip = document.getElementById('chevron-tooltip');
-                                    if (tooltip) {
-                                      tooltip.style.opacity = '0';
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-pressed={allExpanded}
+                                    aria-label={
+                                      allExpanded
+                                        ? 'Contraer todas las actividades'
+                                        : 'Expandir todas las actividades'
                                     }
-                                  }}
-                                >
-                                  {allExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-                            {viewMode === 'gantt' && (
-                              <div className="relative group">
-                                <Button
-                                  onClick={handleAddActivityClick}
-                                  variant="outline"
-                                  className="rounded-full w-7 h-7 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                                  aria-label="Agregar actividad"
-                                  onMouseEnter={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    const tooltip = document.getElementById('add-activity-tooltip');
-                                    if (tooltip) {
-                                      tooltip.style.left = `${rect.left + rect.width / 2}px`;
-                                      tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
-                                      tooltip.style.transform = 'translateX(-50%)';
-                                      tooltip.style.opacity = '1';
-                                    }
-                                  }}
-                                  onMouseLeave={() => {
-                                    const tooltip = document.getElementById('add-activity-tooltip');
-                                    if (tooltip) {
-                                      tooltip.style.opacity = '0';
-                                    }
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-2">
-                            <h3 className="font-semibold text-gray-900">
-                              {viewMode === 'gantt' ? 'Actividades' : 'Tablero Kanban'}
-                            </h3>
-                            {ganttLoading && (
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-                            )}
+                                    className="h-7 w-7 p-0 rounded-full bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                    onMouseEnter={(e) => {
+                                      const rect =
+                                        e.currentTarget.getBoundingClientRect();
+                                      const tooltip =
+                                        document.getElementById(
+                                          'chevron-tooltip'
+                                        );
+                                      if (tooltip) {
+                                        tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                                        tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                                        tooltip.style.transform =
+                                          'translateX(-50%)';
+                                        tooltip.style.opacity = '1';
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      const tooltip =
+                                        document.getElementById(
+                                          'chevron-tooltip'
+                                        );
+                                      if (tooltip) {
+                                        tooltip.style.opacity = '0';
+                                      }
+                                    }}
+                                  >
+                                    {allExpanded ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+                              {viewMode === 'gantt' && (
+                                <div className="relative group">
+                                  <Button
+                                    onClick={handleAddActivityClick}
+                                    variant="outline"
+                                    className="rounded-full w-7 h-7 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                                    aria-label="Agregar actividad"
+                                    onMouseEnter={(e) => {
+                                      const rect =
+                                        e.currentTarget.getBoundingClientRect();
+                                      const tooltip = document.getElementById(
+                                        'add-activity-tooltip'
+                                      );
+                                      if (tooltip) {
+                                        tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                                        tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                                        tooltip.style.transform =
+                                          'translateX(-50%)';
+                                        tooltip.style.opacity = '1';
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      const tooltip = document.getElementById(
+                                        'add-activity-tooltip'
+                                      );
+                                      if (tooltip) {
+                                        tooltip.style.opacity = '0';
+                                      }
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-2">
+                              <h3 className="font-semibold text-gray-900">
+                                {viewMode === 'gantt'
+                                  ? 'Actividades'
+                                  : 'Tablero Kanban'}
+                              </h3>
+                              {ganttLoading && (
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div 
-                        ref={monthsHeaderRef}
-                        className="flex-1 flex relative bg-gray-50" 
-                        style={{ paddingRight: `${scrollbarWidth}px` }}
-                      >
-                        {getVisibleMonths().map((month, index) => (
-                          <div
-                            key={`${month.year}-${month.monthIndex}`}
-                            className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
-                          >
-                            <div className="text-sm font-medium text-gray-700">
-                              {month.name}
+                        <div
+                          ref={monthsHeaderRef}
+                          className="flex-1 flex relative bg-gray-50"
+                          style={{ paddingRight: `${scrollbarWidth}px` }}
+                        >
+                          {getVisibleMonths().map((month, index) => (
+                            <div
+                              key={`${month.year}-${month.monthIndex}`}
+                              className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
+                            >
+                              <div className="text-sm font-medium text-gray-700">
+                                {month.name}
+                              </div>
+                              <div className="text-xs text-gray-500 font-normal">
+                                {month.year}
+                              </div>
                             </div>
-                            <div className="text-xs text-gray-500 font-normal">
-                              {month.year}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
 
-                        {/* Indicador de "Hoy" */}
-                        {getTodayPositionPercent() >= 0 && (
-                          <div
-                            className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
-                            style={{
-                              left: `${getTodayPositionPercent()}%`,
-                              transform: 'translateX(-45%) translateY(50%)',
-                              width: '14px',
-                              height: '14px',
-                              bottom: '0px',
-                            }}
-                          ></div>
-                        )}
+                          {/* Indicador de "Hoy" */}
+                          {getTodayPositionPercent() >= 0 && (
+                            <div
+                              className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
+                              style={{
+                                left: `${getTodayPositionPercent()}%`,
+                                transform: 'translateX(-45%) translateY(50%)',
+                                width: '14px',
+                                height: '14px',
+                                bottom: '0px',
+                              }}
+                            ></div>
+                          )}
 
-                        {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
-                        {getTodayPositionPercent() >= 0 && (
-                          <div
-                            className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
-                            style={{
-                              left: `${getTodayPositionPercent()}%`,
-                              top: '100%',
-                              height: 'calc(100vh - 375px)',
-                            }}
-                          ></div>
-                        )}
+                          {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
+                          {getTodayPositionPercent() >= 0 && (
+                            <div
+                              className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
+                              style={{
+                                left: `${getTodayPositionPercent()}%`,
+                                top: '100%',
+                                height: 'calc(100vh - 375px)',
+                              }}
+                            ></div>
+                          )}
+                        </div>
                       </div>
-                    </div>
                     )}
 
                     {/* Renderizado condicional: Vista Gantt o Kanban */}
@@ -1900,7 +1956,11 @@ export default function GanttChart({
                           onToggleTaskCompletion={handleToggleTaskCompletion}
                           onReorderActivities={handleReorderActivities}
                           onOptimisticReorder={handleOptimisticReorder}
-                          onAddActivity={handleAddActivityClick}
+                          onAddActivity={() =>
+                            handleAddActivityClick(
+                              undefined as unknown as React.MouseEvent
+                            )
+                          }
                           isFullscreen={isFullscreen}
                         />
                       </div>
@@ -1908,77 +1968,89 @@ export default function GanttChart({
                       /* Vista Gantt */
                       <>
                         {/* Contenedor con scroll vertical para filas de actividades */}
-                        <div 
-                          ref={scrollContainerRef}
-                          className="overflow-y-auto relative" 
-                          style={{ maxHeight: isFullscreen ? 'calc(100vh - 230px)' : 'calc(100vh - 375px)' }}
-                        >
-                        {/* Filas de actividades y tareas */}
-                        {activities.length === 0 ? (
-                      <div className="flex">
                         <div
-                          className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
-                          data-column="activities"
+                          ref={scrollContainerRef}
+                          className="overflow-y-auto relative"
+                          style={{
+                            maxHeight: isFullscreen
+                              ? 'calc(100vh - 230px)'
+                              : 'calc(100vh - 375px)',
+                          }}
                         >
-                          <div className="text-center text-gray-500">
-                            <Circle className="h-8 w-8 mx-auto mb-2" />
-                            <p className="text-sm">No hay actividades</p>
-                            <p className="text-xs mt-1">Usa el botón + en el header para agregar una</p>
-                          </div>
-                        </div>
-                        <div className="flex-1 p-4 bg-gray-50"></div>
-                      </div>
-                    ) : (
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        measuring={{
-                          droppable: { strategy: MeasuringStrategy.Always },
-                        }}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={activities.map((activity) => activity.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {activities.map((activity) => (
-                            <SortableActivity
-                              key={activity.id}
-                              activity={activity}
-                              expandedDescriptions={expandedDescriptions}
-                              toggleDescription={toggleDescription}
-                              handleActivityBarClick={handleActivityBarClick}
-                              handleActivityInteraction={
-                                handleActivityInteraction
-                              }
-                              handleDeleteActivity={handleDeleteActivity}
-                              handleToggleTaskCompletion={
-                                handleToggleTaskCompletion
-                              }
-                              getActivityDateRange={getActivityDateRange}
-                              getActivityProgress={getActivityProgress}
-                              getDatePosition={getDatePosition}
-                              getBarWidth={getBarWidth}
-                              formatDateForTooltip={formatDateForTooltip}
-                              scrollbarWidth={scrollbarWidth}
-                            />
-                          ))}
-                        </SortableContext>
+                          {/* Filas de actividades y tareas */}
+                          {activities.length === 0 ? (
+                            <div className="flex">
+                              <div
+                                className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 flex justify-center items-center"
+                                data-column="activities"
+                              >
+                                <div className="text-center text-gray-500">
+                                  <Circle className="h-8 w-8 mx-auto mb-2" />
+                                  <p className="text-sm">No hay actividades</p>
+                                  <p className="text-xs mt-1">
+                                    Usa el botón + en el header para agregar una
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex-1 p-4 bg-gray-50"></div>
+                            </div>
+                          ) : (
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              measuring={{
+                                droppable: {
+                                  strategy: MeasuringStrategy.Always,
+                                },
+                              }}
+                              onDragEnd={handleDragEnd}
+                            >
+                              <SortableContext
+                                items={activities.map(
+                                  (activity) => activity.id
+                                )}
+                                strategy={verticalListSortingStrategy}
+                              >
+                                {activities.map((activity) => (
+                                  <SortableActivity
+                                    key={activity.id}
+                                    activity={activity}
+                                    expandedDescriptions={expandedDescriptions}
+                                    toggleDescription={toggleDescription}
+                                    handleActivityBarClick={
+                                      handleActivityBarClick
+                                    }
+                                    handleActivityInteraction={
+                                      handleActivityInteraction
+                                    }
+                                    handleDeleteActivity={handleDeleteActivity}
+                                    handleToggleTaskCompletion={
+                                      handleToggleTaskCompletion
+                                    }
+                                    getActivityDateRange={getActivityDateRange}
+                                    getActivityProgress={getActivityProgress}
+                                    getDatePosition={getDatePosition}
+                                    getBarWidth={getBarWidth}
+                                    formatDateForTooltip={formatDateForTooltip}
+                                    scrollbarWidth={scrollbarWidth}
+                                  />
+                                ))}
+                              </SortableContext>
 
-                        {/* Footer para marcar el fin de las actividades */}
-                        <div className="flex">
-                          <div
-                            className="w-[500px] border-r border-gray-200 bg-gray-50"
-                            data-column="activities"
-                          >
-                            <div className="h-6"></div>
-                          </div>
-                          <div className="flex-1 bg-gray-50">
-                            <div className="h-6"></div>
-                          </div>
-                        </div>
-                      </DndContext>
-                    )}
+                              {/* Footer para marcar el fin de las actividades */}
+                              <div className="flex">
+                                <div
+                                  className="w-[500px] border-r border-gray-200 bg-gray-50"
+                                  data-column="activities"
+                                >
+                                  <div className="h-6"></div>
+                                </div>
+                                <div className="flex-1 bg-gray-50">
+                                  <div className="h-6"></div>
+                                </div>
+                              </div>
+                            </DndContext>
+                          )}
                         </div>
                       </>
                     )}
@@ -1990,77 +2062,83 @@ export default function GanttChart({
 
           {/* Controles del timeline - solo en vista Gantt */}
           {viewMode === 'gantt' && (
-          <div className="mt-4">
-            <div className="flex items-center w-full">
-              {/* Espaciador reducido para mover controles hacia la izquierda */}
-              <div className="w-[300px] min-w-[150px] flex items-center justify-end pr-2">
-                <span className="text-sm font-medium text-gray-700">
-                  Navegación:
-                </span>
-              </div>
+            <div className="mt-4">
+              <div className="flex items-center w-full">
+                {/* Espaciador reducido para mover controles hacia la izquierda */}
+                <div className="w-[300px] min-w-[150px] flex items-center justify-end pr-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Navegación:
+                  </span>
+                </div>
 
-              {/* Slider de navegación temporal */}
-              <div className="flex items-center space-x-4 flex-1 min-w-[500px] max-w-[600px]">
-                <Slider
-                  value={[timelineOffset]}
-                  onValueChange={(value) => setTimelineOffset(value[0])}
-                  min={-24}
-                  max={24}
-                  step={1}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={() => setTimelineOffset(0)}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3"
-                >
-                  Hoy
-                </Button>
-              </div>
+                {/* Slider de navegación temporal */}
+                <div className="flex items-center space-x-4 flex-1 min-w-[500px] max-w-[600px]">
+                  <Slider
+                    value={[timelineOffset]}
+                    onValueChange={(value) => setTimelineOffset(value[0])}
+                    min={-24}
+                    max={24}
+                    step={1}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => setTimelineOffset(0)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3"
+                  >
+                    Hoy
+                  </Button>
+                </div>
 
-              {/* Botones de rango de meses */}
-              <div className="flex items-center space-x-4 ml-50">
-                <span className="text-sm font-medium text-gray-700">
-                  Rango:
-                </span>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    onClick={() => setVisibleMonthsRange(6)}
-                    variant={visibleMonthsRange === 6 ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    6 meses
-                  </Button>
-                  <Button
-                    onClick={() => setVisibleMonthsRange(12)}
-                    variant={visibleMonthsRange === 12 ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    12 meses
-                  </Button>
-                  <Button
-                    onClick={() => setVisibleMonthsRange(18)}
-                    variant={visibleMonthsRange === 18 ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    18 meses
-                  </Button>
-                  <Button
-                    onClick={() => setVisibleMonthsRange(24)}
-                    variant={visibleMonthsRange === 24 ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    24 meses
-                  </Button>
+                {/* Botones de rango de meses */}
+                <div className="flex items-center space-x-4 ml-50">
+                  <span className="text-sm font-medium text-gray-700">
+                    Rango:
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={() => setVisibleMonthsRange(6)}
+                      variant={visibleMonthsRange === 6 ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 px-3"
+                    >
+                      6 meses
+                    </Button>
+                    <Button
+                      onClick={() => setVisibleMonthsRange(12)}
+                      variant={
+                        visibleMonthsRange === 12 ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      className="h-8 px-3"
+                    >
+                      12 meses
+                    </Button>
+                    <Button
+                      onClick={() => setVisibleMonthsRange(18)}
+                      variant={
+                        visibleMonthsRange === 18 ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      className="h-8 px-3"
+                    >
+                      18 meses
+                    </Button>
+                    <Button
+                      onClick={() => setVisibleMonthsRange(24)}
+                      variant={
+                        visibleMonthsRange === 24 ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      className="h-8 px-3"
+                    >
+                      24 meses
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
         </div>
 
@@ -2395,6 +2473,7 @@ export default function GanttChart({
                                 projectId: projectId || '',
                                 color: '#3B82F6',
                                 orderIndex: 0,
+                                kanbanOrderIndex: 0,
                                 status: 'TODO',
                                 createdAt: new Date(),
                                 updatedAt: new Date(),
@@ -2630,9 +2709,11 @@ export default function GanttChart({
           className="fixed px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 pointer-events-none whitespace-nowrap z-[99999] opacity-0 transition-opacity duration-200"
           style={{ transform: 'translateX(-50%)' }}
         >
-          {allExpanded ? 'Contraer todas las actividades' : 'Expandir todas las actividades'}
+          {allExpanded
+            ? 'Contraer todas las actividades'
+            : 'Expandir todas las actividades'}
         </div>
-        
+
         <div
           id="add-activity-tooltip"
           className="fixed px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 pointer-events-none whitespace-nowrap z-[99999] opacity-0 transition-opacity duration-200"
@@ -2644,4 +2725,3 @@ export default function GanttChart({
     </TooltipProvider>
   );
 }
-

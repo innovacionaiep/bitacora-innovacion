@@ -99,10 +99,7 @@ async function asignarCargosATodos() {
     console.log('🔄 Obteniendo todos los participantes...');
     const participantes = await prisma.proyectoParticipante.findMany({
       where: {
-        OR: [
-          { cargo: null },
-          { cargo: '' },
-        ],
+        OR: [{ cargo: null }, { cargo: '' }],
       },
     });
 
@@ -111,12 +108,14 @@ async function asignarCargosATodos() {
       return;
     }
 
-    console.log(`📋 Encontrados ${participantes.length} participantes sin cargo`);
+    console.log(
+      `📋 Encontrados ${participantes.length} participantes sin cargo`
+    );
 
     let actualizados = 0;
     for (const participante of participantes) {
       const cargo = obtenerCargoAleatorio(participante.rol);
-      
+
       if (cargo) {
         await prisma.proyectoParticipante.update({
           where: { id: participante.id },
@@ -137,8 +136,7 @@ async function asignarCargosATodos() {
 }
 
 // Ejecutar el script
-asignarCargosATodos()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+asignarCargosATodos().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

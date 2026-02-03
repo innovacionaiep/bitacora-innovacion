@@ -19,9 +19,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground">
         {/* Provider de autenticación */}
         <SessionProvider>
-          <ConditionalLayout>
-            {children}
-          </ConditionalLayout>
+          <ConditionalLayout>{children}</ConditionalLayout>
         </SessionProvider>
       </body>
     </html>

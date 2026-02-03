@@ -1,5 +1,6 @@
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
@@ -67,13 +68,15 @@ export interface HistorialFiltros {
 
 /**
  * Obtener historial de un proyecto con filtros opcionales
+ * @param limit - Límite de resultados (ej. 10 para resumen). Sin límite si no se pasa.
  */
 export async function getHistorialProyecto(
   proyectoId: string,
-  filtros?: HistorialFiltros
+  filtros?: HistorialFiltros,
+  limit?: number
 ) {
   try {
-    const where: any = {
+    const where: Prisma.HistorialProyectoWhereInput = {
       proyectoId,
     };
 
@@ -91,6 +94,7 @@ export async function getHistorialProyecto(
 
     const historial = await prisma.historialProyecto.findMany({
       where,
+      ...(limit != null && { take: limit }),
       include: {
         user: {
           select: {

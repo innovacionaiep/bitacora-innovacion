@@ -50,12 +50,14 @@ export interface MonthlyTrends {
 /**
  * Función interna para obtener participantes (una sola query)
  */
-async function _fetchRandomParticipants(limit: number): Promise<RandomParticipant[]> {
+async function _fetchRandomParticipants(
+  limit: number
+): Promise<RandomParticipant[]> {
   // Obtener todos los participantes válidos en una sola query y mezclar en memoria
   const participants = await prisma.proyectoParticipante.findMany({
     where: {
       userId: { not: null },
-      user: { name: { not: null } }
+      user: { name: { not: null } },
     },
     include: {
       user: {
@@ -70,10 +72,10 @@ async function _fetchRandomParticipants(limit: number): Promise<RandomParticipan
 
   // Mezclar y tomar los primeros 'limit'
   const shuffled = participants.sort(() => Math.random() - 0.5).slice(0, limit);
-  
+
   return shuffled
-    .filter(p => p.user)
-    .map(p => ({
+    .filter((p) => p.user)
+    .map((p) => ({
       id: p.id,
       nombre: p.user!.name,
       email: p.user!.email,
@@ -88,7 +90,10 @@ async function _fetchRandomParticipants(limit: number): Promise<RandomParticipan
  * @param limit - Número de participantes a obtener
  * @param forceRefresh - Si es true, bypasea el caché y obtiene datos frescos
  */
-export async function getRandomParticipants(limit: number = 4, forceRefresh: boolean = false): Promise<{
+export async function getRandomParticipants(
+  limit: number = 4,
+  forceRefresh: boolean = false
+): Promise<{
   success: boolean;
   data?: RandomParticipant[];
   error?: string;
@@ -99,7 +104,7 @@ export async function getRandomParticipants(limit: number = 4, forceRefresh: boo
       const data = await _fetchRandomParticipants(limit);
       return { success: true, data };
     }
-    
+
     // Para carga inicial, usar caché
     const cachedFetch = unstable_cache(
       async () => _fetchRandomParticipants(limit),
@@ -110,7 +115,10 @@ export async function getRandomParticipants(limit: number = 4, forceRefresh: boo
     return { success: true, data };
   } catch (error) {
     console.error('Error fetching random participants:', error);
-    return { success: false, error: 'Error al obtener participantes aleatorios' };
+    return {
+      success: false,
+      error: 'Error al obtener participantes aleatorios',
+    };
   }
 }
 
@@ -128,8 +136,8 @@ async function _fetchRandomProjects(limit: number): Promise<RandomProject[]> {
 
   // Mezclar y tomar los primeros 'limit'
   const shuffled = proyectos.sort(() => Math.random() - 0.5).slice(0, limit);
-  
-  return shuffled.map(p => ({
+
+  return shuffled.map((p) => ({
     id: p.id,
     nombre: p.proyecto,
     sede: p.sede,
@@ -145,7 +153,10 @@ async function _fetchRandomProjects(limit: number): Promise<RandomProject[]> {
  * @param limit - Número de proyectos a obtener
  * @param forceRefresh - Si es true, bypasea el caché y obtiene datos frescos
  */
-export async function getRandomProjects(limit: number = 3, forceRefresh: boolean = false): Promise<{
+export async function getRandomProjects(
+  limit: number = 3,
+  forceRefresh: boolean = false
+): Promise<{
   success: boolean;
   data?: RandomProject[];
   error?: string;
@@ -156,7 +167,7 @@ export async function getRandomProjects(limit: number = 3, forceRefresh: boolean
       const data = await _fetchRandomProjects(limit);
       return { success: true, data };
     }
-    
+
     // Para carga inicial, usar caché
     const cachedFetch = unstable_cache(
       async () => _fetchRandomProjects(limit),
@@ -221,7 +232,7 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
   // Obtener detalles de proyectos y usuarios en paralelo
   const proyectosIds = proyectosTrending.map((p) => p.proyectoId);
   const userIds = personasTrending.map((p) => p.authorId);
-  
+
   const [proyectosDetails, usersDetails] = await Promise.all([
     prisma.proyecto.findMany({
       where: { id: { in: proyectosIds } },
@@ -243,7 +254,10 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
 
   // Mapear usuarios (incluye rol activo para mostrar en tendencias de personas)
   const usersMap = new Map(
-    usersDetails.map((u) => [u.id, { name: u.name, image: u.image, activeRole: u.activeRole }])
+    usersDetails.map((u) => [
+      u.id,
+      { name: u.name, image: u.image, activeRole: u.activeRole },
+    ])
   );
   const personas: TrendingItem[] = personasTrending.map((p) => ({
     id: p.authorId,
@@ -256,11 +270,11 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
   // Procesar escuelas y sedes del resultado consolidado
   const escuelasCount = new Map<string, { nombre: string; count: number }>();
   const sedesCount = new Map<string, number>();
-  
+
   for (const post of postsDelMes) {
     const escuelasVistas = new Set<string>();
     const sedesVistas = new Set<string>();
-    
+
     for (const postProyecto of post.proyectos) {
       // Sedes
       const sede = postProyecto.proyecto.sede;
@@ -273,7 +287,10 @@ async function _fetchMonthlyTrends(): Promise<MonthlyTrends> {
         const escuela = proyectoEscuela.escuela;
         if (!escuelasVistas.has(escuela.id)) {
           escuelasVistas.add(escuela.id);
-          const current = escuelasCount.get(escuela.id) || { nombre: escuela.nombre, count: 0 };
+          const current = escuelasCount.get(escuela.id) || {
+            nombre: escuela.nombre,
+            count: 0,
+          };
           current.count++;
           escuelasCount.set(escuela.id, current);
         }

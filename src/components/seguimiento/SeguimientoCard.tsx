@@ -1,46 +1,67 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   getReunionesProyecto,
-  getCompromisosPendientesProyecto,
+  getCompromisosProyecto,
+  getOportunidadesAmenazasProyecto,
 } from '@/lib/actions/seguimiento';
-import { CompromisosList } from './CompromisosList';
 import { ReunionModal } from './ReunionModal';
 import { ReunionFormModal } from './ReunionFormModal';
+import { OportunidadesAmenazasCard } from './OportunidadesAmenazasCard';
+import { CompromisosPostItWall } from './CompromisosPostItWall';
+import { Calendar, Plus, Loader2 } from 'lucide-react';
 import {
-  Calendar,
-  Plus,
-  Clock,
-  User,
-  ClipboardCheck,
-  Loader2,
-} from 'lucide-react';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface SeguimientoCardProps {
   projectId: string;
   projectName?: string;
+  rolEnProyecto?: string | null;
+  /** Rol activo del usuario (ej. Admin). Los Admin pueden crear O/A y compromisos aunque no sean coordinadores del proyecto. */
+  activeRole?: string | null;
+  /** Usuario actual para mostrar quién dio el OK en oportunidades/amenazas (avatar, nombre, rol). */
+  currentUser?: {
+    id: string;
+    name?: string | null;
+    image?: string | null;
+  } | null;
 }
 
-export function SeguimientoCard({ projectId, projectName }: SeguimientoCardProps) {
+export function SeguimientoCard({
+  projectId,
+  projectName,
+  rolEnProyecto,
+  activeRole,
+  currentUser,
+}: SeguimientoCardProps) {
   const [reuniones, setReuniones] = useState<
     Awaited<ReturnType<typeof getReunionesProyecto>>['data']
   >([]);
   const [compromisos, setCompromisos] = useState<
-    Awaited<ReturnType<typeof getCompromisosPendientesProyecto>>['data']
+    Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
+  >([]);
+  const [oportunidadesAmenazas, setOportunidadesAmenazas] = useState<
+    Awaited<ReturnType<typeof getOportunidadesAmenazasProyecto>>['data']
   >([]);
   const [loading, setLoading] = useState(true);
   const [showNuevaReunion, setShowNuevaReunion] = useState(false);
-  const [selectedReunionId, setSelectedReunionId] = useState<string | null>(null);
+  const [selectedReunionId, setSelectedReunionId] = useState<string | null>(
+    null
+  );
   const [reunionModalOpen, setReunionModalOpen] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    const [reunionesRes, compromisosRes] = await Promise.all([
+  const loadData = async (isRefetch = false) => {
+    if (!isRefetch) setLoading(true);
+    const [reunionesRes, compromisosRes, oaRes] = await Promise.all([
       getReunionesProyecto(projectId),
-      getCompromisosPendientesProyecto(projectId),
+      getCompromisosProyecto(projectId),
+      getOportunidadesAmenazasProyecto(projectId),
     ]);
     if (reunionesRes.success && reunionesRes.data) {
       setReuniones(reunionesRes.data);
@@ -48,17 +69,20 @@ export function SeguimientoCard({ projectId, projectName }: SeguimientoCardProps
     if (compromisosRes.success && compromisosRes.data) {
       setCompromisos(compromisosRes.data);
     }
+    if (oaRes.success && oaRes.data) {
+      setOportunidadesAmenazas(oaRes.data);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     if (projectId) {
-      loadData();
+      loadData(false);
     }
   }, [projectId]);
 
   const handleSuccess = async () => {
-    await loadData();
+    await loadData(true);
   };
 
   const formatFecha = (fecha: Date | string) => {
@@ -77,122 +101,133 @@ export function SeguimientoCard({ projectId, projectName }: SeguimientoCardProps
     setReunionModalOpen(true);
   };
 
-  return (
-    <div className="h-full flex flex-col">
-      <Card className="flex-1 flex flex-col shadow-md">
-        <CardHeader className="border-b border-gray-200 pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-xl font-semibold text-gray-900">
-              <ClipboardCheck className="h-5 w-5 text-emerald-600" />
-              Seguimiento
-              {projectName && (
-                <span className="text-base font-normal text-gray-500">
-                  · {projectName}
-                </span>
-              )}
-            </CardTitle>
-            <Button
-              onClick={() => setShowNuevaReunion(true)}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva reunión
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-auto p-6">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            <div className="space-y-8">
-              <section>
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Reuniones de seguimiento
-                </h3>
-                {reuniones.length === 0 ? (
-                  <div className="text-center py-8 border rounded-lg border-dashed border-gray-300 bg-gray-50">
-                    <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                    <p className="text-gray-500">
-                      No hay reuniones registradas para este proyecto
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                      onClick={() => setShowNuevaReunion(true)}
-                    >
-                      Crear primera reunión
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {reuniones.map((reunion) => (
-                      <div
-                        key={reunion.id}
-                        className="border-l-4 border-emerald-500 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer"
-                        onClick={() => handleVerReunion(reunion.id)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {formatFecha(reunion.fecha)}
-                            </p>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
-                              <span className="flex items-center gap-1">
-                                <User className="h-3.5 w-3" />
-                                {reunion.coordinador?.name || reunion.coordinador?.email}
-                              </span>
-                              {reunion.duracionMinutos && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3.5 w-3" />
-                                  {reunion.duracionMinutos} min
-                                </span>
-                              )}
-                            </div>
-                            {reunion.resumen && (
-                              <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                                {reunion.resumen}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-xs text-emerald-600 font-medium">
-                            Ver detalle
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
-              <section>
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Compromisos pendientes
-                </h3>
-                <CompromisosList
-                  compromisos={compromisos.map((c) => ({
-                    id: c.id,
-                    descripcion: c.descripcion,
-                    fechaLimite: c.fechaLimite,
-                    completado: c.completado,
-                    reunion: c.reunion
-                      ? {
-                          id: c.reunion.id,
-                          fecha: c.reunion.fecha,
-                          coordinador: c.reunion.coordinador,
-                        }
-                      : undefined,
-                  }))}
-                  onToggle={handleSuccess}
-                  showReunionInfo={true}
-                />
-              </section>
+  return (
+    <div className="h-full flex flex-col gap-4">
+      <div className="flex-1 min-h-0 flex gap-4 pb-6">
+        {/* Columna izquierda: Reuniones */}
+        <div className="w-[300px] xl:w-[320px] flex-shrink-0 flex flex-col rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+          <header className="flex-shrink-0 flex items-center justify-between w-full px-3 py-2 bg-gray-100 border-b border-gray-200 rounded-t-xl">
+            <h4 className="font-semibold text-gray-700 text-xs uppercase tracking-wide flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+              Reuniones
+            </h4>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
+                    onClick={() => setShowNuevaReunion(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 text-white" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Agregar reunión</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </header>
+          <div className="p-4 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
+              {reuniones.length === 0 ? (
+                <div className="text-center py-6 rounded-lg bg-gray-50/50">
+                  <Calendar className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">
+                    No hay reuniones registradas
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => setShowNuevaReunion(true)}
+                  >
+                    Crear primera reunión
+                  </Button>
+                </div>
+              ) : (
+                reuniones.map((reunion) => (
+                  <div
+                    key={reunion.id}
+                    className="border-l-4 border-emerald-500 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <p className="font-medium text-gray-900 text-sm min-w-0">
+                        {formatFecha(reunion.fecha)}
+                      </p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVerReunion(reunion.id);
+                          }}
+                        >
+                          Detalles
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Placeholder: Iniciar reunión (se configurará después)
+                          }}
+                        >
+                          Iniciar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+
+        {/* Columna derecha: O/A arriba, Compromisos abajo */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4 pl-4">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-lg flex flex-col min-h-0 flex-1 overflow-hidden">
+            <OportunidadesAmenazasCard
+              projectId={projectId}
+              oportunidadesAmenazas={oportunidadesAmenazas}
+              rolEnProyecto={rolEnProyecto}
+              activeRole={activeRole}
+              currentUser={currentUser}
+              onSuccess={handleSuccess}
+              onOptimisticOAUpdate={(id, patch) =>
+                setOportunidadesAmenazas((prev) =>
+                  prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
+                )
+              }
+            />
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white shadow-lg flex flex-col min-h-0 flex-1 overflow-hidden">
+            <CompromisosPostItWall
+              projectId={projectId}
+              compromisos={compromisos}
+              rolEnProyecto={rolEnProyecto}
+              activeRole={activeRole}
+              onSuccess={handleSuccess}
+              onOptimisticCompromisoUpdate={(id, patch) =>
+                setCompromisos((prev) =>
+                  prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
+                )
+              }
+            />
+          </div>
+        </div>
+      </div>
 
       <ReunionFormModal
         projectId={projectId}

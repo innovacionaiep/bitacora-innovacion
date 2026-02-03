@@ -24,18 +24,36 @@ export async function seedCatalogs() {
 
   // Seed Grupos de Interés (basado en la imagen)
   const gruposInteres = [
-    { nombre: 'Sociedad civil', descripcion: 'Organizaciones de la sociedad civil' },
-    { nombre: 'Organizaciones sociales', descripcion: 'Organizaciones sociales y comunitarias' },
-    { nombre: 'Sector productivo y de servicios', descripcion: 'Empresas del sector productivo y de servicios' },
-    { nombre: 'Municipalidades y organismos públicos', descripcion: 'Instituciones públicas y municipales' },
+    {
+      nombre: 'Sociedad civil',
+      descripcion: 'Organizaciones de la sociedad civil',
+    },
+    {
+      nombre: 'Organizaciones sociales',
+      descripcion: 'Organizaciones sociales y comunitarias',
+    },
+    {
+      nombre: 'Sector productivo y de servicios',
+      descripcion: 'Empresas del sector productivo y de servicios',
+    },
+    {
+      nombre: 'Municipalidades y organismos públicos',
+      descripcion: 'Instituciones públicas y municipales',
+    },
   ];
 
   for (const grupo of gruposInteres) {
-    await prisma.grupoInteres.upsert({
+    const existente = await prisma.grupoInteres.findFirst({
       where: { nombre: grupo.nombre },
-      update: {},
-      create: grupo,
     });
+    if (existente) {
+      await prisma.grupoInteres.update({
+        where: { id: existente.id },
+        data: grupo,
+      });
+    } else {
+      await prisma.grupoInteres.create({ data: grupo });
+    }
   }
 
   // Seed Carreras (placeholder - se actualizará con la lista completa)
@@ -48,11 +66,17 @@ export async function seedCatalogs() {
   ];
 
   for (const carrera of carreras) {
-    await prisma.carrera.upsert({
+    const existente = await prisma.carrera.findFirst({
       where: { nombre: carrera.nombre },
-      update: {},
-      create: carrera,
     });
+    if (existente) {
+      await prisma.carrera.update({
+        where: { id: existente.id },
+        data: carrera,
+      });
+    } else {
+      await prisma.carrera.create({ data: carrera });
+    }
   }
 
   // Seed Comunas (placeholder - se actualizará con la lista completa)
@@ -65,11 +89,17 @@ export async function seedCatalogs() {
   ];
 
   for (const comuna of comunas) {
-    await prisma.comuna.upsert({
+    const existente = await prisma.comuna.findFirst({
       where: { nombre: comuna.nombre },
-      update: {},
-      create: comuna,
     });
+    if (existente) {
+      await prisma.comuna.update({
+        where: { id: existente.id },
+        data: comuna,
+      });
+    } else {
+      await prisma.comuna.create({ data: comuna });
+    }
   }
 
   console.log('✅ Catalogs seeded successfully');
@@ -85,4 +115,3 @@ if (require.main === module) {
       await prisma.$disconnect();
     });
 }
-

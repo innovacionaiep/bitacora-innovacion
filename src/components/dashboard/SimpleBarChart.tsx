@@ -12,7 +12,11 @@ interface SimpleBarChartProps {
   height?: number;
 }
 
-export function SimpleBarChart({ data, title, height = 200 }: SimpleBarChartProps) {
+export function SimpleBarChart({
+  data,
+  title,
+  height = 200,
+}: SimpleBarChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-gray-500">
@@ -22,7 +26,14 @@ export function SimpleBarChart({ data, title, height = 200 }: SimpleBarChartProp
   }
 
   const maxValue = Math.max(...data.map((d) => d.value));
-  const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const colors = [
+    '#10b981',
+    '#3b82f6',
+    '#f59e0b',
+    '#ef4444',
+    '#8b5cf6',
+    '#ec4899',
+  ];
 
   return (
     <div className="w-full">
@@ -49,7 +60,9 @@ export function SimpleBarChart({ data, title, height = 200 }: SimpleBarChartProp
                     }}
                   />
                 </div>
-                <span className="text-gray-900 font-bold text-sm min-w-[2rem] text-right">{item.value}</span>
+                <span className="text-gray-900 font-bold text-sm min-w-[2rem] text-right">
+                  {item.value}
+                </span>
               </div>
             </div>
           );

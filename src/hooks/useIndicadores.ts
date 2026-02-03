@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { 
-  getIndicadoresByProyecto, 
+import {
+  getIndicadoresByProyecto,
   updateIndicadorResultado,
-  type IndicadoresProyectoData 
+  type IndicadoresProyectoData,
 } from '@/lib/actions/indicadores';
 
 export function useIndicadores(projectId: string | null) {
@@ -25,7 +25,7 @@ export function useIndicadores(projectId: string | null) {
 
     try {
       const result = await getIndicadoresByProyecto(projectId);
-      
+
       if (result.success && result.data) {
         setData(result.data);
       } else {
@@ -62,9 +62,9 @@ export function useIndicadores(projectId: string | null) {
         return { success: false, error: result.error };
       }
     } catch (err) {
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : 'Error desconocido' 
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Error desconocido',
       };
     }
   };
@@ -72,14 +72,15 @@ export function useIndicadores(projectId: string | null) {
   const calculateOverallProgress = (): number => {
     if (!data || data.objetivosGenerales.length === 0) return 0;
 
-    const allIndicators = data.objetivosGenerales.flatMap(og => 
-      og.objetivosEspecificos.flatMap(oe => oe.indicadores)
+    const allIndicators = data.objetivosGenerales.flatMap((og) =>
+      og.objetivosEspecificos.flatMap((oe) => oe.indicadores)
     );
 
     if (allIndicators.length === 0) return 0;
 
-    const totalProgress = allIndicators.reduce((sum, indicator) => 
-      sum + indicator.porcentajeAvance, 0
+    const totalProgress = allIndicators.reduce(
+      (sum, indicator) => sum + indicator.porcentajeAvance,
+      0
     );
 
     return Math.round(totalProgress / allIndicators.length);
@@ -96,7 +97,6 @@ export function useIndicadores(projectId: string | null) {
     fetchIndicadores,
     updateIndicador,
     calculateOverallProgress,
-    progresoGeneral: data?.progresoGeneral || 0
+    progresoGeneral: data?.progresoGeneral || 0,
   };
 }
-

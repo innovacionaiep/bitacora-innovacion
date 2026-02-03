@@ -30,4 +30,3 @@ declare module 'next-auth/jwt' {
     availableRoles: string[];
   }
 }
-

@@ -28,7 +28,9 @@ async function fixActivityStatus() {
     return;
   }
 
-  console.log(`❌ Actividades con status inválidos: ${invalidActivities.length}\n`);
+  console.log(
+    `❌ Actividades con status inválidos: ${invalidActivities.length}\n`
+  );
   console.log('Detalles:');
   invalidActivities.forEach((activity, index) => {
     console.log(`  ${index + 1}. ${activity.name}`);
@@ -52,7 +54,9 @@ async function fixActivityStatus() {
   console.log('Resumen:');
   console.log(`  - Total de actividades: ${allActivities.length}`);
   console.log(`  - Actividades corregidas: ${invalidActivities.length}`);
-  console.log(`  - Actividades correctas: ${allActivities.length - invalidActivities.length}`);
+  console.log(
+    `  - Actividades correctas: ${allActivities.length - invalidActivities.length}`
+  );
 }
 
 fixActivityStatus()
@@ -67,4 +71,3 @@ fixActivityStatus()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

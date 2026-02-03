@@ -24,7 +24,10 @@ export default function ReportesPage() {
   const [subject, setSubject] = useState('');
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
   const [proyectosLoading, setProyectosLoading] = useState(true);
@@ -61,7 +64,10 @@ export default function ReportesPage() {
       return;
     }
     if (!trimmedHtml) {
-      setMessage({ type: 'error', text: 'El contenido HTML no puede estar vacío.' });
+      setMessage({
+        type: 'error',
+        text: 'El contenido HTML no puede estar vacío.',
+      });
       return;
     }
 
@@ -94,7 +100,10 @@ export default function ReportesPage() {
     }
     const trimmedTo = reporteTo.trim();
     if (!trimmedTo) {
-      setReporteMessage({ type: 'error', text: 'Indica al menos un destinatario.' });
+      setReporteMessage({
+        type: 'error',
+        text: 'Indica al menos un destinatario.',
+      });
       return;
     }
     setReporteLoading(true);
@@ -105,12 +114,21 @@ export default function ReportesPage() {
         reporteSubject.trim() || undefined
       );
       if (result.success) {
-        setReporteMessage({ type: 'success', text: 'Reporte enviado correctamente.' });
+        setReporteMessage({
+          type: 'success',
+          text: 'Reporte enviado correctamente.',
+        });
       } else {
-        setReporteMessage({ type: 'error', text: result.error ?? 'Error al enviar el reporte.' });
+        setReporteMessage({
+          type: 'error',
+          text: result.error ?? 'Error al enviar el reporte.',
+        });
       }
     } catch {
-      setReporteMessage({ type: 'error', text: 'Error inesperado al enviar el reporte.' });
+      setReporteMessage({
+        type: 'error',
+        text: 'Error inesperado al enviar el reporte.',
+      });
     } finally {
       setReporteLoading(false);
     }
@@ -119,9 +137,6 @@ export default function ReportesPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Reportes</h1>
-      <p className="text-muted-foreground">
-        Envía un correo de prueba. Configura SMTP en .env.local (Outlook: SMTP_HOST=smtp.office365.com, SMTP_PORT=587).
-      </p>
 
       <Card>
         <CardHeader>
@@ -202,7 +217,9 @@ export default function ReportesPage() {
             Reporte de estado de un proyecto
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Genera y envía por correo un reporte con avance Gantt, indicadores, actividades pendientes e historial de cambios.
+            Envía por correo el contenido del tab &quot;Resumen&quot; del
+            proyecto: información general, avances, presupuesto, indicadores,
+            actividades, seguimiento e historial.
           </p>
         </CardHeader>
         <CardContent>
@@ -215,7 +232,11 @@ export default function ReportesPage() {
                 disabled={reporteLoading || proyectosLoading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={proyectosLoading ? 'Cargando...' : 'Seleccionar proyecto'} />
+                  <SelectValue
+                    placeholder={
+                      proyectosLoading ? 'Cargando...' : 'Seleccionar proyecto'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {proyectos.map((p) => (
@@ -226,7 +247,9 @@ export default function ReportesPage() {
                 </SelectContent>
               </Select>
               {!proyectosLoading && proyectos.length === 0 && (
-                <p className="text-sm text-muted-foreground">No hay proyectos disponibles.</p>
+                <p className="text-sm text-muted-foreground">
+                  No hay proyectos disponibles.
+                </p>
               )}
             </div>
 
@@ -266,7 +289,12 @@ export default function ReportesPage() {
               </p>
             )}
 
-            <Button type="submit" disabled={reporteLoading || proyectosLoading || !reporteProyectoId}>
+            <Button
+              type="submit"
+              disabled={
+                reporteLoading || proyectosLoading || !reporteProyectoId
+              }
+            >
               {reporteLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

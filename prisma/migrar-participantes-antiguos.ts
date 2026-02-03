@@ -25,11 +25,14 @@ async function migrarParticipantesAntiguos() {
       return;
     }
 
-    console.log(`📋 Encontrados ${participantes.length} participantes con rol antiguo`);
+    console.log(
+      `📋 Encontrados ${participantes.length} participantes con rol antiguo`
+    );
 
     for (const participante of participantes) {
-      const cargoAleatorio = cargosEstudiante[Math.floor(Math.random() * cargosEstudiante.length)];
-      
+      const cargoAleatorio =
+        cargosEstudiante[Math.floor(Math.random() * cargosEstudiante.length)];
+
       await prisma.proyectoParticipante.update({
         where: { id: participante.id },
         data: {
@@ -38,7 +41,9 @@ async function migrarParticipantesAntiguos() {
         },
       });
 
-      console.log(`  ✅ Actualizado: ${participante.id} -> Estudiante (${cargoAleatorio})`);
+      console.log(
+        `  ✅ Actualizado: ${participante.id} -> Estudiante (${cargoAleatorio})`
+      );
     }
 
     console.log('\n✨ ¡Migración completada exitosamente!');
@@ -51,8 +56,7 @@ async function migrarParticipantesAntiguos() {
 }
 
 // Ejecutar el script
-migrarParticipantesAntiguos()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+migrarParticipantesAntiguos().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

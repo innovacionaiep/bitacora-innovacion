@@ -43,13 +43,17 @@ export function useGantt(projectId: string | null) {
   const ACTIVITY_COLORS = ['bg-gray-700'];
 
   // Helper function para calcular progreso localmente
-  const updateActivityProgressLocally = (activityId: string, activities: Activity[]) => {
-    return activities.map(activity => {
+  const updateActivityProgressLocally = (
+    activityId: string,
+    activities: Activity[]
+  ) => {
+    return activities.map((activity) => {
       if (activity.id === activityId) {
-        const completedTasks = activity.tasks.filter(t => t.completed).length;
-        const progress = activity.tasks.length > 0 
-          ? Math.round((completedTasks / activity.tasks.length) * 100) 
-          : 0;
+        const completedTasks = activity.tasks.filter((t) => t.completed).length;
+        const progress =
+          activity.tasks.length > 0
+            ? Math.round((completedTasks / activity.tasks.length) * 100)
+            : 0;
         return { ...activity, progress };
       }
       return activity;
@@ -109,6 +113,7 @@ export function useGantt(projectId: string | null) {
         color,
         progress: 0,
         orderIndex,
+        kanbanOrderIndex: orderIndex,
         status: 'TODO', // Valor por defecto para el Kanban
       });
 
@@ -299,7 +304,7 @@ export function useGantt(projectId: string | null) {
     // Actualización optimista del estado local con cálculo de progreso
     const prevActivities = activities;
     let activityId: string | null = null;
-    
+
     setActivities((prev) =>
       prev.map((activity) => {
         const updatedActivity = {
@@ -316,16 +321,21 @@ export function useGantt(projectId: string | null) {
             return task;
           }),
         };
-        
+
         // Calcular progreso localmente si esta actividad fue modificada
         if (activityId === activity.id) {
-          const completedTasks = updatedActivity.tasks.filter(t => t.completed).length;
-          const progress = updatedActivity.tasks.length > 0 
-            ? Math.round((completedTasks / updatedActivity.tasks.length) * 100) 
-            : 0;
+          const completedTasks = updatedActivity.tasks.filter(
+            (t) => t.completed
+          ).length;
+          const progress =
+            updatedActivity.tasks.length > 0
+              ? Math.round(
+                  (completedTasks / updatedActivity.tasks.length) * 100
+                )
+              : 0;
           return { ...updatedActivity, progress };
         }
-        
+
         return updatedActivity;
       })
     );
@@ -358,7 +368,9 @@ export function useGantt(projectId: string | null) {
   // Calcular progreso de una actividad
   const calculateActivityProgress = (activity: Activity): number => {
     if (activity.tasks.length === 0) return 0;
-    const completedTasks = activity.tasks.filter((task) => task.completed).length;
+    const completedTasks = activity.tasks.filter(
+      (task) => task.completed
+    ).length;
     return Math.round((completedTasks / activity.tasks.length) * 100);
   };
 
@@ -490,7 +502,9 @@ export function useGantt(projectId: string | null) {
   };
 
   // Función para actualizar el estado local de actividades
-  const updateActivitiesState = (updater: (activities: Activity[]) => Activity[]) => {
+  const updateActivitiesState = (
+    updater: (activities: Activity[]) => Activity[]
+  ) => {
     setActivities(updater);
   };
 

@@ -13,10 +13,10 @@ async function assignIndicadoresToAllProjects() {
           where: { tipo: 'Especifico' },
           orderBy: { orden: 'asc' },
           include: {
-            indicadores: true
-          }
-        }
-      }
+            indicadores: true,
+          },
+        },
+      },
     });
 
     if (proyectos.length === 0) {
@@ -27,50 +27,58 @@ async function assignIndicadoresToAllProjects() {
     // Plantilla de indicadores genéricos que se pueden adaptar
     const indicadoresTemplates = [
       {
-        nombre: "Porcentaje de cumplimiento del objetivo",
-        descripcion: "Mide el nivel de cumplimiento del objetivo específico en términos porcentuales. Este indicador permite evaluar el avance hacia la meta establecida.",
-        formaCalculo: "(Resultado alcanzado / Resultado esperado) * 100",
-        resultadoEsperado: "80%",
-        resultadoAlcanzado: "0%",
+        nombre: 'Porcentaje de cumplimiento del objetivo',
+        descripcion:
+          'Mide el nivel de cumplimiento del objetivo específico en términos porcentuales. Este indicador permite evaluar el avance hacia la meta establecida.',
+        formaCalculo: '(Resultado alcanzado / Resultado esperado) * 100',
+        resultadoEsperado: '80%',
+        resultadoAlcanzado: '0%',
         porcentajeCumplimiento: 0,
-        porcentajeAvance: 0
+        porcentajeAvance: 0,
       },
       {
-        nombre: "Número de beneficiarios alcanzados",
-        descripcion: "Cantidad total de personas o entidades que se han beneficiado directamente de las actividades del proyecto relacionadas con este objetivo.",
-        formaCalculo: "Suma total de beneficiarios registrados",
-        resultadoEsperado: "50",
-        resultadoAlcanzado: "0",
+        nombre: 'Número de beneficiarios alcanzados',
+        descripcion:
+          'Cantidad total de personas o entidades que se han beneficiado directamente de las actividades del proyecto relacionadas con este objetivo.',
+        formaCalculo: 'Suma total de beneficiarios registrados',
+        resultadoEsperado: '50',
+        resultadoAlcanzado: '0',
         porcentajeCumplimiento: 0,
-        porcentajeAvance: 0
+        porcentajeAvance: 0,
       },
       {
-        nombre: "Nivel de satisfacción de participantes",
-        descripcion: "Mide el grado de satisfacción de los participantes con las actividades realizadas en el marco del objetivo específico.",
-        formaCalculo: "Promedio de calificaciones en encuesta de satisfacción (escala 1-5)",
-        resultadoEsperado: "4.0",
-        resultadoAlcanzado: "0",
+        nombre: 'Nivel de satisfacción de participantes',
+        descripcion:
+          'Mide el grado de satisfacción de los participantes con las actividades realizadas en el marco del objetivo específico.',
+        formaCalculo:
+          'Promedio de calificaciones en encuesta de satisfacción (escala 1-5)',
+        resultadoEsperado: '4.0',
+        resultadoAlcanzado: '0',
         porcentajeCumplimiento: 0,
-        porcentajeAvance: 0
+        porcentajeAvance: 0,
       },
       {
-        nombre: "Porcentaje de actividades completadas",
-        descripcion: "Indica el porcentaje de actividades planificadas para este objetivo que han sido completadas exitosamente.",
-        formaCalculo: "(N° actividades completadas / N° actividades planificadas) * 100",
-        resultadoEsperado: "100%",
-        resultadoAlcanzado: "0%",
+        nombre: 'Porcentaje de actividades completadas',
+        descripcion:
+          'Indica el porcentaje de actividades planificadas para este objetivo que han sido completadas exitosamente.',
+        formaCalculo:
+          '(N° actividades completadas / N° actividades planificadas) * 100',
+        resultadoEsperado: '100%',
+        resultadoAlcanzado: '0%',
         porcentajeCumplimiento: 0,
-        porcentajeAvance: 0
+        porcentajeAvance: 0,
       },
       {
-        nombre: "Impacto medible del objetivo",
-        descripcion: "Evalúa el impacto cuantificable generado por la consecución de este objetivo específico en la población objetivo.",
-        formaCalculo: "Métrica específica según el tipo de impacto (número, porcentaje, índice, etc.)",
-        resultadoEsperado: "75%",
-        resultadoAlcanzado: "0%",
+        nombre: 'Impacto medible del objetivo',
+        descripcion:
+          'Evalúa el impacto cuantificable generado por la consecución de este objetivo específico en la población objetivo.',
+        formaCalculo:
+          'Métrica específica según el tipo de impacto (número, porcentaje, índice, etc.)',
+        resultadoEsperado: '75%',
+        resultadoAlcanzado: '0%',
         porcentajeCumplimiento: 0,
-        porcentajeAvance: 0
-      }
+        porcentajeAvance: 0,
+      },
     ];
 
     let indicadoresCreados = 0;
@@ -80,7 +88,9 @@ async function assignIndicadoresToAllProjects() {
 
     for (const proyecto of proyectos) {
       if (proyecto.objetivos_rel.length === 0) {
-        console.log(`⚠️  Proyecto "${proyecto.proyecto}" no tiene objetivos específicos, saltando...`);
+        console.log(
+          `⚠️  Proyecto "${proyecto.proyecto}" no tiene objetivos específicos, saltando...`
+        );
         proyectosSinObjetivos++;
         continue;
       }
@@ -89,10 +99,14 @@ async function assignIndicadoresToAllProjects() {
       let indicadoresEnProyecto = 0;
 
       // Verificar si el proyecto ya tiene indicadores
-      const tieneIndicadores = proyecto.objetivos_rel.some(obj => obj.indicadores.length > 0);
+      const tieneIndicadores = proyecto.objetivos_rel.some(
+        (obj) => obj.indicadores.length > 0
+      );
 
       if (tieneIndicadores) {
-        console.log(`ℹ️  Proyecto "${proyecto.proyecto}" ya tiene indicadores, verificando objetivos sin indicadores...`);
+        console.log(
+          `ℹ️  Proyecto "${proyecto.proyecto}" ya tiene indicadores, verificando objetivos sin indicadores...`
+        );
         proyectosConIndicadores++;
       }
 
@@ -124,8 +138,8 @@ async function assignIndicadoresToAllProjects() {
               resultadoEsperado: indicadorTemplate.resultadoEsperado,
               resultadoAlcanzado: indicadorTemplate.resultadoAlcanzado,
               porcentajeCumplimiento: indicadorTemplate.porcentajeCumplimiento,
-              porcentajeAvance: indicadorTemplate.porcentajeAvance
-            }
+              porcentajeAvance: indicadorTemplate.porcentajeAvance,
+            },
           });
 
           indicadoresEnProyecto++;
@@ -136,17 +150,22 @@ async function assignIndicadoresToAllProjects() {
 
       if (proyectoTieneIndicadores) {
         proyectosProcesados++;
-        console.log(`✅ Proyecto "${proyecto.proyecto}": ${indicadoresEnProyecto} indicador(es) creado(s)`);
+        console.log(
+          `✅ Proyecto "${proyecto.proyecto}": ${indicadoresEnProyecto} indicador(es) creado(s)`
+        );
       }
     }
 
     console.log('\n📊 Resumen:');
     console.log(`   ✅ Proyectos procesados: ${proyectosProcesados}`);
     console.log(`   ✅ Indicadores creados: ${indicadoresCreados}`);
-    console.log(`   ⚠️  Proyectos sin objetivos específicos: ${proyectosSinObjetivos}`);
-    console.log(`   ℹ️  Proyectos que ya tenían indicadores: ${proyectosConIndicadores}`);
+    console.log(
+      `   ⚠️  Proyectos sin objetivos específicos: ${proyectosSinObjetivos}`
+    );
+    console.log(
+      `   ℹ️  Proyectos que ya tenían indicadores: ${proyectosConIndicadores}`
+    );
     console.log(`\n✅ Proceso completado exitosamente`);
-
   } catch (error) {
     console.error('❌ Error asignando indicadores:', error);
     throw error;

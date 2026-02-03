@@ -18,7 +18,7 @@ async function main() {
 
   // Crear usuarios
   console.log('👥 Creando usuarios...');
-  
+
   const passwordHash = await bcrypt.hash('password123', 10);
 
   const adminUser = await prisma.user.create({
@@ -28,10 +28,7 @@ async function main() {
       password: passwordHash,
       activeRole: 'Admin',
       roles: {
-        create: [
-          { role: 'Admin' },
-          { role: 'Coordinador' },
-        ],
+        create: [{ role: 'Admin' }, { role: 'Coordinador' }],
       },
     },
   });
@@ -44,10 +41,7 @@ async function main() {
       password: passwordHash,
       activeRole: 'Docente',
       roles: {
-        create: [
-          { role: 'Docente' },
-          { role: 'Colaborador' },
-        ],
+        create: [{ role: 'Docente' }, { role: 'Colaborador' }],
       },
     },
   });
@@ -59,15 +53,14 @@ async function main() {
       password: passwordHash,
       activeRole: 'Coordinador',
       roles: {
-        create: [
-          { role: 'Coordinador' },
-          { role: 'Encargado' },
-        ],
+        create: [{ role: 'Coordinador' }, { role: 'Encargado' }],
       },
     },
   });
 
-  console.log(`✅ Usuarios creados: ${adminUser.email}, ${docenteUser.email}, ${coordinadorUser.email}`);
+  console.log(
+    `✅ Usuarios creados: ${adminUser.email}, ${docenteUser.email}, ${coordinadorUser.email}`
+  );
 
   // Crear proyectos
   console.log('📁 Creando proyectos...');
@@ -77,7 +70,6 @@ async function main() {
       proyecto: 'AntofaSuena 2025. Música-Industria-Territorio',
       fondo: 'IMPULSA',
       sede: 'Antofagasta',
-      escuela: 'Artes e Industrias Creativas',
       avanceGantt: 45,
       objetivos: 60,
       presupuestoUsado: 3500000,
@@ -93,7 +85,6 @@ async function main() {
       proyecto: 'Laboratorio de Innovación Gastronómico',
       fondo: 'IMPULSA',
       sede: 'La Serena',
-      escuela: 'Gastronomía, Hotelería y Turismo',
       avanceGantt: 30,
       objetivos: 40,
       presupuestoUsado: 2000000,
@@ -109,7 +100,6 @@ async function main() {
       proyecto: 'Aqua Terra: Estética Consciente',
       fondo: 'IMPULSA',
       sede: 'Los Ángeles',
-      escuela: 'Estética Integral',
       avanceGantt: 70,
       objetivos: 75,
       presupuestoUsado: 4200000,
@@ -120,7 +110,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Proyectos creados: ${proyecto1.proyecto}, ${proyecto2.proyecto}, ${proyecto3.proyecto}`);
+  console.log(
+    `✅ Proyectos creados: ${proyecto1.proyecto}, ${proyecto2.proyecto}, ${proyecto3.proyecto}`
+  );
 
   // Crear actividades y tareas para Proyecto 1
   console.log('📊 Creando actividades y tareas...');
@@ -368,7 +360,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Actividades creadas: ${actividad1.name}, ${actividad2.name}, ${actividad3.name}, etc.`);
+  console.log(
+    `✅ Actividades creadas: ${actividad1.name}, ${actividad2.name}, ${actividad3.name}, etc.`
+  );
 
   console.log('');
   console.log('✅ Seed completado exitosamente!');
@@ -395,4 +389,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
-

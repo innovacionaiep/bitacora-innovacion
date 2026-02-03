@@ -63,7 +63,7 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
           <ChevronRight className="h-4 w-4 text-gray-500" />
         )}
       </button>
-      
+
       {isExpanded && (
         <div className="px-4 pb-4">
           <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -78,10 +78,12 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
 export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
   desarrolloTecnico,
 }) => {
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({});
 
   const toggleSection = (sectionKey: string) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
       [sectionKey]: !prev[sectionKey],
     }));
@@ -89,13 +91,17 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
 
   const toggleAllSections = () => {
     // Verificar si todos los campos con contenido están expandidos
-    const fieldsWithContent = sections.filter(section => section.content && section.content.trim() !== '');
-    const allExpanded = fieldsWithContent.length > 0 && fieldsWithContent.every(section => expandedSections[section.key]);
+    const fieldsWithContent = sections.filter(
+      (section) => section.content && section.content.trim() !== ''
+    );
+    const allExpanded =
+      fieldsWithContent.length > 0 &&
+      fieldsWithContent.every((section) => expandedSections[section.key]);
     const newExpandedState = !allExpanded;
-    
-    setExpandedSections(prev => {
+
+    setExpandedSections((prev) => {
       const newState: Record<string, boolean> = {};
-      sections.forEach(section => {
+      sections.forEach((section) => {
         if (section.content && section.content.trim() !== '') {
           newState[section.key] = newExpandedState;
         }
@@ -217,14 +223,26 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
               onClick={toggleAllSections}
               className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors"
               title={(() => {
-                const fieldsWithContent = sections.filter(section => section.content && section.content.trim() !== '');
-                const allExpanded = fieldsWithContent.length > 0 && fieldsWithContent.every(section => expandedSections[section.key]);
+                const fieldsWithContent = sections.filter(
+                  (section) => section.content && section.content.trim() !== ''
+                );
+                const allExpanded =
+                  fieldsWithContent.length > 0 &&
+                  fieldsWithContent.every(
+                    (section) => expandedSections[section.key]
+                  );
                 return allExpanded ? 'Contraer todo' : 'Expandir todo';
               })()}
             >
               {(() => {
-                const fieldsWithContent = sections.filter(section => section.content && section.content.trim() !== '');
-                const allExpanded = fieldsWithContent.length > 0 && fieldsWithContent.every(section => expandedSections[section.key]);
+                const fieldsWithContent = sections.filter(
+                  (section) => section.content && section.content.trim() !== ''
+                );
+                const allExpanded =
+                  fieldsWithContent.length > 0 &&
+                  fieldsWithContent.every(
+                    (section) => expandedSections[section.key]
+                  );
                 return allExpanded ? (
                   <>
                     <Minimize2 className="h-3 w-3" />
@@ -253,8 +271,10 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
               />
             ))}
           </div>
-          
-          {sections.every(section => !section.content || section.content.trim() === '') && (
+
+          {sections.every(
+            (section) => !section.content || section.content.trim() === ''
+          ) && (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p>No hay información de desarrollo técnico disponible</p>

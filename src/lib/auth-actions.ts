@@ -243,4 +243,3 @@ export async function getUserProfile(userId: string) {
     return { success: false, error: 'Error al obtener perfil' };
   }
 }
-

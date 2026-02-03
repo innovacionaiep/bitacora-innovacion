@@ -59,28 +59,23 @@ export function ProjectSelector({
     onSelectionChange(selectedIds.filter((id) => id !== proyectoId));
   };
 
-  const selectedProyectos = proyectos.filter((p) =>
-    selectedIds.includes(p.id)
-  );
+  const selectedProyectos = proyectos.filter((p) => selectedIds.includes(p.id));
 
   if (loading) {
     return (
-      <div className="text-sm text-muted-foreground">
-        Cargando proyectos...
-      </div>
+      <div className="text-sm text-muted-foreground">Cargando proyectos...</div>
     );
   }
 
   if (error) {
-    return (
-      <div className="text-sm text-destructive">{error}</div>
-    );
+    return <div className="text-sm text-destructive">{error}</div>;
   }
 
   if (proyectos.length === 0) {
     return (
       <div className="text-sm text-muted-foreground">
-        No tienes proyectos asignados. Debes ser participante de al menos un proyecto para publicar.
+        No tienes proyectos asignados. Debes ser participante de al menos un
+        proyecto para publicar.
       </div>
     );
   }
@@ -102,7 +97,10 @@ export function ProjectSelector({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0 z-50 bg-popover border rounded-md shadow-md" align="start">
+        <PopoverContent
+          className="w-full p-0 z-50 bg-popover border rounded-md shadow-md"
+          align="start"
+        >
           <div className="max-h-60 overflow-auto p-1">
             {proyectos.map((proyecto) => (
               <div
@@ -136,11 +134,7 @@ export function ProjectSelector({
       {selectedProyectos.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedProyectos.map((proyecto) => (
-            <Badge
-              key={proyecto.id}
-              variant="secondary"
-              className="gap-1 pr-1"
-            >
+            <Badge key={proyecto.id} variant="secondary" className="gap-1 pr-1">
               <span className="truncate max-w-[150px]">
                 {proyecto.proyecto}
               </span>

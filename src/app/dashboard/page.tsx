@@ -53,7 +53,12 @@ import { ProyectoConVariaciones } from '@/types/proyecto';
 
 type Project = ProyectoConVariaciones;
 
-type AnalisisDimension = 'sede' | 'escuela' | 'carrera' | 'comuna' | 'grupos-interes';
+type AnalisisDimension =
+  | 'sede'
+  | 'escuela'
+  | 'carrera'
+  | 'comuna'
+  | 'grupos-interes';
 
 type MatrixRow = {
   dimension: string;
@@ -73,7 +78,9 @@ type MatrixRow = {
   sociosNombres: string[];
 };
 
-function metricsFromProjects(projects: Project[]): Omit<MatrixRow, 'dimension'> {
+function metricsFromProjects(
+  projects: Project[]
+): Omit<MatrixRow, 'dimension'> {
   const n = projects.length;
   const comunasSet = new Map<string, string>();
   projects.forEach((p) =>
@@ -84,17 +91,34 @@ function metricsFromProjects(projects: Project[]): Omit<MatrixRow, 'dimension'> 
   );
   const escuelasSet = new Map<string, string>();
   projects.forEach((p) =>
-    p.escuelas?.forEach((rel) => escuelasSet.set(rel.escuela.id, rel.escuela.nombre))
+    p.escuelas?.forEach((rel) =>
+      escuelasSet.set(rel.escuela.id, rel.escuela.nombre)
+    )
   );
   const carrerasSet = new Map<string, string>();
   projects.forEach((p) =>
-    p.carreras?.forEach((rel) => carrerasSet.set(rel.carrera.id, rel.carrera.nombre))
+    p.carreras?.forEach((rel) =>
+      carrerasSet.set(rel.carrera.id, rel.carrera.nombre)
+    )
   );
-  const avanceGanttProm = n ? projects.reduce((s, p) => s + p.avanceGantt, 0) / n : 0;
-  const avanceObjetivosProm = n ? projects.reduce((s, p) => s + p.objetivos, 0) / n : 0;
-  const participantes = projects.reduce((s, p) => s + (p.participantes_rel?.length ?? 0), 0);
-  const sociosComunitarios = projects.reduce((s, p) => s + (p.sociosComunitarios?.length ?? 0), 0);
-  const presupuestoTotal = projects.reduce((s, p) => s + (p.presupuestoTotal ?? 0), 0);
+  const avanceGanttProm = n
+    ? projects.reduce((s, p) => s + p.avanceGantt, 0) / n
+    : 0;
+  const avanceObjetivosProm = n
+    ? projects.reduce((s, p) => s + p.objetivos, 0) / n
+    : 0;
+  const participantes = projects.reduce(
+    (s, p) => s + (p.participantes_rel?.length ?? 0),
+    0
+  );
+  const sociosComunitarios = projects.reduce(
+    (s, p) => s + (p.sociosComunitarios?.length ?? 0),
+    0
+  );
+  const presupuestoTotal = projects.reduce(
+    (s, p) => s + (p.presupuestoTotal ?? 0),
+    0
+  );
   const proyectosNombres = projects.map((p) => p.proyecto);
   const comunasNombres = Array.from(comunasSet.values());
   const escuelasNombres = Array.from(escuelasSet.values());
@@ -121,7 +145,10 @@ function metricsFromProjects(projects: Project[]): Omit<MatrixRow, 'dimension'> 
   };
 }
 
-function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): MatrixRow[] {
+function computeMatrixRows(
+  proyectos: Project[],
+  dimension: AnalisisDimension
+): MatrixRow[] {
   const byId = new Map<string, Project>();
   proyectos.forEach((p) => byId.set(p.id, p));
 
@@ -133,7 +160,10 @@ function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): 
       groups.get(k)!.push(p);
     });
     return Array.from(groups.entries())
-      .map(([sede, projs]) => ({ dimension: sede, ...metricsFromProjects(projs) }))
+      .map(([sede, projs]) => ({
+        dimension: sede,
+        ...metricsFromProjects(projs),
+      }))
       .sort((a, b) => b.proyectos - a.proyectos);
   }
 
@@ -148,7 +178,9 @@ function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): 
     });
     return Array.from(nameToIds.entries())
       .map(([nombre, ids]) => {
-        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        const projs = Array.from(ids)
+          .map((id) => byId.get(id)!)
+          .filter(Boolean);
         return { dimension: nombre, ...metricsFromProjects(projs) };
       })
       .sort((a, b) => b.proyectos - a.proyectos);
@@ -165,7 +197,9 @@ function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): 
     });
     return Array.from(nameToIds.entries())
       .map(([nombre, ids]) => {
-        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        const projs = Array.from(ids)
+          .map((id) => byId.get(id)!)
+          .filter(Boolean);
         return { dimension: nombre, ...metricsFromProjects(projs) };
       })
       .sort((a, b) => b.proyectos - a.proyectos);
@@ -188,8 +222,13 @@ function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): 
     });
     return Array.from(keyToIds.entries())
       .map(([k, ids]) => {
-        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
-        return { dimension: keyToLabel.get(k) ?? k, ...metricsFromProjects(projs) };
+        const projs = Array.from(ids)
+          .map((id) => byId.get(id)!)
+          .filter(Boolean);
+        return {
+          dimension: keyToLabel.get(k) ?? k,
+          ...metricsFromProjects(projs),
+        };
       })
       .sort((a, b) => b.proyectos - a.proyectos);
   }
@@ -205,7 +244,9 @@ function computeMatrixRows(proyectos: Project[], dimension: AnalisisDimension): 
     });
     return Array.from(nameToIds.entries())
       .map(([nombre, ids]) => {
-        const projs = Array.from(ids).map((id) => byId.get(id)!).filter(Boolean);
+        const projs = Array.from(ids)
+          .map((id) => byId.get(id)!)
+          .filter(Boolean);
         return { dimension: nombre, ...metricsFromProjects(projs) };
       })
       .sort((a, b) => b.proyectos - a.proyectos);
@@ -223,7 +264,11 @@ interface SimpleMultiSelectProps {
   options: (string | number)[];
   placeholder: string;
   selectedValues: string[];
-  onSelectionChange: (filterKey: string, value: string, checked: boolean) => void;
+  onSelectionChange: (
+    filterKey: string,
+    value: string,
+    checked: boolean
+  ) => void;
 }
 
 const SimpleMultiSelect = memo(function SimpleMultiSelect({
@@ -240,18 +285,21 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
   // Click outside handler
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    
+
     // Usar setTimeout para evitar que el click que abre el menú lo cierre inmediatamente
     const timeoutId = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
     }, 0);
-    
+
     return () => {
       clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -274,14 +322,18 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
           onClick={() => setIsOpen(!isOpen)}
           className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <span className={selectedValues.length === 0 ? 'text-muted-foreground' : ''}>
+          <span
+            className={
+              selectedValues.length === 0 ? 'text-muted-foreground' : ''
+            }
+          >
             {displayText}
           </span>
           <ChevronDown className="h-4 w-4 opacity-50" />
         </button>
-        
+
         {isOpen && (
-          <div 
+          <div
             className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-2 shadow-md"
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -325,48 +377,69 @@ export default function DashboardPage() {
   const [currentView, setCurrentView] = useState<string>('mirada-general');
   const [filters, setFilters] = useState<{ [key: string]: string[] }>({});
   const [nombreProyectoFilter, setNombreProyectoFilter] = useState<string>('');
-  const [sort, setSort] = useState<{ key: string | null; dir: 'asc' | 'desc' }>({
-    key: null,
-    dir: 'asc',
-  });
-  const [analisisDimension, setAnalisisDimension] = useState<AnalisisDimension>('sede');
-  const [filtersPertinencia, setFiltersPertinencia] = useState<{ [key: string]: string[] }>({});
-  const [filtroParticipantes, setFiltroParticipantes] = useState<'Rol' | 'Cargo' | 'Sede' | 'Escuela' | 'Carrera' | 'Socio Comunitario'>('Rol');
-  const [sortParticipantes, setSortParticipantes] = useState<{ key: string | null; dir: 'asc' | 'desc' }>({
+  const [sort, setSort] = useState<{ key: string | null; dir: 'asc' | 'desc' }>(
+    {
+      key: null,
+      dir: 'asc',
+    }
+  );
+  const [analisisDimension, setAnalisisDimension] =
+    useState<AnalisisDimension>('sede');
+  const [filtersPertinencia, setFiltersPertinencia] = useState<{
+    [key: string]: string[];
+  }>({});
+  const [filtroParticipantes, setFiltroParticipantes] = useState<
+    'Rol' | 'Cargo' | 'Sede' | 'Escuela' | 'Carrera' | 'Socio Comunitario'
+  >('Rol');
+  const [sortParticipantes, setSortParticipantes] = useState<{
+    key: string | null;
+    dir: 'asc' | 'desc';
+  }>({
     key: null,
     dir: 'asc',
   });
 
   // Handler simple y fluido para el Input (igual que en proyectos/page.tsx)
-  const handleNombreProyectoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setNombreProyectoFilter(e.target.value);
-  }, []);
+  const handleNombreProyectoChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setNombreProyectoFilter(e.target.value);
+    },
+    []
+  );
 
   // Handler para cambios en filtros de selección múltiple
-  const handleFilterSelectionChange = useCallback((filterKey: string, value: string, checked: boolean) => {
-    setFilters(prevFilters => {
-      const newFilters = { ...prevFilters };
-      if (checked) {
-        newFilters[filterKey] = [...(newFilters[filterKey] || []), value];
-      } else {
-        newFilters[filterKey] = newFilters[filterKey]?.filter((f) => f !== value) || [];
-      }
-      return newFilters;
-    });
-  }, []);
+  const handleFilterSelectionChange = useCallback(
+    (filterKey: string, value: string, checked: boolean) => {
+      setFilters((prevFilters) => {
+        const newFilters = { ...prevFilters };
+        if (checked) {
+          newFilters[filterKey] = [...(newFilters[filterKey] || []), value];
+        } else {
+          newFilters[filterKey] =
+            newFilters[filterKey]?.filter((f) => f !== value) || [];
+        }
+        return newFilters;
+      });
+    },
+    []
+  );
 
   // Handler para cambios en filtros de pertinencia (Escuelas y Sedes)
-  const handleFilterPertinenciaChange = useCallback((filterKey: string, value: string, checked: boolean) => {
-    setFiltersPertinencia(prevFilters => {
-      const newFilters = { ...prevFilters };
-      if (checked) {
-        newFilters[filterKey] = [...(newFilters[filterKey] || []), value];
-      } else {
-        newFilters[filterKey] = newFilters[filterKey]?.filter((f) => f !== value) || [];
-      }
-      return newFilters;
-    });
-  }, []);
+  const handleFilterPertinenciaChange = useCallback(
+    (filterKey: string, value: string, checked: boolean) => {
+      setFiltersPertinencia((prevFilters) => {
+        const newFilters = { ...prevFilters };
+        if (checked) {
+          newFilters[filterKey] = [...(newFilters[filterKey] || []), value];
+        } else {
+          newFilters[filterKey] =
+            newFilters[filterKey]?.filter((f) => f !== value) || [];
+        }
+        return newFilters;
+      });
+    },
+    []
+  );
 
   // Arrays estables para selectedValues (evita crear nuevos arrays vacíos en cada render)
   const emptyArray = useMemo(() => [] as string[], []);
@@ -382,8 +455,8 @@ export default function DashboardPage() {
   const selectedEscuelasPertinencia = filtersPertinencia.escuela || emptyArray;
   const selectedCarrerasPertinencia = filtersPertinencia.carrera || emptyArray;
   const selectedComunasPertinencia = filtersPertinencia.comuna || emptyArray;
-  const selectedGruposInteresPertinencia = filtersPertinencia['grupos-interes'] || emptyArray;
-
+  const selectedGruposInteresPertinencia =
+    filtersPertinencia['grupos-interes'] || emptyArray;
 
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
   const getDisplayValue = (col: string, p: Project): string | number => {
@@ -401,9 +474,11 @@ export default function DashboardPage() {
     if (col === 'estado') return calcularEstadoProyecto(p);
     if (col === 'fechaInicio' || col === 'fechaFin') {
       const fechas = calcularFechasProyecto(p);
-      return col === 'fechaInicio' ? formatearFecha(fechas.fechaInicio) : formatearFecha(fechas.fechaFin);
+      return col === 'fechaInicio'
+        ? formatearFecha(fechas.fechaInicio)
+        : formatearFecha(fechas.fechaFin);
     }
-    return (p as any)[col];
+    return (p as Record<string, unknown>)[col] as string;
   };
 
   const getSortValue = (col: string, p: Project): number | string => {
@@ -413,7 +488,9 @@ export default function DashboardPage() {
     if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') {
       // Ordenar por porcentaje de presupuesto usado (lo que se muestra en la tabla)
-      return p.presupuestoTotal ? (p.presupuestoUsado / p.presupuestoTotal) * 100 : 0;
+      return p.presupuestoTotal
+        ? (p.presupuestoUsado / p.presupuestoTotal) * 100
+        : 0;
     }
     if (col === 'focalizacion') return p.focalizacion || 'N/A';
     if (col === 'estado') {
@@ -425,10 +502,11 @@ export default function DashboardPage() {
     }
     if (col === 'fechaInicio' || col === 'fechaFin') {
       const fechas = calcularFechasProyecto(p);
-      const fecha = col === 'fechaInicio' ? fechas.fechaInicio : fechas.fechaFin;
+      const fecha =
+        col === 'fechaInicio' ? fechas.fechaInicio : fechas.fechaFin;
       return fecha ? new Date(fecha).getTime() : 0;
     }
-    return (p as any)[col];
+    return (p as Record<string, unknown>)[col] as number | string;
   };
 
   // ====== Funciones helper para estado y fechas ======
@@ -438,32 +516,35 @@ export default function DashboardPage() {
    * - "Atrasado": hay al menos una tarea con fecha de finalización pasada pero progress < 100
    * - "En Ejecución": no está finalizado y no hay actividades atrasadas
    */
-  const calcularEstadoProyecto = (p: Project): 'Finalizado' | 'En Ejecución' | 'Atrasado' => {
+  const calcularEstadoProyecto = (
+    p: Project
+  ): 'Finalizado' | 'En Ejecución' | 'Atrasado' => {
     // Verificar si está completamente finalizado
     const estaFinalizado = p.avanceGantt === 100 && p.objetivos === 100;
 
     // Verificar si hay tareas atrasadas
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    
-    const tieneTareasAtrasadas = p.activities?.some(activity =>
-      activity.tasks?.some(task => {
-        if (!task.endDate) return false;
-        const fechaFin = new Date(task.endDate);
-        fechaFin.setHours(0, 0, 0, 0);
-        // Tarea atrasada: fecha de fin pasada y progress < 100
-        return fechaFin < hoy && task.progress < 100;
-      })
-    ) || false;
+
+    const tieneTareasAtrasadas =
+      p.activities?.some((activity) =>
+        activity.tasks?.some((task) => {
+          if (!task.endDate) return false;
+          const fechaFin = new Date(task.endDate);
+          fechaFin.setHours(0, 0, 0, 0);
+          // Tarea atrasada: fecha de fin pasada y progress < 100
+          return fechaFin < hoy && task.progress < 100;
+        })
+      ) || false;
 
     if (tieneTareasAtrasadas) {
       return 'Atrasado';
     }
-    
+
     if (estaFinalizado) {
       return 'Finalizado';
     }
-    
+
     return 'En Ejecución';
   };
 
@@ -471,29 +552,34 @@ export default function DashboardPage() {
    * Calcula la fecha de inicio y fin del proyecto basándose en las tareas
    * Retorna las fechas mínima (inicio) y máxima (fin) de todas las tareas
    */
-  const calcularFechasProyecto = (p: Project): { fechaInicio: string | null; fechaFin: string | null } => {
-    const todasLasTareas = p.activities?.flatMap(activity => activity.tasks || []) || [];
-    
+  const calcularFechasProyecto = (
+    p: Project
+  ): { fechaInicio: string | null; fechaFin: string | null } => {
+    const todasLasTareas =
+      p.activities?.flatMap((activity) => activity.tasks || []) || [];
+
     if (todasLasTareas.length === 0) {
       return { fechaInicio: null, fechaFin: null };
     }
 
     const fechasInicio = todasLasTareas
-      .map(t => t.startDate)
+      .map((t) => t.startDate)
       .filter(Boolean)
-      .map(fecha => new Date(fecha));
-    
+      .map((fecha) => new Date(fecha));
+
     const fechasFin = todasLasTareas
-      .map(t => t.endDate)
+      .map((t) => t.endDate)
       .filter(Boolean)
-      .map(fecha => new Date(fecha));
+      .map((fecha) => new Date(fecha));
 
     if (fechasInicio.length === 0 || fechasFin.length === 0) {
       return { fechaInicio: null, fechaFin: null };
     }
 
-    const fechaInicio = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
-    const fechaFin = new Date(Math.max(...fechasFin.map(d => d.getTime())));
+    const fechaInicio = new Date(
+      Math.min(...fechasInicio.map((d) => d.getTime()))
+    );
+    const fechaFin = new Date(Math.max(...fechasFin.map((d) => d.getTime())));
 
     return {
       fechaInicio: fechaInicio.toISOString().split('T')[0],
@@ -533,13 +619,14 @@ export default function DashboardPage() {
     filtered = filtered.filter((p) =>
       Object.entries(filters).every(([col, selected]) => {
         if (!selected || selected.length === 0) return true;
-        
+
         // Para carrera, verificar si alguna de las carreras del proyecto coincide
         if (col === 'carrera') {
-          const carrerasProyecto = p.carreras?.map(c => c.carrera.nombre) || [];
+          const carrerasProyecto =
+            p.carreras?.map((c) => c.carrera.nombre) || [];
           return selected.some((val) => carrerasProyecto.includes(val));
         }
-        
+
         const val = String(getDisplayValue(col, p));
         return selected.includes(val);
       })
@@ -579,7 +666,7 @@ export default function DashboardPage() {
     const excelData = filteredData.map((project) => {
       const estado = calcularEstadoProyecto(project);
       const fechas = calcularFechasProyecto(project);
-      
+
       return {
         'Nombre del Proyecto': project.proyecto,
         Estado: estado,
@@ -594,7 +681,12 @@ export default function DashboardPage() {
         'Indicadores (%)': project.objetivos,
         'Var. Indicadores (%)': project.variacionObjetivos,
         'Presupuesto (%)': project.presupuestoTotal
-          ? Math.min(100, Math.round((project.presupuestoUsado / project.presupuestoTotal) * 100))
+          ? Math.min(
+              100,
+              Math.round(
+                (project.presupuestoUsado / project.presupuestoTotal) * 100
+              )
+            )
           : 0,
         'Presupuesto Usado': project.presupuestoUsado,
         'Presupuesto Total': project.presupuestoTotal,
@@ -710,11 +802,14 @@ export default function DashboardPage() {
   );
 
   // Cálculos adicionales para proyectos terminados y en ejecución
-  const proyectosTerminados = proyectosIniciales.filter((p) => p.avanceGantt === 100).length;
+  const proyectosTerminados = proyectosIniciales.filter(
+    (p) => p.avanceGantt === 100
+  ).length;
   const proyectosEnEjecucion = totalProyectos - proyectosTerminados;
-  const porcentajePresupuestoUsado = presupuestoTotal > 0 
-    ? Math.round((presupuestoUsado / presupuestoTotal) * 100) 
-    : 0;
+  const porcentajePresupuestoUsado =
+    presupuestoTotal > 0
+      ? Math.round((presupuestoUsado / presupuestoTotal) * 100)
+      : 0;
   const presupuestoDisponible = presupuestoTotal - presupuestoUsado;
 
   // ====== Cálculos para gráficos ======
@@ -793,34 +888,38 @@ export default function DashboardPage() {
     filtered = filtered.filter((p) =>
       Object.entries(filtersPertinencia).every(([col, selected]) => {
         if (!selected || selected.length === 0) return true;
-        
+
         // Para carrera, verificar si alguna de las carreras del proyecto coincide
         if (col === 'carrera') {
-          const carrerasProyecto = p.carreras?.map(c => c.carrera.nombre) || [];
+          const carrerasProyecto =
+            p.carreras?.map((c) => c.carrera.nombre) || [];
           return selected.some((val) => carrerasProyecto.includes(val));
         }
-        
+
         // Para escuela, verificar si alguna de las escuelas del proyecto coincide
         if (col === 'escuela') {
-          const escuelasProyecto = p.escuelas?.map(e => e.escuela.nombre) || [];
+          const escuelasProyecto =
+            p.escuelas?.map((e) => e.escuela.nombre) || [];
           return selected.some((val) => escuelasProyecto.includes(val));
         }
-        
+
         // Para comuna, verificar si alguna de las comunas del proyecto coincide (formato: "Nombre (Región)")
         if (col === 'comuna') {
-          const comunasProyecto = p.comunas?.map(rel => {
-            const c = rel.comuna;
-            return `${c.nombre} (${c.region})`;
-          }) || [];
+          const comunasProyecto =
+            p.comunas?.map((rel) => {
+              const c = rel.comuna;
+              return `${c.nombre} (${c.region})`;
+            }) || [];
           return selected.some((val) => comunasProyecto.includes(val));
         }
-        
+
         // Para grupos de interés, verificar si alguno de los grupos del proyecto coincide
         if (col === 'grupos-interes') {
-          const gruposProyecto = p.gruposInteres?.map(rel => rel.grupoInteres.nombre) || [];
+          const gruposProyecto =
+            p.gruposInteres?.map((rel) => rel.grupoInteres.nombre) || [];
           return selected.some((val) => gruposProyecto.includes(val));
         }
-        
+
         // Para fondo y sede, comparar directamente
         if (col === 'fondo') {
           return selected.includes(p.fondo);
@@ -828,7 +927,7 @@ export default function DashboardPage() {
         if (col === 'sede') {
           return selected.includes(p.sede);
         }
-        
+
         return true;
       })
     );
@@ -856,7 +955,14 @@ export default function DashboardPage() {
 
   // Desglose de participantes por rol en orden específico
   const desgloseParticipantes = useMemo(() => {
-    const roles = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
+    const roles = [
+      'Encargado',
+      'Coordinador',
+      'Colaborador',
+      'Docente',
+      'Estudiante',
+      'Beneficiario',
+    ];
     const grouped: Record<string, number> = {};
     proyectosIniciales.forEach((p) => {
       p.participantes_rel?.forEach((participante) => {
@@ -864,7 +970,7 @@ export default function DashboardPage() {
         grouped[rol] = (grouped[rol] || 0) + 1;
       });
     });
-    return roles.map(rol => ({
+    return roles.map((rol) => ({
       rol,
       cantidad: grouped[rol] || 0,
     }));
@@ -877,246 +983,312 @@ export default function DashboardPage() {
         <div className="overflow-x-auto w-full" style={{ maxWidth: '100%' }}>
           <div style={{ minWidth: '2280px' }}>
             <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-100">
-                {renderHeadWithButton(
-                  'Nombre del proyecto',
-                  'proyecto',
-                  'pl-7 w-[400px] sticky left-0 z-10 bg-gray-100',
-                  'start'
-                )}
-                {renderHeadWithButton(
-                  'Estado',
-                  'estado',
-                  'text-center w-[130px] px-4'
-                )}
-                {renderHeadWithButton(
-                  'Fecha Inicio',
-                  'fechaInicio',
-                  'text-center w-[140px] px-4'
-                )}
-                {renderHeadWithButton(
-                  'Fecha Fin',
-                  'fechaFin',
-                  'text-center w-[140px] px-4'
-                )}
-                {renderHeadWithButton(
-                  'Fondo',
-                  'fondo',
-                  'text-center w-[120px] px-4'
-                )}
-              {renderHeadWithButton('Sede', 'sede', 'text-center w-[120px] px-4')}
-              {renderHeadWithButton(
-                'Escuela líder',
-                'escuela',
-                'text-center w-[200px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Foco',
-                'focalizacion',
-                'text-center w-[120px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Avance Gantt',
-                'avanceGantt',
-                'text-center w-[180px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Var. Gantt',
-                'variacionGantt',
-                'text-center w-[90px] px-2'
-              )}
-              {renderHeadWithButton(
-                'Indicadores',
-                'objetivos',
-                'text-center w-[180px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Var. Ind.',
-                'variacionObjetivos',
-                'text-center w-[90px] px-2'
-              )}
-              {renderHeadWithButton(
-                'Presupuesto',
-                'presupuestoUsado',
-                'text-center w-[180px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Reuniones',
-                'reuniones',
-                'text-center w-[110px] px-4'
-              )}
-              {renderHeadWithButton(
-                'Participantes',
-                'participantes',
-                'text-center w-[120px] px-4'
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProjects.map((p, i) => {
-              const estado = calcularEstadoProyecto(p);
-              const fechas = calcularFechasProyecto(p);
-              
-              return (
-              <TableRow key={i} className="group">
-                <TableCell
-                  className="font-medium pl-7 sticky left-0 z-10 bg-white group-hover:bg-muted/50 whitespace-nowrap overflow-hidden text-ellipsis"
-                  title={p.proyecto}
-                  style={{ maxWidth: '400px' }}
-                >
-                  {p.proyecto.length > 51
-                    ? `${p.proyecto.slice(0, 51)}...`
-                    : p.proyecto}
-                </TableCell>
-                <TableCell className="text-center px-4" style={{ width: '130px', minWidth: '130px' }}>
-                  <Badge
-                    variant="outline"
-                    className={`whitespace-nowrap ${
-                      estado === 'Finalizado'
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                        : estado === 'Atrasado'
-                        ? 'bg-red-100 text-red-700 border-red-300'
-                        : 'bg-blue-100 text-blue-700 border-blue-300'
-                    }`}
-                  >
-                    {estado}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center text-sm px-4 whitespace-nowrap" style={{ width: '140px', minWidth: '140px' }}>
-                  {formatearFecha(fechas.fechaInicio)}
-                </TableCell>
-                <TableCell className="text-center text-sm px-4 whitespace-nowrap" style={{ width: '140px', minWidth: '140px' }}>
-                  {formatearFecha(fechas.fechaFin)}
-                </TableCell>
-                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
-                  <Badge
-                    variant="outline"
-                    className="text-gray-600 whitespace-nowrap"
-                  >
-                    {p.fondo}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
-                  <Badge
-                    variant="outline"
-                    className="text-gray-600 whitespace-nowrap"
-                  >
-                    {p.sede}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '200px', minWidth: '200px' }}>
-                  <Badge
-                    variant="outline"
-                    className="text-gray-600 whitespace-nowrap"
-                  >
-                    {p.escuelas?.[0]?.escuela.nombre || 'N/A'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center px-4" style={{ width: '120px', minWidth: '120px' }}>
-                  <Badge
-                    variant="outline"
-                    className="text-gray-600 whitespace-nowrap"
-                  >
-                    {p.focalizacion || 'N/A'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
-                      <div
-                        className="bg-emerald-500 h-3 rounded"
-                        style={{ width: `${p.avanceGantt}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-800 whitespace-nowrap">
-                      {p.avanceGantt}%
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center px-2" style={{ width: '90px', minWidth: '90px' }}>
-                  <span className={`text-sm font-medium ${
-                    p.variacionGantt > 0 ? 'text-emerald-600' : 
-                    p.variacionGantt < 0 ? 'text-red-600' : 'text-gray-500'
-                  }`}>
-                    {p.variacionGantt > 0 ? '+' : ''}{p.variacionGantt}%
-                  </span>
-                </TableCell>
-                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
-                      <div
-                        className="bg-emerald-500 h-3 rounded"
-                        style={{ width: `${p.objetivos}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-800 whitespace-nowrap">
-                      {p.objetivos}%
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center px-2" style={{ width: '90px', minWidth: '90px' }}>
-                  <span className={`text-sm font-medium ${
-                    p.variacionObjetivos > 0 ? 'text-emerald-600' : 
-                    p.variacionObjetivos < 0 ? 'text-red-600' : 'text-gray-500'
-                  }`}>
-                    {p.variacionObjetivos > 0 ? '+' : ''}{p.variacionObjetivos}%
-                  </span>
-                </TableCell>
-                <TableCell className="px-4" style={{ width: '180px', minWidth: '180px' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
-                      <div
-                        className="bg-emerald-500 h-3 rounded"
-                        style={{
-                          width: `${p.presupuestoTotal
-                            ? Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))
-                            : 0}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-800 whitespace-nowrap">
-                      {p.presupuestoTotal
-                        ? `${Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))}%`
-                        : '0%'}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '110px', minWidth: '110px' }}>
-                  {p.reunionesHechas}/{p.reunionesTotales}
-                </TableCell>
-                <TableCell className="text-center px-4 whitespace-nowrap" style={{ width: '120px', minWidth: '120px' }}>
-                  {p.participantes_rel?.length || 0}
-                </TableCell>
-              </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              <TableHeader>
+                <TableRow className="bg-gray-100">
+                  {renderHeadWithButton(
+                    'Nombre del proyecto',
+                    'proyecto',
+                    'pl-7 w-[400px] sticky left-0 z-10 bg-gray-100',
+                    'start'
+                  )}
+                  {renderHeadWithButton(
+                    'Estado',
+                    'estado',
+                    'text-center w-[130px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Fecha Inicio',
+                    'fechaInicio',
+                    'text-center w-[140px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Fecha Fin',
+                    'fechaFin',
+                    'text-center w-[140px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Fondo',
+                    'fondo',
+                    'text-center w-[120px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Sede',
+                    'sede',
+                    'text-center w-[120px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Escuela líder',
+                    'escuela',
+                    'text-center w-[200px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Foco',
+                    'focalizacion',
+                    'text-center w-[120px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Avance Gantt',
+                    'avanceGantt',
+                    'text-center w-[180px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Var. Gantt',
+                    'variacionGantt',
+                    'text-center w-[90px] px-2'
+                  )}
+                  {renderHeadWithButton(
+                    'Indicadores',
+                    'objetivos',
+                    'text-center w-[180px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Var. Ind.',
+                    'variacionObjetivos',
+                    'text-center w-[90px] px-2'
+                  )}
+                  {renderHeadWithButton(
+                    'Presupuesto',
+                    'presupuestoUsado',
+                    'text-center w-[180px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Reuniones',
+                    'reuniones',
+                    'text-center w-[110px] px-4'
+                  )}
+                  {renderHeadWithButton(
+                    'Participantes',
+                    'participantes',
+                    'text-center w-[120px] px-4'
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.map((p, i) => {
+                  const estado = calcularEstadoProyecto(p);
+                  const fechas = calcularFechasProyecto(p);
+
+                  return (
+                    <TableRow key={i} className="group">
+                      <TableCell
+                        className="font-medium pl-7 sticky left-0 z-10 bg-white group-hover:bg-muted/50 whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={p.proyecto}
+                        style={{ maxWidth: '400px' }}
+                      >
+                        {p.proyecto.length > 51
+                          ? `${p.proyecto.slice(0, 51)}...`
+                          : p.proyecto}
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4"
+                        style={{ width: '130px', minWidth: '130px' }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className={`whitespace-nowrap ${
+                            estado === 'Finalizado'
+                              ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                              : estado === 'Atrasado'
+                                ? 'bg-red-100 text-red-700 border-red-300'
+                                : 'bg-blue-100 text-blue-700 border-blue-300'
+                          }`}
+                        >
+                          {estado}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className="text-center text-sm px-4 whitespace-nowrap"
+                        style={{ width: '140px', minWidth: '140px' }}
+                      >
+                        {formatearFecha(fechas.fechaInicio)}
+                      </TableCell>
+                      <TableCell
+                        className="text-center text-sm px-4 whitespace-nowrap"
+                        style={{ width: '140px', minWidth: '140px' }}
+                      >
+                        {formatearFecha(fechas.fechaFin)}
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4"
+                        style={{ width: '120px', minWidth: '120px' }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-gray-600 whitespace-nowrap"
+                        >
+                          {p.fondo}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4"
+                        style={{ width: '120px', minWidth: '120px' }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-gray-600 whitespace-nowrap"
+                        >
+                          {p.sede}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4 whitespace-nowrap"
+                        style={{ width: '200px', minWidth: '200px' }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-gray-600 whitespace-nowrap"
+                        >
+                          {p.escuelas?.[0]?.escuela.nombre || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4"
+                        style={{ width: '120px', minWidth: '120px' }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-gray-600 whitespace-nowrap"
+                        >
+                          {p.focalizacion || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className="px-4"
+                        style={{ width: '180px', minWidth: '180px' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
+                            <div
+                              className="bg-emerald-500 h-3 rounded"
+                              style={{ width: `${p.avanceGantt}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-800 whitespace-nowrap">
+                            {p.avanceGantt}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-2"
+                        style={{ width: '90px', minWidth: '90px' }}
+                      >
+                        <span
+                          className={`text-sm font-medium ${
+                            p.variacionGantt > 0
+                              ? 'text-emerald-600'
+                              : p.variacionGantt < 0
+                                ? 'text-red-600'
+                                : 'text-gray-500'
+                          }`}
+                        >
+                          {p.variacionGantt > 0 ? '+' : ''}
+                          {p.variacionGantt}%
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="px-4"
+                        style={{ width: '180px', minWidth: '180px' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
+                            <div
+                              className="bg-emerald-500 h-3 rounded"
+                              style={{ width: `${p.objetivos}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-800 whitespace-nowrap">
+                            {p.objetivos}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-2"
+                        style={{ width: '90px', minWidth: '90px' }}
+                      >
+                        <span
+                          className={`text-sm font-medium ${
+                            p.variacionObjetivos > 0
+                              ? 'text-emerald-600'
+                              : p.variacionObjetivos < 0
+                                ? 'text-red-600'
+                                : 'text-gray-500'
+                          }`}
+                        >
+                          {p.variacionObjetivos > 0 ? '+' : ''}
+                          {p.variacionObjetivos}%
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="px-4"
+                        style={{ width: '180px', minWidth: '180px' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded h-3 relative min-w-[80px]">
+                            <div
+                              className="bg-emerald-500 h-3 rounded"
+                              style={{
+                                width: `${
+                                  p.presupuestoTotal
+                                    ? Math.min(
+                                        100,
+                                        Math.round(
+                                          (p.presupuestoUsado /
+                                            p.presupuestoTotal) *
+                                            100
+                                        )
+                                      )
+                                    : 0
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-800 whitespace-nowrap">
+                            {p.presupuestoTotal
+                              ? `${Math.min(100, Math.round((p.presupuestoUsado / p.presupuestoTotal) * 100))}%`
+                              : '0%'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4 whitespace-nowrap"
+                        style={{ width: '110px', minWidth: '110px' }}
+                      >
+                        {p.reunionesHechas}/{p.reunionesTotales}
+                      </TableCell>
+                      <TableCell
+                        className="text-center px-4 whitespace-nowrap"
+                        style={{ width: '120px', minWidth: '120px' }}
+                      >
+                        {p.participantes_rel?.length || 0}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
         </div>
       </CardContent>
     </Card>
   );
 
-
   // Valores únicos para filtros - basados en TODOS los proyectos (no filtrados)
   // Esto evita que las opciones cambien mientras el usuario está filtrando
   const fondosUnicos = useMemo(() => {
     if (loading) return [];
-    return Array.from(new Set(proyectosIniciales.map(p => p.fondo))).sort();
+    return Array.from(new Set(proyectosIniciales.map((p) => p.fondo))).sort();
   }, [proyectosIniciales, loading]);
 
   const sedesUnicas = useMemo(() => {
     if (loading) return [];
-    return Array.from(new Set(proyectosIniciales.map(p => p.sede))).sort();
+    return Array.from(new Set(proyectosIniciales.map((p) => p.sede))).sort();
   }, [proyectosIniciales, loading]);
 
   const escuelasUnicas = useMemo(() => {
     if (loading) return [];
     const escuelas = new Set<string>();
-    proyectosIniciales.forEach(p => {
-      p.escuelas?.forEach(e => escuelas.add(e.escuela.nombre));
+    proyectosIniciales.forEach((p) => {
+      p.escuelas?.forEach((e) => escuelas.add(e.escuela.nombre));
     });
     return Array.from(escuelas).sort();
   }, [proyectosIniciales, loading]);
@@ -1124,8 +1296,8 @@ export default function DashboardPage() {
   const carrerasUnicas = useMemo(() => {
     if (loading) return [];
     const carreras = new Set<string>();
-    proyectosIniciales.forEach(p => {
-      p.carreras?.forEach(c => carreras.add(c.carrera.nombre));
+    proyectosIniciales.forEach((p) => {
+      p.carreras?.forEach((c) => carreras.add(c.carrera.nombre));
     });
     return Array.from(carreras).sort();
   }, [proyectosIniciales, loading]);
@@ -1133,8 +1305,8 @@ export default function DashboardPage() {
   const comunasUnicas = useMemo(() => {
     if (loading) return [];
     const comunas = new Set<string>();
-    proyectosIniciales.forEach(p => {
-      p.comunas?.forEach(rel => {
+    proyectosIniciales.forEach((p) => {
+      p.comunas?.forEach((rel) => {
         const c = rel.comuna;
         comunas.add(`${c.nombre} (${c.region})`);
       });
@@ -1145,8 +1317,8 @@ export default function DashboardPage() {
   const gruposInteresUnicos = useMemo(() => {
     if (loading) return [];
     const grupos = new Set<string>();
-    proyectosIniciales.forEach(p => {
-      p.gruposInteres?.forEach(rel => grupos.add(rel.grupoInteres.nombre));
+    proyectosIniciales.forEach((p) => {
+      p.gruposInteres?.forEach((rel) => grupos.add(rel.grupoInteres.nombre));
     });
     return Array.from(grupos).sort();
   }, [proyectosIniciales, loading]);
@@ -1154,29 +1326,31 @@ export default function DashboardPage() {
   const focalizacionesUnicas = useMemo(() => {
     if (loading) return [];
     return Array.from(
-      new Set(proyectosIniciales.map(p => p.focalizacion || 'N/A'))
-    ).filter(Boolean).sort();
+      new Set(proyectosIniciales.map((p) => p.focalizacion || 'N/A'))
+    )
+      .filter(Boolean)
+      .sort();
   }, [proyectosIniciales, loading]);
 
   // ====== Vista: Mirada General ======
   const VistaMiradaGeneral = () => {
     // Preparar datos para los gráficos con color gris más oscuro
     const datosGraficoSede = useMemo(() => {
-      return proyectosPorSede.map(item => ({
+      return proyectosPorSede.map((item) => ({
         ...item,
         color: '#6b7280', // Gris más oscuro (gray-500)
       }));
     }, [proyectosPorSede]);
 
     const datosGraficoEscuela = useMemo(() => {
-      return proyectosPorEscuela.slice(0, 10).map(item => ({
+      return proyectosPorEscuela.slice(0, 10).map((item) => ({
         ...item,
         color: '#6b7280', // Gris más oscuro (gray-500)
       }));
     }, [proyectosPorEscuela]);
 
     const datosGraficoFondo = useMemo(() => {
-      return proyectosPorFondo.map(item => ({
+      return proyectosPorFondo.map((item) => ({
         ...item,
         color: '#6b7280', // Gris más oscuro (gray-500)
       }));
@@ -1190,18 +1364,26 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FolderKanban className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Total Proyectos</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Total Proyectos
+                </h3>
               </div>
-              <div className="text-5xl font-bold text-gray-900 mb-4">{totalProyectos}</div>
+              <div className="text-5xl font-bold text-gray-900 mb-4">
+                {totalProyectos}
+              </div>
               <div className="flex items-center gap-6 mt-4">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Terminados</p>
-                  <p className="text-xl font-semibold text-emerald-600">{proyectosTerminados}</p>
+                  <p className="text-xl font-semibold text-emerald-600">
+                    {proyectosTerminados}
+                  </p>
                 </div>
                 <div className="h-12 w-px bg-gray-300"></div>
                 <div>
                   <p className="text-xs text-gray-500 mb-1">En Ejecución</p>
-                  <p className="text-xl font-semibold text-blue-600">{proyectosEnEjecucion}</p>
+                  <p className="text-xl font-semibold text-blue-600">
+                    {proyectosEnEjecucion}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -1212,15 +1394,23 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Total Participantes</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Total Participantes
+                </h3>
               </div>
-              <div className="text-5xl font-bold text-gray-900 mb-4">{totalParticipantes}</div>
+              <div className="text-5xl font-bold text-gray-900 mb-4">
+                {totalParticipantes}
+              </div>
               <div className="flex flex-wrap items-center gap-4 mt-4">
                 {desgloseParticipantes.map(({ rol, cantidad }, index) => (
                   <div key={rol} className="flex items-center gap-4">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1 capitalize">{rol}</p>
-                      <p className="text-xl font-semibold text-gray-900">{cantidad}</p>
+                      <p className="text-xs text-gray-500 mb-1 capitalize">
+                        {rol}
+                      </p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {cantidad}
+                      </p>
                     </div>
                     {index < desgloseParticipantes.length - 1 && (
                       <div className="h-12 w-px bg-gray-300 flex-shrink-0"></div>
@@ -1239,9 +1429,13 @@ export default function DashboardPage() {
               <div className="flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4">
                   <LineChart className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Avance Promedio Gantt</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Avance Promedio Gantt
+                  </h3>
                 </div>
-                <div className="text-4xl font-bold text-gray-900 mb-2">{avancePromedio}%</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {avancePromedio}%
+                </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
@@ -1257,9 +1451,13 @@ export default function DashboardPage() {
               <div className="flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">% Objetivos Cumplidos</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    % Objetivos Cumplidos
+                  </h3>
                 </div>
-                <div className="text-4xl font-bold text-gray-900 mb-2">{indicadoresPromedio}%</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {indicadoresPromedio}%
+                </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
@@ -1275,7 +1473,9 @@ export default function DashboardPage() {
               <div className="flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Presupuesto Usado</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Presupuesto Usado
+                  </h3>
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
                   <span className="text-3xl font-bold text-gray-900">
@@ -1291,7 +1491,9 @@ export default function DashboardPage() {
                     style={{ width: `${porcentajePresupuestoUsado}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{porcentajePresupuestoUsado}% utilizado</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {porcentajePresupuestoUsado}% utilizado
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1304,12 +1506,11 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <DollarSign className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Fondo</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Proyectos por Fondo
+                </h3>
               </div>
-              <SimpleBarChart
-                data={datosGraficoFondo}
-                height={250}
-              />
+              <SimpleBarChart data={datosGraficoFondo} height={250} />
             </CardContent>
           </Card>
 
@@ -1318,12 +1519,11 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Building2 className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Sede</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Proyectos por Sede
+                </h3>
               </div>
-              <SimpleBarChart
-                data={datosGraficoSede}
-                height={250}
-              />
+              <SimpleBarChart data={datosGraficoSede} height={250} />
             </CardContent>
           </Card>
 
@@ -1332,12 +1532,11 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <GraduationCap className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Escuela</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Proyectos por Escuela
+                </h3>
               </div>
-              <SimpleBarChart
-                data={datosGraficoEscuela}
-                height={250}
-              />
+              <SimpleBarChart data={datosGraficoEscuela} height={250} />
             </CardContent>
           </Card>
 
@@ -1346,13 +1545,12 @@ export default function DashboardPage() {
             <CardContent className="p-6 flex flex-col h-full">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Proyectos por Focalización</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Proyectos por Focalización
+                </h3>
               </div>
               <div className="flex-1 flex items-center justify-center min-h-0">
-                <SimpleDonutChart
-                  data={proyectosPorFocalizacion}
-                  size={140}
-                />
+                <SimpleDonutChart data={proyectosPorFocalizacion} size={140} />
               </div>
             </CardContent>
           </Card>
@@ -1371,7 +1569,9 @@ export default function DashboardPage() {
       { value: 'grupos-interes', label: 'Grupos de interés' },
     ];
     const formatPresupuesto = (n: number) =>
-      n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n.toLocaleString('es-CL');
+      n >= 1_000_000
+        ? `${(n / 1_000_000).toFixed(1)}M`
+        : n.toLocaleString('es-CL');
 
     return (
       <div className="space-y-6">
@@ -1405,15 +1605,33 @@ export default function DashboardPage() {
                   <TableHeader>
                     <TableRow className="bg-gray-100">
                       <TableHead className="font-semibold">Dimensión</TableHead>
-                      <TableHead className="text-center font-semibold">Proyectos</TableHead>
-                      <TableHead className="text-center font-semibold">Comunas</TableHead>
-                      <TableHead className="text-center font-semibold">Escuelas</TableHead>
-                      <TableHead className="text-center font-semibold">Carreras</TableHead>
-                      <TableHead className="text-center font-semibold">Avance Gantt prom.</TableHead>
-                      <TableHead className="text-center font-semibold">Avance Objetivos prom.</TableHead>
-                      <TableHead className="text-center font-semibold">Participantes</TableHead>
-                      <TableHead className="text-center font-semibold">Socios comunitarios</TableHead>
-                      <TableHead className="text-center font-semibold">Presupuesto total</TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Proyectos
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Comunas
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Escuelas
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Carreras
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Avance Gantt prom.
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Avance Objetivos prom.
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Participantes
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Socios comunitarios
+                      </TableHead>
+                      <TableHead className="text-center font-semibold">
+                        Presupuesto total
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1425,7 +1643,11 @@ export default function DashboardPage() {
                               {label}
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent side="top" variant="light" className="max-w-sm py-2">
+                          <TooltipContent
+                            side="top"
+                            variant="light"
+                            className="max-w-sm py-2"
+                          >
                             {items.length ? (
                               <ul className="list-disc list-inside space-y-0.5 text-left">
                                 {items.map((name, j) => (
@@ -1439,10 +1661,18 @@ export default function DashboardPage() {
                         </Tooltip>
                       );
                       return (
-                        <TableRow key={`${row.dimension}-${i}`} className="group">
-                          <TableCell className="font-medium">{row.dimension}</TableCell>
+                        <TableRow
+                          key={`${row.dimension}-${i}`}
+                          className="group"
+                        >
+                          <TableCell className="font-medium">
+                            {row.dimension}
+                          </TableCell>
                           <TableCell className="text-center">
-                            {tooltip(String(row.proyectos), row.proyectosNombres)}
+                            {tooltip(
+                              String(row.proyectos),
+                              row.proyectosNombres
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             {tooltip(String(row.comunas), row.comunasNombres)}
@@ -1453,13 +1683,24 @@ export default function DashboardPage() {
                           <TableCell className="text-center">
                             {tooltip(String(row.carreras), row.carrerasNombres)}
                           </TableCell>
-                          <TableCell className="text-center">{row.avanceGanttProm.toFixed(1)}%</TableCell>
-                          <TableCell className="text-center">{row.avanceObjetivosProm.toFixed(1)}%</TableCell>
-                          <TableCell className="text-center">{row.participantes}</TableCell>
                           <TableCell className="text-center">
-                            {tooltip(String(row.sociosComunitarios), row.sociosNombres)}
+                            {row.avanceGanttProm.toFixed(1)}%
                           </TableCell>
-                          <TableCell className="text-center">{formatPresupuesto(row.presupuestoTotal)}</TableCell>
+                          <TableCell className="text-center">
+                            {row.avanceObjetivosProm.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.participantes}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {tooltip(
+                              String(row.sociosComunitarios),
+                              row.sociosNombres
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {formatPresupuesto(row.presupuestoTotal)}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -1478,11 +1719,11 @@ export default function DashboardPage() {
     // Calcular datos del gráfico según el filtro seleccionado
     const datosGraficoParticipantes = useMemo(() => {
       const grouped: Record<string, number> = {};
-      
+
       proyectosIniciales.forEach((p) => {
         p.participantes_rel?.forEach((participante) => {
           let key = '';
-          
+
           switch (filtroParticipantes) {
             case 'Rol':
               key = participante.rol;
@@ -1496,7 +1737,10 @@ export default function DashboardPage() {
             case 'Escuela':
               // Agrupar por combinación de escuelas del proyecto
               if (p.escuelas && p.escuelas.length > 0) {
-                const escuelasNombres = p.escuelas.map(e => e.escuela.nombre).sort().join(', ');
+                const escuelasNombres = p.escuelas
+                  .map((e) => e.escuela.nombre)
+                  .sort()
+                  .join(', ');
                 key = escuelasNombres;
               } else {
                 key = 'Sin escuela';
@@ -1505,47 +1749,59 @@ export default function DashboardPage() {
             case 'Carrera':
               // Agrupar por combinación de carreras del proyecto
               if (p.carreras && p.carreras.length > 0) {
-                const carrerasNombres = p.carreras.map(c => c.carrera.nombre).sort().join(', ');
+                const carrerasNombres = p.carreras
+                  .map((c) => c.carrera.nombre)
+                  .sort()
+                  .join(', ');
                 key = carrerasNombres;
               } else {
                 key = 'Sin carrera';
               }
               break;
             case 'Socio Comunitario':
-              key = participante.socioComunitario?.nombre || 'Sin socio comunitario';
+              key =
+                participante.socioComunitario?.nombre ||
+                'Sin socio comunitario';
               break;
           }
-          
+
           if (key) {
             grouped[key] = (grouped[key] || 0) + 1;
           }
         });
       });
-      
+
       return Object.entries(grouped)
-        .map(([label, value]) => ({ 
-          label, 
+        .map(([label, value]) => ({
+          label,
           value,
-          color: '#10b981' // Verde esmeralda
+          color: '#10b981', // Verde esmeralda
         }))
         .sort((a, b) => b.value - a.value);
     }, [proyectosIniciales, filtroParticipantes]);
 
     // Calcular matriz de proyectos con conteo por rol
     const matrizProyectos = useMemo(() => {
-      const roles = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
-      
+      const roles = [
+        'Encargado',
+        'Coordinador',
+        'Colaborador',
+        'Docente',
+        'Estudiante',
+        'Beneficiario',
+      ];
+
       return proyectosIniciales.map((p) => {
         const conteoPorRol: Record<string, number> = {};
-        roles.forEach(rol => conteoPorRol[rol] = 0);
-        
+        roles.forEach((rol) => (conteoPorRol[rol] = 0));
+
         p.participantes_rel?.forEach((participante) => {
           const rol = participante.rol;
           if (conteoPorRol.hasOwnProperty(rol)) {
             conteoPorRol[rol] = (conteoPorRol[rol] || 0) + 1;
           }
         });
-        
+
         return {
           proyecto: p.proyecto,
           fondo: p.fondo,
@@ -1559,17 +1815,21 @@ export default function DashboardPage() {
     // Ordenar matriz según sortParticipantes
     const matrizOrdenada = useMemo(() => {
       if (!sortParticipantes.key) return matrizProyectos;
-      
+
       const sorted = [...matrizProyectos];
+      const key = sortParticipantes.key;
       sorted.sort((a, b) => {
-        const valA = a[sortParticipantes.key!] ?? 0;
-        const valB = b[sortParticipantes.key!] ?? 0;
-        const res = typeof valA === 'number' && typeof valB === 'number'
-          ? valA - valB
-          : String(valA).localeCompare(String(valB), 'es');
+        const rowA = a as Record<string, string | number>;
+        const rowB = b as Record<string, string | number>;
+        const valA = rowA[key] ?? 0;
+        const valB = rowB[key] ?? 0;
+        const res =
+          typeof valA === 'number' && typeof valB === 'number'
+            ? valA - valB
+            : String(valA).localeCompare(String(valB), 'es');
         return sortParticipantes.dir === 'asc' ? res : -res;
       });
-      
+
       return sorted;
     }, [matrizProyectos, sortParticipantes]);
 
@@ -1591,24 +1851,45 @@ export default function DashboardPage() {
       if (sortParticipantes.key !== column) {
         return <ChevronDown className="h-4 w-4 opacity-30" />;
       }
-      return sortParticipantes.dir === 'asc' 
-        ? <ChevronDown className="h-4 w-4" />
-        : <ChevronDown className="h-4 w-4 rotate-180" />;
+      return sortParticipantes.dir === 'asc' ? (
+        <ChevronDown className="h-4 w-4" />
+      ) : (
+        <ChevronDown className="h-4 w-4 rotate-180" />
+      );
     };
 
-    const roles = ['Encargado', 'Coordinador', 'Colaborador', 'Docente', 'Estudiante', 'Beneficiario'];
+    const roles = [
+      'Encargado',
+      'Coordinador',
+      'Colaborador',
+      'Docente',
+      'Estudiante',
+      'Beneficiario',
+    ];
     const tituloGrafico = `Participantes por ${filtroParticipantes}`;
     const tableMinWidth = 280 + 100 + 120 + 180 + roles.length * 140;
 
     return (
       <div className="flex gap-4 h-[calc(100vh-200px)] w-full max-w-full overflow-hidden">
         {/* Sección Izquierda - Gráfico */}
-        <div className="flex-shrink-0" style={{ width: '35%', minWidth: '350px' }}>
+        <div
+          className="flex-shrink-0"
+          style={{ width: '35%', minWidth: '350px' }}
+        >
           <Card className="h-full flex flex-col">
             <CardContent className="p-6 flex flex-col h-full overflow-hidden">
               {/* Botones de filtro */}
               <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
-                {(['Rol', 'Cargo', 'Sede', 'Escuela', 'Carrera', 'Socio Comunitario'] as const).map((filtro) => (
+                {(
+                  [
+                    'Rol',
+                    'Cargo',
+                    'Sede',
+                    'Escuela',
+                    'Carrera',
+                    'Socio Comunitario',
+                  ] as const
+                ).map((filtro) => (
                   <Button
                     key={filtro}
                     variant="outline"
@@ -1624,7 +1905,7 @@ export default function DashboardPage() {
                   </Button>
                 ))}
               </div>
-              
+
               {/* Gráfico de barras */}
               <div className="flex items-center space-x-2 mb-4 flex-shrink-0">
                 <Users className="h-5 w-5 text-emerald-600" />
@@ -1641,12 +1922,28 @@ export default function DashboardPage() {
         <div className="flex-1 min-w-0">
           <Card className="h-full flex flex-col">
             <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
-              <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0" style={{ maxWidth: '100%' }}>
-                <div style={{ minWidth: `${tableMinWidth}px`, width: `${tableMinWidth}px` }}>
-                  <Table style={{ minWidth: `${tableMinWidth}px`, width: `${tableMinWidth}px` }}>
+              <div
+                className="flex-1 overflow-y-auto overflow-x-auto min-h-0"
+                style={{ maxWidth: '100%' }}
+              >
+                <div
+                  style={{
+                    minWidth: `${tableMinWidth}px`,
+                    width: `${tableMinWidth}px`,
+                  }}
+                >
+                  <Table
+                    style={{
+                      minWidth: `${tableMinWidth}px`,
+                      width: `${tableMinWidth}px`,
+                    }}
+                  >
                     <TableHeader>
                       <TableRow className="bg-gray-100">
-                        <TableHead className="font-semibold sticky left-0 z-10 bg-gray-100 whitespace-nowrap" style={{ minWidth: '280px', width: '280px' }}>
+                        <TableHead
+                          className="font-semibold sticky left-0 z-10 bg-gray-100 whitespace-nowrap"
+                          style={{ minWidth: '280px', width: '280px' }}
+                        >
                           <button
                             onClick={() => handleSort('proyecto')}
                             className="flex items-center gap-1 hover:text-emerald-600 transition-colors"
@@ -1655,7 +1952,10 @@ export default function DashboardPage() {
                             {getSortIcon('proyecto')}
                           </button>
                         </TableHead>
-                        <TableHead className="font-semibold bg-gray-100 whitespace-nowrap" style={{ minWidth: '100px', width: '100px' }}>
+                        <TableHead
+                          className="font-semibold bg-gray-100 whitespace-nowrap"
+                          style={{ minWidth: '100px', width: '100px' }}
+                        >
                           <button
                             onClick={() => handleSort('fondo')}
                             className="flex items-center gap-1 hover:text-emerald-600 transition-colors"
@@ -1664,7 +1964,10 @@ export default function DashboardPage() {
                             {getSortIcon('fondo')}
                           </button>
                         </TableHead>
-                        <TableHead className="font-semibold bg-gray-100 whitespace-nowrap" style={{ minWidth: '120px', width: '120px' }}>
+                        <TableHead
+                          className="font-semibold bg-gray-100 whitespace-nowrap"
+                          style={{ minWidth: '120px', width: '120px' }}
+                        >
                           <button
                             onClick={() => handleSort('sede')}
                             className="flex items-center gap-1 hover:text-emerald-600 transition-colors"
@@ -1673,7 +1976,10 @@ export default function DashboardPage() {
                             {getSortIcon('sede')}
                           </button>
                         </TableHead>
-                        <TableHead className="font-semibold bg-gray-100 whitespace-nowrap" style={{ minWidth: '180px', width: '180px' }}>
+                        <TableHead
+                          className="font-semibold bg-gray-100 whitespace-nowrap"
+                          style={{ minWidth: '180px', width: '180px' }}
+                        >
                           <button
                             onClick={() => handleSort('escuela')}
                             className="flex items-center gap-1 hover:text-emerald-600 transition-colors"
@@ -1683,7 +1989,11 @@ export default function DashboardPage() {
                           </button>
                         </TableHead>
                         {roles.map((rol) => (
-                          <TableHead key={rol} className="text-center font-semibold whitespace-nowrap" style={{ minWidth: '110px', width: '110px' }}>
+                          <TableHead
+                            key={rol}
+                            className="text-center font-semibold whitespace-nowrap"
+                            style={{ minWidth: '110px', width: '110px' }}
+                          >
                             <button
                               onClick={() => handleSort(rol)}
                               className="flex items-center justify-center gap-1 hover:text-emerald-600 transition-colors mx-auto"
@@ -1698,23 +2008,49 @@ export default function DashboardPage() {
                     <TableBody>
                       {matrizOrdenada.map((fila, i) => (
                         <TableRow key={i} className="group">
-                          <TableCell className="font-medium sticky left-0 z-10 bg-white group-hover:bg-muted/50" style={{ minWidth: '280px', width: '280px', maxWidth: '280px' }}>
-                            <span title={fila.proyecto} className="block truncate">
-                              {fila.proyecto.length > 55 ? `${fila.proyecto.substring(0, 55)}...` : fila.proyecto}
+                          <TableCell
+                            className="font-medium sticky left-0 z-10 bg-white group-hover:bg-muted/50"
+                            style={{
+                              minWidth: '280px',
+                              width: '280px',
+                              maxWidth: '280px',
+                            }}
+                          >
+                            <span
+                              title={fila.proyecto}
+                              className="block truncate"
+                            >
+                              {fila.proyecto.length > 55
+                                ? `${fila.proyecto.substring(0, 55)}...`
+                                : fila.proyecto}
                             </span>
                           </TableCell>
-                          <TableCell className="bg-white group-hover:bg-muted/50 whitespace-nowrap" style={{ minWidth: '100px', width: '100px' }}>
+                          <TableCell
+                            className="bg-white group-hover:bg-muted/50 whitespace-nowrap"
+                            style={{ minWidth: '100px', width: '100px' }}
+                          >
                             {fila.fondo}
                           </TableCell>
-                          <TableCell className="bg-white group-hover:bg-muted/50 whitespace-nowrap" style={{ minWidth: '120px', width: '120px' }}>
+                          <TableCell
+                            className="bg-white group-hover:bg-muted/50 whitespace-nowrap"
+                            style={{ minWidth: '120px', width: '120px' }}
+                          >
                             {fila.sede}
                           </TableCell>
-                          <TableCell className="bg-white group-hover:bg-muted/50 whitespace-nowrap" style={{ minWidth: '180px', width: '180px' }}>
+                          <TableCell
+                            className="bg-white group-hover:bg-muted/50 whitespace-nowrap"
+                            style={{ minWidth: '180px', width: '180px' }}
+                          >
                             {fila.escuela}
                           </TableCell>
                           {roles.map((rol) => (
-                            <TableCell key={rol} className="text-center whitespace-nowrap" style={{ minWidth: '110px', width: '110px' }}>
-                              {fila[rol] || 0}
+                            <TableCell
+                              key={rol}
+                              className="text-center whitespace-nowrap"
+                              style={{ minWidth: '110px', width: '110px' }}
+                            >
+                              {(fila as Record<string, string | number>)[rol] ||
+                                0}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -1783,7 +2119,8 @@ export default function DashboardPage() {
         (p) => (p.presupuestoUsado / (p.presupuestoTotal || 1)) * 100
       );
       return {
-        promedio: porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length || 0,
+        promedio:
+          porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length || 0,
         minimo: Math.min(...porcentajes),
         maximo: Math.max(...porcentajes),
         proyectosExcedidos: porcentajes.filter((p) => p > 100).length,
@@ -1797,12 +2134,16 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex items-center space-x-2 mb-4">
               <LineChart className="h-5 w-5 text-emerald-600" />
-              <h3 className="text-lg font-semibold">Análisis de Avance Gantt</h3>
+              <h3 className="text-lg font-semibold">
+                Análisis de Avance Gantt
+              </h3>
             </div>
             <div className="grid gap-4 md:grid-cols-5">
               <div className="p-4 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600">Promedio</p>
-                <p className="text-2xl font-bold">{avanceGanttStats.promedio}%</p>
+                <p className="text-2xl font-bold">
+                  {avanceGanttStats.promedio}%
+                </p>
               </div>
               <div className="p-4 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600">Mínimo</p>
@@ -1838,7 +2179,9 @@ export default function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-4">
               <div className="p-4 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600">Promedio</p>
-                <p className="text-2xl font-bold">{indicadoresStats.promedio}%</p>
+                <p className="text-2xl font-bold">
+                  {indicadoresStats.promedio}%
+                </p>
               </div>
               <div className="p-4 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600">Mínimo</p>
@@ -1897,7 +2240,9 @@ export default function DashboardPage() {
         {/* Gráfico comparativo */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Comparativa de Avances</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Comparativa de Avances
+            </h3>
             <SimpleBarChart
               data={[
                 {
@@ -2075,9 +2420,9 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          
+
           {renderTable()}
-          
+
           <div className="flex justify-start">
             <Button
               onClick={exportToExcel}
@@ -2180,21 +2525,26 @@ export default function DashboardPage() {
           <VistaAnalisisEscuela />
         </div>
       )}
-      {currentView === 'analisis-participantes' && <VistaAnalisisParticipantes />}
+      {currentView === 'analisis-participantes' && (
+        <VistaAnalisisParticipantes />
+      )}
       {currentView === 'analisis-avances' && <VistaAnalisisAvances />}
 
       {/* Botón de exportar al final (solo en vistas que no sean Lista, Mirada General, Escuelas y Sedes ni Participantes) */}
-      {currentView !== 'lista' && currentView !== 'mirada-general' && currentView !== 'analisis-escuela' && currentView !== 'analisis-participantes' && (
-        <div className="flex justify-end">
-          <Button
-            onClick={exportToExcel}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
-          >
-            <Download className="h-4 w-4" />
-            <span>Exportar Excel</span>
-          </Button>
-        </div>
-      )}
+      {currentView !== 'lista' &&
+        currentView !== 'mirada-general' &&
+        currentView !== 'analisis-escuela' &&
+        currentView !== 'analisis-participantes' && (
+          <div className="flex justify-end">
+            <Button
+              onClick={exportToExcel}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <Download className="h-4 w-4" />
+              <span>Exportar Excel</span>
+            </Button>
+          </div>
+        )}
     </div>
   );
 }

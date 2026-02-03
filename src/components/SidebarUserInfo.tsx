@@ -71,12 +71,17 @@ export function SidebarUserInfo() {
           <Bell className="h-4 w-4 text-white group-hover/notification:!text-black transition-colors duration-200" />
           {/* Badge de notificaciones - actualmente estático para visualización */}
           <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full">
-            <span className="absolute text-white text-[10px] font-medium" style={{
-              top: '50%',
-              left: '50%',
-              transform: isCollapsed ? 'translate(-48%, -50%)' : 'translate(-50%, -50%)',
-              lineHeight: '1'
-            }}>
+            <span
+              className="absolute text-white text-[10px] font-medium"
+              style={{
+                top: '50%',
+                left: '50%',
+                transform: isCollapsed
+                  ? 'translate(-48%, -50%)'
+                  : 'translate(-50%, -50%)',
+                lineHeight: '1',
+              }}
+            >
               10
             </span>
           </span>
@@ -92,12 +97,18 @@ export function SidebarUserInfo() {
         {/* Avatar */}
         <Button
           variant="ghost"
-          className={`rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${isCollapsed ? 'h-[45px] w-[45px]' : 'h-[100px] w-[100px]'
-            }`}
+          className={`rounded-full p-0 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
+            isCollapsed ? 'h-[45px] w-[45px]' : 'h-[100px] w-[100px]'
+          }`}
           onClick={() => setProfileOpen(true)}
         >
-          <div className={`rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium shadow-md hover:shadow-lg transition-shadow ${isCollapsed ? 'h-[45px] w-[45px] text-sm' : 'h-[100px] w-[100px] text-3xl'
-            }`}>
+          <div
+            className={`rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium shadow-md hover:shadow-lg transition-shadow ${
+              isCollapsed
+                ? 'h-[45px] w-[45px] text-sm'
+                : 'h-[100px] w-[100px] text-3xl'
+            }`}
+          >
             {user.image ? (
               <img
                 src={user.image}
@@ -116,4 +127,3 @@ export function SidebarUserInfo() {
     </>
   );
 }
-

@@ -1,4 +1,5 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth';
+import type { Adapter } from 'next-auth/adapters';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
@@ -6,7 +7,7 @@ import prisma from '@/lib/prisma';
 import { getUserRoles } from '@/lib/auth-utils';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma) as Adapter,
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -18,7 +19,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email y password son requeridos');
         }
-        
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           select: {
@@ -34,8 +35,11 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) {
           throw new Error('Email o password incorrectos');
         }
-        
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
 
         if (!isPasswordValid) {
           throw new Error('Email o password incorrectos');
@@ -43,7 +47,7 @@ export const authOptions: NextAuthOptions = {
 
         // Obtener roles del usuario
         const roles = await getUserRoles(user.id);
-        
+
         // Eliminar duplicados de roles antes de retornar
         const uniqueRoles = Array.from(new Set(roles));
 
@@ -79,7 +83,7 @@ export const authOptions: NextAuthOptions = {
       // Update session (cuando se llama update() desde el cliente)
       if (trigger === 'update' && session) {
         console.log('JWT callback - trigger update:', session);
-        
+
         if (session.activeRole !== undefined) {
           token.activeRole = session.activeRole;
           console.log('Updated activeRole to:', session.activeRole);
@@ -112,11 +116,11 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.activeRole = token.activeRole as string | null;
         session.user.availableRoles = token.availableRoles as string[];
-        
+
         console.log('Session callback - User data:', {
           id: session.user.id,
           activeRole: session.user.activeRole,
-          availableRoles: session.user.availableRoles
+          availableRoles: session.user.availableRoles,
         });
       }
       return session;
@@ -129,4 +133,3 @@ export const authOptions: NextAuthOptions = {
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
-

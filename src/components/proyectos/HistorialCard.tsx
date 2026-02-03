@@ -9,7 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getHistorialProyecto, getHistorialFiltros } from '@/lib/actions/historial';
+import {
+  getHistorialProyecto,
+  getHistorialFiltros,
+} from '@/lib/actions/historial';
 import { History, Filter } from 'lucide-react';
 
 interface HistorialCardProps {
@@ -56,7 +59,8 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
       const result = await getHistorialProyecto(projectId, {
         personaId: filtros.personaId !== 'all' ? filtros.personaId : undefined,
         accion: filtros.accion !== 'all' ? filtros.accion : undefined,
-        tabProyecto: filtros.tabProyecto !== 'all' ? filtros.tabProyecto : undefined,
+        tabProyecto:
+          filtros.tabProyecto !== 'all' ? filtros.tabProyecto : undefined,
       });
 
       if (result.success && result.data) {
@@ -92,31 +96,45 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
   };
 
   const formatResumen = (entry: HistorialEntry) => {
-    const persona = entry.user.name || entry.user.email || 'Usuario desconocido';
+    const persona =
+      entry.user.name || entry.user.email || 'Usuario desconocido';
     const avatar = entry.user.image;
-    
+
     // Conjugar verbos
     const conjugaciones: Record<string, string> = {
-      'Crear': 'creado',
-      'Comentar': 'comentado',
-      'Actualizar': 'actualizado',
+      Crear: 'creado',
+      Comentar: 'comentado',
+      Actualizar: 'actualizado',
       'Marcar realizada': 'marcado realizada',
     };
-    const accionConjugada = conjugaciones[entry.accion] || entry.accion.toLowerCase();
-    
+    const accionConjugada =
+      conjugaciones[entry.accion] || entry.accion.toLowerCase();
+
     const tabTexto = entry.tabProyecto;
-    
+
     // Extraer el nombre del elemento específico
     let elementoNombre: React.ReactNode = entry.elementoEspecifico;
-    
+
     // Si contiene "Tarea " con formato: Tarea "nombre" de Actividad "actividad"
-    if (entry.elementoEspecifico.includes('Tarea "') && entry.elementoEspecifico.includes(' de Actividad "')) {
-      const match = entry.elementoEspecifico.match(/Tarea "([^"]+)" de Actividad "([^"]+)"/);
+    if (
+      entry.elementoEspecifico.includes('Tarea "') &&
+      entry.elementoEspecifico.includes(' de Actividad "')
+    ) {
+      const match = entry.elementoEspecifico.match(
+        /Tarea "([^"]+)" de Actividad "([^"]+)"/
+      );
       if (match) {
         const [, tareaNombre, actividadNombre] = match;
         elementoNombre = (
           <>
-            la tarea <strong><em>{tareaNombre}</em></strong> de la actividad <strong><em>{actividadNombre}</em></strong>
+            la tarea{' '}
+            <strong>
+              <em>{tareaNombre}</em>
+            </strong>{' '}
+            de la actividad{' '}
+            <strong>
+              <em>{actividadNombre}</em>
+            </strong>
           </>
         );
       }
@@ -126,25 +144,36 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
       if (tareaMatch) {
         elementoNombre = (
           <>
-            la tarea <strong><em>{tareaMatch[1]}</em></strong>
+            la tarea{' '}
+            <strong>
+              <em>{tareaMatch[1]}</em>
+            </strong>
           </>
         );
       }
     } else if (entry.elementoEspecifico.includes('Indicador "')) {
-      const indicadorMatch = entry.elementoEspecifico.match(/Indicador "([^"]+)"/);
+      const indicadorMatch =
+        entry.elementoEspecifico.match(/Indicador "([^"]+)"/);
       if (indicadorMatch) {
         elementoNombre = (
           <>
-            el indicador <strong><em>{indicadorMatch[1]}</em></strong>
+            el indicador{' '}
+            <strong>
+              <em>{indicadorMatch[1]}</em>
+            </strong>
           </>
         );
       }
     } else if (entry.elementoEspecifico.includes('Actividad "')) {
-      const actividadMatch = entry.elementoEspecifico.match(/Actividad "([^"]+)"/);
+      const actividadMatch =
+        entry.elementoEspecifico.match(/Actividad "([^"]+)"/);
       if (actividadMatch) {
         elementoNombre = (
           <>
-            la actividad <strong><em>{actividadMatch[1]}</em></strong>
+            la actividad{' '}
+            <strong>
+              <em>{actividadMatch[1]}</em>
+            </strong>
           </>
         );
       }
@@ -152,9 +181,12 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
       // Si no tiene formato conocido, usar tal cual pero en negrita
       elementoNombre = <strong>{entry.elementoEspecifico}</strong>;
     }
-    
+
     // Determinar si mostrar cambioGenerado (no para "Marcar realizada")
-    const mostrarCambio = entry.accion !== 'Marcar realizada' && entry.cambioGenerado && entry.cambioGenerado.trim() !== '';
+    const mostrarCambio =
+      entry.accion !== 'Marcar realizada' &&
+      entry.cambioGenerado &&
+      entry.cambioGenerado.trim() !== '';
 
     return (
       <div className="flex items-start gap-3">
@@ -172,14 +204,18 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
             </span>
           </div>
         )}
-        
+
         {/* Texto del resumen */}
         <div className="flex-1">
-          <strong>{persona}</strong> ha <strong className="text-red-600">{accionConjugada}</strong> en{' '}
-          <strong className="text-emerald-600">{tabTexto}</strong> {elementoNombre}
+          <strong>{persona}</strong> ha{' '}
+          <strong className="text-red-600">{accionConjugada}</strong> en{' '}
+          <strong className="text-emerald-600">{tabTexto}</strong>{' '}
+          {elementoNombre}
           {mostrarCambio && (
             <>
-              : "<span className="text-blue-600">{entry.cambioGenerado}</span>"
+              : {'"'}
+              <span className="text-blue-600">{entry.cambioGenerado}</span>
+              {'"'}
             </>
           )}
         </div>

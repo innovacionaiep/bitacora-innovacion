@@ -4,16 +4,22 @@ import { useState } from 'react';
 import { RefreshCw, User, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getRandomParticipants, RandomParticipant } from '@/lib/actions/discovery';
+import {
+  getRandomParticipants,
+  RandomParticipant,
+} from '@/lib/actions/discovery';
 import { cn } from '@/lib/utils';
 
 interface DiscoveryParticipantsProps {
   initialParticipants?: RandomParticipant[];
 }
 
-export function DiscoveryParticipants({ initialParticipants = [] }: DiscoveryParticipantsProps) {
+export function DiscoveryParticipants({
+  initialParticipants = [],
+}: DiscoveryParticipantsProps) {
   // Usar datos iniciales directamente - sin carga en useEffect
-  const [participants, setParticipants] = useState<RandomParticipant[]>(initialParticipants);
+  const [participants, setParticipants] =
+    useState<RandomParticipant[]>(initialParticipants);
   const [loading, setLoading] = useState(false); // No loading si hay datos iniciales
   const [refreshing, setRefreshing] = useState(false);
 

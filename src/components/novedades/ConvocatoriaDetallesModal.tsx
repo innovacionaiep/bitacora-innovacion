@@ -182,7 +182,11 @@ export function ConvocatoriaDetallesModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-blue-600" />
-            <span>{convocatoria ? 'Detalles de la convocatoria' : 'Nueva convocatoria'}</span>
+            <span>
+              {convocatoria
+                ? 'Detalles de la convocatoria'
+                : 'Nueva convocatoria'}
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -191,7 +195,9 @@ export function ConvocatoriaDetallesModal({
             <div className="space-y-4">
               {imagenUrl ? (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Imagen</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Imagen
+                  </p>
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden border bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -203,32 +209,48 @@ export function ConvocatoriaDetallesModal({
                 </div>
               ) : null}
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Título de convocatoria</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Título de convocatoria
+                </p>
                 <p className="text-base text-gray-900">{titulo || '—'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Fecha de inicio</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Fecha de inicio
+                  </p>
                   <p className="text-base text-gray-900">
-                    {fechaInicio ? formatDisplayDate(new Date(fechaInicio)) : '—'}
+                    {fechaInicio
+                      ? formatDisplayDate(new Date(fechaInicio))
+                      : '—'}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Fecha de fin</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Fecha de fin
+                  </p>
                   <p className="text-base text-gray-900">
                     {fechaFin ? formatDisplayDate(new Date(fechaFin)) : '—'}
                   </p>
                 </div>
               </div>
-              {(descripcion != null && descripcion !== '') && (
+              {descripcion != null && descripcion !== '' && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Descripción</p>
-                  <p className="text-base text-gray-900 whitespace-pre-wrap">{descripcion}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Descripción
+                  </p>
+                  <p className="text-base text-gray-900 whitespace-pre-wrap">
+                    {descripcion}
+                  </p>
                 </div>
               )}
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cerrar
               </Button>
               {isAdmin && (
@@ -299,7 +321,7 @@ export function ConvocatoriaDetallesModal({
                 onChange={handleImagenChange}
                 className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
               />
-              {(imagenPreviewUrl || imagenUrl) ? (
+              {imagenPreviewUrl || imagenUrl ? (
                 <div className="space-y-1 mt-2">
                   <div className="relative w-full max-w-xs aspect-video rounded-lg overflow-hidden border bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -307,7 +329,9 @@ export function ConvocatoriaDetallesModal({
                       src={imagenPreviewUrl || imagenUrl || ''}
                       alt="Vista previa"
                       className="object-cover w-full h-full"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   </div>
                   <Button
@@ -327,7 +351,9 @@ export function ConvocatoriaDetallesModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => (convocatoria ? resetFromConvocatoria() : onOpenChange(false))}
+                onClick={() =>
+                  convocatoria ? resetFromConvocatoria() : onOpenChange(false)
+                }
                 disabled={saving}
               >
                 Cancelar

@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CommentItem } from './CommentItem';
-import { getComments, createComment, CommentWithRelations } from '@/lib/actions/post-comments';
+import {
+  getComments,
+  createComment,
+  CommentWithRelations,
+} from '@/lib/actions/post-comments';
 import { useSession } from 'next-auth/react';
 
 interface CommentSectionProps {
@@ -14,7 +18,10 @@ interface CommentSectionProps {
   commentsCount: number;
 }
 
-export function CommentSection({ postId, commentsCount: initialCount }: CommentSectionProps) {
+export function CommentSection({
+  postId,
+  commentsCount: initialCount,
+}: CommentSectionProps) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<CommentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +95,8 @@ export function CommentSection({ postId, commentsCount: initialCount }: CommentS
 
       // Si no se encontró, buscar en las respuestas
       return prev.map((c) => {
-        const filteredReplies = c.replies?.filter((r) => r.id !== commentId) || [];
+        const filteredReplies =
+          c.replies?.filter((r) => r.id !== commentId) || [];
         if (filteredReplies.length !== (c.replies?.length || 0)) {
           found = true;
           return {

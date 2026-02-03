@@ -15,9 +15,9 @@ interface ObjetivosCardProps {
 }
 
 export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
-  const objetivoGeneral = objetivos.find(obj => obj.tipo === 'General');
+  const objetivoGeneral = objetivos.find((obj) => obj.tipo === 'General');
   const objetivosEspecificos = objetivos
-    .filter(obj => obj.tipo === 'Especifico')
+    .filter((obj) => obj.tipo === 'Especifico')
     .sort((a, b) => a.orden - b.orden);
 
   return (
@@ -63,10 +63,7 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
               </div>
               <div className="ml-8 space-y-6">
                 {objetivosEspecificos.map((objetivo, index) => (
-                  <div 
-                    key={objetivo.id} 
-                    className="flex items-start space-x-4"
-                  >
+                  <div key={objetivo.id} className="flex items-start space-x-4">
                     <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
                       {index + 1}
                     </div>
@@ -82,7 +79,9 @@ export function ObjetivosCard({ objetivos = [] }: ObjetivosCardProps) {
           {objetivos.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-base">No hay objetivos definidos para este proyecto</p>
+              <p className="text-base">
+                No hay objetivos definidos para este proyecto
+              </p>
             </div>
           )}
         </div>

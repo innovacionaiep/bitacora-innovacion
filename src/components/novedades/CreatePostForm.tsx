@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Loader2, Play, ImageIcon, Calendar as CalendarIcon, X } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  Play,
+  ImageIcon,
+  Calendar as CalendarIcon,
+  X,
+} from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,8 +47,11 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const userName = user?.name || user?.email?.split('@')[0] || 'U';
   const userInitials = userName.slice(0, 2).toUpperCase();
 
-  const canSubmit = contenido.trim().length > 0 && proyectoIds.length > 0 &&
-    (mediaMode !== 'evento' || (eventoFecha.trim() && eventoNombre.trim() && eventoDescripcion.trim()));
+  const canSubmit =
+    contenido.trim().length > 0 &&
+    proyectoIds.length > 0 &&
+    (mediaMode !== 'evento' ||
+      (eventoFecha.trim() && eventoNombre.trim() && eventoDescripcion.trim()));
 
   const handleSubmit = async () => {
     if (!canSubmit || isSubmitting) return;
@@ -50,7 +60,9 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     if (mediaMode === 'video' && youtubeUrl.trim()) {
       const parsed = parseYouTubeUrl(youtubeUrl.trim());
       if (!parsed) {
-        setError('Ingresa una URL válida de YouTube (ej. youtube.com/watch?v=... o youtu.be/...)');
+        setError(
+          'Ingresa una URL válida de YouTube (ej. youtube.com/watch?v=... o youtu.be/...)'
+        );
         return;
       }
       videos.push({
@@ -146,7 +158,8 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
               value={contenido}
               onChange={(e) => {
                 setContenido(e.target.value);
-                if (!isExpanded && e.target.value.length > 0) setIsExpanded(true);
+                if (!isExpanded && e.target.value.length > 0)
+                  setIsExpanded(true);
               }}
               onFocus={() => setIsExpanded(true)}
               className={cn(
@@ -329,9 +342,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                   </div>
                 )}
 
-                {error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
 
                 <div className="flex items-center justify-between pt-2 border-t">
                   <Button variant="ghost" size="sm" onClick={discard}>

@@ -58,14 +58,14 @@ export async function getComments(postId: string) {
         },
         likes: userId
           ? {
-            where: {
-              userId: userId,
-            },
-            select: {
-              id: true,
-              userId: true,
-            },
-          }
+              where: {
+                userId: userId,
+              },
+              select: {
+                id: true,
+                userId: true,
+              },
+            }
           : false,
         _count: {
           select: {
@@ -88,14 +88,14 @@ export async function getComments(postId: string) {
             },
             likes: userId
               ? {
-                where: {
-                  userId: userId,
-                },
-                select: {
-                  id: true,
-                  userId: true,
-                },
-              }
+                  where: {
+                    userId: userId,
+                  },
+                  select: {
+                    id: true,
+                    userId: true,
+                  },
+                }
               : false,
             _count: {
               select: {

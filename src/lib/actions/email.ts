@@ -7,10 +7,17 @@ import nodemailer from 'nodemailer';
  * Configuración en .env.local: SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.
  * Para Outlook: SMTP_HOST=smtp.office365.com, SMTP_PORT=587, SMTP_SECURE=false.
  */
+export type EmailAttachment = {
+  filename: string;
+  content: Buffer | string;
+  cid?: string; // Content-ID para adjuntos inline (img src="cid:...")
+};
+
 export type SendEmailParams = {
   to: string;
   html: string;
   subject?: string;
+  attachments?: EmailAttachment[];
 };
 
 function parseRecipients(to: string): string[] {
@@ -20,8 +27,15 @@ function parseRecipients(to: string): string[] {
     .filter(Boolean);
 }
 
-export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; error?: string }> {
-  const { to, html, subject = 'Reporte - Gestor de Proyectos' } = params;
+export async function sendEmail(
+  params: SendEmailParams
+): Promise<{ success: boolean; error?: string }> {
+  const {
+    to,
+    html,
+    subject = 'Reporte - Gestor de Proyectos',
+    attachments,
+  } = params;
 
   const trimmedTo = to.trim();
   const trimmedHtml = html.trim();
@@ -42,7 +56,8 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
   if (!host || !user || !pass) {
     return {
       success: false,
-      error: 'SMTP no configurado. Configura SMTP_HOST, SMTP_USER y SMTP_PASS en .env.local (para Outlook: SMTP_HOST=smtp.office365.com, SMTP_PORT=587, SMTP_SECURE=false).',
+      error:
+        'SMTP no configurado. Configura SMTP_HOST, SMTP_USER y SMTP_PASS en .env.local (para Outlook: SMTP_HOST=smtp.office365.com, SMTP_PORT=587, SMTP_SECURE=false).',
     };
   }
 
@@ -62,6 +77,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
       to: recipients,
       subject,
       html: trimmedHtml,
+      ...(attachments?.length && { attachments }),
     });
 
     return { success: true };

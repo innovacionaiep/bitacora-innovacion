@@ -138,7 +138,10 @@ export function ReunionFormModal({
               placeholder="45"
               value={formData.duracionMinutos}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, duracionMinutos: e.target.value }))
+                setFormData((prev) => ({
+                  ...prev,
+                  duracionMinutos: e.target.value,
+                }))
               }
               className="mt-1"
             />
@@ -169,9 +172,7 @@ export function ReunionFormModal({
               rows={2}
             />
           </div>
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
             <Button
               type="button"

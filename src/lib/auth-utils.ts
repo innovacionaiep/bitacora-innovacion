@@ -4,7 +4,14 @@ import prisma from './prisma';
 
 // Tipos de roles disponibles
 // Ver docs/SISTEMA-ROLES.md para documentación completa
-export type Role = 'Admin' | 'Coordinador' | 'Colaborador' | 'Encargado' | 'Docente' | 'Estudiante' | 'Beneficiario';
+export type Role =
+  | 'Admin'
+  | 'Coordinador'
+  | 'Colaborador'
+  | 'Encargado'
+  | 'Docente'
+  | 'Estudiante'
+  | 'Beneficiario';
 
 export const AVAILABLE_ROLES: Role[] = [
   'Admin',
@@ -57,7 +64,10 @@ export async function hasRole(userId: string, role: Role): Promise<boolean> {
 /**
  * Verificar si el usuario tiene alguno de los roles especificados
  */
-export async function hasAnyRole(userId: string, roles: Role[]): Promise<boolean> {
+export async function hasAnyRole(
+  userId: string,
+  roles: Role[]
+): Promise<boolean> {
   const userRole = await prisma.userRole.findFirst({
     where: {
       userId,
@@ -81,15 +91,17 @@ export async function getUserRoles(userId: string): Promise<Role[]> {
       role: true,
     },
   });
-  
+
   return roles.map((r) => r.role as Role);
 }
 
 /**
  * Verificar si el rol activo es válido para el usuario
  */
-export async function isValidActiveRole(userId: string, role: string): Promise<boolean> {
+export async function isValidActiveRole(
+  userId: string,
+  role: string
+): Promise<boolean> {
   const userRoles = await getUserRoles(userId);
   return userRoles.includes(role as Role);
 }
-

@@ -11,7 +11,11 @@ import {
 import { cn } from '@/lib/utils';
 import type { PostReactionType } from '@/lib/actions/posts';
 
-const REACTIONS: { type: PostReactionType; label: string; Icon: typeof ThumbsUp }[] = [
+const REACTIONS: {
+  type: PostReactionType;
+  label: string;
+  Icon: typeof ThumbsUp;
+}[] = [
   { type: 'Recomendar', label: 'Recomendar', Icon: ThumbsUp },
   { type: 'Celebrar', label: 'Celebrar', Icon: PartyPopper },
   { type: 'Encantar', label: 'Encantar', Icon: Heart },
@@ -87,8 +91,10 @@ export function ReactionButton({
           disabled={disabled || loading}
           className={cn(
             'gap-1.5',
-            userReaction === 'Recomendar' && 'text-blue-600 hover:text-blue-700',
-            userReaction === 'Celebrar' && 'text-green-600 hover:text-green-700',
+            userReaction === 'Recomendar' &&
+              'text-blue-600 hover:text-blue-700',
+            userReaction === 'Celebrar' &&
+              'text-green-600 hover:text-green-700',
             userReaction === 'Encantar' && 'text-red-500 hover:text-red-600'
           )}
           onMouseEnter={handleOpenHover}
@@ -98,7 +104,10 @@ export function ReactionButton({
           {current ? (
             <>
               <current.Icon
-                className={cn(isSmall ? 'h-3.5 w-3.5' : 'h-4 w-4', 'fill-current')}
+                className={cn(
+                  isSmall ? 'h-3.5 w-3.5' : 'h-4 w-4',
+                  'fill-current'
+                )}
               />
               <span className={isSmall ? 'text-xs' : 'text-sm'}>
                 {current.label}
@@ -107,7 +116,9 @@ export function ReactionButton({
           ) : (
             <>
               <SmilePlus className={cn(isSmall ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
-              <span className={isSmall ? 'text-xs' : 'text-sm'}>Reaccionar</span>
+              <span className={isSmall ? 'text-xs' : 'text-sm'}>
+                Reaccionar
+              </span>
             </>
           )}
         </Button>

@@ -2,8 +2,19 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
-import { Proyecto } from '@prisma/client';
-import { ProyectoFormData, ProyectoWithRelations, CatalogoResponse } from '@/types/proyecto';
+import {
+  Proyecto,
+  Escuela,
+  Carrera,
+  Comuna,
+  GrupoInteres,
+  SocioComunitario,
+} from '@prisma/client';
+import {
+  ProyectoFormData,
+  ProyectoWithRelations,
+  CatalogoResponse,
+} from '@/types/proyecto';
 import { getMesAnteriorInfo } from '@/lib/utils/fecha';
 
 export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
@@ -20,92 +31,94 @@ export type ProyectoConVariaciones = ProyectoWithRelations & {
 async function _getProyectosFromDB() {
   // Obtener información del mes anterior para calcular variaciones
   const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
-  
+
   // NOTA: Incluimos activities con tasks completas para compatibilidad de tipos
   const proyectos = await prisma.proyecto.findMany({
-      include: {
-        activities: {
-          include: {
-            tasks: {
-              orderBy: { createdAt: 'asc' },
-            },
-          },
-          orderBy: { orderIndex: 'asc' },
-        },
-        participantes_rel: {
-          include: {
-            user: true,
-            socioComunitario: true,
+    include: {
+      activities: {
+        include: {
+          tasks: {
+            orderBy: { createdAt: 'asc' },
           },
         },
-        escuelas: {
-          include: {
-            escuela: true,
-          },
-        },
-        carreras: {
-          include: {
-            carrera: true,
-          },
-        },
-        comunas: {
-          include: {
-            comuna: true,
-          },
-        },
-        gruposInteres: {
-          include: {
-            grupoInteres: true,
-          },
-        },
-        sociosComunitarios: {
-          include: {
-            socioComunitario: true,
-          },
-        },
-        objetivos_rel: {
-          orderBy: {
-            orden: 'asc',
-          },
-        },
-        desarrolloTecnico: true,
-        snapshotsMensuales: {
-          where: {
-            mes: mesAnterior,
-            anio: anioMesAnterior,
-          },
-          take: 1,
+        orderBy: { orderIndex: 'asc' },
+      },
+      participantes_rel: {
+        include: {
+          user: true,
+          socioComunitario: true,
         },
       },
-      orderBy: {
-        createdAt: 'desc',
+      escuelas: {
+        include: {
+          escuela: true,
+        },
       },
-    });
-  
-  // Calcular variaciones para cada proyecto
-  const proyectosConVariaciones: ProyectoConVariaciones[] = proyectos.map(proyecto => {
-    const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
-    
-    // Si hay snapshot del mes anterior, calcular la diferencia
-    // Si no hay snapshot, la variación es 0 (sin datos de comparación)
-    const variacionGantt = snapshotMesAnterior 
-      ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
-      : 0;
-    
-    const variacionObjetivos = snapshotMesAnterior
-      ? proyecto.objetivos - snapshotMesAnterior.objetivos
-      : 0;
-    
-    // Remover snapshotsMensuales del objeto final (no necesario en frontend)
-    const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
-    
-    return {
-      ...proyectoSinSnapshots,
-      variacionGantt,
-      variacionObjetivos,
-    } as ProyectoConVariaciones;
+      carreras: {
+        include: {
+          carrera: true,
+        },
+      },
+      comunas: {
+        include: {
+          comuna: true,
+        },
+      },
+      gruposInteres: {
+        include: {
+          grupoInteres: true,
+        },
+      },
+      sociosComunitarios: {
+        include: {
+          socioComunitario: true,
+        },
+      },
+      objetivos_rel: {
+        orderBy: {
+          orden: 'asc',
+        },
+      },
+      desarrolloTecnico: true,
+      snapshotsMensuales: {
+        where: {
+          mes: mesAnterior,
+          anio: anioMesAnterior,
+        },
+        take: 1,
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
   });
-  
+
+  // Calcular variaciones para cada proyecto
+  const proyectosConVariaciones: ProyectoConVariaciones[] = proyectos.map(
+    (proyecto) => {
+      const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
+
+      // Si hay snapshot del mes anterior, calcular la diferencia
+      // Si no hay snapshot, la variación es 0 (sin datos de comparación)
+      const variacionGantt = snapshotMesAnterior
+        ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
+        : 0;
+
+      const variacionObjetivos = snapshotMesAnterior
+        ? proyecto.objetivos - snapshotMesAnterior.objetivos
+        : 0;
+
+      // Remover snapshotsMensuales del objeto final (no necesario en frontend)
+      const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
+
+      return {
+        ...proyectoSinSnapshots,
+        variacionGantt,
+        variacionObjetivos,
+      } as ProyectoConVariaciones;
+    }
+  );
+
   return proyectosConVariaciones;
 }
 
@@ -116,7 +129,7 @@ async function _getProyectosFromDB() {
 export async function getProyectos() {
   try {
     console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
-    
+
     // Usar caché con revalidación cada 30 segundos
     const cachedGetProyectos = unstable_cache(
       async () => {
@@ -128,11 +141,13 @@ export async function getProyectos() {
         tags: ['proyectos'],
       }
     );
-    
+
     const proyectosConVariaciones = await cachedGetProyectos();
-    
-    console.log(`✅ [getProyectos] Encontrados ${proyectosConVariaciones.length} proyectos`);
-    
+
+    console.log(
+      `✅ [getProyectos] Encontrados ${proyectosConVariaciones.length} proyectos`
+    );
+
     return { success: true, data: proyectosConVariaciones };
   } catch (error) {
     console.error('❌ [getProyectos] Error:', error);
@@ -225,35 +240,35 @@ export async function createProyecto(data: ProyectoFormData) {
         reunionesHechas: data.reunionesHechas || 0,
         reunionesTotales: data.reunionesTotales || 0,
         participantes: data.participantes,
-        
+
         // Crear relaciones
         escuelas: {
-          create: data.escuelasIds.map(escuelaId => ({
+          create: data.escuelasIds.map((escuelaId) => ({
             escuelaId,
           })),
         },
         carreras: {
-          create: data.carrerasIds.map(carreraId => ({
+          create: data.carrerasIds.map((carreraId) => ({
             carreraId,
           })),
         },
         comunas: {
-          create: data.comunasIds.map(comunaId => ({
+          create: data.comunasIds.map((comunaId) => ({
             comunaId,
           })),
         },
         gruposInteres: {
-          create: data.gruposInteresIds.map(grupoId => ({
+          create: data.gruposInteresIds.map((grupoId) => ({
             grupoInteresId: grupoId,
           })),
         },
         sociosComunitarios: {
-          create: data.sociosComunitariosIds.map(socioId => ({
+          create: data.sociosComunitariosIds.map((socioId) => ({
             socioComunitarioId: socioId,
           })),
         },
         participantes_rel: {
-          create: data.participantes_rel.map(participante => ({
+          create: data.participantes_rel.map((participante) => ({
             userId: participante.userId,
             rol: participante.rol,
           })),
@@ -325,10 +340,7 @@ export async function createProyecto(data: ProyectoFormData) {
 /**
  * Actualizar un proyecto
  */
-export async function updateProyecto(
-  id: string,
-  data: Partial<ProyectoData>
-) {
+export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
   try {
     const proyecto = await prisma.proyecto.update({
       where: { id },
@@ -336,8 +348,12 @@ export async function updateProyecto(
         ...(data.proyecto !== undefined && { proyecto: data.proyecto }),
         ...(data.fondo !== undefined && { fondo: data.fondo }),
         ...(data.sede !== undefined && { sede: data.sede }),
-        ...(data.escuela !== undefined && { escuela: data.escuela }),
-        ...(data.avanceGantt !== undefined && { avanceGantt: data.avanceGantt }),
+        ...(data.focalizacion !== undefined && {
+          focalizacion: data.focalizacion,
+        }),
+        ...(data.avanceGantt !== undefined && {
+          avanceGantt: data.avanceGantt,
+        }),
         ...(data.objetivos !== undefined && { objetivos: data.objetivos }),
         ...(data.presupuestoUsado !== undefined && {
           presupuestoUsado: data.presupuestoUsado,
@@ -390,7 +406,7 @@ export async function deleteProyecto(id: string) {
 /**
  * Obtener todas las escuelas
  */
-export async function getEscuelas(): Promise<CatalogoResponse<any>> {
+export async function getEscuelas(): Promise<CatalogoResponse<Escuela>> {
   try {
     const escuelas = await prisma.escuela.findMany({
       orderBy: { nombre: 'asc' },
@@ -405,7 +421,7 @@ export async function getEscuelas(): Promise<CatalogoResponse<any>> {
 /**
  * Obtener todas las carreras
  */
-export async function getCarreras(): Promise<CatalogoResponse<any>> {
+export async function getCarreras(): Promise<CatalogoResponse<Carrera>> {
   try {
     const carreras = await prisma.carrera.findMany({
       include: {
@@ -423,7 +439,7 @@ export async function getCarreras(): Promise<CatalogoResponse<any>> {
 /**
  * Obtener todas las comunas
  */
-export async function getComunas(): Promise<CatalogoResponse<any>> {
+export async function getComunas(): Promise<CatalogoResponse<Comuna>> {
   try {
     const comunas = await prisma.comuna.findMany({
       orderBy: { nombre: 'asc' },
@@ -438,7 +454,9 @@ export async function getComunas(): Promise<CatalogoResponse<any>> {
 /**
  * Obtener todos los grupos de interés
  */
-export async function getGruposInteres(): Promise<CatalogoResponse<any>> {
+export async function getGruposInteres(): Promise<
+  CatalogoResponse<GrupoInteres>
+> {
   try {
     const grupos = await prisma.grupoInteres.findMany({
       orderBy: { nombre: 'asc' },
@@ -453,7 +471,9 @@ export async function getGruposInteres(): Promise<CatalogoResponse<any>> {
 /**
  * Obtener todos los socios comunitarios
  */
-export async function getSociosComunitarios(): Promise<CatalogoResponse<any>> {
+export async function getSociosComunitarios(): Promise<
+  CatalogoResponse<SocioComunitario>
+> {
   try {
     const socios = await prisma.socioComunitario.findMany({
       orderBy: { nombre: 'asc' },
@@ -468,7 +488,10 @@ export async function getSociosComunitarios(): Promise<CatalogoResponse<any>> {
 /**
  * Crear un nuevo socio comunitario
  */
-export async function createSocioComunitario(nombre: string, descripcion?: string) {
+export async function createSocioComunitario(
+  nombre: string,
+  descripcion?: string
+) {
   try {
     const socio = await prisma.socioComunitario.create({
       data: {
@@ -482,4 +505,3 @@ export async function createSocioComunitario(nombre: string, descripcion?: strin
     return { success: false, error: 'Error al crear socio comunitario' };
   }
 }
-

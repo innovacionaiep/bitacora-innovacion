@@ -6,7 +6,10 @@ import {
   deleteProyecto,
   type ProyectoData,
 } from '@/lib/actions/proyectos';
-import { ProyectoConVariaciones } from '@/types/proyecto';
+import {
+  ProyectoConVariaciones,
+  type ProyectoFormData,
+} from '@/types/proyecto';
 
 export function useProyectos() {
   const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
@@ -36,7 +39,7 @@ export function useProyectos() {
   };
 
   // Crear proyecto
-  const createProyectoHandler = async (proyecto: ProyectoData) => {
+  const createProyectoHandler = async (proyecto: ProyectoFormData) => {
     try {
       const result = await createProyecto(proyecto);
 
@@ -45,7 +48,12 @@ export function useProyectos() {
       }
 
       if (result.data) {
-        setProyectos((prev) => [result.data!, ...prev]);
+        const nuevoConVariaciones: ProyectoConVariaciones = {
+          ...result.data,
+          variacionGantt: 0,
+          variacionObjetivos: 0,
+        };
+        setProyectos((prev) => [nuevoConVariaciones, ...prev]);
       }
 
       return { data: result.data, error: null };
@@ -71,7 +79,16 @@ export function useProyectos() {
 
       if (result.data) {
         setProyectos((prev) =>
-          prev.map((p) => (p.id === id ? result.data! : p))
+          prev.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  ...result.data!,
+                  variacionGantt: p.variacionGantt,
+                  variacionObjetivos: p.variacionObjetivos,
+                }
+              : p
+          )
         );
       }
 

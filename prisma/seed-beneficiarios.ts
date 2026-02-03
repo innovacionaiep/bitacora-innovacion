@@ -5,8 +5,16 @@ const prisma = new PrismaClient();
 // Generar nombres y emails únicos para beneficiarios
 function generarNombreBeneficiario(index: number): string {
   const nombres = [
-    'Beneficiario 1', 'Beneficiario 2', 'Beneficiario 3', 'Beneficiario 4', 'Beneficiario 5',
-    'Beneficiario 6', 'Beneficiario 7', 'Beneficiario 8', 'Beneficiario 9', 'Beneficiario 10'
+    'Beneficiario 1',
+    'Beneficiario 2',
+    'Beneficiario 3',
+    'Beneficiario 4',
+    'Beneficiario 5',
+    'Beneficiario 6',
+    'Beneficiario 7',
+    'Beneficiario 8',
+    'Beneficiario 9',
+    'Beneficiario 10',
   ];
   return nombres[index] || `Beneficiario ${index + 1}`;
 }
@@ -39,7 +47,9 @@ async function asignarBeneficiarios() {
       });
 
       if (beneficiariosExistentes >= 10) {
-        console.log(`  ⏭️  Ya tiene ${beneficiariosExistentes} beneficiarios, saltando...`);
+        console.log(
+          `  ⏭️  Ya tiene ${beneficiariosExistentes} beneficiarios, saltando...`
+        );
         continue;
       }
 
@@ -73,8 +83,7 @@ async function asignarBeneficiarios() {
 }
 
 // Ejecutar el script
-asignarBeneficiarios()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+asignarBeneficiarios().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  getProyectosComoCoordinador,
+  getProyectosParaSeguimiento,
   getReunionesMultiplesProyectos,
   createReunion,
 } from '@/lib/actions/seguimiento';
@@ -36,8 +36,14 @@ import {
   Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
 
 export default function SeguimientoPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [proyectos, setProyectos] = useState<
     { id: string; proyecto: string; sede: string }[]
   >([]);
@@ -47,15 +53,17 @@ export default function SeguimientoPage() {
   const [selectedProyectoIds, setSelectedProyectoIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNuevaReunion, setShowNuevaReunion] = useState(false);
-  const [selectedReunionId, setSelectedReunionId] = useState<string | null>(null);
+  const [selectedReunionId, setSelectedReunionId] = useState<string | null>(
+    null
+  );
   const [reunionModalOpen, setReunionModalOpen] = useState(false);
   const [reunionProjectId, setReunionProjectId] = useState<string | null>(null);
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
 
   const [nuevaReunionProjectId, setNuevaReunionProjectId] = useState('');
-  const [nuevaReunionFecha, setNuevaReunionFecha] = useState(
-    () => new Date().toISOString().slice(0, 16)
+  const [nuevaReunionFecha, setNuevaReunionFecha] = useState(() =>
+    new Date().toISOString().slice(0, 16)
   );
   const [nuevaReunionDuracion, setNuevaReunionDuracion] = useState('');
   const [nuevaReunionResumen, setNuevaReunionResumen] = useState('');
@@ -63,7 +71,16 @@ export default function SeguimientoPage() {
   const [submittingNueva, setSubmittingNueva] = useState(false);
 
   useEffect(() => {
-    getProyectosComoCoordinador().then((result) => {
+    if (status === 'loading') return;
+
+    const activeRole = session?.user?.activeRole ?? null;
+    if (activeRole !== 'Admin' && activeRole !== 'Coordinador') {
+      setLoading(false);
+      router.replace('/proyectos');
+      return;
+    }
+
+    getProyectosParaSeguimiento().then((result) => {
       if (result.success && result.data) {
         setProyectos(result.data);
         if (result.data.length > 0 && selectedProyectoIds.length === 0) {
@@ -72,7 +89,7 @@ export default function SeguimientoPage() {
       }
       setLoading(false);
     });
-  }, []);
+  }, [session?.user?.activeRole, status]);
 
   useEffect(() => {
     if (selectedProyectoIds.length === 0) {
@@ -179,7 +196,7 @@ export default function SeguimientoPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label className="text-sm">Proyectos (como coordinador)</Label>
+            <Label className="text-sm">Proyectos</Label>
             <div className="flex flex-wrap gap-2 mt-2">
               <Button
                 variant="outline"
@@ -192,7 +209,9 @@ export default function SeguimientoPage() {
               {proyectos.map((p) => (
                 <Button
                   key={p.id}
-                  variant={selectedProyectoIds.includes(p.id) ? 'default' : 'outline'}
+                  variant={
+                    selectedProyectoIds.includes(p.id) ? 'default' : 'outline'
+                  }
                   size="sm"
                   onClick={() => toggleProyecto(p.id)}
                   className="text-xs"
@@ -202,7 +221,7 @@ export default function SeguimientoPage() {
               ))}
               {proyectos.length === 0 && !loading && (
                 <p className="text-sm text-gray-500">
-                  No eres coordinador de ningún proyecto
+                  No hay proyectos registrados
                 </p>
               )}
             </div>
@@ -253,7 +272,7 @@ export default function SeguimientoPage() {
               <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p>No hay reuniones en los proyectos seleccionados</p>
               <p className="text-sm mt-1">
-                Selecciona proyectos donde eres coordinador o crea una nueva reunión
+                Selecciona proyectos para filtrar o crea una nueva reunión
               </p>
               <Link href="/proyectos">
                 <Button variant="outline" className="mt-4">
@@ -285,7 +304,8 @@ export default function SeguimientoPage() {
                       <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <User className="h-3.5 w-3" />
-                          {reunion.coordinador?.name || reunion.coordinador?.email}
+                          {reunion.coordinador?.name ||
+                            reunion.coordinador?.email}
                         </span>
                         {reunion.duracionMinutos && (
                           <span className="flex items-center gap-1">

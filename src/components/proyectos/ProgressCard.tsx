@@ -15,9 +15,10 @@ export function ProgressCard({
   presupuestoUsado,
   presupuestoTotal,
 }: ProgressCardProps) {
-  const presupuestoPorcentaje = presupuestoTotal > 0 
-    ? Math.round((presupuestoUsado / presupuestoTotal) * 100)
-    : 0;
+  const presupuestoPorcentaje =
+    presupuestoTotal > 0
+      ? Math.round((presupuestoUsado / presupuestoTotal) * 100)
+      : 0;
 
   return (
     <Card>
@@ -88,4 +89,3 @@ export function ProgressCard({
     </Card>
   );
 }
-

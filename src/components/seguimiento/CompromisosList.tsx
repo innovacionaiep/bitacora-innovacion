@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toggleCompromiso } from '@/lib/actions/seguimiento';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export interface CompromisoItem {
   id: string;
   descripcion: string;
-  fechaLimite: Date | string | null;
   completado: boolean;
   reunion?: {
     id: string;
@@ -42,19 +41,11 @@ export function CompromisosList({
     }
   };
 
-  const formatFecha = (fecha: Date | string | null) => {
-    if (!fecha) return null;
-    const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    return d.toLocaleDateString('es-CL', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
   if (compromisos.length === 0) {
     return (
-      <p className="text-sm text-gray-500 py-4">No hay compromisos pendientes</p>
+      <p className="text-sm text-gray-500 py-4">
+        No hay compromisos pendientes
+      </p>
     );
   }
 
@@ -81,22 +72,16 @@ export function CompromisosList({
           <div className="flex-1 min-w-0">
             <p
               className={`text-sm ${
-                compromiso.completado ? 'line-through text-gray-500' : 'text-gray-900'
+                compromiso.completado
+                  ? 'line-through text-gray-500'
+                  : 'text-gray-900'
               }`}
             >
               {compromiso.descripcion}
             </p>
-            {(compromiso.fechaLimite || showReunionInfo) && (
+            {showReunionInfo && compromiso.reunion?.coordinador?.name && (
               <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                {compromiso.fechaLimite && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    vence {formatFecha(compromiso.fechaLimite)}
-                  </span>
-                )}
-                {showReunionInfo && compromiso.reunion?.coordinador?.name && (
-                  <span>· {compromiso.reunion.coordinador.name}</span>
-                )}
+                <span>· {compromiso.reunion.coordinador.name}</span>
               </div>
             )}
           </div>

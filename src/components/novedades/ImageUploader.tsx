@@ -31,7 +31,9 @@ export function ImageUploader({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadToCloudinary = async (file: File): Promise<UploadedImage | null> => {
+  const uploadToCloudinary = async (
+    file: File
+  ): Promise<UploadedImage | null> => {
     if (!CLOUD_NAME || !UPLOAD_PRESET) {
       setError('Configuración de Cloudinary no encontrada');
       return null;
@@ -40,7 +42,9 @@ export function ImageUploader({
     // Validar tamaño del archivo antes de subir
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      setError(`La imagen "${file.name}" es muy grande (${sizeMB} MB). Máximo permitido: 10 MB`);
+      setError(
+        `La imagen "${file.name}" es muy grande (${sizeMB} MB). Máximo permitido: 10 MB`
+      );
       return null;
     }
 
@@ -136,7 +140,10 @@ export function ImageUploader({
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           {images.map((image, index) => (
-            <div key={image.publicId} className="relative group aspect-video rounded-lg overflow-hidden bg-muted">
+            <div
+              key={image.publicId}
+              className="relative group aspect-video rounded-lg overflow-hidden bg-muted"
+            >
               <Image
                 src={image.url}
                 alt={`Imagen ${index + 1}`}
@@ -192,9 +199,7 @@ export function ImageUploader({
       )}
 
       {/* Error message */}
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

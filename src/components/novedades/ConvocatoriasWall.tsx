@@ -73,48 +73,45 @@ export function ConvocatoriasWall({
           </div>
         ) : (
           convocatorias.map((conv) => (
-          <Card
-            key={conv.id}
-            className="hover:shadow-md transition-shadow"
-          >
-            <CardContent className="p-2">
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                  <div
-                    className={cn(
-                      'px-1.5 py-0.5 rounded-md text-xs font-medium border w-fit shrink-0 bg-gray-50 text-gray-600 border-gray-200'
-                    )}
-                  >
-                    {formatDateRange(conv.fechaInicio, conv.fechaFin)}
+            <Card key={conv.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-2">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                    <div
+                      className={cn(
+                        'px-1.5 py-0.5 rounded-md text-xs font-medium border w-fit shrink-0 bg-gray-50 text-gray-600 border-gray-200'
+                      )}
+                    >
+                      {formatDateRange(conv.fechaInicio, conv.fechaFin)}
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-tight">
+                      {conv.titulo}
+                    </h3>
                   </div>
-                  <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-tight">
-                    {conv.titulo}
-                  </h3>
+                  <div className="relative w-16 h-12 rounded overflow-hidden bg-muted border border-gray-200 shrink-0">
+                    {conv.imagenUrl ? (
+                      <Image
+                        src={conv.imagenUrl}
+                        alt={conv.titulo}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : null}
+                  </div>
                 </div>
-                <div className="relative w-16 h-12 rounded overflow-hidden bg-muted border border-gray-200 shrink-0">
-                  {conv.imagenUrl ? (
-                    <Image
-                      src={conv.imagenUrl}
-                      alt={conv.titulo}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : null}
+                <div className="flex items-center justify-end gap-2 pt-1 mt-1 border-t border-gray-100 w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
+                    onClick={() => onPostular?.(conv.id)}
+                  >
+                    Postular
+                  </Button>
                 </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-1 mt-1 border-t border-gray-100 w-full">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
-                  onClick={() => onPostular?.(conv.id)}
-                >
-                  Postular
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>

@@ -21,7 +21,11 @@ interface ObjetivoGeneralCardProps {
   }) => void;
 }
 
-export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndicadorClick }: ObjetivoGeneralCardProps) {
+export function ObjetivoGeneralCard({
+  objetivoGeneral,
+  progresoGeneral,
+  onIndicadorClick,
+}: ObjetivoGeneralCardProps) {
   // Calcular el ancho máximo basado en los anchos conocidos de las tarjetas
   // Para cada objetivo específico: objetivo (560px) + gap (24px) + indicadores (580px cada uno + 24px gap entre ellos)
   // El ancho máximo será el del objetivo específico con más indicadores
@@ -33,7 +37,7 @@ export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndica
     const indicadorWidth = 580;
 
     // Calcular el ancho para cada objetivo específico y tomar el máximo
-    const widths = objetivoGeneral.objetivosEspecificos.map(oe => {
+    const widths = objetivoGeneral.objetivosEspecificos.map((oe) => {
       if (oe.indicadores.length === 0) {
         return objetivoWidth; // Solo el objetivo específico
       }
@@ -55,7 +59,14 @@ export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndica
             {/* Tarjeta del Objetivo General - ENCIMA de todo, con desplazamiento hacia la izquierda */}
             <div
               className="relative group z-20"
-              style={objetivoGeneralWidth ? { width: `${Math.round(objetivoGeneralWidth * 0.85)}px`, marginLeft: '-120px' } : { marginLeft: '-120px' }}
+              style={
+                objetivoGeneralWidth
+                  ? {
+                      width: `${Math.round(objetivoGeneralWidth * 0.85)}px`,
+                      marginLeft: '-120px',
+                    }
+                  : { marginLeft: '-120px' }
+              }
             >
               <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center w-full bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
                 {/* Badge en esquina superior izquierda con icono */}
@@ -94,14 +105,16 @@ export function ObjetivoGeneralCard({ objetivoGeneral, progresoGeneral, onIndica
             <div className="flex flex-col gap-16 relative">
               {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
               <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
-              {objetivoGeneral.objetivosEspecificos.map((objetivoEspecifico) => (
-                <div key={objetivoEspecifico.id} className="relative z-10">
-                  <ObjetivoEspecificoCard
-                    objetivoEspecifico={objetivoEspecifico}
-                    onIndicadorClick={onIndicadorClick}
-                  />
-                </div>
-              ))}
+              {objetivoGeneral.objetivosEspecificos.map(
+                (objetivoEspecifico) => (
+                  <div key={objetivoEspecifico.id} className="relative z-10">
+                    <ObjetivoEspecificoCard
+                      objetivoEspecifico={objetivoEspecifico}
+                      onIndicadorClick={onIndicadorClick}
+                    />
+                  </div>
+                )
+              )}
             </div>
           </div>
         </>

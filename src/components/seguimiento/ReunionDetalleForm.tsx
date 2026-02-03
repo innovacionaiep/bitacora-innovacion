@@ -51,7 +51,9 @@ export function ReunionDetalleForm({
   onSuccess,
   reunionData,
 }: ReunionDetalleFormProps) {
-  const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
+  const [expandedSections, setExpandedSections] = useState<
+    Record<SectionKey, boolean>
+  >({
     puntos: true,
     tareas: true,
     indicadores: true,
@@ -59,20 +61,31 @@ export function ReunionDetalleForm({
     presupuesto: true,
     compromisos: true,
   });
-  const [activities, setActivities] = useState<{ id: string; name: string; tasks: { id: string; name: string; completed: boolean }[] }[]>([]);
-  const [indicadores, setIndicadores] = useState<{ id: string; nombre: string; resultadoAlcanzado: string }[]>([]);
+  const [activities, setActivities] = useState<
+    {
+      id: string;
+      name: string;
+      tasks: { id: string; name: string; completed: boolean }[];
+    }[]
+  >([]);
+  const [indicadores, setIndicadores] = useState<
+    { id: string; nombre: string; resultadoAlcanzado: string }[]
+  >([]);
   const [loadingData, setLoadingData] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const [puntoTitulo, setPuntoTitulo] = useState('');
   const [puntoDesc, setPuntoDesc] = useState('');
   const [compromisoDesc, setCompromisoDesc] = useState('');
-  const [compromisoFechaLimite, setCompromisoFechaLimite] = useState('');
-  const [fodaTipo, setFodaTipo] = useState<'Oportunidad' | 'Amenaza'>('Oportunidad');
+  const [fodaTipo, setFodaTipo] = useState<'Oportunidad' | 'Amenaza'>(
+    'Oportunidad'
+  );
   const [fodaDesc, setFodaDesc] = useState('');
   const [presupuestoTema, setPresupuestoTema] = useState('');
   const [presupuestoDesc, setPresupuestoDesc] = useState('');
-  const [indicadorValores, setIndicadorValores] = useState<Record<string, string>>({});
+  const [indicadorValores, setIndicadorValores] = useState<
+    Record<string, string>
+  >({});
 
   const tareasMarcadasIds = new Set(
     reunionData?.tareasMarcadas?.map((t) => t.taskId) || []
@@ -102,7 +115,11 @@ export function ReunionDetalleForm({
           );
         }
         if (indResult.success && indResult.data) {
-          const flatIndicadores: { id: string; nombre: string; resultadoAlcanzado: string }[] = [];
+          const flatIndicadores: {
+            id: string;
+            nombre: string;
+            resultadoAlcanzado: string;
+          }[] = [];
           for (const og of indResult.data.objetivosGenerales) {
             for (const oe of og.objetivosEspecificos) {
               for (const ind of oe.indicadores) {
@@ -133,7 +150,11 @@ export function ReunionDetalleForm({
   const handleAddPunto = async () => {
     if (!puntoTitulo.trim()) return;
     setSubmitting('punto');
-    const result = await addPuntoReunion(reunionId, puntoTitulo.trim(), puntoDesc.trim() || undefined);
+    const result = await addPuntoReunion(
+      reunionId,
+      puntoTitulo.trim(),
+      puntoDesc.trim() || undefined
+    );
     setSubmitting(null);
     if (result.success) {
       setPuntoTitulo('');
@@ -145,16 +166,12 @@ export function ReunionDetalleForm({
   const handleAddCompromiso = async () => {
     if (!compromisoDesc.trim()) return;
     setSubmitting('compromiso');
-    const result = await addCompromiso(
+    const result = await addCompromiso(projectId, compromisoDesc.trim(), {
       reunionId,
-      projectId,
-      compromisoDesc.trim(),
-      compromisoFechaLimite ? new Date(compromisoFechaLimite) : undefined
-    );
+    });
     setSubmitting(null);
     if (result.success) {
       setCompromisoDesc('');
-      setCompromisoFechaLimite('');
       await onSuccess();
     }
   };
@@ -197,7 +214,11 @@ export function ReunionDetalleForm({
     const valor = indicadorValores[indicadorId];
     if (valor === undefined) return;
     setSubmitting(`ind-${indicadorId}`);
-    const result = await actualizarIndicadorEnReunion(reunionId, indicadorId, valor);
+    const result = await actualizarIndicadorEnReunion(
+      reunionId,
+      indicadorId,
+      valor
+    );
     setSubmitting(null);
     if (result.success) await onSuccess();
   };
@@ -235,7 +256,8 @@ export function ReunionDetalleForm({
           <DialogTitle>Completar reunión</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-gray-600 -mt-2">
-          Agrega puntos tratados, marca tareas completadas, actualiza indicadores y registra compromisos.
+          Agrega puntos tratados, marca tareas completadas, actualiza
+          indicadores y registra compromisos.
         </p>
 
         {loadingData ? (
@@ -277,7 +299,9 @@ export function ReunionDetalleForm({
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {activities.length === 0 ? (
-                  <p className="text-sm text-gray-500">No hay tareas en el proyecto</p>
+                  <p className="text-sm text-gray-500">
+                    No hay tareas en el proyecto
+                  </p>
                 ) : (
                   activities.map((act) =>
                     act.tasks.map((task) => (
@@ -294,7 +318,9 @@ export function ReunionDetalleForm({
                         <Button
                           size="sm"
                           variant={
-                            tareasMarcadasIds.has(task.id) ? 'default' : 'outline'
+                            tareasMarcadasIds.has(task.id)
+                              ? 'default'
+                              : 'outline'
                           }
                           disabled={submitting === `tarea-${task.id}`}
                           onClick={() => handleMarcarTarea(task.id)}
@@ -332,7 +358,9 @@ export function ReunionDetalleForm({
                       </Label>
                       <Input
                         className="w-24"
-                        value={indicadorValores[ind.id] ?? ind.resultadoAlcanzado}
+                        value={
+                          indicadorValores[ind.id] ?? ind.resultadoAlcanzado
+                        }
                         onChange={(e) =>
                           setIndicadorValores((prev) => ({
                             ...prev,
@@ -345,8 +373,8 @@ export function ReunionDetalleForm({
                         size="sm"
                         disabled={
                           submitting === `ind-${ind.id}` ||
-                          (indicadorValores[ind.id] ?? ind.resultadoAlcanzado) ===
-                            ind.resultadoAlcanzado
+                          (indicadorValores[ind.id] ??
+                            ind.resultadoAlcanzado) === ind.resultadoAlcanzado
                         }
                         onClick={() => handleActualizarIndicador(ind.id)}
                       >
@@ -418,7 +446,9 @@ export function ReunionDetalleForm({
                 <Button
                   size="sm"
                   onClick={handleAddPresupuesto}
-                  disabled={!presupuestoTema.trim() || submitting === 'presupuesto'}
+                  disabled={
+                    !presupuestoTema.trim() || submitting === 'presupuesto'
+                  }
                 >
                   {submitting === 'presupuesto' && (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -429,7 +459,10 @@ export function ReunionDetalleForm({
               </div>
             </Section>
 
-            <Section id="compromisos" title="Compromisos (tareas para proyecto)">
+            <Section
+              id="compromisos"
+              title="Compromisos (tareas para proyecto)"
+            >
               <div className="space-y-2">
                 <Textarea
                   placeholder="Descripción del compromiso"
@@ -437,17 +470,12 @@ export function ReunionDetalleForm({
                   onChange={(e) => setCompromisoDesc(e.target.value)}
                   rows={2}
                 />
-                <Input
-                  type="date"
-                  placeholder="Fecha límite"
-                  value={compromisoFechaLimite}
-                  onChange={(e) => setCompromisoFechaLimite(e.target.value)}
-                  className="w-40"
-                />
                 <Button
                   size="sm"
                   onClick={handleAddCompromiso}
-                  disabled={!compromisoDesc.trim() || submitting === 'compromiso'}
+                  disabled={
+                    !compromisoDesc.trim() || submitting === 'compromiso'
+                  }
                 >
                   {submitting === 'compromiso' && (
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />

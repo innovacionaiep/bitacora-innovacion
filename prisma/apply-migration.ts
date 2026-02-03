@@ -63,4 +63,3 @@ applyMigration()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

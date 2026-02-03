@@ -29,14 +29,17 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
   const { data: session, update } = useSession();
 
   const [fullName, setFullName] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState<PredefinedAvatar | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<PredefinedAvatar | null>(
+    null
+  );
   const [isLoadingName, setIsLoadingName] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempFullName, setTempFullName] = useState('');
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
-  const [tempSelectedAvatar, setTempSelectedAvatar] = useState<PredefinedAvatar | null>(null);
+  const [tempSelectedAvatar, setTempSelectedAvatar] =
+    useState<PredefinedAvatar | null>(null);
   const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
 
   // Inicializar valores del perfil
@@ -117,10 +120,10 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
     }
 
     const previousRole = session.user.activeRole;
-    
+
     console.log('Cambiando rol de', previousRole, 'a', newRole);
     console.log('Roles disponibles:', session.user.availableRoles);
-    
+
     // INSTANT UI update - update optimistic state immediately
     setOptimisticRole(newRole);
 
@@ -136,19 +139,22 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
 
       // Update session after successful database update
       await update({ activeRole: newRole });
-      
+
       // Force session refresh to get updated availableRoles
       setTimeout(() => {
         update();
       }, 100);
-      
+
       console.log('Rol cambiado exitosamente');
     } catch (err) {
       // Revert optimistic state on error
       setOptimisticRole(null);
       await update({ activeRole: previousRole });
       console.error('Error al cambiar el rol:', err);
-      setError('Error al cambiar el rol: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      setError(
+        'Error al cambiar el rol: ' +
+          (err instanceof Error ? err.message : 'Error desconocido')
+      );
     }
   };
 
@@ -225,7 +231,7 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
     if (!session?.user?.id) return;
 
     const previousName = fullName;
-    
+
     // Optimistic update - update UI immediately
     setFullName(tempFullName);
     setIsEditingName(false);
@@ -297,7 +303,8 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center">
-                  {session?.user?.availableRoles && session.user.availableRoles.length > 0 ? (
+                  {session?.user?.availableRoles &&
+                  session.user.availableRoles.length > 0 ? (
                     session.user.availableRoles.map((role) => {
                       const isActive = role === currentRole;
                       return (
@@ -306,7 +313,9 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                           className={`cursor-pointer flex items-center gap-2 ${isActive ? 'bg-accent font-semibold' : ''}`}
                           onClick={() => handleRoleChange(role)}
                         >
-                          <div className={`w-3 h-3 rounded-full ${getRoleCircleColor(role)}`} />
+                          <div
+                            className={`w-3 h-3 rounded-full ${getRoleCircleColor(role)}`}
+                          />
                           <span className="flex-1">{role}</span>
                           {isActive && <Check className="h-4 w-4 ml-2" />}
                         </DropdownMenuItem>
@@ -330,7 +339,7 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                   className="w-52 h-52 rounded-full border-4 border-gray-200"
                 />
                 {/* Overlay hover para editar avatar */}
-                <div 
+                <div
                   className="absolute inset-0 rounded-full bg-gray-800/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer"
                   onClick={handleAvatarSelectorToggle}
                 >
@@ -346,7 +355,9 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                 <div className="flex items-center justify-center gap-3">
                   {!isEditingName ? (
                     <>
-                      <h2 className="text-2xl font-bold text-gray-900">{fullName}</h2>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {fullName}
+                      </h2>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -382,17 +393,18 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Email (solo lectura) */}
                 <p className="text-lg text-gray-600">{session.user.email}</p>
               </div>
             </div>
 
-
             {/* Grid de avatares */}
             {showAvatarSelector && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Seleccionar Avatar</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Seleccionar Avatar
+                </h3>
                 <div className="grid grid-cols-5 gap-2">
                   {PREDEFINED_AVATARS.map((avatar) => (
                     <button
@@ -448,10 +460,8 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
               Cerrar Sesión
             </Button>
           </div>
-
         </div>
       </SheetContent>
     </Sheet>
   );
 }
-

@@ -44,7 +44,9 @@ async function generarResumenCuentas() {
       console.log(`   ID: ${user.id}`);
       console.log(`   Nombre: ${user.name || '(Sin nombre)'}`);
       console.log(`   Email: ${user.email}`);
-      console.log(`   Fecha de creación: ${user.createdAt.toLocaleString('es-CL')}`);
+      console.log(
+        `   Fecha de creación: ${user.createdAt.toLocaleString('es-CL')}`
+      );
       console.log('');
 
       // Rol activo
@@ -64,14 +66,22 @@ async function generarResumenCuentas() {
       console.log('');
 
       // Proyectos donde es miembro
-      const participaciones = user.proyectos.filter((p) => p.userId === user.id);
+      const participaciones = user.proyectos.filter(
+        (p) => p.userId === user.id
+      );
       if (participaciones.length > 0) {
-        console.log(`   📁 Proyectos donde es miembro (${participaciones.length}):`);
+        console.log(
+          `   📁 Proyectos donde es miembro (${participaciones.length}):`
+        );
         participaciones.forEach((participacion) => {
           const proyectoNombre = participacion.proyecto.proyecto;
           const rolEnProyecto = participacion.rol;
-          const cargo = participacion.cargo ? ` - Cargo: ${participacion.cargo}` : '';
-          console.log(`      • ${proyectoNombre} (Rol: ${rolEnProyecto})${cargo}`);
+          const cargo = participacion.cargo
+            ? ` - Cargo: ${participacion.cargo}`
+            : '';
+          console.log(
+            `      • ${proyectoNombre} (Rol: ${rolEnProyecto})${cargo}`
+          );
         });
       } else {
         console.log('   ⚠️  Proyectos donde es miembro: Ninguno');
@@ -85,10 +95,18 @@ async function generarResumenCuentas() {
     console.log('\n\n📈 RESUMEN ESTADÍSTICO');
     console.log('═'.repeat(80));
     console.log(`   Total de cuentas: ${users.length}`);
-    console.log(`   Cuentas con roles asignados: ${users.filter((u) => u.roles.length > 0).length}`);
-    console.log(`   Cuentas sin roles: ${users.filter((u) => u.roles.length === 0).length}`);
-    console.log(`   Cuentas en proyectos: ${users.filter((u) => u.proyectos.length > 0).length}`);
-    console.log(`   Cuentas sin proyectos: ${users.filter((u) => u.proyectos.length === 0).length}`);
+    console.log(
+      `   Cuentas con roles asignados: ${users.filter((u) => u.roles.length > 0).length}`
+    );
+    console.log(
+      `   Cuentas sin roles: ${users.filter((u) => u.roles.length === 0).length}`
+    );
+    console.log(
+      `   Cuentas en proyectos: ${users.filter((u) => u.proyectos.length > 0).length}`
+    );
+    console.log(
+      `   Cuentas sin proyectos: ${users.filter((u) => u.proyectos.length === 0).length}`
+    );
 
     // Distribución de roles
     const todosLosRoles: string[] = [];
@@ -132,44 +150,57 @@ async function generarResumenCuentas() {
 
     console.log('\n');
     console.log('═'.repeat(80));
-    
+
     // Generar tabla resumen
     console.log('\n\n📋 TABLA RESUMEN DE CUENTAS');
     console.log('═'.repeat(80));
     console.log('');
-    
+
     // Encabezado de la tabla
-    console.log('| # | Nombre | Email | Rol Activo | Roles Habilitados | Proyectos (Rol) |');
-    console.log('|---|--------|-------|------------|-------------------|-----------------|');
-    
+    console.log(
+      '| # | Nombre | Email | Rol Activo | Roles Habilitados | Proyectos (Rol) |'
+    );
+    console.log(
+      '|---|--------|-------|------------|-------------------|-----------------|'
+    );
+
     // Filas de la tabla
     users.forEach((user, index) => {
       const nombre = (user.name || '(Sin nombre)').replace(/\|/g, '\\|');
       const email = user.email.replace(/\|/g, '\\|');
-      const rolActivo = (user.activeRole || '(No asignado)').replace(/\|/g, '\\|');
-      
+      const rolActivo = (user.activeRole || '(No asignado)').replace(
+        /\|/g,
+        '\\|'
+      );
+
       // Roles habilitados como lista separada por comas
       const roles = user.roles.map((r) => r.role).join(', ');
-      
+
       // Proyectos con su rol
-      const participaciones = user.proyectos.filter((p) => p.userId === user.id);
-      const proyectos = participaciones.length > 0
-        ? participaciones
-            .map((p) => {
-              const nombreProyecto = p.proyecto.proyecto.length > 40 
-                ? p.proyecto.proyecto.substring(0, 37) + '...'
-                : p.proyecto.proyecto;
-              return `${nombreProyecto} (${p.rol})`;
-            })
-            .join('; ')
-        : 'Ninguno';
-      
+      const participaciones = user.proyectos.filter(
+        (p) => p.userId === user.id
+      );
+      const proyectos =
+        participaciones.length > 0
+          ? participaciones
+              .map((p) => {
+                const nombreProyecto =
+                  p.proyecto.proyecto.length > 40
+                    ? p.proyecto.proyecto.substring(0, 37) + '...'
+                    : p.proyecto.proyecto;
+                return `${nombreProyecto} (${p.rol})`;
+              })
+              .join('; ')
+          : 'Ninguno';
+
       // Limpiar caracteres especiales para markdown
       const proyectosLimpio = proyectos.replace(/\|/g, '\\|');
-      
-      console.log(`| ${index + 1} | ${nombre} | ${email} | ${rolActivo} | ${roles} | ${proyectosLimpio} |`);
+
+      console.log(
+        `| ${index + 1} | ${nombre} | ${email} | ${rolActivo} | ${roles} | ${proyectosLimpio} |`
+      );
     });
-    
+
     console.log('');
     console.log('═'.repeat(80));
     console.log('✅ Resumen generado exitosamente');
@@ -183,11 +214,10 @@ async function generarResumenCuentas() {
 
 // Ejecutar si es llamado directamente
 if (require.main === module) {
-  generarResumenCuentas()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    });
+  generarResumenCuentas().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
 
 export { generarResumenCuentas };

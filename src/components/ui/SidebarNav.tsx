@@ -24,24 +24,35 @@ import {
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Inter } from 'next/font/google';
 import { Button } from '@/components/ui/button';
 import { SidebarUserInfo } from '@/components/SidebarUserInfo';
 
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
-const navItems = [
+const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
+
+const navItemsBase = [
   { href: '/', label: 'Inicio', icon: Home },
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  { href: '/seguimiento', label: 'Seguimiento', icon: ClipboardCheck },
+  { href: '/seguimiento', label: 'Seguimiento', icon: ClipboardCheck, rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO },
   { href: '/reportes', label: 'Reportes', icon: AtSign },
 ];
 
 export default function SidebarNav() {
   const pathname = usePathname();
   const { state, toggleSidebar } = useSidebar();
+  const { data: session } = useSession();
+  const activeRole = session?.user?.activeRole ?? null;
+
+  const navItems = navItemsBase.filter((item) => {
+    const rolesRequeridos = 'rolesRequeridos' in item ? item.rolesRequeridos : null;
+    if (!rolesRequeridos) return true;
+    return activeRole && rolesRequeridos.includes(activeRole);
+  });
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" className="flex flex-col">
@@ -75,16 +86,18 @@ export default function SidebarNav() {
                 >
                   <Link
                     href={item.href}
-                    className={`flex items-center group-data-[collapsible=icon]:justify-center ${isActive
+                    className={`flex items-center group-data-[collapsible=icon]:justify-center ${
+                      isActive
                         ? 'bg-white text-gray-800 pointer-events-none'
                         : 'text-gray-300 hover:!bg-gray-800 hover:!text-gray-300'
-                      }`}
+                    }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive
+                      className={`h-5 w-5 ${
+                        isActive
                           ? 'text-gray-800'
                           : 'text-gray-300 hover:!text-gray-300'
-                        }`}
+                      }`}
                     />
                     <span className="ml-3 group-data-[collapsible=icon]:hidden hover:!text-gray-300">
                       {item.label}

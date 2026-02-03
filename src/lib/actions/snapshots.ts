@@ -89,7 +89,6 @@ export async function getSnapshotMesAnterior(proyectoId: string) {
   }
 }
 
-
 /**
  * Crear snapshots de fin de mes para todos los proyectos
  * Esta función se puede ejecutar manualmente o mediante un cron job
