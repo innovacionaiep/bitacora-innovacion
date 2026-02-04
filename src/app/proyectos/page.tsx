@@ -1975,6 +1975,7 @@ export default function ProyectosPage() {
                   <PresupuestoCard
                     projectId={selectedProject.id}
                     presupuestoTotal={selectedProject.presupuestoTotal ?? 0}
+                    projectName={selectedProject.proyecto}
                   />
                 </div>
               )}

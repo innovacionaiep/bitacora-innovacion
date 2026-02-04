@@ -31,7 +31,6 @@ import {
   TrendingUp,
   Maximize,
   Minimize,
-  ArrowLeftRight,
 } from 'lucide-react';
 import KanbanBoard from '@/components/proyectos/KanbanBoard';
 import {
@@ -1665,27 +1664,10 @@ export default function GanttChart({
                 </TooltipContent>
               </Tooltip>
 
-              {/* Nombre del proyecto y botón de cambiar proyecto - solo en fullscreen */}
+              {/* Nombre del proyecto en fullscreen (sin botón de cambiar proyecto) */}
               {isFullscreen && projectName && (
-                <div className="flex items-center space-x-3 ml-4 flex-1">
-                  {/* Botón de cambiar proyecto */}
-                  {onProjectChange && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          onClick={onProjectChange}
-                          className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
-                        >
-                          <ArrowLeftRight size={20} strokeWidth={2.5} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Cambiar proyecto</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  {/* Nombre del proyecto */}
+                <div className="flex items-center space-x-3 flex-1 pl-[1.9rem]">
+                  {/* Nombre del proyecto - pl-[1.9rem] ~5% menos que pl-8, evita que space-x-2 del padre anule el espaciado */}
                   <h1 className="text-2xl font-bold text-gray-900 truncate flex-1 min-w-0">
                     {projectName}
                   </h1>

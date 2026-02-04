@@ -12,7 +12,7 @@ const CUENTAS: CuentaPresupuesto[] = ['RRHH', 'OPERACION', 'INVERSION'];
 
 function computeResumen(
   items: ItemPresupuestoItem[],
-  presupuestoTotalProyecto: number
+  _presupuestoTotalProyecto: number
 ): ResumenPresupuesto {
   const totalMonto = items.reduce((s, i) => s + i.monto, 0);
   const totalSolicitado = items
@@ -25,9 +25,10 @@ function computeResumen(
     .filter((i) => i.estado === 'EJECUTADO_OK')
     .reduce((s, i) => s + i.monto, 0);
 
-  const techo = presupuestoTotalProyecto > 0 ? presupuestoTotalProyecto : totalMonto || 1;
+  // 100% = suma total de todos los gastos del proyecto (dinámico)
+  const baseTotal = totalMonto || 1;
   const pctGlobalAvance =
-    techo > 0 ? Math.round((totalEjecutado / techo) * 100) : 0;
+    baseTotal > 0 ? Math.round((totalEjecutado / baseTotal) * 100) : 0;
 
   const porCuenta = CUENTAS.map((cuenta) => {
     const filtrados = items.filter((i) => i.cuenta === cuenta);
@@ -51,7 +52,8 @@ function computeResumen(
     const pctSolicitado = monto > 0 ? (montoSolicitado / monto) * 100 : 0;
     const pctEnPedido = monto > 0 ? (montoEnPedido / monto) * 100 : 0;
     const pctEjecutado = monto > 0 ? (montoEjecutado / monto) * 100 : 0;
-    const pctTotal = techo > 0 ? (montoEjecutado / techo) * 100 : 0;
+    // % Avance Cuenta = promedio de % Solicitado, % En Pedido y % Ejecutado
+    const pctTotal = (pctSolicitado + pctEnPedido + pctEjecutado) / 3;
 
     return {
       cuenta,
