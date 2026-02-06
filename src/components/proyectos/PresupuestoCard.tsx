@@ -34,9 +34,16 @@ import {
 import { usePresupuesto } from '@/hooks/usePresupuesto';
 import {
   updateItemPresupuesto,
+  setProyeccionMensualMultiple,
   type UpdateItemPresupuestoData,
 } from '@/lib/actions/presupuesto';
-import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@/types/presupuesto';
+import type { CuentaPresupuesto, EstadoGastoPresupuesto, ItemPresupuestoItem } from '@/types/presupuesto';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const MONTHS = [
   'Enero',
@@ -131,6 +138,95 @@ const ESTADO_OPTIONS: { value: EstadoGastoPresupuesto; label: string }[] = [
   { value: 'EN_PEDIDO', label: 'En Pedido' },
   { value: 'EJECUTADO_OK', label: 'Ejecutado OK' },
 ];
+
+function formatMesesEjecucion(meses: number[]): string {
+  if (meses.length === 0) return '—';
+  
+  const nombresMeses = meses.map((mes) => MONTHS[mes - 1]);
+  const grupos: string[][] = [];
+  
+  for (let i = 0; i < nombresMeses.length; i += 3) {
+    grupos.push(nombresMeses.slice(i, i + 3));
+  }
+  
+  return grupos.map((grupo) => grupo.join(', ')).join('\n');
+}
+
+function MesesEjecucionEditor({
+  item,
+  anio,
+  onUpdate,
+}: {
+  item: ItemPresupuestoItem;
+  anio: number;
+  onUpdate: () => void;
+}) {
+  const [selectedMeses, setSelectedMeses] = useState<Set<number>>(() => {
+    const meses = item.proyecciones
+      .filter((p) => p.anio === anio)
+      .map((p) => p.mes);
+    return new Set(meses);
+  });
+
+  const toggleMes = async (mes: number) => {
+    const newSelected = new Set(selectedMeses);
+    if (newSelected.has(mes)) {
+      newSelected.delete(mes);
+    } else {
+      newSelected.add(mes);
+    }
+    setSelectedMeses(newSelected);
+
+    // Calcular monto por mes
+    const montoPorMes =
+      newSelected.size > 0 ? Math.round(item.monto / newSelected.size) : 0;
+
+    // Actualizar en servidor
+    const result = await setProyeccionMensualMultiple(
+      item.id,
+      [...newSelected].sort((a, b) => a - b),
+      anio,
+      montoPorMes
+    );
+
+    if (result.success) {
+      onUpdate();
+    }
+  };
+
+  const displayText =
+    selectedMeses.size > 0
+      ? [...selectedMeses]
+          .sort((a, b) => a - b)
+          .map((mes) => MONTHS[mes - 1])
+          .join(', ')
+      : '—';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-8 text-sm w-full justify-start truncate"
+        >
+          <span className="truncate">{displayText}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-48 max-h-64 overflow-y-auto">
+        {MONTHS.map((mes, index) => (
+          <DropdownMenuCheckboxItem
+            key={index}
+            checked={selectedMeses.has(index + 1)}
+            onCheckedChange={() => toggleMes(index + 1)}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {mes}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function PresupuestoCard({
   projectId,
@@ -412,35 +508,35 @@ export function PresupuestoCard({
             <Table>
               <TableHeader>
                 <TableRow
-                  className="[&_th]:text-center"
+                  className="[&_th]:text-center [&_th]:align-middle"
                   style={{ backgroundColor: TABLE_HEADER_BG }}
                 >
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                  <TableHead className="font-semibold text-center w-[120px] min-w-[120px] max-w-[120px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
                     Cuenta
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                  <TableHead className="font-semibold text-center w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
                     Item
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                  <TableHead className="font-semibold text-center flex-1 min-w-[150px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
                     Detalle
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                  <TableHead className="font-semibold text-center w-[140px] min-w-[140px] max-w-[140px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
                     Monto
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                  <TableHead className="font-semibold text-center w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
                     Mes de ejecución
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
+                  <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
                     N° Solicitud
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
+                  <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
                     N° OC
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
+                  <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
                     N° Recepción
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>
-                    Observación / Estado
+                  <TableHead className="font-semibold text-center w-[150px] min-w-[150px] max-w-[150px]" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>
+                    Estado
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -469,7 +565,7 @@ export function PresupuestoCard({
                         : '—';
                     return (
                       <TableRow key={row.id} className="hover:bg-gray-50/80">
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
                           {isEditMode ? (
                             <Select
                               value={row.cuenta}
@@ -497,40 +593,80 @@ export function PresupuestoCard({
                             CUENTA_LABEL[row.cuenta]
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
                           {isEditMode ? (
-                            <Input
-                              defaultValue={row.item}
-                              className="h-8 text-sm"
-                              onBlur={(e) => {
-                                const v = e.target.value.trim();
-                                if (v && v !== row.item)
-                                  handleUpdateItem(row.id, { item: v });
-                              }}
-                            />
+                            <div className="relative">
+                              <textarea
+                                defaultValue={row.item}
+                                className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
+                                rows={1}
+                                style={{ height: 'auto', minHeight: '2.5rem', overflow: 'hidden', resize: 'none' }}
+                                ref={(element) => {
+                                  if (element) {
+                                    element.style.height = 'auto';
+                                    element.style.height = `${element.scrollHeight}px`;
+                                  }
+                                }}
+                                onInput={(e) => {
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const prevHeight = target.style.height;
+                                  target.style.height = 'auto';
+                                  const newHeight = `${target.scrollHeight}px`;
+                                  if (newHeight !== prevHeight) {
+                                    target.style.height = newHeight;
+                                  } else {
+                                    target.style.height = prevHeight;
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v && v !== row.item)
+                                    handleUpdateItem(row.id, { item: v });
+                                }}
+                              />
+                            </div>
                           ) : (
-                            row.item
+                            <div className="whitespace-normal break-words">{row.item}</div>
                           )}
                         </TableCell>
-                        <TableCell className="text-gray-600 max-w-[200px]">
+                        <TableCell className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
                           {isEditMode ? (
-                            <Input
-                              defaultValue={row.detalle ?? ''}
-                              placeholder="—"
-                              className="h-8 text-sm"
-                              onBlur={(e) => {
-                                const v = e.target.value.trim() || null;
-                                if (v !== (row.detalle ?? ''))
-                                  handleUpdateItem(row.id, { detalle: v });
-                              }}
-                            />
+                            <div className="relative">
+                              <textarea
+                                defaultValue={row.detalle ?? ''}
+                                placeholder="—"
+                                className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
+                                rows={1}
+                                style={{ height: 'auto', minHeight: '2.5rem', maxWidth: '100%', overflow: 'hidden', resize: 'none', wordWrap: 'break-word' }}
+                                ref={(element) => {
+                                  if (element) {
+                                    element.style.height = 'auto';
+                                    element.style.height = `${element.scrollHeight}px`;
+                                  }
+                                }}
+                                onInput={(e) => {
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const prevHeight = target.style.height;
+                                  target.style.height = 'auto';
+                                  const newHeight = `${target.scrollHeight}px`;
+                                  if (newHeight !== prevHeight) {
+                                    target.style.height = newHeight;
+                                  } else {
+                                    target.style.height = prevHeight;
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim() || null;
+                                  if (v !== (row.detalle ?? ''))
+                                    handleUpdateItem(row.id, { detalle: v });
+                                }}
+                              />
+                            </div>
                           ) : (
-                            <span className="truncate block">
-                              {row.detalle ?? '—'}
-                            </span>
+                            <div className="whitespace-normal break-words" style={{ maxWidth: '100%' }}>{row.detalle ?? '—'}</div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">
+                        <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
                           {isEditMode ? (
                             <Input
                               type="number"
@@ -546,10 +682,20 @@ export function PresupuestoCard({
                             <>${row.monto.toLocaleString('es-CL')}</>
                           )}
                         </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {mesEjecucionTexto}
+                        <TableCell className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200" style={{ whiteSpace: 'pre-line' }}>
+                          {isEditMode ? (
+                            <MesesEjecucionEditor
+                              item={row}
+                              anio={anio}
+                              onUpdate={async () => {
+                                await refetch(false);
+                              }}
+                            />
+                          ) : (
+                            formatMesesEjecucion(mesesEjecucion)
+                          )}
                         </TableCell>
-                        <TableCell className="tabular-nums text-sm">
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
                           {isEditMode ? (
                             <Input
                               defaultValue={row.idSolicitud ?? ''}
@@ -567,7 +713,7 @@ export function PresupuestoCard({
                             row.idSolicitud ?? '—'
                           )}
                         </TableCell>
-                        <TableCell className="tabular-nums text-sm">
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
                           {isEditMode ? (
                             <Input
                               defaultValue={row.idPedido ?? ''}
@@ -583,7 +729,7 @@ export function PresupuestoCard({
                             row.idPedido ?? '—'
                           )}
                         </TableCell>
-                        <TableCell className="tabular-nums text-sm">
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
                           {isEditMode ? (
                             <Input
                               defaultValue={row.idRecepcion ?? ''}
@@ -601,7 +747,7 @@ export function PresupuestoCard({
                             row.idRecepcion ?? '—'
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal">
                           {isEditMode ? (
                             <Select
                               value={row.estado}
@@ -611,7 +757,7 @@ export function PresupuestoCard({
                                 })
                               }
                             >
-                              <SelectTrigger className="h-8 text-sm w-[130px]">
+                              <SelectTrigger className="h-8 text-sm w-full">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

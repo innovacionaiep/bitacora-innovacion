@@ -363,3 +363,52 @@ export async function setProyeccionMensual(
     };
   }
 }
+
+export async function setProyeccionMensualMultiple(
+  itemPresupuestoId: string,
+  meses: number[],
+  anio: number,
+  montoPorMes: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Obtener meses actuales para este item y año
+    const proyeccionesActuales = await prisma.proyeccionPresupuesto.findMany({
+      where: { itemPresupuestoId, anio },
+      select: { mes: true },
+    });
+    const mesesActuales = new Set(proyeccionesActuales.map(p => p.mes));
+    const mesesNuevos = new Set(meses);
+
+    // Eliminar proyecciones de meses que ya no están seleccionados
+    const mesesAEliminar = [...mesesActuales].filter(m => !mesesNuevos.has(m));
+    if (mesesAEliminar.length > 0) {
+      await prisma.proyeccionPresupuesto.deleteMany({
+        where: {
+          itemPresupuestoId,
+          anio,
+          mes: { in: mesesAEliminar },
+        },
+      });
+    }
+
+    // Crear o actualizar proyecciones para los meses seleccionados
+    for (const mes of meses) {
+      await prisma.proyeccionPresupuesto.upsert({
+        where: {
+          itemPresupuestoId_mes_anio: { itemPresupuestoId, mes, anio },
+        },
+        create: { itemPresupuestoId, mes, anio, monto: montoPorMes },
+        update: { monto: montoPorMes },
+      });
+    }
+
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (error) {
+    console.error('Error setProyeccionMensualMultiple:', error);
+    return {
+      success: false,
+      error: 'Error al guardar proyecciones mensuales',
+    };
+  }
+}
