@@ -205,8 +205,8 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
 
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 min-h-0 pt-2 px-6 pb-6">
-        <div className="flex flex-col items-stretch gap-4 mb-6 w-full">
+      <div className="flex-1 min-h-0 flex flex-col pt-2 px-6 pb-4">
+        <div className="flex-shrink-0 flex flex-col items-stretch gap-4 mb-4 w-full">
           <div className="flex items-center justify-between w-full min-w-0 gap-4">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <TooltipProvider>
@@ -276,8 +276,8 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
             </Table>
           </div>
         </div>
-        <div className="space-y-3">
-          <div className="border rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+        <div className="flex-1 min-h-0 flex flex-col space-y-2">
+          <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto min-h-0" style={{ width: '100%' }}>
               <Table className="table-fixed" style={{ width: '100%', tableLayout: 'fixed' }}>
                 <TableHeader>
