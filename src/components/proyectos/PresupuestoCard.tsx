@@ -4,7 +4,7 @@ const TABLE_HEADER_BG = '#d1d5db';
 const TABLE_HEADER_TEXT = '#374151';
 
 import { useState, useCallback } from 'react';
-import { Maximize, Minimize, Pencil, TrendingUp, Plus } from 'lucide-react';
+import { Maximize, Minimize, Pencil, TrendingUp, Plus, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ import { usePresupuesto } from '@/hooks/usePresupuesto';
 import {
   createItemPresupuesto,
   updateItemPresupuesto,
+  deleteItemPresupuesto,
   setProyeccionMensualMultiple,
   type CreateItemPresupuestoData,
   type UpdateItemPresupuestoData,
@@ -192,6 +193,14 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
     if (result.success) await refetch(false);
   }, [refetch]);
 
+  const handleDeleteItem = useCallback(async (itemId: string) => {
+    if (confirm('¿Está seguro de que desea eliminar este ítem de presupuesto? Esta acción no se puede deshacer.')) {
+      const result = await deleteItemPresupuesto(itemId);
+      if (result.success) await refetch(false);
+      else alert(`Error al eliminar el ítem: ${result.error}`);
+    }
+  }, [refetch]);
+
   if (loading) return (<div className="h-full flex items-center justify-center"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" /><p className="text-muted-foreground">Cargando presupuesto...</p></div></div>);
   if (error) return (<div className="h-full flex items-center justify-center"><div className="text-center"><p className="text-red-500 mb-4">{error}</p></div></div>);
 
@@ -214,6 +223,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                 {isFullscreen && projectName && <h1 className="text-2xl font-bold text-gray-900 shrink-0 ml-2">{projectName}</h1>}
                 <Tooltip><TooltipTrigger asChild><Button type="button" onClick={toggleEditMode} variant="ghost" size="sm" className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${isEditMode ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}><Pencil className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>{isEditMode ? 'Salir del modo edición' : 'Editar ítems de presupuesto'}</p></TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button type="button" onClick={toggleAddingRow} variant="ghost" size="sm" className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-2 ${isAddingRow ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}><Plus className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>{isAddingRow ? 'Cancelar agregar ítem' : 'Agregar ítem de presupuesto'}</p></TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button type="button" onClick={toggleDeleteMode} variant="ghost" size="sm" className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-2 ${isDeleteMode ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>{isDeleteMode ? 'Salir del modo eliminación' : 'Eliminar ítems de presupuesto'}</p></TooltipContent></Tooltip>
               </TooltipProvider>
             </div>
             <div className="flex items-center space-x-4 shrink-0">
@@ -298,7 +308,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                   {items.length === 0 && !isAddingRow && (
                     <TableRow>
                       <TableCell
-                        colSpan={4 + 1 + 4}
+                        colSpan={9 + (isDeleteMode ? 1 : 0)}
                         className="text-center text-gray-500 py-8"
                       >
                         No hay ítems de presupuesto. Agrega gastos para hacer
@@ -471,7 +481,11 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                     return (
                       <TableRow key={row.id} className="hover:bg-gray-50/80">
                         {isDeleteMode && (
-                          <TableCell className="text-center align-middle w-[50px] min-w-[50px] max-w-[50px] whitespace-normal border-r border-gray-200"></TableCell>
+                          <TableCell className="text-center align-middle w-[50px] min-w-[50px] max-w-[50px] whitespace-normal border-r border-gray-200">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteItem(row.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
                         )}
                         <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
                           {isEditMode ? (
