@@ -255,7 +255,7 @@ export async function createItemPresupuesto(
 
     const item = await prisma.itemPresupuesto.create({
       data: {
-        proyectoId,
+        proyectoId: projectId,
         cuenta: data.cuenta,
         item: data.item,
         detalle: data.detalle ?? null,
@@ -263,6 +263,7 @@ export async function createItemPresupuesto(
         orden: data.orden ?? maxOrden + 1,
       },
     });
+
     await syncPresupuestoProyecto(projectId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
