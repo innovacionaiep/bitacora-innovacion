@@ -488,15 +488,18 @@ model SnapshotMensualProyecto {
 // ========================
 
 model ReunionSeguimiento {
-  id               String   @id @default(cuid())
-  proyectoId       String   @map("proyecto_id")
-  coordinadorId    String   @map("coordinador_id")
+  id               String    @id @default(cuid())
+  proyectoId       String    @map("proyecto_id")
+  coordinadorId    String    @map("coordinador_id")
   fecha            DateTime
-  duracionMinutos  Int?     @map("duracion_minutos")
-  resumen          String?  @db.Text
-  notas            String?  @db.Text
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  duracionMinutos  Int?      @map("duracion_minutos")
+  resumen          String?   @db.Text
+  notas            String?   @db.Text
+  estado           String?   @default("programada") // programada | en_curso | finalizada
+  inicioEnVivoAt   DateTime? @map("inicio_en_vivo_at")
+  transcripcion    String?   @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   proyecto    Proyecto   @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   coordinador User       @relation(fields: [coordinadorId], references: [id], onDelete: Cascade)

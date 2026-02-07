@@ -108,8 +108,12 @@ export function ReunionModal({
                   size="sm"
                   onClick={() => setShowDetalleForm(true)}
                   disabled={loading}
+                  title="Agregar puntos tratados, tareas y compromisos"
                 >
-                  Completar reunión
+                  {(reunion as { estado?: string } | null)?.estado ===
+                  'finalizada'
+                    ? 'Agregar detalles'
+                    : 'Completar reunión'}
                 </Button>
               </div>
             </div>
@@ -137,6 +141,18 @@ export function ReunionModal({
                   {reunion.coordinador?.name || reunion.coordinador?.email}
                 </span>
               </div>
+
+              {(reunion as { transcripcion?: string | null }).transcripcion && (
+                <div>
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4" />
+                    Transcripción
+                  </h4>
+                  <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                    {(reunion as { transcripcion?: string | null }).transcripcion}
+                  </p>
+                </div>
+              )}
 
               {reunion.resumen && (
                 <div>
@@ -288,6 +304,7 @@ export function ReunionModal({
               )}
 
               {!reunion.resumen &&
+                !(reunion as { transcripcion?: string | null }).transcripcion &&
                 (!reunion.puntosTratados ||
                   reunion.puntosTratados.length === 0) &&
                 (!reunion.tareasMarcadas ||
@@ -295,7 +312,7 @@ export function ReunionModal({
                 (!reunion.compromisos || reunion.compromisos.length === 0) && (
                   <p className="text-gray-500 text-sm py-4">
                     Esta reunión aún no tiene contenido registrado. Usa
-                    &quot;Completar reunión&quot; para agregar puntos tratados,
+                    &quot;Agregar detalles&quot; para agregar puntos tratados,
                     tareas, indicadores y compromisos.
                   </p>
                 )}

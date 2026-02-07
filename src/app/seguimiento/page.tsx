@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { preloadVoskModel } from '@/lib/vosk-model-loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,6 +70,10 @@ export default function SeguimientoPage() {
   const [nuevaReunionResumen, setNuevaReunionResumen] = useState('');
   const [nuevaReunionNotas, setNuevaReunionNotas] = useState('');
   const [submittingNueva, setSubmittingNueva] = useState(false);
+
+  useEffect(() => {
+    preloadVoskModel();
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;

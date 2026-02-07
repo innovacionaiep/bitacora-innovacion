@@ -315,6 +315,118 @@ export async function deleteReunion(reunionId: string) {
 }
 
 /**
+ * Iniciar reunión en vivo (estado en_curso, inicioEnVivoAt = now)
+ */
+export async function iniciarReunionEnVivo(reunionId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    const reunion = await prisma.reunionSeguimiento.findUnique({
+      where: { id: reunionId },
+      select: { id: true, proyectoId: true, estado: true },
+    });
+
+    if (!reunion) {
+      return { success: false, error: 'Reunión no encontrada', data: null };
+    }
+
+    if (reunion.estado === 'en_curso') {
+      return {
+        success: false,
+        error: 'La reunión ya está en curso',
+        data: null,
+      };
+    }
+
+    const updated = await prisma.reunionSeguimiento.update({
+      where: { id: reunionId },
+      data: {
+        estado: 'en_curso',
+        inicioEnVivoAt: new Date(),
+      },
+      include: {
+        coordinador: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+      },
+    });
+
+    revalidatePath('/proyectos');
+    revalidatePath('/seguimiento');
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error('Error al iniciar reunión en vivo:', error);
+    return {
+      success: false,
+      error: 'Error al iniciar reunión en vivo',
+      data: null,
+    };
+  }
+}
+
+/**
+ * Finalizar reunión en vivo (estado finalizada, guardar transcripción y duración)
+ */
+export async function finalizarReunionEnVivo(
+  reunionId: string,
+  opts?: { transcripcion?: string; duracionMinutos?: number }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    const reunion = await prisma.reunionSeguimiento.findUnique({
+      where: { id: reunionId },
+      select: { id: true, proyectoId: true, inicioEnVivoAt: true },
+    });
+
+    if (!reunion) {
+      return { success: false, error: 'Reunión no encontrada', data: null };
+    }
+
+    const duracionMinutos =
+      opts?.duracionMinutos ??
+      (reunion.inicioEnVivoAt
+        ? Math.round((Date.now() - reunion.inicioEnVivoAt.getTime()) / 60_000)
+        : undefined);
+
+    const updated = await prisma.reunionSeguimiento.update({
+      where: { id: reunionId },
+      data: {
+        estado: 'finalizada',
+        ...(opts?.transcripcion !== undefined && {
+          transcripcion: opts.transcripcion,
+        }),
+        ...(duracionMinutos !== undefined && {
+          duracionMinutos,
+        }),
+      },
+      include: {
+        coordinador: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+      },
+    });
+
+    revalidatePath('/proyectos');
+    revalidatePath('/seguimiento');
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error('Error al finalizar reunión en vivo:', error);
+    return {
+      success: false,
+      error: 'Error al finalizar reunión en vivo',
+      data: null,
+    };
+  }
+}
+
+/**
  * Agregar punto tratado a una reunión
  */
 export async function addPuntoReunion(

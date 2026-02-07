@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { preloadVoskModel } from '@/lib/vosk-model-loader';
 import {
   getReunionesProyecto,
   getCompromisosProyecto,
   getOportunidadesAmenazasProyecto,
+  iniciarReunionEnVivo,
 } from '@/lib/actions/seguimiento';
 import { ReunionModal } from './ReunionModal';
 import { ReunionFormModal } from './ReunionFormModal';
 import { OportunidadesAmenazasCard } from './OportunidadesAmenazasCard';
 import { CompromisosPostItWall } from './CompromisosPostItWall';
+import { useMeetingLiveOptional } from '@/contexts/MeetingLiveContext';
 import { Calendar, Plus, Loader2 } from 'lucide-react';
 import {
   Tooltip,
@@ -55,6 +58,23 @@ export function SeguimientoCard({
     null
   );
   const [reunionModalOpen, setReunionModalOpen] = useState(false);
+  const [startingReunionId, setStartingReunionId] = useState<string | null>(
+    null
+  );
+
+  const meetingLive = useMeetingLiveOptional();
+
+  useEffect(() => {
+    preloadVoskModel();
+  }, []);
+
+  useEffect(() => {
+    if (!meetingLive) return;
+    meetingLive.setOnMeetingEnded((proyectoId) => {
+      if (proyectoId === projectId) loadData(true);
+    });
+    return () => meetingLive.setOnMeetingEnded(null);
+  }, [meetingLive, projectId]);
 
   const loadData = async (isRefetch = false) => {
     if (!isRefetch) setLoading(true);
@@ -99,6 +119,15 @@ export function SeguimientoCard({
   const handleVerReunion = (reunionId: string) => {
     setSelectedReunionId(reunionId);
     setReunionModalOpen(true);
+  };
+
+  const handleIniciarReunion = async (reunionId: string) => {
+    setStartingReunionId(reunionId);
+    const result = await iniciarReunionEnVivo(reunionId);
+    setStartingReunionId(null);
+    if (result.success && result.data && meetingLive) {
+      meetingLive.startMeeting(reunionId, projectId);
+    }
   };
 
   if (loading) {
@@ -175,17 +204,46 @@ export function SeguimientoCard({
                         >
                           Detalles
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Placeholder: Iniciar reunión (se configurará después)
-                          }}
-                        >
-                          Iniciar
-                        </Button>
+                        {(reunion as { estado?: string }).estado ===
+                        'finalizada' ? (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-default"
+                            disabled
+                          >
+                            Finalizada
+                          </Button>
+                        ) : (reunion as { estado?: string }).estado ===
+                          'en_curso' ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled
+                          >
+                            En curso
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleIniciarReunion(reunion.id);
+                            }}
+                            disabled={
+                              startingReunionId === reunion.id ||
+                              !!meetingLive?.meeting
+                            }
+                          >
+                            {startingReunionId === reunion.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              'Iniciar'
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
