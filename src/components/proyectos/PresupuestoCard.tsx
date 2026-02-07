@@ -295,7 +295,18 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isAddingRow ? (
+                  {items.length === 0 && !isAddingRow && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4 + 1 + 4}
+                        className="text-center text-gray-500 py-8"
+                      >
+                        No hay ítems de presupuesto. Agrega gastos para hacer
+                        seguimiento.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {isAddingRow && (
                     <TableRow className="bg-blue-50 border-2 border-blue-200">
                       {isDeleteMode && (
                         <TableCell className="text-center align-middle w-[50px] min-w-[50px] max-w-[50px] whitespace-normal border-r border-gray-200"></TableCell>
@@ -445,244 +456,236 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : items.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={4 + 1 + 4}
-                        className="text-center text-gray-500 py-8"
-                      >
-                        No hay ítems de presupuesto. Agrega gastos para hacer
-                        seguimiento.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((row) => {
-                      const mesesEjecucion = row.proyecciones
-                        .filter((p) => p.anio === anio)
-                        .map((p) => p.mes)
-                        .sort((a, b) => a - b);
-                      const mesEjecucionTexto =
-                        mesesEjecucion.length > 0
-                          ? [...new Set(mesesEjecucion)]
-                              .map((mes) => MONTHS[mes - 1])
-                              .join(', ')
-                          : '—';
-                      return (
-                        <TableRow key={row.id} className="hover:bg-gray-50/80">
-                          <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
-                            {isEditMode ? (
-                              <Select
-                                value={row.cuenta}
-                                onValueChange={(v) =>
-                                  handleUpdateItem(row.id, {
-                                    cuenta: v as CuentaPresupuesto,
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="h-8 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {CUENTA_OPTIONS.map((opt) => (
-                                    <SelectItem
-                                      key={opt.value}
-                                      value={opt.value}
-                                    >
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              CUENTA_LABEL[row.cuenta]
-                            )}
-                          </TableCell>
-                          <TableCell className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
-                            {isEditMode ? (
-                              <div className="relative">
-                                <textarea
-                                  defaultValue={row.item}
-                                  className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
-                                  rows={1}
-                                  style={{ height: 'auto', minHeight: '2.5rem', overflow: 'hidden', resize: 'none' }}
-                                  ref={(element) => {
-                                    if (element) {
-                                      element.style.height = 'auto';
-                                      element.style.height = `${element.scrollHeight}px`;
-                                    }
-                                  }}
-                                  onInput={(e) => {
-                                    const target = e.target as HTMLTextAreaElement;
-                                    const prevHeight = target.style.height;
-                                    target.style.height = 'auto';
-                                    const newHeight = `${target.scrollHeight}px`;
-                                    if (newHeight !== prevHeight) {
-                                      target.style.height = newHeight;
-                                    } else {
-                                      target.style.height = prevHeight;
-                                    }
-                                  }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim();
-                                    if (v && v !== row.item)
-                                      handleUpdateItem(row.id, { item: v });
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="whitespace-normal break-words">{row.item}</div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
-                            {isEditMode ? (
-                              <div className="relative">
-                                <textarea
-                                  defaultValue={row.detalle ?? ''}
-                                  placeholder="—"
-                                  className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
-                                  rows={1}
-                                  style={{ height: 'auto', minHeight: '2.5rem', maxWidth: '100%', overflow: 'hidden', resize: 'none', wordWrap: 'break-word' }}
-                                  ref={(element) => {
-                                    if (element) {
-                                      element.style.height = 'auto';
-                                      element.style.height = `${element.scrollHeight}px`;
-                                    }
-                                  }}
-                                  onInput={(e) => {
-                                    const target = e.target as HTMLTextAreaElement;
-                                    const prevHeight = target.style.height;
-                                    target.style.height = 'auto';
-                                    const newHeight = `${target.scrollHeight}px`;
-                                    if (newHeight !== prevHeight) {
-                                      target.style.height = newHeight;
-                                    } else {
-                                      target.style.height = prevHeight;
-                                    }
-                                  }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim() || null;
-                                    if (v !== (row.detalle ?? ''))
-                                      handleUpdateItem(row.id, { detalle: v });
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="whitespace-normal break-words" style={{ maxWidth: '100%' }}>{row.detalle ?? '—'}</div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
-                            {isEditMode ? (
-                              <Input
-                                type="number"
-                                defaultValue={row.monto}
-                                className="h-8 text-sm w-24"
-                                onBlur={(e) => {
-                                  const v = parseInt(e.target.value, 10);
-                                  if (!isNaN(v) && v >= 0 && v !== row.monto)
-                                    handleUpdateItem(row.id, { monto: v });
-                                }}
-                              />
-                            ) : (
-                              <>${row.monto.toLocaleString('es-CL')}</>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200" style={{ whiteSpace: 'pre-line' }}>
-                            {isEditMode ? (
-                              <MesesEjecucionEditor
-                                item={row}
-                                anio={anio}
-                                onUpdate={async () => {
-                                  await refetch(false);
-                                }}
-                              />
-                            ) : (
-                              formatMesesEjecucion(mesesEjecucion)
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
-                            {isEditMode ? (
-                              <Input
-                                defaultValue={row.idSolicitud ?? ''}
-                                placeholder="—"
-                                className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idSolicitud ?? ''))
-                                    handleUpdateItem(row.id, {
-                                      idSolicitud: v,
-                                    });
-                                }}
-                              />
-                            ) : (
-                              row.idSolicitud ?? '—'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
-                            {isEditMode ? (
-                              <Input
-                                defaultValue={row.idPedido ?? ''}
-                                placeholder="—"
-                                className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idPedido ?? ''))
-                                    handleUpdateItem(row.id, { idPedido: v });
-                                }}
-                              />
-                            ) : (
-                              row.idPedido ?? '—'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
-                            {isEditMode ? (
-                              <Input
-                                defaultValue={row.idRecepcion ?? ''}
-                                placeholder="—"
-                                className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idRecepcion ?? ''))
-                                    handleUpdateItem(row.id, {
-                                      idRecepcion: v,
-                                    });
-                                }}
-                              />
-                            ) : (
-                              row.idRecepcion ?? '—'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal">
-                            {isEditMode ? (
-                              <Select
-                                value={row.estado}
-                                onValueChange={(v) =>
-                                  handleUpdateItem(row.id, {
-                                    estado: v as EstadoGastoPresupuesto,
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="h-8 text-sm w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ESTADO_OPTIONS.map((opt) => (
-                                    <SelectItem
-                                      key={opt.value}
-                                      value={opt.value}
-                                    >
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <EstadoBadge estado={row.estado} />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
                   )}
+                  {items.map((row) => {
+                    const mesesEjecucion = row.proyecciones
+                      .filter((p) => p.anio === anio)
+                      .map((p) => p.mes)
+                      .sort((a, b) => a - b);
+                    const mesEjecucionTexto =
+                      mesesEjecucion.length > 0
+                        ? [...new Set(mesesEjecucion)]
+                            .map((mes) => MONTHS[mes - 1])
+                            .join(', ')
+                        : '—';
+                    return (
+                      <TableRow key={row.id} className="hover:bg-gray-50/80">
+                        {isDeleteMode && (
+                          <TableCell className="text-center align-middle w-[50px] min-w-[50px] max-w-[50px] whitespace-normal border-r border-gray-200"></TableCell>
+                        )}
+                        <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
+                          {isEditMode ? (
+                            <Select
+                              value={row.cuenta}
+                              onValueChange={(v) =>
+                                handleUpdateItem(row.id, {
+                                  cuenta: v as CuentaPresupuesto,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CUENTA_OPTIONS.map((opt) => (
+                                  <SelectItem
+                                    key={opt.value}
+                                    value={opt.value}
+                                  >
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            CUENTA_LABEL[row.cuenta]
+                          )}
+                        </TableCell>
+                        <TableCell className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
+                          {isEditMode ? (
+                            <div className="relative">
+                              <textarea
+                                defaultValue={row.item}
+                                className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
+                                rows={1}
+                                style={{ height: 'auto', minHeight: '2.5rem', overflow: 'hidden', resize: 'none' }}
+                                ref={(element) => {
+                                  if (element) {
+                                    element.style.height = 'auto';
+                                    element.style.height = `${element.scrollHeight}px`;
+                                  }
+                                }}
+                                onInput={(e) => {
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const prevHeight = target.style.height;
+                                  target.style.height = 'auto';
+                                  const newHeight = `${target.scrollHeight}px`;
+                                  if (newHeight !== prevHeight) {
+                                    target.style.height = newHeight;
+                                  } else {
+                                    target.style.height = prevHeight;
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v && v !== row.item)
+                                    handleUpdateItem(row.id, { item: v });
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="whitespace-normal break-words">{row.item}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200" style={{ verticalAlign: 'middle', wordWrap: 'break-word' }}>
+                          {isEditMode ? (
+                            <div className="relative">
+                              <textarea
+                                defaultValue={row.detalle ?? ''}
+                                placeholder="—"
+                                className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
+                                rows={1}
+                                style={{ height: 'auto', minHeight: '2.5rem', maxWidth: '100%', overflow: 'hidden', resize: 'none', wordWrap: 'break-word' }}
+                                ref={(element) => {
+                                  if (element) {
+                                    element.style.height = 'auto';
+                                    element.style.height = `${element.scrollHeight}px`;
+                                  }
+                                }}
+                                onInput={(e) => {
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const prevHeight = target.style.height;
+                                  target.style.height = 'auto';
+                                  const newHeight = `${target.scrollHeight}px`;
+                                  if (newHeight !== prevHeight) {
+                                    target.style.height = newHeight;
+                                  } else {
+                                    target.style.height = prevHeight;
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim() || null;
+                                  if (v !== (row.detalle ?? ''))
+                                    handleUpdateItem(row.id, { detalle: v });
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="whitespace-normal break-words" style={{ maxWidth: '100%' }}>{row.detalle ?? '—'}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
+                          {isEditMode ? (
+                            <Input
+                              type="number"
+                              defaultValue={row.monto}
+                              className="h-8 text-sm w-24"
+                              onBlur={(e) => {
+                                const v = parseInt(e.target.value, 10);
+                                if (!isNaN(v) && v >= 0 && v !== row.monto)
+                                  handleUpdateItem(row.id, { monto: v });
+                              }}
+                            />
+                          ) : (
+                            <>${row.monto.toLocaleString('es-CL')}</>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200" style={{ whiteSpace: 'pre-line' }}>
+                          {isEditMode ? (
+                            <MesesEjecucionEditor
+                              item={row}
+                              anio={anio}
+                              onUpdate={async () => {
+                                await refetch(false);
+                              }}
+                            />
+                          ) : (
+                            formatMesesEjecucion(mesesEjecucion)
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                          {isEditMode ? (
+                            <Input
+                              defaultValue={row.idSolicitud ?? ''}
+                              placeholder="—"
+                              className="h-8 text-sm"
+                              onBlur={(e) => {
+                                const v = e.target.value.trim() || null;
+                                if (v !== (row.idSolicitud ?? ''))
+                                  handleUpdateItem(row.id, {
+                                    idSolicitud: v,
+                                  });
+                              }}
+                            />
+                          ) : (
+                            row.idSolicitud ?? '—'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                          {isEditMode ? (
+                            <Input
+                              defaultValue={row.idPedido ?? ''}
+                              placeholder="—"
+                              className="h-8 text-sm"
+                              onBlur={(e) => {
+                                const v = e.target.value.trim() || null;
+                                if (v !== (row.idPedido ?? ''))
+                                  handleUpdateItem(row.id, { idPedido: v });
+                              }}
+                            />
+                          ) : (
+                            row.idPedido ?? '—'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
+                          {isEditMode ? (
+                            <Input
+                              defaultValue={row.idRecepcion ?? ''}
+                              placeholder="—"
+                              className="h-8 text-sm"
+                              onBlur={(e) => {
+                                const v = e.target.value.trim() || null;
+                                if (v !== (row.idRecepcion ?? ''))
+                                  handleUpdateItem(row.id, {
+                                    idRecepcion: v,
+                                  });
+                              }}
+                            />
+                          ) : (
+                            row.idRecepcion ?? '—'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal">
+                          {isEditMode ? (
+                            <Select
+                              value={row.estado}
+                              onValueChange={(v) =>
+                                handleUpdateItem(row.id, {
+                                  estado: v as EstadoGastoPresupuesto,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ESTADO_OPTIONS.map((opt) => (
+                                  <SelectItem
+                                    key={opt.value}
+                                    value={opt.value}
+                                  >
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <EstadoBadge estado={row.estado} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
