@@ -342,15 +342,6 @@ export function OportunidadesAmenazasCard({
                                       {item.okCoordinadorPor?.name ??
                                         currentUser?.name ??
                                         'Usuario'}
-                                      {(item.okCoordinadorPorRolActivo ??
-                                        activeRole) && (
-                                        <span className="text-emerald-600 font-medium">
-                                          {' '}
-                                          #
-                                          {item.okCoordinadorPorRolActivo ??
-                                            activeRole}
-                                        </span>
-                                      )}
                                     </span>
                                   </span>
                                 )}
@@ -377,12 +368,6 @@ export function OportunidadesAmenazasCard({
                               </Avatar>
                               <span className="text-xs text-gray-700 truncate">
                                 {item.okCoordinadorPor.name ?? 'Usuario'}
-                                {item.okCoordinadorPorRolActivo && (
-                                  <span className="text-emerald-600 font-medium">
-                                    {' '}
-                                    #{item.okCoordinadorPorRolActivo}
-                                  </span>
-                                )}
                               </span>
                             </span>
                           )}
