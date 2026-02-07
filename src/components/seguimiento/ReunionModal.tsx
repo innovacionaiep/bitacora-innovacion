@@ -97,7 +97,10 @@ export function ReunionModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowEditForm(true)}
+                  onClick={() => {
+                    console.log('Abriendo ReunionFormModal para editar');
+                    setShowEditForm(true);
+                  }}
                   disabled={loading}
                 >
                   <Edit className="h-4 w-4 mr-1" />
@@ -106,7 +109,10 @@ export function ReunionModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowDetalleForm(true)}
+                  onClick={() => {
+                    console.log('Abriendo ReunionDetalleForm');
+                    setShowDetalleForm(true);
+                  }}
                   disabled={loading}
                   title="Agregar puntos tratados, tareas y compromisos"
                 >

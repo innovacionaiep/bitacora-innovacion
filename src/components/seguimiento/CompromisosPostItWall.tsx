@@ -20,12 +20,6 @@ import {
   toggleValidacionCompromiso,
 } from '@/lib/actions/seguimiento';
 import { Plus, Loader2, ClipboardCheck, CircleAlert, CheckCircle, BadgeCheck } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 type CompromisoItem = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosProyecto>
@@ -55,49 +49,22 @@ function EstadoIcon({
   const isRealizado = compromiso.completado;
   if (isValidado) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex-shrink-0 text-emerald-600" aria-label="Validada">
-              <BadgeCheck className="h-5 w-5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Validada</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <span className="flex-shrink-0 text-emerald-600" aria-label="Validada">
+        <BadgeCheck className="h-5 w-5" />
+      </span>
     );
   }
   if (isRealizado) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex-shrink-0 text-amber-600" aria-label="Realizada">
-              <CheckCircle className="h-5 w-5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Realizada</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <span className="flex-shrink-0 text-amber-600" aria-label="Realizada">
+        <CheckCircle className="h-5 w-5" />
+      </span>
     );
   }
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="flex-shrink-0 text-red-600" aria-label="Pendiente">
-            <CircleAlert className="h-5 w-5" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Pendiente</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <span className="flex-shrink-0 text-red-600" aria-label="Pendiente">
+      <CircleAlert className="h-5 w-5" />
+    </span>
   );
 }
 
@@ -155,6 +122,7 @@ export function CompromisosPostItWall({
   const [editTitulo, setEditTitulo] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const isCoordinadorOrAdmin =
     rolEnProyecto === 'Coordinador' || activeRole === 'Admin';
@@ -223,6 +191,7 @@ export function CompromisosPostItWall({
 
   const handleOpenDetail = (compromiso: CompromisoItem) => {
     setSelectedCompromiso(compromiso);
+    setDetailModalOpen(true);
     setIsEditingCompromiso(false);
     setEditTitulo(compromiso.titulo ?? '');
     setEditDescripcion(compromiso.descripcion);
@@ -250,6 +219,7 @@ export function CompromisosPostItWall({
   const handleCloseDetail = () => {
     setSelectedCompromiso(null);
     setIsEditingCompromiso(false);
+    setDetailModalOpen(false);
   };
 
   return (
@@ -260,22 +230,13 @@ export function CompromisosPostItWall({
             <ClipboardCheck className="h-3.5 w-3.5 text-emerald-600" />
             Compromisos pendientes
           </h4>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 text-white" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Agregar compromiso</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            size="icon"
+            className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="h-3.5 w-3.5 text-white" />
+          </Button>
         </header>
         <div className="flex-1 overflow-auto min-h-0 p-4">
           {compromisos.length === 0 ? (
@@ -296,7 +257,10 @@ export function CompromisosPostItWall({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
-                {compromisos.map((compromiso) => (
+                {compromisos.filter(compromiso => compromiso.descripcion && compromiso.descripcion.trim()).map((compromiso) => {
+                  const titulo = compromiso.titulo?.trim() || tituloDeDescripcion(compromiso.descripcion);
+
+                  return (
                     <div
                       key={compromiso.id}
                       role="button"
@@ -349,7 +313,7 @@ export function CompromisosPostItWall({
                           </span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-                          {togglingValidacionId === compromiso.id ? (
+                          {togglingId === compromiso.id ? (
                             <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                           ) : (
                             <Checkbox
@@ -368,46 +332,48 @@ export function CompromisosPostItWall({
                         </label>
                       </div>
                     </div>
-                ))}
+                  );
+                })}
             </div>
           )}
         </div>
       </div>
 
       {/* Popup detalle del compromiso (mismo diseño que crear) */}
-      <Dialog open={!!selectedCompromiso} onOpenChange={(open) => !open && handleCloseDetail()}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-emerald-600" />
-              Detalle del compromiso
-            </DialogTitle>
-          </DialogHeader>
-          {selectedCompromiso && (
+      {selectedCompromiso && detailModalOpen && (
+        <Dialog open={true} onOpenChange={(open) => !open && handleCloseDetail()}>
+          <DialogContent className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className={`h-5 w-5 ${
+                    selectedCompromiso.validadoPorCoordinador
+                      ? 'text-emerald-600'
+                      : selectedCompromiso.completado
+                      ? 'text-amber-600'
+                      : 'text-red-600'
+                  }`} />
+                  {isEditingCompromiso ? (
+                    <Input
+                      value={editTitulo}
+                      onChange={(e) => setEditTitulo(e.target.value)}
+                      placeholder="Título del compromiso"
+                      className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
+                        selectedCompromiso.validadoPorCoordinador
+                          ? 'bg-emerald-100 border-emerald-400'
+                          : selectedCompromiso.completado
+                          ? 'bg-amber-100 border-amber-300'
+                          : 'bg-red-100 border-red-300'
+                      }`}
+                    />
+                  ) : (
+                    selectedCompromiso.titulo?.trim() || tituloDeDescripcion(selectedCompromiso.descripcion || '', 50)
+                  )}
+                </div>
+                <EstadoIcon compromiso={selectedCompromiso} />
+              </DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-gray-500 text-xs uppercase tracking-wide">
-                  Título
-                </Label>
-                {isEditingCompromiso ? (
-                  <Input
-                    value={editTitulo}
-                    onChange={(e) => setEditTitulo(e.target.value)}
-                    placeholder="Título breve del compromiso (se muestra en la tarjeta)"
-                    className="w-full"
-                  />
-                ) : (
-                  <p
-                    className={`text-sm ${
-                      selectedCompromiso.completado
-                        ? 'line-through text-gray-600'
-                        : 'text-gray-900'
-                    }`}
-                  >
-                    {selectedCompromiso.titulo?.trim() || '—'}
-                  </p>
-                )}
-              </div>
               <div className="space-y-2">
                 <Label className="text-gray-500 text-xs uppercase tracking-wide">
                   Descripción
@@ -452,7 +418,7 @@ export function CompromisosPostItWall({
                         handleToggleRealizado(selectedCompromiso.id)
                       }
                       disabled={!canMarkRealizado}
-                      className="border-amber-400/60 data-[state=checked]:bg-amber-400 data-[state=checked]:text-black data-[state=checked]:border-amber-500"
+                      className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black data-[state=checked]:border-amber-600"
                     />
                   )}
                   <span className="font-medium text-gray-700">
@@ -460,7 +426,7 @@ export function CompromisosPostItWall({
                   </span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  {togglingValidacionId === selectedCompromiso.id ? (
+                  {togglingId === selectedCompromiso.id ? (
                     <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                   ) : (
                     <Checkbox
@@ -470,7 +436,7 @@ export function CompromisosPostItWall({
                         handleToggleValidacion(selectedCompromiso.id)
                       }
                       disabled={!isCoordinadorOrAdmin}
-                      className="border-[#26619C]/60 data-[state=checked]:bg-[#26619C] data-[state=checked]:text-white data-[state=checked]:border-[#26619C]"
+                      className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
                     />
                   )}
                   <span className="font-medium text-gray-700">
@@ -479,54 +445,54 @@ export function CompromisosPostItWall({
                 </label>
               </div>
             </div>
-          )}
-          <DialogFooter>
-            {isEditingCompromiso ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditingCompromiso(false);
-                    setEditTitulo(selectedCompromiso?.titulo ?? '');
-                    setEditDescripcion(selectedCompromiso?.descripcion ?? '');
-                  }}
-                  disabled={savingEdit}
-                >
-                  Cancelar edición
-                </Button>
-                <Button
-                  onClick={handleSaveEdit}
-                  disabled={
-                    !editDescripcion.trim() ||
-                    savingEdit ||
-                    (editDescripcion.trim() === selectedCompromiso?.descripcion &&
-                      (editTitulo.trim() || null) === (selectedCompromiso?.titulo ?? null))
-                  }
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                >
-                  {savingEdit ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Guardar'
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                {isCoordinadorOrAdmin && (
+            <DialogFooter>
+              {isEditingCompromiso ? (
+                <>
                   <Button
                     variant="outline"
-                    onClick={() => setIsEditingCompromiso(true)}
+                    onClick={() => {
+                      setIsEditingCompromiso(false);
+                      setEditTitulo(selectedCompromiso.titulo ?? '');
+                      setEditDescripcion(selectedCompromiso.descripcion ?? '');
+                    }}
+                    disabled={savingEdit}
                   >
-                    Editar
+                    Cancelar edición
                   </Button>
-                )}
-                <Button onClick={() => handleCloseDetail()}>Cerrar</Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={
+                      !editDescripcion.trim() ||
+                      savingEdit ||
+                      (editDescripcion.trim() === selectedCompromiso.descripcion &&
+                        (editTitulo.trim() || null) === (selectedCompromiso.titulo ?? null))
+                    }
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {savingEdit ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Guardar'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {isCoordinadorOrAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingCompromiso(true)}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  <Button onClick={() => handleCloseDetail()}>Cerrar</Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Popup nuevo compromiso (mismo diseño que detalle, sin rotación) */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
