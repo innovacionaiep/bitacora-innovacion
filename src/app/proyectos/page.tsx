@@ -27,6 +27,19 @@ import {
 } from '@/components/ui/tooltip';
 import { MultiSelectNombres, MULTI_VALUE_SEP } from '@/components/ui/multi-select-nombres';
 import {
+  MultiSelectOptions,
+  MULTI_SELECT_SEP,
+} from '@/components/ui/multi-select-options';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Search,
   FolderKanban,
   MapPin,
@@ -246,7 +259,7 @@ export default function ProyectosPage() {
   const [selectedTab, setSelectedTab] = useState<
     | 'Resumen'
     | 'General'
-    | 'Equipo'
+    | 'Participantes'
     | 'Gantt'
     | 'Indicadores'
     | 'Presupuesto'
@@ -259,6 +272,11 @@ export default function ProyectosPage() {
     (ProyectoParticipante & { user?: UserType | null }) | null
   >(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Filtros de la pestaña Participantes
+  const [filterParticipantesNombre, setFilterParticipantesNombre] = useState('');
+  const [filterParticipantesRol, setFilterParticipantesRol] = useState('');
+  const [filterParticipantesCargo, setFilterParticipantesCargo] = useState('');
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -1366,15 +1384,15 @@ export default function ProyectosPage() {
                       General
                     </Button>
                     <Button
-                      onClick={() => setSelectedTab('Equipo')}
+                      onClick={() => setSelectedTab('Participantes')}
                       size="sm"
                       className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Equipo'
+                        selectedTab === 'Participantes'
                           ? 'bg-gray-800 text-white hover:bg-gray-800'
                           : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
                       }`}
                     >
-                      Equipo
+                      Participantes
                     </Button>
                     <Button
                       onClick={() => setSelectedTab('Historial')}
@@ -2158,434 +2176,237 @@ export default function ProyectosPage() {
                 </div>
               )}
 
-              {selectedTab === 'Equipo' && selectedProject && (
-                <div className="h-full overflow-hidden pt-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-4 h-full">
-                    {/* Columna 1: Encargados, Coordinadores y Colaboradores */}
-                    <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        <div className="space-y-6">
-                          {/* Encargados */}
-                          {selectedProject.participantes_rel &&
-                            selectedProject.participantes_rel.filter(
-                              (p) => p.rol === 'Encargado'
-                            ).length > 0 && (
-                              <div className="mb-8">
-                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                  <Crown className="h-5 w-5 text-emerald-600" />
-                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                    Encargados
-                                  </h4>
-                                </div>
-                                <div className="space-y-3">
-                                  {selectedProject.participantes_rel
-                                    .filter((p) => p.rol === 'Encargado')
-                                    .map((participante) => {
-                                      const nombre =
-                                        participante.user?.name ||
-                                        participante.nombre ||
-                                        'Sin nombre';
-                                      const cargo = participante.cargo || '';
-                                      const imagen = participante.user?.image;
-                                      return (
-                                        <div
-                                          key={participante.id}
-                                          onClick={() => {
-                                            setSelectedParticipante(
-                                              participante
-                                            );
-                                            setIsModalOpen(true);
-                                          }}
-                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                        >
-                                          {imagen ? (
-                                            <img
-                                              src={imagen}
-                                              alt={nombre}
-                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                            />
-                                          ) : (
-                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                              <Users className="h-5 w-5 text-gray-800" />
-                                            </div>
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">
-                                              {nombre}
-                                            </p>
-                                            {cargo && (
-                                              <p className="text-xs text-gray-600 truncate">
-                                                {cargo}
-                                              </p>
-                                            )}
-                                          </div>
-                                          <Crown className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </div>
-                            )}
+              {selectedTab === 'Participantes' && selectedProject && (() => {
+                const ROLES: { value: string; label: string }[] = [
+                  { value: 'Encargado', label: 'Encargado' },
+                  { value: 'Coordinador', label: 'Coordinador' },
+                  { value: 'Colaborador', label: 'Colaborador' },
+                  { value: 'Docente', label: 'Docente' },
+                  { value: 'Estudiante', label: 'Estudiante' },
+                  { value: 'Beneficiario', label: 'Beneficiario' },
+                ];
+                const ROLE_COLORS: Record<string, string> = {
+                  Encargado: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                  Coordinador: 'bg-blue-100 text-blue-800 border-blue-200',
+                  Colaborador: 'bg-violet-100 text-violet-800 border-violet-200',
+                  Docente: 'bg-amber-100 text-amber-800 border-amber-200',
+                  Estudiante: 'bg-sky-100 text-sky-800 border-sky-200',
+                  Beneficiario: 'bg-rose-100 text-rose-800 border-rose-200',
+                };
+                const list = selectedProject.participantes_rel ?? [];
+                const rolesSelected = filterParticipantesRol
+                  ? filterParticipantesRol.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
+                  : [];
+                const cargosSelected = filterParticipantesCargo
+                  ? filterParticipantesCargo.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
+                  : [];
+                const filteredParticipants = list.filter((p) => {
+                  const nombre = (p.user?.name ?? p.nombre ?? '').toLowerCase();
+                  const email = (p.user?.email ?? p.email ?? '').toLowerCase();
+                  const cargo = (p.cargo ?? '').toLowerCase();
+                  const q = filterParticipantesNombre.trim().toLowerCase();
+                  if (q && !nombre.includes(q) && !email.includes(q)) return false;
+                  if (rolesSelected.length > 0 && !rolesSelected.includes(p.rol)) return false;
+                  if (cargosSelected.length > 0) {
+                    const cargoNorm = (p.cargo ?? '').trim().toLowerCase();
+                    const match = cargoNorm && cargosSelected.some((c) => c.trim().toLowerCase() === cargoNorm);
+                    if (!match) return false;
+                  }
+                  return true;
+                });
+                const uniqueCargos = (() => {
+                  const set = new Set<string>();
+                  list.forEach((p) => {
+                    if (p.cargo?.trim()) set.add(p.cargo.trim());
+                  });
+                  return Array.from(set).sort();
+                })();
+                const cargoOptions = uniqueCargos.map((c) => ({ value: c, label: c }));
+                const counts = (() => {
+                  const encargados = list.filter((p) => p.rol === 'Encargado').length;
+                  const coordinadores = list.filter((p) => p.rol === 'Coordinador').length;
+                  const colaboradores = list.filter((p) => p.rol === 'Colaborador').length;
+                  const docentes = list.filter((p) => p.rol === 'Docente').length;
+                  const estudiantes = list.filter((p) => p.rol === 'Estudiante').length;
+                  const beneficiarios = list.filter((p) => p.rol === 'Beneficiario').length;
+                  const sociosUnicos = new Set(
+                    list
+                      .filter((p) => p.rol === 'Beneficiario' && p.socioComunitario?.id)
+                      .map((p) => p.socioComunitario!.id)
+                  );
+                  return {
+                    encargados,
+                    coordinadores,
+                    colaboradores,
+                    docentes,
+                    estudiantes,
+                    beneficiarios,
+                    sociosComunitarios: sociosUnicos.size,
+                  };
+                })();
+                return (
+                  <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
+                    {/* Tarjetas de cantidades */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-4 flex-shrink-0">
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-emerald-700">{counts.encargados}</span>
+                          <span className="text-xs text-muted-foreground">Encargados</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-blue-700">{counts.coordinadores}</span>
+                          <span className="text-xs text-muted-foreground">Coordinadores</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-violet-700">{counts.colaboradores}</span>
+                          <span className="text-xs text-muted-foreground">Colaboradores</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-amber-700">{counts.docentes}</span>
+                          <span className="text-xs text-muted-foreground">Docentes</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-sky-700">{counts.estudiantes}</span>
+                          <span className="text-xs text-muted-foreground">Estudiantes</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-rose-700">{counts.beneficiarios}</span>
+                          <span className="text-xs text-muted-foreground">Beneficiarios</span>
+                        </CardContent>
+                      </Card>
+                      <Card className="p-3">
+                        <CardContent className="p-0 flex flex-col items-center">
+                          <span className="text-2xl font-bold text-gray-700">{counts.sociosComunitarios}</span>
+                          <span className="text-xs text-muted-foreground">Socios comunitarios</span>
+                        </CardContent>
+                      </Card>
+                    </div>
 
-                          {/* Coordinadores */}
-                          {selectedProject.participantes_rel &&
-                            selectedProject.participantes_rel.filter(
-                              (p) => p.rol === 'Coordinador'
-                            ).length > 0 && (
-                              <div className="mb-8">
-                                <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                  <Users className="h-5 w-5 text-emerald-600" />
-                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                    Coordinadores
-                                  </h4>
-                                </div>
-                                <div className="space-y-3">
-                                  {selectedProject.participantes_rel
-                                    .filter((p) => p.rol === 'Coordinador')
-                                    .map((participante) => {
-                                      const nombre =
-                                        participante.user?.name ||
-                                        participante.nombre ||
-                                        'Sin nombre';
-                                      const cargo = participante.cargo || '';
-                                      const imagen = participante.user?.image;
-                                      return (
-                                        <div
-                                          key={participante.id}
-                                          onClick={() => {
-                                            setSelectedParticipante(
-                                              participante
-                                            );
-                                            setIsModalOpen(true);
-                                          }}
-                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                        >
-                                          {imagen ? (
-                                            <img
-                                              src={imagen}
-                                              alt={nombre}
-                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                            />
-                                          ) : (
-                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                              <Users className="h-5 w-5 text-gray-800" />
-                                            </div>
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">
-                                              {nombre}
-                                            </p>
-                                            {cargo && (
-                                              <p className="text-xs text-gray-600 truncate">
-                                                {cargo}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </div>
-                            )}
-
-                          {/* Colaboradores */}
-                          {selectedProject.participantes_rel &&
-                            selectedProject.participantes_rel.filter(
-                              (p) => p.rol === 'Colaborador'
-                            ).length > 0 && (
-                              <div className="mb-8">
-                                <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                  <Users className="h-5 w-5 text-emerald-600" />
-                                  <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                    Colaboradores
-                                  </h4>
-                                </div>
-                                <div className="space-y-3">
-                                  {selectedProject.participantes_rel
-                                    .filter((p) => p.rol === 'Colaborador')
-                                    .map((participante) => {
-                                      const nombre =
-                                        participante.user?.name ||
-                                        participante.nombre ||
-                                        'Sin nombre';
-                                      const cargo = participante.cargo || '';
-                                      const imagen = participante.user?.image;
-                                      return (
-                                        <div
-                                          key={participante.id}
-                                          onClick={() => {
-                                            setSelectedParticipante(
-                                              participante
-                                            );
-                                            setIsModalOpen(true);
-                                          }}
-                                          className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                        >
-                                          {imagen ? (
-                                            <img
-                                              src={imagen}
-                                              alt={nombre}
-                                              className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                            />
-                                          ) : (
-                                            <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                              <Users className="h-5 w-5 text-gray-800" />
-                                            </div>
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">
-                                              {nombre}
-                                            </p>
-                                            {cargo && (
-                                              <p className="text-xs text-gray-600 truncate">
-                                                {cargo}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </div>
-                            )}
-
-                          {/* Mensaje si no hay equipo */}
-                          {(!selectedProject.participantes_rel ||
-                            selectedProject.participantes_rel.filter((p) =>
-                              [
-                                'Encargado',
-                                'Coordinador',
-                                'Colaborador',
-                              ].includes(p.rol)
-                            ).length === 0) && (
-                            <div className="text-center py-8 text-gray-500">
-                              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                              <p>No hay equipo asignado</p>
-                            </div>
-                          )}
-                        </div>
+                    {/* Filtros */}
+                    <div className="flex flex-wrap gap-3 mb-4 flex-shrink-0">
+                      <div className="flex items-center gap-2 min-w-[200px] flex-1">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por nombre o correo..."
+                          value={filterParticipantesNombre}
+                          onChange={(e) => setFilterParticipantesNombre(e.target.value)}
+                          className="max-w-xs"
+                        />
+                      </div>
+                      <div className="w-[180px]">
+                        <MultiSelectOptions
+                          options={ROLES}
+                          value={filterParticipantesRol}
+                          onChange={setFilterParticipantesRol}
+                          placeholder="Rol"
+                        />
+                      </div>
+                      <div className="w-[180px]">
+                        <MultiSelectOptions
+                          options={cargoOptions}
+                          value={filterParticipantesCargo}
+                          onChange={setFilterParticipantesCargo}
+                          placeholder="Cargo"
+                        />
                       </div>
                     </div>
 
-                    {/* Columna 2: Docentes */}
-                    <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel &&
-                        selectedProject.participantes_rel.filter(
-                          (p) => p.rol === 'Docente'
-                        ).length > 0 ? (
-                          <div className="space-y-6">
-                            <div className="mb-8">
-                              <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Users className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Docentes
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter((p) => p.rol === 'Docente')
-                                  .map((participante) => {
-                                    const nombre =
-                                      participante.user?.name ||
-                                      participante.nombre ||
-                                      'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    return (
-                                      <div
-                                        key={participante.id}
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                    {/* Tabla con encabezados sticky y cuerpo scrolleable */}
+                    <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+                      <div className="overflow-auto flex-1 custom-scrollbar">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/60 hover:bg-muted/60">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[140px]">
+                                Rol
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[200px]">
+                                Nombre
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px]">
+                                Correo
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px]">
+                                Cargo
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px]">
+                                Socio comunitario
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredParticipants.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                  No hay participantes que coincidan con los filtros.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredParticipants.map((p) => {
+                                const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
+                                const email = p.user?.email ?? p.email ?? '';
+                                const cargo = p.cargo ?? '';
+                                const socioComunitario = p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—';
+                                const colorClass = ROLE_COLORS[p.rol] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                                return (
+                                  <TableRow
+                                    key={p.id}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => {
+                                      setSelectedParticipante(p as ProyectoParticipante & { user?: UserType | null });
+                                      setIsModalOpen(true);
+                                    }}
+                                  >
+                                    <TableCell className="align-middle">
+                                      <span
+                                        className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}
                                       >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">
-                                              {cargo}
-                                            </p>
-                                          )}
-                                        </div>
+                                        #{p.rol}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="align-middle">
+                                      <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
+                                          {p.user?.image ? (
+                                            <AvatarImage src={p.user.image} alt={nombre} />
+                                          ) : null}
+                                          <AvatarFallback className="bg-gray-100 text-gray-700">
+                                            <Users className="h-4 w-4" />
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="font-medium truncate">{nombre}</span>
                                       </div>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                            <p>No hay docentes asignados</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Columna 3: Estudiantes */}
-                    <div className="h-full flex flex-col px-6 lg:px-8 lg:border-r lg:border-gray-200 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel &&
-                        selectedProject.participantes_rel.filter(
-                          (p) => p.rol === 'Estudiante'
-                        ).length > 0 ? (
-                          <div className="space-y-6">
-                            <div className="mb-8">
-                              <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Users className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Estudiantes
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter((p) => p.rol === 'Estudiante')
-                                  .map((participante) => {
-                                    const nombre =
-                                      participante.user?.name ||
-                                      participante.nombre ||
-                                      'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    return (
-                                      <div
-                                        key={participante.id}
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                      >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">
-                                              {cargo}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                            <p>No hay estudiantes asignados</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Columna 4: Beneficiarios */}
-                    <div className="h-full flex flex-col px-6 lg:px-8 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                        {selectedProject.participantes_rel &&
-                        selectedProject.participantes_rel.filter(
-                          (p) => p.rol === 'Beneficiario'
-                        ).length > 0 ? (
-                          <div className="space-y-6">
-                            <div className="mb-8">
-                              <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5 mb-4">
-                                <Users className="h-5 w-5 text-emerald-600" />
-                                <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                  Beneficiarios
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {selectedProject.participantes_rel
-                                  .filter((p) => p.rol === 'Beneficiario')
-                                  .map((participante) => {
-                                    const nombre =
-                                      participante.user?.name ||
-                                      participante.nombre ||
-                                      'Sin nombre';
-                                    const cargo = participante.cargo || '';
-                                    const imagen = participante.user?.image;
-                                    const socioComunitario =
-                                      participante.socioComunitario?.nombre;
-                                    return (
-                                      <div
-                                        key={participante.id}
-                                        onClick={() => {
-                                          setSelectedParticipante(participante);
-                                          setIsModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                                      >
-                                        {imagen ? (
-                                          <img
-                                            src={imagen}
-                                            alt={nombre}
-                                            className="h-11 w-11 rounded-full ring-2 ring-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                                            <Users className="h-5 w-5 text-gray-800" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-semibold text-gray-900 truncate">
-                                            {nombre}
-                                          </p>
-                                          {cargo && (
-                                            <p className="text-xs text-gray-600 truncate">
-                                              {cargo}
-                                            </p>
-                                          )}
-                                          {socioComunitario && (
-                                            <p className="text-xs text-blue-600 truncate font-medium mt-0.5">
-                                              {socioComunitario}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                            <p>No hay beneficiarios asignados</p>
-                          </div>
-                        )}
+                                    </TableCell>
+                                    <TableCell className="align-middle text-muted-foreground truncate max-w-[200px]">
+                                      {email || '—'}
+                                    </TableCell>
+                                    <TableCell className="align-middle truncate max-w-[160px]">
+                                      {cargo || '—'}
+                                    </TableCell>
+                                    <TableCell className="align-middle truncate max-w-[180px]">
+                                      {socioComunitario}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {selectedTab === 'Gantt' && (
                 <div className="h-full pt-4">
