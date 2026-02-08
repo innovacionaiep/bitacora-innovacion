@@ -1,19 +1,61 @@
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504940061,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504940063,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":0,"contentHeight":0,"tableTop":0,"tableBottom":0,"overflows":false},"timestamp":1770504940077,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":617.5,"contentHeight":921,"tableTop":295.5,"tableBottom":913,"overflows":false},"timestamp":1770504950370,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":617.5,"contentHeight":921,"tableTop":295.5,"tableBottom":913,"overflows":false},"timestamp":1770504950385,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504965640,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504965652,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":617.5,"contentHeight":921,"tableTop":295.5,"tableBottom":913,"overflows":false},"timestamp":1770504975843,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":617.5,"contentHeight":921,"tableTop":295.5,"tableBottom":913,"overflows":false},"timestamp":1770504975856,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504979782,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":476.5,"contentHeight":780,"tableTop":412.5,"tableBottom":889,"overflows":false},"timestamp":1770504979795,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":492.5,"contentHeight":780,"tableTop":404.5,"tableBottom":897,"overflows":false},"timestamp":1770505040095,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":633.5,"contentHeight":921,"tableTop":287.5,"tableBottom":921,"overflows":false},"timestamp":1770505058027,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":true,"vh":953,"tableHeight":633.5,"contentHeight":921,"tableTop":287.5,"tableBottom":921,"overflows":false},"timestamp":1770505058038,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":492.5,"contentHeight":780,"tableTop":404.5,"tableBottom":897,"overflows":false},"timestamp":1770505063175,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":492.5,"contentHeight":780,"tableTop":404.5,"tableBottom":897,"overflows":false},"timestamp":1770505063191,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":492.5,"contentHeight":780,"tableTop":404.5,"tableBottom":897,"overflows":false},"timestamp":1770505067718,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":492.5,"contentHeight":780,"tableTop":404.5,"tableBottom":897,"overflows":false},"timestamp":1770505067719,"hypothesisId":"H1"}
-{"location":"PresupuestoCard.tsx:useEffect","message":"table height layout","data":{"isFullscreen":false,"vh":953,"tableHeight":0,"contentHeight":0,"tableTop":0,"tableBottom":0,"overflows":false},"timestamp":1770505067725,"hypothesisId":"H1"}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion"},"hypothesisId":"H2","timestamp":1770578508624}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Admin"},"hypothesisId":"H1,H3,H4","timestamp":1770578509458}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578509690}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578510105}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578510744}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578512619}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578516699}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Admin"},"hypothesisId":"H1,H3,H4","timestamp":1770578517473}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578535993}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578536333}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578536978}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578537505}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578538102}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578538875}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578539445}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578539925}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578540449}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578540675}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578542763}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578543350}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578543724}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578544291}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/validacion"},"hypothesisId":"H2","timestamp":1770578544657}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578545085}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578546195}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/desarrollo-tecnico"},"hypothesisId":"H2","timestamp":1770578546764}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578546965}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578547241}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578547242}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578547713}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578548473}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578593935}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578594779}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578594785}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578595332}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578595829}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578596751}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578596756}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578597814}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578597816}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578598252}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion"},"hypothesisId":"H2","timestamp":1770578640585}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Admin"},"hypothesisId":"H1,H3,H4","timestamp":1770578641473}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578641666}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578642032}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578642662}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578643583}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578648241}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Admin"},"hypothesisId":"H1,H3,H4","timestamp":1770578648916}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion"},"hypothesisId":"H2","timestamp":1770578684170}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578684832}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578684833}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion/usuarios"},"hypothesisId":"H2","timestamp":1770578694852}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Estudiante"},"hypothesisId":"H1,H3,H4","timestamp":1770578695120}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Estudiante"},"hypothesisId":"role-check","timestamp":1770578695120}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion"},"hypothesisId":"H2","timestamp":1770578736030}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Coordinador"},"hypothesisId":"H1,H3,H4","timestamp":1770578736706}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Coordinador"},"hypothesisId":"role-check","timestamp":1770578736709}
+{"location":"middleware.ts","message":"config path in middleware","data":{"pathname":"/configuracion"},"hypothesisId":"H2","timestamp":1770578778866}
+{"location":"configuracion/layout.tsx","message":"config layout entered","data":{"hasUser":true,"activeRole":"Coordinador"},"hypothesisId":"H1,H3,H4","timestamp":1770578781104}
+{"location":"configuracion/layout.tsx","message":"redirecting non-admin","data":{"activeRole":"Coordinador"},"hypothesisId":"role-check","timestamp":1770578781119}

@@ -8,6 +8,8 @@ import {
   ObjetivoProyecto,
   User,
   DesarrolloTecnico,
+  DesarrolloTecnicoValor,
+  DesarrolloTecnicoSubcategoria,
   ProyectoParticipante,
   ProyectoEscuela,
   ProyectoCarrera,
@@ -44,7 +46,10 @@ export type ProyectoWithRelations = Proyecto & {
   })[];
   objetivos_rel: ObjetivoProyecto[];
   desarrolloTecnico?: DesarrolloTecnico | null;
-};
+  desarrolloTecnicoValores?: (DesarrolloTecnicoValor & {
+    subcategoria?: DesarrolloTecnicoSubcategoria;
+  })[];
+}
 
 // Tipo extendido con variaciones mensuales para el dashboard
 export type ProyectoConVariaciones = ProyectoWithRelations & {

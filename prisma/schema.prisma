@@ -48,9 +48,11 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime? @map("email_verified")
-  password      String? // Hashed password for credentials auth
-  image         String?
+  password          String?   // Hashed password for credentials auth
+  passwordEncrypted String?   @db.Text // Encrypted for admin display (reversible)
+  image             String?
   activeRole    String?   @map("active_role") // Current active role
+  lastActiveAt  DateTime? @map("last_active_at") // Última vez que inició sesión (JWT no escribe en Session)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -126,6 +128,7 @@ model Proyecto {
   sociosComunitarios ProyectoSocioComunitario[]
   objetivos_rel      ObjetivoProyecto[]
   desarrolloTecnico  DesarrolloTecnico?
+  desarrolloTecnicoValores DesarrolloTecnicoValor[]
   indicadores        Indicador[]
   historial          HistorialProyecto[]
   snapshotsMensuales SnapshotMensualProyecto[]
@@ -209,6 +212,15 @@ model ProyectoParticipante {
 
   @@unique([proyectoId, userId, rol])
   @@map("proyecto_participantes")
+}
+
+// Sedes (catálogo para listas desplegables; Proyecto.sede sigue siendo String)
+model Sede {
+  id     String @id @default(cuid())
+  nombre String
+  orden  Int    @default(0)
+
+  @@map("sedes")
 }
 
 // Escuelas del Proyecto (many-to-many)
@@ -404,6 +416,44 @@ model DesarrolloTecnico {
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
   @@map("desarrollo_tecnico")
+}
+
+// Configuración de categorías y subcategorías del desarrollo técnico (editable en Configuración)
+model DesarrolloTecnicoCategoria {
+  id            String   @id @default(cuid())
+  nombre        String
+  orden         Int      @default(0)
+  subcategorias DesarrolloTecnicoSubcategoria[]
+
+  @@map("desarrollo_tecnico_categorias")
+}
+
+model DesarrolloTecnicoSubcategoria {
+  id          String   @id @default(cuid())
+  categoriaId String   @map("categoria_id")
+  nombre      String
+  icono       String   @default("FileText") // nombre del icono Lucide
+  orden       Int      @default(0)
+  campoKey    String?  @map("campo_key") // mapeo a columna antigua para migración
+
+  categoria DesarrolloTecnicoCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  valores   DesarrolloTecnicoValor[]
+
+  @@map("desarrollo_tecnico_subcategorias")
+}
+
+// Valores por proyecto y subcategoría (modelo flexible)
+model DesarrolloTecnicoValor {
+  id             String   @id @default(cuid())
+  proyectoId     String   @map("proyecto_id")
+  subcategoriaId String   @map("subcategoria_id")
+  valor          String   @db.Text
+
+  proyecto     Proyecto                   @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  subcategoria DesarrolloTecnicoSubcategoria @relation(fields: [subcategoriaId], references: [id], onDelete: Cascade)
+
+  @@unique([proyectoId, subcategoriaId])
+  @@map("desarrollo_tecnico_valores")
 }
 
 // Indicadores del Proyecto

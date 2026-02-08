@@ -2,8 +2,32 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const SEDES_INICIALES = [
+  { nombre: 'Antofagasta', orden: 0 },
+  { nombre: 'La Serena', orden: 1 },
+  { nombre: 'Los Ángeles', orden: 2 },
+  { nombre: 'Barrio Universitario', orden: 3 },
+  { nombre: 'Santiago', orden: 4 },
+];
+
 export async function seedCatalogs() {
   console.log('🌱 Seeding catalogs...');
+
+  // Seed Sedes
+  for (let i = 0; i < SEDES_INICIALES.length; i++) {
+    const sede = SEDES_INICIALES[i];
+    const existente = await prisma.sede.findFirst({
+      where: { nombre: sede.nombre },
+    });
+    if (existente) {
+      await prisma.sede.update({
+        where: { id: existente.id },
+        data: { orden: sede.orden },
+      });
+    } else {
+      await prisma.sede.create({ data: sede });
+    }
+  }
 
   // Seed Escuelas
   const escuelas = [

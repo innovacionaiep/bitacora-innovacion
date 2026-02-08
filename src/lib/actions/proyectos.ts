@@ -108,12 +108,15 @@ async function _getProyectosFromDB() {
           socioComunitario: true,
         },
       },
-      objetivos_rel: {
-        orderBy: {
-          orden: 'asc',
+        objetivos_rel: {
+          orderBy: {
+            orden: 'asc',
+          },
         },
-      },
       desarrolloTecnico: true,
+      desarrolloTecnicoValores: {
+        include: { subcategoria: true },
+      },
       snapshotsMensuales: {
         where: {
           mes: mesAnterior,
@@ -242,6 +245,9 @@ export async function getProyecto(id: string) {
           },
         },
         desarrolloTecnico: true,
+        desarrolloTecnicoValores: {
+          include: { subcategoria: true },
+        },
       },
     });
 
@@ -574,6 +580,32 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
             escalabilidad: data.desarrolloTecnico.escalabilidad ?? null,
           },
         });
+        // Sincronizar también a DesarrolloTecnicoValor (modelo flexible)
+        const subcategorias = await tx.desarrolloTecnicoSubcategoria.findMany({
+          where: { campoKey: { not: null } },
+          select: { id: true, campoKey: true },
+        });
+        const dt = data.desarrolloTecnico as Record<string, string | null | undefined>;
+        for (const sub of subcategorias) {
+          const key = sub.campoKey as string;
+          const valor = dt[key];
+          if (valor != null && String(valor).trim() !== '') {
+            await tx.desarrolloTecnicoValor.upsert({
+              where: {
+                proyectoId_subcategoriaId: {
+                  proyectoId: data.proyectoId,
+                  subcategoriaId: sub.id,
+                },
+              },
+              create: {
+                proyectoId: data.proyectoId,
+                subcategoriaId: sub.id,
+                valor: String(valor),
+              },
+              update: { valor: String(valor) },
+            });
+          }
+        }
       }
     });
 
@@ -625,6 +657,9 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
           },
         },
         desarrolloTecnico: true,
+        desarrolloTecnicoValores: {
+          include: { subcategoria: true },
+        },
       },
     });
 

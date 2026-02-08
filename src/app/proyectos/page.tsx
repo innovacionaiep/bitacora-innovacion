@@ -94,6 +94,7 @@ import {
   getSociosComunitarios,
   updateProyectoGeneralTab,
 } from '@/lib/actions/proyectos';
+import { getSedes } from '@/lib/actions/configuracion';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -164,6 +165,7 @@ type CatalogosGeneral = {
   comunas: ComunaItem[];
   gruposInteres: GrupoInteresItem[];
   sociosComunitarios: SocioComunitarioItem[];
+  sedes: { id: string; nombre: string; orden: number }[];
 };
 
 const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
@@ -283,6 +285,7 @@ export default function ProyectosPage() {
     comunas: [],
     gruposInteres: [],
     sociosComunitarios: [],
+    sedes: [],
   });
   const [catalogosLoading, setCatalogosLoading] = useState(false);
 
@@ -500,12 +503,14 @@ export default function ProyectosPage() {
       comunasResult,
       gruposResult,
       sociosResult,
+      sedesList,
     ] = await Promise.all([
       getEscuelas(),
       getCarreras(),
       getComunas(),
       getGruposInteres(),
       getSociosComunitarios(),
+      getSedes(),
     ]);
 
     setCatalogosGeneral({
@@ -514,6 +519,7 @@ export default function ProyectosPage() {
       comunas: comunasResult.success ? comunasResult.data ?? [] : [],
       gruposInteres: gruposResult.success ? gruposResult.data ?? [] : [],
       sociosComunitarios: sociosResult.success ? sociosResult.data ?? [] : [],
+      sedes: sedesList ?? [],
     });
 
     setCatalogosLoading(false);
@@ -672,6 +678,12 @@ export default function ProyectosPage() {
       loadCatalogosGeneral();
     }
   }, [isGeneralEditMode]);
+
+  useEffect(() => {
+    if (showAddForm && catalogosGeneral.sedes.length === 0) {
+      loadCatalogosGeneral();
+    }
+  }, [showAddForm]);
 
   const handleSaveVideo = () => {
     if (!selectedProject) return;
@@ -912,17 +924,11 @@ export default function ProyectosPage() {
                           <SelectValue placeholder="Selecciona la sede" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Antofagasta">
-                            Antofagasta
-                          </SelectItem>
-                          <SelectItem value="La Serena">La Serena</SelectItem>
-                          <SelectItem value="Los Ángeles">
-                            Los Ángeles
-                          </SelectItem>
-                          <SelectItem value="Barrio Universitario">
-                            Barrio Universitario
-                          </SelectItem>
-                          <SelectItem value="Santiago">Santiago</SelectItem>
+                          {catalogosGeneral.sedes.map((s) => (
+                            <SelectItem key={s.id} value={s.nombre}>
+                              {s.nombre}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1204,14 +1210,14 @@ export default function ProyectosPage() {
                               : prev
                           )
                         }
-                        className="h-10 text-2xl font-bold text-gray-900 px-3 py-2 border-2 border-gray-300 rounded-lg w-fit min-w-[240px]"
+                        className="h-10 text-4xl font-bold text-gray-900 px-3 py-2 border-2 border-gray-300 rounded-lg w-fit min-w-[720px]"
                       />
                     ) : (
                       <h1 className="text-4xl font-bold text-gray-900 truncate">
                         {truncateTitle(selectedProject.proyecto)}
                       </h1>
                     )}
-                    {selectedTab === 'General' && (
+                    {selectedTab === 'General' && !isGeneralEditMode && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1220,21 +1226,13 @@ export default function ProyectosPage() {
                               onClick={handleToggleGeneralEditMode}
                               variant="ghost"
                               size="sm"
-                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
-                                isGeneralEditMode
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                              }`}
+                              className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>
-                              {isGeneralEditMode
-                                ? 'Salir del modo edición'
-                                : 'Editar información general'}
-                            </p>
+                            <p>Editar información general</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -1694,21 +1692,11 @@ export default function ProyectosPage() {
                                         <SelectValue placeholder="Selecciona la sede" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="Antofagasta">
-                                          Antofagasta
-                                        </SelectItem>
-                                        <SelectItem value="La Serena">
-                                          La Serena
-                                        </SelectItem>
-                                        <SelectItem value="Los Ángeles">
-                                          Los Ángeles
-                                        </SelectItem>
-                                        <SelectItem value="Barrio Universitario">
-                                          Barrio Universitario
-                                        </SelectItem>
-                                        <SelectItem value="Santiago">
-                                          Santiago
-                                        </SelectItem>
+                                        {catalogosGeneral.sedes.map((s) => (
+                                          <SelectItem key={s.id} value={s.nombre}>
+                                            {s.nombre}
+                                          </SelectItem>
+                                        ))}
                                       </SelectContent>
                                     </Select>
                                   ) : (
