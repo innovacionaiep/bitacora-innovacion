@@ -26,6 +26,7 @@ export interface ItemPresupuestoItem {
   idRecepcion: string | null;
   orden: number;
   proyecciones: ProyeccionPresupuestoItem[];
+  comentariosCount: number;
 }
 
 export interface ResumenCuenta {

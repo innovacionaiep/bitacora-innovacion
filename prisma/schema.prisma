@@ -59,6 +59,7 @@ model User {
   roles     UserRole[]
   proyectos ProyectoParticipante[]
   comentariosIndicador ComentarioIndicador[]
+  comentariosItemPresupuesto ComentarioItemPresupuesto[]
   historialProyecto HistorialProyecto[]
   
   // Relaciones del Feed de Novedades
@@ -171,6 +172,7 @@ model ItemPresupuesto {
 
   proyecto     Proyecto               @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   proyecciones ProyeccionPresupuesto[]
+  comentarios  ComentarioItemPresupuesto[]
 
   @@map("items_presupuesto")
 }
@@ -444,6 +446,22 @@ model ComentarioIndicador {
 
   @@index([indicadorId])
   @@map("comentarios_indicador")
+}
+
+// Comentarios de Ítems de Presupuesto
+model ComentarioItemPresupuesto {
+  id                String   @id @default(cuid())
+  itemPresupuestoId String   @map("item_presupuesto_id")
+  userId            String   @map("user_id")
+  contenido         String   @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  itemPresupuesto ItemPresupuesto @relation(fields: [itemPresupuestoId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([itemPresupuestoId])
+  @@map("comentarios_item_presupuesto")
 }
 
 // Historial de Proyectos

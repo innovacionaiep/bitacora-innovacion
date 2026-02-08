@@ -4,7 +4,7 @@ const TABLE_HEADER_BG = '#d1d5db';
 const TABLE_HEADER_TEXT = '#374151';
 
 import { useState, useCallback } from 'react';
-import { Maximize, Minimize, Pencil, TrendingUp, Plus, Trash2 } from 'lucide-react';
+import { Maximize, Minimize, Pencil, TrendingUp, Plus, Trash2, Search } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -39,6 +39,7 @@ import {
   type UpdateItemPresupuestoData,
 } from '@/lib/actions/presupuesto';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto, ItemPresupuestoItem } from '@/types/presupuesto';
+import { GastoPresupuestoModal } from './GastoPresupuestoModal';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -61,7 +62,7 @@ const ESTADO_LABEL: Record<EstadoGastoPresupuesto, string> = {
   EJECUTADO_OK: 'Ejecutado OK',
 };
 
-function EstadoBadge({ estado }: { estado: EstadoGastoPresupuesto }) {
+export function EstadoBadge({ estado }: { estado: EstadoGastoPresupuesto }) {
   const variant = estado === 'EJECUTADO_OK' ? 'default' : estado === 'EN_PEDIDO' ? 'secondary' : 'outline';
   const className = estado === 'EJECUTADO_OK' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : estado === 'EN_PEDIDO' ? 'bg-blue-100 text-blue-800 border-blue-200' : estado === 'SOLICITADO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-700 border-gray-200';
   return <Badge variant={variant} className={className}>{ESTADO_LABEL[estado]}</Badge>;
@@ -150,6 +151,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
     idPedido: string;
     idRecepcion: string;
   }>({ cuenta: 'RRHH', item: '', detalle: '', monto: 0, selectedMeses: new Set(), idSolicitud: '', idPedido: '', idRecepcion: '' });
+  const [selectedGastoForModal, setSelectedGastoForModal] = useState<ItemPresupuestoItem | null>(null);
   const { items, resumenPorCuenta, loading, error, refetch } = usePresupuesto(projectId, presupuestoTotal);
   const anio = new Date().getFullYear();
 
@@ -302,13 +304,14 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                     <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>N° OC</TableHead>
                     <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>N° Recepción</TableHead>
                     <TableHead className="font-semibold text-center w-[150px] min-w-[150px] max-w-[150px]" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>Estado</TableHead>
+                    <TableHead className="font-semibold text-center w-[75px] min-w-[75px] max-w-[75px]" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 && !isAddingRow && (
                     <TableRow>
                       <TableCell
-                        colSpan={9 + (isDeleteMode ? 1 : 0)}
+                        colSpan={10 + (isDeleteMode ? 1 : 0)}
                         className="text-center text-gray-500 py-8"
                       >
                         No hay ítems de presupuesto. Agrega gastos para hacer
@@ -465,6 +468,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                           </Button>
                         </div>
                       </TableCell>
+                      <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal"></TableCell>
                     </TableRow>
                   )}
                   {items.map((row) => {
@@ -697,6 +701,22 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                             <EstadoBadge estado={row.estado} />
                           )}
                         </TableCell>
+                        <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal">
+                          <div className="relative">
+                            <button
+                              onClick={() => setSelectedGastoForModal(row)}
+                              className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                              title="Ver detalles"
+                            >
+                              <Search className="h-5 w-5 text-gray-700" />
+                            </button>
+                            {row.comentariosCount > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                                {row.comentariosCount}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -712,6 +732,13 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white overflow-auto p-4' : 'h-full'}`}>
       {content}
+      {selectedGastoForModal && (
+        <GastoPresupuestoModal
+          gasto={selectedGastoForModal}
+          onClose={() => setSelectedGastoForModal(null)}
+          onUpdate={refetch}
+        />
+      )}
     </div>
   );
 }

@@ -196,6 +196,7 @@ export async function getPresupuestoByProyecto(projectId: string): Promise<{
         anio: number;
         monto: number;
       }>;
+      comentariosCount: number;
     }>;
   };
   error?: string;
@@ -205,6 +206,11 @@ export async function getPresupuestoByProyecto(projectId: string): Promise<{
       where: { proyectoId: projectId },
       include: {
         proyecciones: true,
+        _count: {
+          select: {
+            comentarios: true,
+          },
+        },
       },
       orderBy: [{ orden: 'asc' }, { createdAt: 'asc' }],
     });
@@ -229,6 +235,7 @@ export async function getPresupuestoByProyecto(projectId: string): Promise<{
             anio: p.anio,
             monto: p.monto,
           })),
+          comentariosCount: i._count.comentarios,
         })),
       },
     };
