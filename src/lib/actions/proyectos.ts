@@ -690,6 +690,142 @@ export async function deleteProyecto(id: string) {
   }
 }
 
+// ===== FUNCIONES PARA PARTICIPANTES =====
+
+const proyectoIncludeForParticipante = {
+  participantes_rel: {
+    include: {
+      user: true,
+      socioComunitario: true,
+    },
+  },
+  escuelas: { include: { escuela: true } },
+  carreras: { include: { carrera: true } },
+  comunas: { include: { comuna: true } },
+  gruposInteres: { include: { grupoInteres: true } },
+  sociosComunitarios: { include: { socioComunitario: true } },
+  objetivos_rel: { orderBy: { orden: 'asc' as const } },
+  desarrolloTecnico: true,
+  desarrolloTecnicoValores: { include: { subcategoria: true } },
+} as const;
+
+export type AddParticipanteData = {
+  rol: string;
+  nombre?: string;
+  email?: string;
+  cargo?: string;
+  socioComunitarioId?: string;
+};
+
+export async function addParticipanteProyecto(
+  proyectoId: string,
+  data: AddParticipanteData
+) {
+  try {
+    const participante = await prisma.proyectoParticipante.create({
+      data: {
+        proyectoId,
+        userId: null,
+        rol: data.rol,
+        nombre: data.nombre ?? null,
+        email: data.email ?? null,
+        cargo: data.cargo ?? null,
+        socioComunitarioId:
+          data.rol === 'Beneficiario' ? data.socioComunitarioId ?? null : null,
+      },
+    });
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: proyectoId },
+      include: proyectoIncludeForParticipante,
+    });
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    return { success: true, data: proyecto as ProyectoWithRelations };
+  } catch (error) {
+    console.error('Error adding participante:', error);
+    return {
+      success: false,
+      error: 'Error al agregar participante',
+    };
+  }
+}
+
+export type UpdateParticipanteData = {
+  rol?: string;
+  nombre?: string;
+  email?: string;
+  cargo?: string;
+  socioComunitarioId?: string;
+};
+
+export async function updateParticipanteProyecto(
+  participanteId: string,
+  data: UpdateParticipanteData
+) {
+  try {
+    const existing = await prisma.proyectoParticipante.findUnique({
+      where: { id: participanteId },
+    });
+    if (!existing) {
+      return { success: false, error: 'Participante no encontrado' };
+    }
+    const finalRol = data.rol ?? existing.rol;
+    await prisma.proyectoParticipante.update({
+      where: { id: participanteId },
+      data: {
+        ...(data.rol !== undefined && { rol: data.rol }),
+        ...(data.nombre !== undefined && { nombre: data.nombre }),
+        ...(data.email !== undefined && { email: data.email }),
+        ...(data.cargo !== undefined && { cargo: data.cargo }),
+        ...(data.socioComunitarioId !== undefined && {
+          socioComunitarioId:
+            finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
+        }),
+      },
+    });
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: existing.proyectoId },
+      include: proyectoIncludeForParticipante,
+    });
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    return { success: true, data: proyecto as ProyectoWithRelations };
+  } catch (error) {
+    console.error('Error updating participante:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar participante',
+    };
+  }
+}
+
+export async function deleteParticipanteProyecto(participanteId: string) {
+  try {
+    const existing = await prisma.proyectoParticipante.findUnique({
+      where: { id: participanteId },
+    });
+    if (!existing) {
+      return { success: false, error: 'Participante no encontrado' };
+    }
+    await prisma.proyectoParticipante.delete({
+      where: { id: participanteId },
+    });
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: existing.proyectoId },
+      include: proyectoIncludeForParticipante,
+    });
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    return { success: true, data: proyecto as ProyectoWithRelations };
+  } catch (error) {
+    console.error('Error deleting participante:', error);
+    return {
+      success: false,
+      error: 'Error al eliminar participante',
+    };
+  }
+}
+
 // ===== FUNCIONES PARA CATÁLOGOS =====
 
 /**

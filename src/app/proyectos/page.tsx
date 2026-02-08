@@ -107,6 +107,9 @@ import {
   getGruposInteres,
   getSociosComunitarios,
   updateProyectoGeneralTab,
+  addParticipanteProyecto,
+  updateParticipanteProyecto,
+  deleteParticipanteProyecto,
 } from '@/lib/actions/proyectos';
 import { getSedes } from '@/lib/actions/configuracion';
 
@@ -277,6 +280,21 @@ export default function ProyectosPage() {
   const [filterParticipantesNombre, setFilterParticipantesNombre] = useState('');
   const [filterParticipantesRol, setFilterParticipantesRol] = useState('');
   const [filterParticipantesCargo, setFilterParticipantesCargo] = useState('');
+  const [filterParticipantesSocio, setFilterParticipantesSocio] = useState('');
+
+  // Modos y estado de la tabla Participantes (estilo PresupuestoCard)
+  const [isAddingParticipante, setIsAddingParticipante] = useState(false);
+  const [isEditModeParticipante, setIsEditModeParticipante] = useState(false);
+  const [isDeleteModeParticipante, setIsDeleteModeParticipante] = useState(false);
+  const [editingParticipanteId, setEditingParticipanteId] = useState<string | null>(null);
+  const [newParticipanteData, setNewParticipanteData] = useState({
+    rol: 'Colaborador' as const,
+    nombre: '',
+    email: '',
+    cargo: '',
+    socioComunitarioId: '',
+  });
+  const [participanteSubmitting, setParticipanteSubmitting] = useState(false);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -482,6 +500,65 @@ export default function ProyectosPage() {
     setIsSheetOpen(false);
     // Cargar URL del video del proyecto seleccionado si existe
     setTempVideoUrl(projectVideos[project.id] || '');
+  };
+
+  const handleSaveNewParticipante = async () => {
+    if (!selectedProject) return;
+    const { rol, nombre, email, cargo, socioComunitarioId } = newParticipanteData;
+    if (!nombre?.trim()) {
+      alert('El nombre es obligatorio.');
+      return;
+    }
+    if (rol === 'Beneficiario' && !socioComunitarioId) {
+      alert('El socio comunitario es obligatorio para beneficiarios.');
+      return;
+    }
+    setParticipanteSubmitting(true);
+    const result = await addParticipanteProyecto(selectedProject.id, {
+      rol,
+      nombre: nombre.trim(),
+      email: email.trim() || undefined,
+      cargo: cargo.trim() || undefined,
+      socioComunitarioId: rol === 'Beneficiario' ? socioComunitarioId || undefined : undefined,
+    });
+    setParticipanteSubmitting(false);
+    if (result.success && result.data) {
+      setSelectedProject(result.data);
+      fetchProyectos();
+      setIsAddingParticipante(false);
+      setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '' });
+    } else {
+      alert(result.error ?? 'Error al agregar participante');
+    }
+  };
+
+  const handleUpdateParticipante = async (
+    participanteId: string,
+    data: { rol?: string; nombre?: string; email?: string; cargo?: string; socioComunitarioId?: string }
+  ) => {
+    setParticipanteSubmitting(true);
+    const result = await updateParticipanteProyecto(participanteId, data);
+    setParticipanteSubmitting(false);
+    if (result.success && result.data) {
+      setSelectedProject(result.data);
+      fetchProyectos();
+      setEditingParticipanteId(null);
+    } else {
+      alert(result.error ?? 'Error al actualizar participante');
+    }
+  };
+
+  const handleDeleteParticipante = async (participanteId: string) => {
+    if (!confirm('¿Eliminar este participante?')) return;
+    setParticipanteSubmitting(true);
+    const result = await deleteParticipanteProyecto(participanteId);
+    setParticipanteSubmitting(false);
+    if (result.success && result.data) {
+      setSelectedProject(result.data);
+      fetchProyectos();
+    } else {
+      alert(result.error ?? 'Error al eliminar participante');
+    }
   };
 
   const parseNameList = (value: string) =>
@@ -2200,10 +2277,14 @@ export default function ProyectosPage() {
                 const cargosSelected = filterParticipantesCargo
                   ? filterParticipantesCargo.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
                   : [];
+                const sociosSelected = filterParticipantesSocio
+                  ? filterParticipantesSocio.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
+                  : [];
                 const filteredParticipants = list.filter((p) => {
                   const nombre = (p.user?.name ?? p.nombre ?? '').toLowerCase();
                   const email = (p.user?.email ?? p.email ?? '').toLowerCase();
                   const cargo = (p.cargo ?? '').toLowerCase();
+                  const socioId = p.socioComunitario?.id ?? '';
                   const q = filterParticipantesNombre.trim().toLowerCase();
                   if (q && !nombre.includes(q) && !email.includes(q)) return false;
                   if (rolesSelected.length > 0 && !rolesSelected.includes(p.rol)) return false;
@@ -2211,6 +2292,9 @@ export default function ProyectosPage() {
                     const cargoNorm = (p.cargo ?? '').trim().toLowerCase();
                     const match = cargoNorm && cargosSelected.some((c) => c.trim().toLowerCase() === cargoNorm);
                     if (!match) return false;
+                  }
+                  if (sociosSelected.length > 0 && p.rol === 'Beneficiario') {
+                    if (!socioId || !sociosSelected.includes(socioId)) return false;
                   }
                   return true;
                 });
@@ -2222,6 +2306,25 @@ export default function ProyectosPage() {
                   return Array.from(set).sort();
                 })();
                 const cargoOptions = uniqueCargos.map((c) => ({ value: c, label: c }));
+                const sociosFromProject = selectedProject.sociosComunitarios?.map((sc) => ({
+                  value: sc.socioComunitario.id,
+                  label: sc.socioComunitario.nombre,
+                })) ?? [];
+                const sociosFromParticipants = (() => {
+                  const seen = new Set<string>();
+                  return list
+                    .filter((p) => p.rol === 'Beneficiario' && p.socioComunitario)
+                    .map((p) => p.socioComunitario!)
+                    .filter((s) => {
+                      if (seen.has(s.id)) return false;
+                      seen.add(s.id);
+                      return true;
+                    })
+                    .map((s) => ({ value: s.id, label: s.nombre }));
+                })();
+                const socioOptions = sociosFromProject.length > 0
+                  ? sociosFromProject
+                  : sociosFromParticipants;
                 const counts = (() => {
                   const encargados = list.filter((p) => p.rol === 'Encargado').length;
                   const coordinadores = list.filter((p) => p.rol === 'Coordinador').length;
@@ -2244,80 +2347,162 @@ export default function ProyectosPage() {
                     sociosComunitarios: sociosUnicos.size,
                   };
                 })();
+                const showActionsColumn =
+                  isEditModeParticipante || isDeleteModeParticipante || isAddingParticipante;
                 return (
                   <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
                     {/* Tarjetas de cantidades */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-4 flex-shrink-0">
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-emerald-700">{counts.encargados}</span>
-                          <span className="text-xs text-muted-foreground">Encargados</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4 flex-shrink-0">
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.encargados}</span>
+                          <span className="text-xs font-bold text-emerald-600">Encargados</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-blue-700">{counts.coordinadores}</span>
-                          <span className="text-xs text-muted-foreground">Coordinadores</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.coordinadores}</span>
+                          <span className="text-xs font-bold text-emerald-600">Coordinadores</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-violet-700">{counts.colaboradores}</span>
-                          <span className="text-xs text-muted-foreground">Colaboradores</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.colaboradores}</span>
+                          <span className="text-xs font-bold text-emerald-600">Colaboradores</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-amber-700">{counts.docentes}</span>
-                          <span className="text-xs text-muted-foreground">Docentes</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.docentes}</span>
+                          <span className="text-xs font-bold text-emerald-600">Docentes</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-sky-700">{counts.estudiantes}</span>
-                          <span className="text-xs text-muted-foreground">Estudiantes</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.estudiantes}</span>
+                          <span className="text-xs font-bold text-emerald-600">Estudiantes</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-rose-700">{counts.beneficiarios}</span>
-                          <span className="text-xs text-muted-foreground">Beneficiarios</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.beneficiarios}</span>
+                          <span className="text-xs font-bold text-emerald-600">Beneficiarios</span>
                         </CardContent>
                       </Card>
-                      <Card className="p-3">
-                        <CardContent className="p-0 flex flex-col items-center">
-                          <span className="text-2xl font-bold text-gray-700">{counts.sociosComunitarios}</span>
-                          <span className="text-xs text-muted-foreground">Socios comunitarios</span>
+                      <Card className="py-2 px-3">
+                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
+                          <span className="text-xl font-bold text-emerald-600">{counts.sociosComunitarios}</span>
+                          <span className="text-xs font-bold text-emerald-600">Socios comunitarios</span>
                         </CardContent>
                       </Card>
                     </div>
 
-                    {/* Filtros */}
-                    <div className="flex flex-wrap gap-3 mb-4 flex-shrink-0">
-                      <div className="flex items-center gap-2 min-w-[200px] flex-1">
-                        <Search className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar por nombre o correo..."
-                          value={filterParticipantesNombre}
-                          onChange={(e) => setFilterParticipantesNombre(e.target.value)}
-                          className="max-w-xs"
-                        />
+                    {/* Filtros + Botones */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 flex-shrink-0">
+                      <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-[180px]">
+                          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <Input
+                            placeholder="Buscar por nombre o correo..."
+                            value={filterParticipantesNombre}
+                            onChange={(e) => setFilterParticipantesNombre(e.target.value)}
+                            className="max-w-[220px] h-9"
+                          />
+                        </div>
+                        <div className="w-[160px]">
+                          <MultiSelectOptions
+                            options={ROLES}
+                            value={filterParticipantesRol}
+                            onChange={setFilterParticipantesRol}
+                            placeholder="Rol"
+                          />
+                        </div>
+                        <div className="w-[160px]">
+                          <MultiSelectOptions
+                            options={cargoOptions}
+                            value={filterParticipantesCargo}
+                            onChange={setFilterParticipantesCargo}
+                            placeholder="Cargo"
+                          />
+                        </div>
+                        <div className="w-[180px]">
+                          <MultiSelectOptions
+                            options={socioOptions}
+                            value={filterParticipantesSocio}
+                            onChange={setFilterParticipantesSocio}
+                            placeholder="Socio comunitario"
+                          />
+                        </div>
                       </div>
-                      <div className="w-[180px]">
-                        <MultiSelectOptions
-                          options={ROLES}
-                          value={filterParticipantesRol}
-                          onChange={setFilterParticipantesRol}
-                          placeholder="Rol"
-                        />
-                      </div>
-                      <div className="w-[180px]">
-                        <MultiSelectOptions
-                          options={cargoOptions}
-                          value={filterParticipantesCargo}
-                          onChange={setFilterParticipantesCargo}
-                          placeholder="Cargo"
-                        />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddingParticipante((v) => !v);
+                                  if (isAddingParticipante) setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '' });
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                                  isAddingParticipante
+                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                }`}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isAddingParticipante ? 'Cancelar agregar participante' : 'Agregar participante'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditModeParticipante((v) => !v);
+                                  if (isEditModeParticipante) setEditingParticipanteId(null);
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
+                                  isEditModeParticipante
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                }`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isEditModeParticipante ? 'Salir del modo edición' : 'Editar participantes'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                onClick={() => setIsDeleteModeParticipante((v) => !v)}
+                                variant="ghost"
+                                size="sm"
+                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
+                                  isDeleteModeParticipante
+                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                }`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isDeleteModeParticipante ? 'Salir del modo eliminación' : 'Eliminar participantes'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
 
@@ -2327,27 +2512,145 @@ export default function ProyectosPage() {
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-muted/60 hover:bg-muted/60">
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[140px]">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[140px] text-center">
                                 Rol
                               </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[200px]">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[200px] text-center">
                                 Nombre
                               </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px]">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
                                 Correo
                               </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px]">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px] text-center">
                                 Cargo
                               </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px]">
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
                                 Socio comunitario
                               </TableHead>
+                              {showActionsColumn && (
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[60px] text-center" />
+                              )}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredParticipants.length === 0 ? (
+                            {isAddingParticipante && (
+                              <TableRow className="bg-green-50/80 border-2 border-green-200">
+                                <TableCell className="align-middle text-center">
+                                  <Select
+                                    value={newParticipanteData.rol}
+                                    onValueChange={(v) =>
+                                      setNewParticipanteData((prev) => ({
+                                        ...prev,
+                                        rol: v as typeof prev.rol,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 text-sm w-full">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {ROLES.map((r) => (
+                                        <SelectItem key={r.value} value={r.value}>
+                                          {r.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="align-middle">
+                                  <Input
+                                    value={newParticipanteData.nombre}
+                                    onChange={(e) =>
+                                      setNewParticipanteData((prev) => ({ ...prev, nombre: e.target.value }))
+                                    }
+                                    placeholder="Nombre *"
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="align-middle">
+                                  <Input
+                                    value={newParticipanteData.email}
+                                    onChange={(e) =>
+                                      setNewParticipanteData((prev) => ({ ...prev, email: e.target.value }))
+                                    }
+                                    placeholder="Correo"
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="align-middle">
+                                  <Input
+                                    value={newParticipanteData.cargo}
+                                    onChange={(e) =>
+                                      setNewParticipanteData((prev) => ({ ...prev, cargo: e.target.value }))
+                                    }
+                                    placeholder="Cargo"
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="align-middle">
+                                  {newParticipanteData.rol === 'Beneficiario' ? (
+                                    <Select
+                                      value={newParticipanteData.socioComunitarioId}
+                                      onValueChange={(v) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          socioComunitarioId: v,
+                                        }))
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-sm w-full">
+                                        <SelectValue placeholder="Socio comunitario *" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {socioOptions.map((s) => (
+                                          <SelectItem key={s.value} value={s.value}>
+                                            {s.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </TableCell>
+                                {showActionsColumn && (
+                                  <TableCell className="align-middle text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={handleSaveNewParticipante}
+                                      disabled={participanteSubmitting}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {participanteSubmitting ? 'Guardando...' : 'Guardar'}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setIsAddingParticipante(false);
+                                        setNewParticipanteData({
+                                          rol: 'Colaborador',
+                                          nombre: '',
+                                          email: '',
+                                          cargo: '',
+                                          socioComunitarioId: '',
+                                        });
+                                      }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )}
+                            {filteredParticipants.length === 0 && !isAddingParticipante ? (
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                <TableCell
+                                  colSpan={showActionsColumn ? 6 : 5}
+                                  className="text-center text-muted-foreground py-8"
+                                >
                                   No hay participantes que coincidan con los filtros.
                                 </TableCell>
                               </TableRow>
@@ -2356,46 +2659,174 @@ export default function ProyectosPage() {
                                 const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
                                 const email = p.user?.email ?? p.email ?? '';
                                 const cargo = p.cargo ?? '';
-                                const socioComunitario = p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—';
+                                const socioComunitario =
+                                  p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—';
                                 const colorClass = ROLE_COLORS[p.rol] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                                const isEditing = editingParticipanteId === p.id;
+                                const onRowClick = () => {
+                                  if (!isEditModeParticipante && !isDeleteModeParticipante) {
+                                    setSelectedParticipante(p as ProyectoParticipante & { user?: UserType | null });
+                                    setIsModalOpen(true);
+                                  }
+                                };
                                 return (
                                   <TableRow
                                     key={p.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => {
-                                      setSelectedParticipante(p as ProyectoParticipante & { user?: UserType | null });
-                                      setIsModalOpen(true);
-                                    }}
+                                    className={`hover:bg-muted/50 ${isEditing ? 'bg-blue-50/80' : ''} ${
+                                      !showActionsColumn ? 'cursor-pointer' : ''
+                                    }`}
+                                    onClick={onRowClick}
                                   >
-                                    <TableCell className="align-middle">
-                                      <span
-                                        className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}
-                                      >
-                                        #{p.rol}
-                                      </span>
+                                    <TableCell className="align-middle text-center">
+                                      {isEditing ? (
+                                        <Select
+                                          value={p.rol}
+                                          onValueChange={(v) =>
+                                            handleUpdateParticipante(p.id, { rol: v })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 text-sm w-full">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {ROLES.map((r) => (
+                                              <SelectItem key={r.value} value={r.value}>
+                                                {r.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        <span
+                                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}
+                                        >
+                                          #{p.rol}
+                                        </span>
+                                      )}
                                     </TableCell>
                                     <TableCell className="align-middle">
-                                      <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
-                                          {p.user?.image ? (
-                                            <AvatarImage src={p.user.image} alt={nombre} />
-                                          ) : null}
-                                          <AvatarFallback className="bg-gray-100 text-gray-700">
-                                            <Users className="h-4 w-4" />
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="font-medium truncate">{nombre}</span>
-                                      </div>
+                                      {isEditing ? (
+                                        <Input
+                                          defaultValue={nombre}
+                                          onBlur={(e) => {
+                                            const v = e.target.value.trim();
+                                            if (v && v !== nombre)
+                                              handleUpdateParticipante(p.id, {
+                                                nombre: v,
+                                              });
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              const v = (e.target as HTMLInputElement).value.trim();
+                                              if (v && v !== nombre)
+                                                handleUpdateParticipante(p.id, { nombre: v });
+                                            }
+                                          }}
+                                          className="h-8 text-sm"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
+                                            {p.user?.image ? (
+                                              <AvatarImage src={p.user.image} alt={nombre} />
+                                            ) : null}
+                                            <AvatarFallback className="bg-gray-100 text-gray-700">
+                                              <Users className="h-4 w-4" />
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="font-medium truncate">{nombre}</span>
+                                        </div>
+                                      )}
                                     </TableCell>
                                     <TableCell className="align-middle text-muted-foreground truncate max-w-[200px]">
-                                      {email || '—'}
+                                      {isEditing ? (
+                                        <Input
+                                          defaultValue={email}
+                                          onBlur={(e) => {
+                                            const v = e.target.value.trim();
+                                            if (v !== (email || ''))
+                                              handleUpdateParticipante(p.id, { email: v || undefined });
+                                          }}
+                                          className="h-8 text-sm"
+                                        />
+                                      ) : (
+                                        email || '—'
+                                      )}
                                     </TableCell>
                                     <TableCell className="align-middle truncate max-w-[160px]">
-                                      {cargo || '—'}
+                                      {isEditing ? (
+                                        <Input
+                                          defaultValue={cargo}
+                                          onBlur={(e) => {
+                                            const v = e.target.value.trim();
+                                            if (v !== (cargo || ''))
+                                              handleUpdateParticipante(p.id, { cargo: v || undefined });
+                                          }}
+                                          className="h-8 text-sm"
+                                        />
+                                      ) : (
+                                        cargo || '—'
+                                      )}
                                     </TableCell>
                                     <TableCell className="align-middle truncate max-w-[180px]">
-                                      {socioComunitario}
+                                      {isEditing && p.rol === 'Beneficiario' ? (
+                                        <Select
+                                          value={p.socioComunitario?.id ?? ''}
+                                          onValueChange={(v) =>
+                                            handleUpdateParticipante(p.id, {
+                                              socioComunitarioId: v,
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 text-sm w-full">
+                                            <SelectValue placeholder="Socio comunitario" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {socioOptions.map((s) => (
+                                              <SelectItem key={s.value} value={s.value}>
+                                                {s.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        socioComunitario
+                                      )}
                                     </TableCell>
+                                    {showActionsColumn && (
+                                      <TableCell className="align-middle text-center">
+                                        {isEditModeParticipante && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={`h-6 w-6 p-0 ${
+                                              isEditing
+                                                ? 'text-blue-600 bg-blue-50'
+                                                : 'text-gray-600 hover:bg-blue-50'
+                                            }`}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingParticipanteId(isEditing ? null : p.id);
+                                            }}
+                                          >
+                                            <Pencil className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                        {isDeleteModeParticipante && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteParticipante(p.id);
+                                            }}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                      </TableCell>
+                                    )}
                                   </TableRow>
                                 );
                               })
