@@ -20,6 +20,7 @@ import {
   ChevronsRight,
   Newspaper,
   AtSign,
+  Settings,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -32,6 +33,7 @@ import { SidebarUserInfo } from '@/components/SidebarUserInfo';
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
 const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
+
 
 const navItemsBase = [
   { href: '/', label: 'Inicio', icon: Home },
@@ -53,6 +55,8 @@ export default function SidebarNav() {
     if (!rolesRequeridos) return true;
     return activeRole && rolesRequeridos.includes(activeRole);
   });
+
+  const showConfig = activeRole === 'Admin';
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" className="flex flex-col">
@@ -107,6 +111,36 @@ export default function SidebarNav() {
               </SidebarMenuItem>
             );
           })}
+
+          {/* Configuración (solo Admin) */}
+          {showConfig && (
+            <SidebarMenuItem className="flex justify-center">
+              <SidebarMenuButton
+                asChild
+                tooltip={state === 'collapsed' ? 'Configuración' : undefined}
+              >
+                <Link
+                  href="/configuracion"
+                  className={`flex items-center group-data-[collapsible=icon]:justify-center ${
+                    pathname.startsWith('/configuracion')
+                      ? 'bg-white text-gray-800 pointer-events-none'
+                      : 'text-gray-300 hover:!bg-gray-800 hover:!text-gray-300'
+                  }`}
+                >
+                  <Settings
+                    className={`h-5 w-5 ${
+                      pathname.startsWith('/configuracion')
+                        ? 'text-gray-800'
+                        : 'text-gray-300 hover:!text-gray-300'
+                    }`}
+                  />
+                  <span className="ml-3 group-data-[collapsible=icon]:hidden hover:!text-gray-300">
+                    Configuración
+                  </span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
 
