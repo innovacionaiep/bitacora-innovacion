@@ -303,7 +303,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                     <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>N° Solicitud</TableHead>
                     <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>N° OC</TableHead>
                     <TableHead className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: '#991b1b' }}>N° Recepción</TableHead>
-                    <TableHead className="font-semibold text-center w-[150px] min-w-[150px] max-w-[150px]" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>Estado</TableHead>
+                    <TableHead className="font-semibold text-center w-[150px] min-w-[150px] max-w-[150px] border-r border-gray-200" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}>Estado</TableHead>
                     <TableHead className="font-semibold text-center w-[75px] min-w-[75px] max-w-[75px]" style={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_TEXT }}></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -437,7 +437,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                           className="h-8 text-sm"
                         />
                       </TableCell>
-                      <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal">
+                      <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             size="sm"
@@ -673,7 +673,7 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                             row.idRecepcion ?? '—'
                           )}
                         </TableCell>
-                        <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal">
+                        <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
                           {isEditMode ? (
                             <Select
                               value={row.estado}

@@ -25,6 +25,40 @@ export type ProyectoConVariaciones = ProyectoWithRelations & {
   variacionObjetivos: number;
 };
 
+export type GeneralTabUpdateData = {
+  proyectoId: string;
+  proyecto?: string;
+  sede?: string;
+  objetivoGeneral?: {
+    id?: string;
+    descripcion: string;
+  };
+  objetivosEspecificos?: Array<{
+    id: string;
+    descripcion: string;
+    orden: number;
+  }>;
+  escuelasIds?: string[];
+  carrerasIds?: string[];
+  comunasIds?: string[];
+  gruposInteresIds?: string[];
+  sociosComunitariosIds?: string[];
+  desarrolloTecnico?: {
+    continuidadFasesAnteriores?: string | null;
+    pertinenciaLocal?: string | null;
+    pertinenciaDisciplinar?: string | null;
+    necesidadProblema?: string | null;
+    publicoObjetivo?: string | null;
+    solucionAvance?: string | null;
+    perspectiveGenero?: string | null;
+    resultadosContribucion?: string | null;
+    metodologiaMedicion?: string | null;
+    ejesImpacto?: string | null;
+    factorInnovador?: string | null;
+    escalabilidad?: string | null;
+  };
+};
+
 /**
  * Función interna para obtener proyectos de la BD (sin caché)
  */
@@ -380,6 +414,226 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
   } catch (error) {
     console.error('Error updating proyecto:', error);
     return { success: false, error: 'Error al actualizar proyecto' };
+  }
+}
+
+/**
+ * Actualizar datos del tab General (objetivos, info básica, desarrollo técnico)
+ */
+export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (data.proyecto !== undefined || data.sede !== undefined) {
+        await tx.proyecto.update({
+          where: { id: data.proyectoId },
+          data: {
+            ...(data.proyecto !== undefined && { proyecto: data.proyecto }),
+            ...(data.sede !== undefined && { sede: data.sede }),
+          },
+        });
+      }
+
+      if (data.escuelasIds) {
+        await tx.proyectoEscuela.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.escuelasIds.length > 0) {
+          await tx.proyectoEscuela.createMany({
+            data: data.escuelasIds.map((escuelaId) => ({
+              proyectoId: data.proyectoId,
+              escuelaId,
+            })),
+          });
+        }
+      }
+
+      if (data.carrerasIds) {
+        await tx.proyectoCarrera.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.carrerasIds.length > 0) {
+          await tx.proyectoCarrera.createMany({
+            data: data.carrerasIds.map((carreraId) => ({
+              proyectoId: data.proyectoId,
+              carreraId,
+            })),
+          });
+        }
+      }
+
+      if (data.comunasIds) {
+        await tx.proyectoComuna.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.comunasIds.length > 0) {
+          await tx.proyectoComuna.createMany({
+            data: data.comunasIds.map((comunaId) => ({
+              proyectoId: data.proyectoId,
+              comunaId,
+            })),
+          });
+        }
+      }
+
+      if (data.gruposInteresIds) {
+        await tx.proyectoGrupoInteres.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.gruposInteresIds.length > 0) {
+          await tx.proyectoGrupoInteres.createMany({
+            data: data.gruposInteresIds.map((grupoInteresId) => ({
+              proyectoId: data.proyectoId,
+              grupoInteresId,
+            })),
+          });
+        }
+      }
+
+      if (data.sociosComunitariosIds) {
+        await tx.proyectoSocioComunitario.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.sociosComunitariosIds.length > 0) {
+          await tx.proyectoSocioComunitario.createMany({
+            data: data.sociosComunitariosIds.map((socioComunitarioId) => ({
+              proyectoId: data.proyectoId,
+              socioComunitarioId,
+            })),
+          });
+        }
+      }
+
+      if (data.objetivoGeneral) {
+        if (data.objetivoGeneral.id) {
+          await tx.objetivoProyecto.update({
+            where: { id: data.objetivoGeneral.id },
+            data: { descripcion: data.objetivoGeneral.descripcion },
+          });
+        } else if (data.objetivoGeneral.descripcion.trim()) {
+          await tx.objetivoProyecto.create({
+            data: {
+              proyectoId: data.proyectoId,
+              tipo: 'General',
+              descripcion: data.objetivoGeneral.descripcion.trim(),
+              orden: 0,
+            },
+          });
+        }
+      }
+
+      if (data.objetivosEspecificos) {
+        for (const objetivo of data.objetivosEspecificos) {
+          await tx.objetivoProyecto.update({
+            where: { id: objetivo.id },
+            data: {
+              descripcion: objetivo.descripcion,
+              orden: objetivo.orden,
+            },
+          });
+        }
+      }
+
+      if (data.desarrolloTecnico) {
+        await tx.desarrolloTecnico.upsert({
+          where: { proyectoId: data.proyectoId },
+          update: {
+            continuidadFasesAnteriores:
+              data.desarrolloTecnico.continuidadFasesAnteriores ?? null,
+            pertinenciaLocal: data.desarrolloTecnico.pertinenciaLocal ?? null,
+            pertinenciaDisciplinar:
+              data.desarrolloTecnico.pertinenciaDisciplinar ?? null,
+            necesidadProblema: data.desarrolloTecnico.necesidadProblema ?? null,
+            publicoObjetivo: data.desarrolloTecnico.publicoObjetivo ?? null,
+            solucionAvance: data.desarrolloTecnico.solucionAvance ?? null,
+            perspectiveGenero: data.desarrolloTecnico.perspectiveGenero ?? null,
+            resultadosContribucion:
+              data.desarrolloTecnico.resultadosContribucion ?? null,
+            metodologiaMedicion:
+              data.desarrolloTecnico.metodologiaMedicion ?? null,
+            ejesImpacto: data.desarrolloTecnico.ejesImpacto ?? null,
+            factorInnovador: data.desarrolloTecnico.factorInnovador ?? null,
+            escalabilidad: data.desarrolloTecnico.escalabilidad ?? null,
+          },
+          create: {
+            proyectoId: data.proyectoId,
+            continuidadFasesAnteriores:
+              data.desarrolloTecnico.continuidadFasesAnteriores ?? null,
+            pertinenciaLocal: data.desarrolloTecnico.pertinenciaLocal ?? null,
+            pertinenciaDisciplinar:
+              data.desarrolloTecnico.pertinenciaDisciplinar ?? null,
+            necesidadProblema: data.desarrolloTecnico.necesidadProblema ?? null,
+            publicoObjetivo: data.desarrolloTecnico.publicoObjetivo ?? null,
+            solucionAvance: data.desarrolloTecnico.solucionAvance ?? null,
+            perspectiveGenero: data.desarrolloTecnico.perspectiveGenero ?? null,
+            resultadosContribucion:
+              data.desarrolloTecnico.resultadosContribucion ?? null,
+            metodologiaMedicion:
+              data.desarrolloTecnico.metodologiaMedicion ?? null,
+            ejesImpacto: data.desarrolloTecnico.ejesImpacto ?? null,
+            factorInnovador: data.desarrolloTecnico.factorInnovador ?? null,
+            escalabilidad: data.desarrolloTecnico.escalabilidad ?? null,
+          },
+        });
+      }
+    });
+
+    const proyectoActualizado = await prisma.proyecto.findUnique({
+      where: { id: data.proyectoId },
+      include: {
+        activities: {
+          include: {
+            tasks: {
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          orderBy: { orderIndex: 'asc' },
+        },
+        participantes_rel: {
+          include: {
+            user: true,
+            socioComunitario: true,
+          },
+        },
+        escuelas: {
+          include: {
+            escuela: true,
+          },
+        },
+        carreras: {
+          include: {
+            carrera: true,
+          },
+        },
+        comunas: {
+          include: {
+            comuna: true,
+          },
+        },
+        gruposInteres: {
+          include: {
+            grupoInteres: true,
+          },
+        },
+        sociosComunitarios: {
+          include: {
+            socioComunitario: true,
+          },
+        },
+        objetivos_rel: {
+          orderBy: {
+            orden: 'asc',
+          },
+        },
+        desarrolloTecnico: true,
+      },
+    });
+
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    return { success: true, data: proyectoActualizado as ProyectoWithRelations };
+  } catch (error) {
+    console.error('Error updating general tab:', error);
+    return { success: false, error: 'Error al actualizar el proyecto' };
   }
 }
 

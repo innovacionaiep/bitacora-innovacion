@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -36,7 +37,7 @@ import {
   Trash2,
   Save,
   X,
-  Edit,
+  Pencil,
   RefreshCw,
   ArrowLeftRight,
   Users,
@@ -63,10 +64,17 @@ import {
   Minimize2,
   Crown,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useProyectos } from '@/hooks/useProyectos';
-import { ProyectoWithRelations } from '@/types/proyecto';
+import {
+  type CarreraItem,
+  type ComunaItem,
+  type EscuelaItem,
+  type GrupoInteresItem,
+  type SocioComunitarioItem,
+  ProyectoWithRelations,
+} from '@/types/proyecto';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
@@ -78,6 +86,14 @@ import { SeguimientoCard } from '@/components/seguimiento/SeguimientoCard';
 import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
 import { ProyectoParticipante } from '@prisma/client';
 import { User as UserType } from '@prisma/client';
+import {
+  getCarreras,
+  getComunas,
+  getEscuelas,
+  getGruposInteres,
+  getSociosComunitarios,
+  updateProyectoGeneralTab,
+} from '@/lib/actions/proyectos';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -111,12 +127,107 @@ const truncateTitle = (title: string, maxLength: number = 58): string => {
   return title.substring(0, maxLength) + '...';
 };
 
+type GeneralDraft = {
+  proyecto: string;
+  objetivoGeneralId?: string;
+  objetivoGeneral: string;
+  objetivosEspecificos: Array<{
+    id: string;
+    descripcion: string;
+    orden: number;
+  }>;
+  sede: string;
+  escuelasTexto: string;
+  carrerasTexto: string;
+  comunasTexto: string;
+  gruposInteresTexto: string;
+  sociosComunitariosTexto: string;
+  desarrolloTecnico: {
+    continuidadFasesAnteriores: string;
+    pertinenciaLocal: string;
+    pertinenciaDisciplinar: string;
+    necesidadProblema: string;
+    publicoObjetivo: string;
+    solucionAvance: string;
+    perspectiveGenero: string;
+    resultadosContribucion: string;
+    metodologiaMedicion: string;
+    ejesImpacto: string;
+    factorInnovador: string;
+    escalabilidad: string;
+  };
+};
+
+type CatalogosGeneral = {
+  escuelas: EscuelaItem[];
+  carreras: CarreraItem[];
+  comunas: ComunaItem[];
+  gruposInteres: GrupoInteresItem[];
+  sociosComunitarios: SocioComunitarioItem[];
+};
+
+const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
+  const objetivoGeneral = project.objetivos_rel?.find(
+    (obj) => obj.tipo === 'General'
+  );
+  const objetivosEspecificos =
+    project.objetivos_rel
+      ?.filter((obj) => obj.tipo === 'Especifico')
+      .sort((a, b) => a.orden - b.orden) ?? [];
+
+  return {
+    proyecto: project.proyecto ?? '',
+    objetivoGeneralId: objetivoGeneral?.id,
+    objetivoGeneral: objetivoGeneral?.descripcion ?? '',
+    objetivosEspecificos: objetivosEspecificos.map((obj) => ({
+      id: obj.id,
+      descripcion: obj.descripcion,
+      orden: obj.orden,
+    })),
+    sede: project.sede ?? '',
+    escuelasTexto: project.escuelas
+      ?.map((item) => item.escuela.nombre)
+      .join(', ') ?? '',
+    carrerasTexto: project.carreras
+      ?.map((item) => item.carrera.nombre)
+      .join(', ') ?? '',
+    comunasTexto: project.comunas
+      ?.map((item) => item.comuna.nombre)
+      .join(', ') ?? '',
+    gruposInteresTexto: project.gruposInteres
+      ?.map((item) => item.grupoInteres.nombre)
+      .join(', ') ?? '',
+    sociosComunitariosTexto: project.sociosComunitarios
+      ?.map((item) => item.socioComunitario.nombre)
+      .join(', ') ?? '',
+    desarrolloTecnico: {
+      continuidadFasesAnteriores:
+        project.desarrolloTecnico?.continuidadFasesAnteriores ?? '',
+      pertinenciaLocal: project.desarrolloTecnico?.pertinenciaLocal ?? '',
+      pertinenciaDisciplinar:
+        project.desarrolloTecnico?.pertinenciaDisciplinar ?? '',
+      necesidadProblema: project.desarrolloTecnico?.necesidadProblema ?? '',
+      publicoObjetivo: project.desarrolloTecnico?.publicoObjetivo ?? '',
+      solucionAvance: project.desarrolloTecnico?.solucionAvance ?? '',
+      perspectiveGenero: project.desarrolloTecnico?.perspectiveGenero ?? '',
+      resultadosContribucion:
+        project.desarrolloTecnico?.resultadosContribucion ?? '',
+      metodologiaMedicion:
+        project.desarrolloTecnico?.metodologiaMedicion ?? '',
+      ejesImpacto: project.desarrolloTecnico?.ejesImpacto ?? '',
+      factorInnovador: project.desarrolloTecnico?.factorInnovador ?? '',
+      escalabilidad: project.desarrolloTecnico?.escalabilidad ?? '',
+    },
+  };
+};
+
 export default function ProyectosPage() {
   const { data: session } = useSession();
   const {
     proyectos: proyectosIniciales,
     loading,
     error,
+    fetchProyectos,
     createProyecto,
     updateProyecto,
     deleteProyecto,
@@ -162,6 +273,18 @@ export default function ProyectosPage() {
   // Estado para el tab activo de información básica
   const [activeInfoBasicaTab, setActiveInfoBasicaTab] =
     useState<string>('local-disciplinar');
+
+  const [isGeneralEditMode, setIsGeneralEditMode] = useState(false);
+  const [isGeneralSaving, setIsGeneralSaving] = useState(false);
+  const [generalDraft, setGeneralDraft] = useState<GeneralDraft | null>(null);
+  const [catalogosGeneral, setCatalogosGeneral] = useState<CatalogosGeneral>({
+    escuelas: [],
+    carreras: [],
+    comunas: [],
+    gruposInteres: [],
+    sociosComunitarios: [],
+  });
+  const [catalogosLoading, setCatalogosLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -338,6 +461,217 @@ export default function ProyectosPage() {
     // Cargar URL del video del proyecto seleccionado si existe
     setTempVideoUrl(projectVideos[project.id] || '');
   };
+
+  const parseNameList = (value: string) =>
+    value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+  const mapNamesToIds = (
+    names: string[],
+    catalogo: { id: string; nombre: string }[]
+  ) => {
+    const catalogoMap = new Map(
+      catalogo.map((item) => [item.nombre.toLowerCase(), item.id])
+    );
+    const ids: string[] = [];
+    const missing: string[] = [];
+
+    names.forEach((name) => {
+      const id = catalogoMap.get(name.toLowerCase());
+      if (id) {
+        ids.push(id);
+      } else {
+        missing.push(name);
+      }
+    });
+
+    return { ids, missing };
+  };
+
+  const loadCatalogosGeneral = async () => {
+    if (catalogosLoading) return;
+    setCatalogosLoading(true);
+
+    const [
+      escuelasResult,
+      carrerasResult,
+      comunasResult,
+      gruposResult,
+      sociosResult,
+    ] = await Promise.all([
+      getEscuelas(),
+      getCarreras(),
+      getComunas(),
+      getGruposInteres(),
+      getSociosComunitarios(),
+    ]);
+
+    setCatalogosGeneral({
+      escuelas: escuelasResult.success ? escuelasResult.data ?? [] : [],
+      carreras: carrerasResult.success ? carrerasResult.data ?? [] : [],
+      comunas: comunasResult.success ? comunasResult.data ?? [] : [],
+      gruposInteres: gruposResult.success ? gruposResult.data ?? [] : [],
+      sociosComunitarios: sociosResult.success ? sociosResult.data ?? [] : [],
+    });
+
+    setCatalogosLoading(false);
+  };
+
+  const handleToggleGeneralEditMode = () => {
+    if (!selectedProject) return;
+    if (!isGeneralEditMode) {
+      setGeneralDraft(buildGeneralDraft(selectedProject));
+    }
+    setIsGeneralEditMode((prev) => !prev);
+  };
+
+  const handleCancelGeneralEdit = () => {
+    if (!selectedProject) return;
+    setGeneralDraft(buildGeneralDraft(selectedProject));
+    setTempVideoUrl(projectVideos[selectedProject.id] || '');
+    setIsGeneralEditMode(false);
+  };
+
+  const handleSaveGeneralTab = async () => {
+    if (!selectedProject || !generalDraft || isGeneralSaving) return;
+    setIsGeneralSaving(true);
+
+    try {
+      if (
+        catalogosGeneral.escuelas.length === 0 &&
+        catalogosGeneral.carreras.length === 0 &&
+        catalogosGeneral.comunas.length === 0 &&
+        catalogosGeneral.gruposInteres.length === 0 &&
+        catalogosGeneral.sociosComunitarios.length === 0
+      ) {
+        await loadCatalogosGeneral();
+      }
+
+      const escuelasNames = parseNameList(generalDraft.escuelasTexto);
+      const carrerasNames = parseNameList(generalDraft.carrerasTexto);
+      const comunasNames = parseNameList(generalDraft.comunasTexto);
+      const gruposNames = parseNameList(generalDraft.gruposInteresTexto);
+      const sociosNames = parseNameList(generalDraft.sociosComunitariosTexto);
+
+      const escuelasMapped = mapNamesToIds(
+        escuelasNames,
+        catalogosGeneral.escuelas
+      );
+      const carrerasMapped = mapNamesToIds(
+        carrerasNames,
+        catalogosGeneral.carreras
+      );
+      const comunasMapped = mapNamesToIds(
+        comunasNames,
+        catalogosGeneral.comunas
+      );
+      const gruposMapped = mapNamesToIds(
+        gruposNames,
+        catalogosGeneral.gruposInteres
+      );
+      const sociosMapped = mapNamesToIds(
+        sociosNames,
+        catalogosGeneral.sociosComunitarios
+      );
+
+      const missing: string[] = [
+        ...escuelasMapped.missing,
+        ...carrerasMapped.missing,
+        ...comunasMapped.missing,
+        ...gruposMapped.missing,
+        ...sociosMapped.missing,
+      ];
+
+      if (missing.length > 0) {
+        alert(
+          `No se encontraron estos valores en el catálogo: ${missing.join(', ')}`
+        );
+        setIsGeneralSaving(false);
+        return;
+      }
+
+      const result = await updateProyectoGeneralTab({
+        proyectoId: selectedProject.id,
+        proyecto: generalDraft.proyecto.trim(),
+        sede: generalDraft.sede.trim(),
+        objetivoGeneral: {
+          id: generalDraft.objetivoGeneralId,
+          descripcion: generalDraft.objetivoGeneral.trim(),
+        },
+        objetivosEspecificos: generalDraft.objetivosEspecificos.map((obj) => ({
+          ...obj,
+          descripcion: obj.descripcion.trim(),
+        })),
+        escuelasIds: escuelasMapped.ids,
+        carrerasIds: carrerasMapped.ids,
+        comunasIds: comunasMapped.ids,
+        gruposInteresIds: gruposMapped.ids,
+        sociosComunitariosIds: sociosMapped.ids,
+        desarrolloTecnico: {
+          continuidadFasesAnteriores:
+            generalDraft.desarrolloTecnico.continuidadFasesAnteriores.trim(),
+          pertinenciaLocal:
+            generalDraft.desarrolloTecnico.pertinenciaLocal.trim(),
+          pertinenciaDisciplinar:
+            generalDraft.desarrolloTecnico.pertinenciaDisciplinar.trim(),
+          necesidadProblema:
+            generalDraft.desarrolloTecnico.necesidadProblema.trim(),
+          publicoObjetivo:
+            generalDraft.desarrolloTecnico.publicoObjetivo.trim(),
+          solucionAvance: generalDraft.desarrolloTecnico.solucionAvance.trim(),
+          perspectiveGenero:
+            generalDraft.desarrolloTecnico.perspectiveGenero.trim(),
+          resultadosContribucion:
+            generalDraft.desarrolloTecnico.resultadosContribucion.trim(),
+          metodologiaMedicion:
+            generalDraft.desarrolloTecnico.metodologiaMedicion.trim(),
+          ejesImpacto: generalDraft.desarrolloTecnico.ejesImpacto.trim(),
+          factorInnovador:
+            generalDraft.desarrolloTecnico.factorInnovador.trim(),
+          escalabilidad: generalDraft.desarrolloTecnico.escalabilidad.trim(),
+        },
+      });
+
+      if (!result.success || !result.data) {
+        alert(result.error || 'Error al actualizar el proyecto');
+        setIsGeneralSaving(false);
+        return;
+      }
+
+      handleSaveVideo();
+      setSelectedProject(result.data);
+      setGeneralDraft(buildGeneralDraft(result.data));
+      setIsGeneralEditMode(false);
+      fetchProyectos();
+      setIsGeneralSaving(false);
+    } catch (error) {
+      alert('Error inesperado al guardar los cambios');
+      setIsGeneralSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedProject) {
+      setGeneralDraft(null);
+      return;
+    }
+    setGeneralDraft(buildGeneralDraft(selectedProject));
+    setIsGeneralEditMode(false);
+  }, [selectedProject]);
+
+  useEffect(() => {
+    if (selectedTab !== 'General' && isGeneralEditMode) {
+      setIsGeneralEditMode(false);
+    }
+  }, [selectedTab, isGeneralEditMode]);
+
+  useEffect(() => {
+    if (isGeneralEditMode) {
+      loadCatalogosGeneral();
+    }
+  }, [isGeneralEditMode]);
 
   const handleSaveVideo = () => {
     if (!selectedProject) return;
@@ -844,7 +1178,7 @@ export default function ProyectosPage() {
               <div className="flex items-start justify-between gap-4">
                 {/* Columna izquierda: título + línea de información juntos */}
                 <div className="flex flex-col gap-[5px] min-w-0 flex-1">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -860,9 +1194,88 @@ export default function ProyectosPage() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <h1 className="text-4xl font-bold text-gray-900">
-                      {truncateTitle(selectedProject.proyecto)}
-                    </h1>
+                    {isGeneralEditMode ? (
+                      <Input
+                        value={generalDraft?.proyecto ?? ''}
+                        onChange={(e) =>
+                          setGeneralDraft((prev) =>
+                            prev
+                              ? { ...prev, proyecto: e.target.value }
+                              : prev
+                          )
+                        }
+                        className="h-10 text-2xl font-bold text-gray-900 px-3 py-2 border-2 border-gray-300 rounded-lg w-fit min-w-[240px]"
+                      />
+                    ) : (
+                      <h1 className="text-4xl font-bold text-gray-900 truncate">
+                        {truncateTitle(selectedProject.proyecto)}
+                      </h1>
+                    )}
+                    {selectedTab === 'General' && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              onClick={handleToggleGeneralEditMode}
+                              variant="ghost"
+                              size="sm"
+                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
+                                isGeneralEditMode
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                              }`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>
+                              {isGeneralEditMode
+                                ? 'Salir del modo edición'
+                                : 'Editar información general'}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {selectedTab === 'General' && isGeneralEditMode && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              onClick={handleSaveGeneralTab}
+                              variant="ghost"
+                              size="sm"
+                              disabled={isGeneralSaving}
+                              className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              <Save className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Guardar cambios</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              onClick={handleCancelGeneralEdit}
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Cancelar edición</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                   <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
                     <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
@@ -1069,9 +1482,29 @@ export default function ProyectosPage() {
                                     </div>
                                     <div className="border-l-4 border-emerald-600 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-md hover:shadow-lg transition-shadow duration-200">
                                       <div className="py-4 px-6">
-                                        <p className="text-gray-800 leading-loose text-base">
-                                          {objetivoGeneral.descripcion}
-                                        </p>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={
+                                              generalDraft?.objetivoGeneral ?? ''
+                                            }
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      objetivoGeneral:
+                                                        e.target.value,
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            className="min-h-[120px] text-base border-2 border-emerald-200 focus:border-emerald-400 bg-white"
+                                          />
+                                        ) : (
+                                          <p className="text-gray-800 leading-loose text-base">
+                                            {objetivoGeneral.descripcion}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1096,9 +1529,42 @@ export default function ProyectosPage() {
                                             <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
                                               {index + 1}
                                             </div>
-                                            <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
-                                              {objetivo.descripcion}
-                                            </p>
+                                            {isGeneralEditMode ? (
+                                              <Textarea
+                                                value={
+                                                  generalDraft
+                                                    ?.objetivosEspecificos?.[
+                                                    index
+                                                  ]?.descripcion ?? ''
+                                                }
+                                                onChange={(e) =>
+                                                  setGeneralDraft((prev) =>
+                                                    prev
+                                                      ? {
+                                                          ...prev,
+                                                          objetivosEspecificos:
+                                                            prev.objetivosEspecificos.map(
+                                                              (item, idx) =>
+                                                                idx === index
+                                                                  ? {
+                                                                      ...item,
+                                                                      descripcion:
+                                                                        e.target
+                                                                          .value,
+                                                                    }
+                                                                  : item
+                                                            ),
+                                                        }
+                                                      : prev
+                                                  )
+                                                }
+                                                className="min-h-[90px] text-[15px] border-2 border-emerald-200 focus:border-emerald-400 bg-white flex-1"
+                                              />
+                                            ) : (
+                                              <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
+                                                {objetivo.descripcion}
+                                              </p>
+                                            )}
                                           </div>
                                         )
                                       )}
@@ -1121,19 +1587,61 @@ export default function ProyectosPage() {
 
                           {/* Video del Proyecto */}
                           <div className="space-y-4 pt-8">
-                            <div
-                              className="relative w-full max-w-[60%] mx-auto"
-                              style={{ paddingBottom: '35%' }}
-                            >
-                              <iframe
-                                className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                src="https://www.youtube.com/embed/7zsPRwIsC-I"
-                                title="Video del Proyecto"
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            </div>
+                            {isGeneralEditMode && (
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium text-gray-700">
+                                  URL del video (YouTube)
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    value={tempVideoUrl}
+                                    onChange={(e) =>
+                                      setTempVideoUrl(e.target.value)
+                                    }
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    className="border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={handleSaveVideo}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  >
+                                    Guardar
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                            {(() => {
+                              const activeVideoUrl =
+                                projectVideos[selectedProject.id] ||
+                                tempVideoUrl;
+                              const videoId = activeVideoUrl
+                                ? extractYouTubeVideoId(activeVideoUrl)
+                                : null;
+                              if (!videoId) {
+                                return (
+                                  <div className="text-center py-10 text-gray-500">
+                                    <Video className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+                                    <p>Sin video asignado</p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div
+                                  className="relative w-full max-w-[60%] mx-auto"
+                                  style={{ paddingBottom: '35%' }}
+                                >
+                                  <iframe
+                                    className="absolute top-0 left-0 w-full h-full rounded-lg"
+                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                    title="Video del Proyecto"
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1173,18 +1681,51 @@ export default function ProyectosPage() {
                                     </h3>
                                   </div>
                                   <div className="flex flex-wrap gap-3">
+                                  {isGeneralEditMode ? (
+                                    <Select
+                                      value={generalDraft?.sede ?? ''}
+                                      onValueChange={(value) =>
+                                        setGeneralDraft((prev) =>
+                                          prev ? { ...prev, sede: value } : prev
+                                        )
+                                      }
+                                    >
+                                      <SelectTrigger className="border-2 border-gray-300 rounded-lg focus:border-blue-500">
+                                        <SelectValue placeholder="Selecciona la sede" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Antofagasta">
+                                          Antofagasta
+                                        </SelectItem>
+                                        <SelectItem value="La Serena">
+                                          La Serena
+                                        </SelectItem>
+                                        <SelectItem value="Los Ángeles">
+                                          Los Ángeles
+                                        </SelectItem>
+                                        <SelectItem value="Barrio Universitario">
+                                          Barrio Universitario
+                                        </SelectItem>
+                                        <SelectItem value="Santiago">
+                                          Santiago
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
                                     <Badge
                                       variant="secondary"
                                       className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
                                     >
                                       {selectedProject.sede}
                                     </Badge>
+                                  )}
                                   </div>
                                 </div>
 
                                 {/* Comunas */}
-                                {selectedProject.comunas &&
-                                  selectedProject.comunas.length > 0 && (
+                                {(isGeneralEditMode ||
+                                  (selectedProject.comunas &&
+                                    selectedProject.comunas.length > 0)) && (
                                     <div className="border-l-4 border-emerald-500 pl-4 py-2">
                                       <div className="flex items-center gap-2 mb-2">
                                         <Building2 className="h-4 w-4 text-emerald-600" />
@@ -1193,15 +1734,36 @@ export default function ProyectosPage() {
                                         </h3>
                                       </div>
                                       <div className="flex flex-wrap gap-3">
-                                        {selectedProject.comunas.map(
-                                          (comunaRel, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="outline"
-                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                            >
-                                              {comunaRel.comuna.nombre}
-                                            </Badge>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={
+                                              generalDraft?.comunasTexto ?? ''
+                                            }
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      comunasTexto:
+                                                        e.target.value,
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            placeholder="Comunas separadas por coma"
+                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                          />
+                                        ) : (
+                                          selectedProject.comunas.map(
+                                            (comunaRel, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                              >
+                                                {comunaRel.comuna.nombre}
+                                              </Badge>
+                                            )
                                           )
                                         )}
                                       </div>
@@ -1220,8 +1782,9 @@ export default function ProyectosPage() {
                               </div>
                               <div className="grid grid-cols-1 gap-4">
                                 {/* Escuelas */}
-                                {selectedProject.escuelas &&
-                                  selectedProject.escuelas.length > 0 && (
+                                {(isGeneralEditMode ||
+                                  (selectedProject.escuelas &&
+                                    selectedProject.escuelas.length > 0)) && (
                                     <div className="border-l-4 border-emerald-500 pl-4 py-2">
                                       <div className="flex items-center gap-2 mb-2">
                                         <GraduationCap className="h-4 w-4 text-emerald-600" />
@@ -1230,15 +1793,36 @@ export default function ProyectosPage() {
                                         </h3>
                                       </div>
                                       <div className="flex flex-wrap gap-3">
-                                        {selectedProject.escuelas.map(
-                                          (escuelaRel, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="secondary"
-                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                            >
-                                              {escuelaRel.escuela.nombre}
-                                            </Badge>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={
+                                              generalDraft?.escuelasTexto ?? ''
+                                            }
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      escuelasTexto:
+                                                        e.target.value,
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            placeholder="Escuelas separadas por coma"
+                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                          />
+                                        ) : (
+                                          selectedProject.escuelas.map(
+                                            (escuelaRel, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="secondary"
+                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                              >
+                                                {escuelaRel.escuela.nombre}
+                                              </Badge>
+                                            )
                                           )
                                         )}
                                       </div>
@@ -1246,8 +1830,9 @@ export default function ProyectosPage() {
                                   )}
 
                                 {/* Carreras */}
-                                {selectedProject.carreras &&
-                                  selectedProject.carreras.length > 0 && (
+                                {(isGeneralEditMode ||
+                                  (selectedProject.carreras &&
+                                    selectedProject.carreras.length > 0)) && (
                                     <div className="border-l-4 border-emerald-500 pl-4 py-2">
                                       <div className="flex items-center gap-2 mb-2">
                                         <BookOpen className="h-4 w-4 text-emerald-600" />
@@ -1256,15 +1841,36 @@ export default function ProyectosPage() {
                                         </h3>
                                       </div>
                                       <div className="flex flex-wrap gap-3">
-                                        {selectedProject.carreras.map(
-                                          (carreraRel, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="outline"
-                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                            >
-                                              {carreraRel.carrera.nombre}
-                                            </Badge>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={
+                                              generalDraft?.carrerasTexto ?? ''
+                                            }
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      carrerasTexto:
+                                                        e.target.value,
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            placeholder="Carreras separadas por coma"
+                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                          />
+                                        ) : (
+                                          selectedProject.carreras.map(
+                                            (carreraRel, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                              >
+                                                {carreraRel.carrera.nombre}
+                                              </Badge>
+                                            )
                                           )
                                         )}
                                       </div>
@@ -1283,8 +1889,10 @@ export default function ProyectosPage() {
                               </div>
                               <div className="grid grid-cols-1 gap-4">
                                 {/* Grupos de Interés */}
-                                {selectedProject.gruposInteres &&
-                                  selectedProject.gruposInteres.length > 0 && (
+                                {(isGeneralEditMode ||
+                                  (selectedProject.gruposInteres &&
+                                    selectedProject.gruposInteres.length >
+                                      0)) && (
                                     <div className="border-l-4 border-emerald-500 pl-4 py-2">
                                       <div className="flex items-center gap-2 mb-2">
                                         <UsersRound className="h-4 w-4 text-emerald-600" />
@@ -1293,15 +1901,37 @@ export default function ProyectosPage() {
                                         </h3>
                                       </div>
                                       <div className="flex flex-wrap gap-3">
-                                        {selectedProject.gruposInteres.map(
-                                          (grupoRel, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="outline"
-                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                            >
-                                              {grupoRel.grupoInteres.nombre}
-                                            </Badge>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={
+                                              generalDraft
+                                                ?.gruposInteresTexto ?? ''
+                                            }
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      gruposInteresTexto:
+                                                        e.target.value,
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            placeholder="Grupos de interés separados por coma"
+                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                          />
+                                        ) : (
+                                          selectedProject.gruposInteres.map(
+                                            (grupoRel, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                              >
+                                                {grupoRel.grupoInteres.nombre}
+                                              </Badge>
+                                            )
                                           )
                                         )}
                                       </div>
@@ -1318,10 +1948,11 @@ export default function ProyectosPage() {
                     <div className="h-full flex flex-col pl-6 xl:pl-8 overflow-hidden">
                       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                         {(() => {
-                          const desarrolloTecnico =
-                            selectedProject.desarrolloTecnico;
+                          const desarrolloTecnico = isGeneralEditMode
+                            ? generalDraft?.desarrolloTecnico
+                            : selectedProject.desarrolloTecnico;
 
-                          if (!desarrolloTecnico) {
+                          if (!desarrolloTecnico && !isGeneralEditMode) {
                             return (
                               <div className="text-center py-8 text-gray-500">
                                 <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -1338,86 +1969,102 @@ export default function ProyectosPage() {
                               key: 'continuidad',
                               title: 'Continuidad de Fases Anteriores',
                               content:
-                                desarrolloTecnico.continuidadFasesAnteriores,
+                                desarrolloTecnico?.continuidadFasesAnteriores ??
+                                '',
                               icon: <History className="h-4 w-4" />,
                               group: 'fases-anteriores',
+                              field: 'continuidadFasesAnteriores',
                             },
                             {
                               key: 'pertinenciaLocal',
                               title: 'Pertinencia Local',
-                              content: desarrolloTecnico.pertinenciaLocal,
+                              content: desarrolloTecnico?.pertinenciaLocal ?? '',
                               icon: <MapPin className="h-4 w-4" />,
                               group: 'impacto',
+                              field: 'pertinenciaLocal',
                             },
                             {
                               key: 'pertinenciaDisciplinar',
                               title: 'Pertinencia Disciplinar',
-                              content: desarrolloTecnico.pertinenciaDisciplinar,
+                              content:
+                                desarrolloTecnico?.pertinenciaDisciplinar ?? '',
                               icon: <GraduationCap className="h-4 w-4" />,
                               group: 'impacto',
+                              field: 'pertinenciaDisciplinar',
                             },
                             {
                               key: 'ejesImpacto',
                               title: 'Ejes de Impacto',
-                              content: desarrolloTecnico.ejesImpacto,
+                              content: desarrolloTecnico?.ejesImpacto ?? '',
                               icon: <Zap className="h-4 w-4" />,
                               group: 'impacto',
+                              field: 'ejesImpacto',
                             },
                             {
                               key: 'publicoObjetivo',
                               title: 'Público Objetivo',
-                              content: desarrolloTecnico.publicoObjetivo,
+                              content: desarrolloTecnico?.publicoObjetivo ?? '',
                               icon: <Users className="h-4 w-4" />,
                               group: 'publico-objetivo',
+                              field: 'publicoObjetivo',
                             },
                             {
                               key: 'genero',
                               title: 'Perspectiva de Género',
-                              content: desarrolloTecnico.perspectiveGenero,
+                              content: desarrolloTecnico?.perspectiveGenero ?? '',
                               icon: <Heart className="h-4 w-4" />,
                               group: 'publico-objetivo',
+                              field: 'perspectiveGenero',
                             },
                             {
                               key: 'necesidad',
                               title: 'Necesidad, Problema u Oportunidad',
-                              content: desarrolloTecnico.necesidadProblema,
+                              content: desarrolloTecnico?.necesidadProblema ?? '',
                               icon: <AlertCircle className="h-4 w-4" />,
                               group: 'innovacion-escalabilidad',
+                              field: 'necesidadProblema',
                             },
                             {
                               key: 'solucion',
                               title: 'Solución y Nivel de Avance',
-                              content: desarrolloTecnico.solucionAvance,
+                              content: desarrolloTecnico?.solucionAvance ?? '',
                               icon: <Lightbulb className="h-4 w-4" />,
                               group: 'innovacion-escalabilidad',
+                              field: 'solucionAvance',
                             },
                             {
                               key: 'factorInnovador',
                               title: 'Factor Innovador',
-                              content: desarrolloTecnico.factorInnovador,
+                              content: desarrolloTecnico?.factorInnovador ?? '',
                               icon: <TrendingUp className="h-4 w-4" />,
                               group: 'innovacion-escalabilidad',
+                              field: 'factorInnovador',
                             },
                             {
                               key: 'escalabilidad',
                               title: 'Escalabilidad',
-                              content: desarrolloTecnico.escalabilidad,
+                              content: desarrolloTecnico?.escalabilidad ?? '',
                               icon: <Globe className="h-4 w-4" />,
                               group: 'escalabilidad',
+                              field: 'escalabilidad',
                             },
                             {
                               key: 'resultados',
                               title: 'Resultados y Contribución Esperada',
-                              content: desarrolloTecnico.resultadosContribucion,
+                              content:
+                                desarrolloTecnico?.resultadosContribucion ?? '',
                               icon: <Target className="h-4 w-4" />,
                               group: 'resultados',
+                              field: 'resultadosContribucion',
                             },
                             {
                               key: 'metodologia',
                               title: 'Metodología de Medición',
-                              content: desarrolloTecnico.metodologiaMedicion,
+                              content:
+                                desarrolloTecnico?.metodologiaMedicion ?? '',
                               icon: <BarChart3 className="h-4 w-4" />,
                               group: 'resultados',
+                              field: 'metodologiaMedicion',
                             },
                           ];
 
@@ -1442,8 +2089,10 @@ export default function ProyectosPage() {
                           const activeSections = sections.filter(
                             (section) =>
                               section.group === activeDesarrolloTecnicoTab &&
-                              section.content &&
-                              section.content.trim() !== ''
+                              (isGeneralEditMode
+                                ? true
+                                : section.content &&
+                                  section.content.trim() !== '')
                           );
 
                           return (
@@ -1459,13 +2108,15 @@ export default function ProyectosPage() {
                                 {/* Tabs */}
                                 <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
                                   {tabs.map((tab) => {
-                                    const tabSections = sections.filter(
-                                      (s) =>
-                                        s.group === tab.id &&
-                                        s.content &&
-                                        s.content.trim() !== ''
-                                    );
-                                    if (tabSections.length === 0) return null;
+                                    if (!isGeneralEditMode) {
+                                      const tabSections = sections.filter(
+                                        (s) =>
+                                          s.group === tab.id &&
+                                          s.content &&
+                                          s.content.trim() !== ''
+                                      );
+                                      if (tabSections.length === 0) return null;
+                                    }
 
                                     return (
                                       <button
@@ -1500,9 +2151,30 @@ export default function ProyectosPage() {
                                         </h4>
                                       </div>
                                       <div className="px-2 pb-3">
-                                        <div className="text-[15px] text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                          {section.content}
-                                        </div>
+                                        {isGeneralEditMode ? (
+                                          <Textarea
+                                            value={section.content}
+                                            onChange={(e) =>
+                                              setGeneralDraft((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      desarrolloTecnico: {
+                                                        ...prev.desarrolloTecnico,
+                                                        [section.field as keyof GeneralDraft['desarrolloTecnico']]:
+                                                          e.target.value,
+                                                      },
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            className="min-h-[120px] text-[15px] border-2 border-gray-200 focus:border-emerald-400 bg-white"
+                                          />
+                                        ) : (
+                                          <div className="text-[15px] text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                            {section.content}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   ))
