@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { MultiSelectNombres, MULTI_VALUE_SEP } from '@/components/ui/multi-select-nombres';
 import {
   Search,
   FolderKanban,
@@ -186,22 +187,22 @@ const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
       descripcion: obj.descripcion,
       orden: obj.orden,
     })),
-    sede: project.sede ?? '',
+    sede: (project.sede ?? '').replace(/, /g, MULTI_VALUE_SEP),
     escuelasTexto: project.escuelas
       ?.map((item) => item.escuela.nombre)
-      .join(', ') ?? '',
+      .join(MULTI_VALUE_SEP) ?? '',
     carrerasTexto: project.carreras
       ?.map((item) => item.carrera.nombre)
-      .join(', ') ?? '',
+      .join(MULTI_VALUE_SEP) ?? '',
     comunasTexto: project.comunas
       ?.map((item) => item.comuna.nombre)
-      .join(', ') ?? '',
+      .join(MULTI_VALUE_SEP) ?? '',
     gruposInteresTexto: project.gruposInteres
       ?.map((item) => item.grupoInteres.nombre)
-      .join(', ') ?? '',
+      .join(MULTI_VALUE_SEP) ?? '',
     sociosComunitariosTexto: project.sociosComunitarios
       ?.map((item) => item.socioComunitario.nombre)
-      .join(', ') ?? '',
+      .join(MULTI_VALUE_SEP) ?? '',
     desarrolloTecnico: {
       continuidadFasesAnteriores:
         project.desarrolloTecnico?.continuidadFasesAnteriores ?? '',
@@ -467,7 +468,7 @@ export default function ProyectosPage() {
 
   const parseNameList = (value: string) =>
     value
-      .split(',')
+      .split(MULTI_VALUE_SEP)
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
 
@@ -1680,32 +1681,33 @@ export default function ProyectosPage() {
                                   </div>
                                   <div className="flex flex-wrap gap-3">
                                   {isGeneralEditMode ? (
-                                    <Select
+                                    <MultiSelectNombres
+                                      options={catalogosGeneral.sedes.map((s) => ({ id: s.id, nombre: s.nombre }))}
                                       value={generalDraft?.sede ?? ''}
-                                      onValueChange={(value) =>
+                                      onChange={(v) =>
                                         setGeneralDraft((prev) =>
-                                          prev ? { ...prev, sede: value } : prev
+                                          prev ? { ...prev, sede: v } : prev
                                         )
                                       }
-                                    >
-                                      <SelectTrigger className="border-2 border-gray-300 rounded-lg focus:border-blue-500">
-                                        <SelectValue placeholder="Selecciona la sede" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {catalogosGeneral.sedes.map((s) => (
-                                          <SelectItem key={s.id} value={s.nombre}>
-                                            {s.nombre}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      placeholder="Seleccionar sedes"
+                                      className="min-h-[80px]"
+                                    />
                                   ) : (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                    >
-                                      {selectedProject.sede}
-                                    </Badge>
+                                    <>
+                                      {(selectedProject.sede ?? '')
+                                        .split(/\s*\|\s*|\s*,\s*/)
+                                        .map((s) => s.trim())
+                                        .filter(Boolean)
+                                        .map((sedeNombre, idx) => (
+                                          <Badge
+                                            key={idx}
+                                            variant="secondary"
+                                            className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                          >
+                                            {sedeNombre}
+                                          </Badge>
+                                        ))}
+                                    </>
                                   )}
                                   </div>
                                 </div>
@@ -1723,23 +1725,16 @@ export default function ProyectosPage() {
                                       </div>
                                       <div className="flex flex-wrap gap-3">
                                         {isGeneralEditMode ? (
-                                          <Textarea
-                                            value={
-                                              generalDraft?.comunasTexto ?? ''
-                                            }
-                                            onChange={(e) =>
+                                          <MultiSelectNombres
+                                            options={catalogosGeneral.comunas}
+                                            value={generalDraft?.comunasTexto ?? ''}
+                                            onChange={(v) =>
                                               setGeneralDraft((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      comunasTexto:
-                                                        e.target.value,
-                                                    }
-                                                  : prev
+                                                prev ? { ...prev, comunasTexto: v } : prev
                                               )
                                             }
-                                            placeholder="Comunas separadas por coma"
-                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                            placeholder="Seleccionar comunas"
+                                            className="min-h-[80px]"
                                           />
                                         ) : (
                                           selectedProject.comunas.map(
@@ -1782,23 +1777,16 @@ export default function ProyectosPage() {
                                       </div>
                                       <div className="flex flex-wrap gap-3">
                                         {isGeneralEditMode ? (
-                                          <Textarea
-                                            value={
-                                              generalDraft?.escuelasTexto ?? ''
-                                            }
-                                            onChange={(e) =>
+                                          <MultiSelectNombres
+                                            options={catalogosGeneral.escuelas}
+                                            value={generalDraft?.escuelasTexto ?? ''}
+                                            onChange={(v) =>
                                               setGeneralDraft((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      escuelasTexto:
-                                                        e.target.value,
-                                                    }
-                                                  : prev
+                                                prev ? { ...prev, escuelasTexto: v } : prev
                                               )
                                             }
-                                            placeholder="Escuelas separadas por coma"
-                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                            placeholder="Seleccionar escuelas"
+                                            className="min-h-[80px]"
                                           />
                                         ) : (
                                           selectedProject.escuelas.map(
@@ -1830,23 +1818,16 @@ export default function ProyectosPage() {
                                       </div>
                                       <div className="flex flex-wrap gap-3">
                                         {isGeneralEditMode ? (
-                                          <Textarea
-                                            value={
-                                              generalDraft?.carrerasTexto ?? ''
-                                            }
-                                            onChange={(e) =>
+                                          <MultiSelectNombres
+                                            options={catalogosGeneral.carreras}
+                                            value={generalDraft?.carrerasTexto ?? ''}
+                                            onChange={(v) =>
                                               setGeneralDraft((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      carrerasTexto:
-                                                        e.target.value,
-                                                    }
-                                                  : prev
+                                                prev ? { ...prev, carrerasTexto: v } : prev
                                               )
                                             }
-                                            placeholder="Carreras separadas por coma"
-                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                            placeholder="Seleccionar carreras"
+                                            className="min-h-[80px]"
                                           />
                                         ) : (
                                           selectedProject.carreras.map(
@@ -1890,24 +1871,16 @@ export default function ProyectosPage() {
                                       </div>
                                       <div className="flex flex-wrap gap-3">
                                         {isGeneralEditMode ? (
-                                          <Textarea
-                                            value={
-                                              generalDraft
-                                                ?.gruposInteresTexto ?? ''
-                                            }
-                                            onChange={(e) =>
+                                          <MultiSelectNombres
+                                            options={catalogosGeneral.gruposInteres}
+                                            value={generalDraft?.gruposInteresTexto ?? ''}
+                                            onChange={(v) =>
                                               setGeneralDraft((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      gruposInteresTexto:
-                                                        e.target.value,
-                                                    }
-                                                  : prev
+                                                prev ? { ...prev, gruposInteresTexto: v } : prev
                                               )
                                             }
-                                            placeholder="Grupos de interés separados por coma"
-                                            className="min-h-[80px] border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white"
+                                            placeholder="Seleccionar grupos de interés"
+                                            className="min-h-[80px]"
                                           />
                                         ) : (
                                           selectedProject.gruposInteres.map(

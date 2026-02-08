@@ -51,6 +51,33 @@ export async function deleteSede(id: string) {
   }
 }
 
+/** Rellena la tabla Sedes con los valores distintos de Proyecto.sede que aún no existan. */
+export async function backfillSedesFromProyectos(): Promise<{ success: boolean; created?: number; error?: string }> {
+  try {
+    const proyectos = await prisma.proyecto.findMany({ select: { sede: true } });
+    const nombres = Array.from(
+      new Set(proyectos.map((p) => p.sede?.trim()).filter(Boolean))
+    ).sort();
+    if (nombres.length === 0) {
+      return { success: true, created: 0 };
+    }
+    const existentes = await prisma.sede.findMany({ select: { nombre: true } });
+    const setExistentes = new Set(existentes.map((e) => e.nombre));
+    const aCrear = nombres.filter((n) => !setExistentes.has(n));
+    for (let i = 0; i < aCrear.length; i++) {
+      await prisma.sede.create({
+        data: { nombre: aCrear[i], orden: i },
+      });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return { success: true, created: aCrear.length };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al cargar sedes desde proyectos' };
+  }
+}
+
 // ----- Comunas -----
 export async function getComunas() {
   return prisma.comuna.findMany({ orderBy: [{ region: 'asc' }, { nombre: 'asc' }] });

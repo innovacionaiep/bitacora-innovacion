@@ -52,6 +52,7 @@ export default function ConfiguracionValidacionPage() {
   const [formDescripcion, setFormDescripcion] = useState('');
   const [formEscuelaId, setFormEscuelaId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [backfillingSedes, setBackfillingSedes] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
@@ -202,7 +203,30 @@ export default function ConfiguracionValidacionPage() {
             </TabsList>
 
             <TabsContent value="sede" className="mt-4">
-              <div className="flex justify-end mb-2">
+              <div className="flex justify-end gap-2 mb-2">
+                {sedes.length === 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={backfillingSedes}
+                    onClick={async () => {
+                      setBackfillingSedes(true);
+                      setError(null);
+                      const res = await Config.backfillSedesFromProyectos();
+                      if (res.success) {
+                        loadAll();
+                        if (res.created && res.created > 0) {
+                          setError(null);
+                        }
+                      } else {
+                        setError(res.error ?? 'Error');
+                      }
+                      setBackfillingSedes(false);
+                    }}
+                  >
+                    {backfillingSedes ? 'Cargando...' : 'Cargar sedes desde proyectos'}
+                  </Button>
+                )}
                 <Button size="sm" onClick={() => openAdd('sede')}>
                   <Plus className="h-4 w-4 mr-1" /> Agregar
                 </Button>
