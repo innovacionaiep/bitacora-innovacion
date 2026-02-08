@@ -50,6 +50,20 @@ function decryptPassword(encrypted: string): string | null {
   }
 }
 
+/** Mapa id -> última actividad (desde BD por raw para no depender del cliente Prisma). */
+async function getLastActiveByUserId(): Promise<Map<string, Date | null>> {
+  const map = new Map<string, Date | null>();
+  try {
+    const raw = await prisma.$queryRaw<{ id: string; last_active_at: Date | null }[]>`
+      SELECT id, last_active_at FROM users
+    `;
+    raw.forEach((r) => map.set(r.id, r.last_active_at));
+  } catch {
+    // Columna puede no existir en BD antigua
+  }
+  return map;
+}
+
 /**
  * Listar usuarios para el panel de administración (solo Admin).
  */
@@ -59,32 +73,35 @@ export async function listUsersAdmin(): Promise<{
   error?: string;
 }> {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { email: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        roles: { select: { role: true } },
-        proyectos: {
-          select: {
-            rol: true,
-            proyecto: { select: { proyecto: true } },
+    const [users, lastActiveById] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { email: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          roles: { select: { role: true } },
+          proyectos: {
+            select: {
+              rol: true,
+              proyecto: { select: { proyecto: true } },
+            },
+          },
+          sessions: {
+            orderBy: { expires: 'desc' },
+            take: 1,
+            select: { expires: true },
           },
         },
-        sessions: {
-          orderBy: { expires: 'desc' },
-          take: 1,
-          select: { expires: true },
-        },
-      },
-    });
+      }),
+      getLastActiveByUserId(),
+    ]);
 
     const rows: UserListRow[] = users.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
-      lastSessionExpires: u.sessions[0]?.expires ?? null,
+      lastSessionExpires: lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
       roles: u.roles.map((r) => r.role),
       proyectos: u.proyectos.map((p) => ({
         proyectoNombre: p.proyecto.proyecto,
@@ -124,33 +141,36 @@ export async function listUsersAdminWithPasswords(unlockPassword: string): Promi
     return { success: false, error: 'Contraseña incorrecta' };
   }
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { email: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        passwordEncrypted: true,
-        roles: { select: { role: true } },
-        proyectos: {
-          select: {
-            rol: true,
-            proyecto: { select: { proyecto: true } },
+    const [users, lastActiveById] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { email: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          passwordEncrypted: true,
+          roles: { select: { role: true } },
+          proyectos: {
+            select: {
+              rol: true,
+              proyecto: { select: { proyecto: true } },
+            },
+          },
+          sessions: {
+            orderBy: { expires: 'desc' },
+            take: 1,
+            select: { expires: true },
           },
         },
-        sessions: {
-          orderBy: { expires: 'desc' },
-          take: 1,
-          select: { expires: true },
-        },
-      },
-    });
+      }),
+      getLastActiveByUserId(),
+    ]);
 
     const rows: UserListRowWithPassword[] = users.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
-      lastSessionExpires: u.sessions[0]?.expires ?? null,
+      lastSessionExpires: lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
       roles: u.roles.map((r) => r.role),
       proyectos: u.proyectos.map((p) => ({
         proyectoNombre: p.proyecto.proyecto,

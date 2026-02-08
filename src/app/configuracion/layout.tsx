@@ -24,13 +24,10 @@ export default async function ConfiguracionLayout({
   ];
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto">
+    <div className="flex flex-col w-full h-full min-h-0 px-8 pt-6 pb-6">
       <ConfigRoleGuard />
-      <div className="border-b border-gray-200 pb-4">
+      <div className="flex-shrink-0 border-b border-gray-200 pb-4">
         <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Administración de usuarios, catálogos y desarrollo técnico.
-        </p>
         <nav className="flex flex-wrap gap-2 mt-4">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -47,7 +44,9 @@ export default async function ConfiguracionLayout({
           })}
         </nav>
       </div>
-      {children}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }

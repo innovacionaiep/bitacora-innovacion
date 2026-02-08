@@ -175,10 +175,10 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col min-h-0 gap-6">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <div className="sticky top-0 bg-white border-b border-gray-200 z-10 p-6">
+        <div className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle>Desarrollo técnico</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
@@ -188,8 +188,9 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
           <Button onClick={openAddCategoria}>
             <Plus className="h-4 w-4 mr-2" /> Agregar categoría
           </Button>
-        </CardHeader>
-        <CardContent>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-6">
           <div className="space-y-2">
             {categorias.map((c) => (
               <div key={c.id} className="border rounded-lg overflow-hidden">
@@ -220,7 +221,7 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                 </div>
                 {expandedCat.has(c.id) && (
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                       <TableRow>
                         <TableHead className="w-10">Icono</TableHead>
                         <TableHead>Nombre</TableHead>
@@ -252,8 +253,7 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent>

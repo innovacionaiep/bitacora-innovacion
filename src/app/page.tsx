@@ -11,7 +11,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <div className="text-center space-y-4 py-12">
         <h1 className="text-5xl font-bold tracking-tight">
-          Bienvenido a BITACORA
+          Bienvenido a Bemindr
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           Tu sistema de gestión de proyectos todo en uno. Organiza, planifica y

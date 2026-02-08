@@ -45,11 +45,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email o password incorrectos');
         }
 
-        // Registrar última actividad (inicio de sesión) para mostrar en Configuración > Usuarios
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastActiveAt: new Date() },
-        }).catch(() => {});
+        // Registrar última actividad (inicio de sesión) para mostrar en Configuración > Usuarios (raw para no depender del cliente Prisma)
+        await prisma.$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${user.id}`.catch(() => {});
 
         // Obtener roles del usuario
         const roles = await getUserRoles(user.id);

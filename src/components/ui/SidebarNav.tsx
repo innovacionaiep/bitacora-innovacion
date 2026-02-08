@@ -65,7 +65,7 @@ export default function SidebarNav() {
         <h1
           className={`${inter.className} text-3xl font-bold tracking-tight group-data-[collapsible=icon]:hidden`}
         >
-          BITACORA
+          Bemindr
         </h1>
         {/* Título comprimido - solo la "B" */}
         <h1

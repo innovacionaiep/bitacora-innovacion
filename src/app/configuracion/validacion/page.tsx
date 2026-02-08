@@ -181,18 +181,17 @@ export default function ConfiguracionValidacionPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col min-h-0 gap-6">
       {error && (
         <p className="text-sm text-red-600">{error}</p>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>Validación de datos</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Define y edita las opciones de las listas desplegables usadas en proyectos.
-          </p>
-        </CardHeader>
-        <CardContent>
+      <div className="sticky top-0 bg-white border-b border-gray-200 z-10 p-6">
+        <CardTitle>Validación de datos</CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Define y edita las opciones de las listas desplegables usadas en proyectos.
+        </p>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-6">
           <Tabs defaultValue="sede" className="w-full">
             <TabsList className="flex flex-wrap gap-1">
               <TabsTrigger value="sede">Sedes</TabsTrigger>
@@ -209,7 +208,7 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               </div>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Orden</TableHead>
@@ -238,7 +237,7 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               </div>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Región</TableHead>
@@ -267,7 +266,7 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               </div>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Código</TableHead>
@@ -296,7 +295,7 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               </div>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Escuela</TableHead>
@@ -325,7 +324,7 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               </div>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Descripción</TableHead>
@@ -347,8 +346,7 @@ export default function ConfiguracionValidacionPage() {
               </Table>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Sheet Add/Edit */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
