@@ -343,28 +343,6 @@ function SortableActivity({
                       >
                         {activity.name}
                       </span>
-                      {/* Punto gris al final del nombre de actividad (expandido) */}
-                      <span
-                        className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 flex-shrink-0 relative"
-                        style={{
-                          verticalAlign: 'middle',
-                          transform: 'translateY(-36%)',
-                        }}
-                      >
-                        {/* Línea sutil desde el punto hasta el borde derecho de la columna (bajada ~2px para alinear con la línea del timeline) */}
-                        <div
-                          className="absolute transform -translate-y-1/2 pointer-events-none"
-                          style={{
-                            top: 'calc(50% + 2px)',
-                            left: 'calc(100% + 0px)',
-                            right: 'calc(-100vw + 416px - 8px)',
-                            height: '0.1px',
-                            backgroundColor: '#e5e7eb',
-                            opacity: 1,
-                            zIndex: 9999,
-                          }}
-                        />
-                      </span>
                     </div>
                   );
                 })()}
@@ -525,17 +503,19 @@ function SortableActivity({
                     top: `${startOffset + activityBarTopOffset}px`,
                   }}
                 >
-                  {/* Línea de conexión desde el inicio del timeline hasta la barra de actividad */}
-                  <div
-                    className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
-                    style={{
-                      left: '0%',
-                      width: `${startPos.left}%`,
-                      height: '0.1px',
-                      backgroundColor: '#e5e7eb',
-                      opacity: 1,
-                    }}
-                  />
+                  {/* Línea de conexión desde el inicio del timeline hasta la barra de actividad (oculta cuando la actividad está expandida) */}
+                  {!expandedDescriptions.has(activity.id) && (
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
+                      style={{
+                        left: '0%',
+                        width: `${startPos.left}%`,
+                        height: '0.1px',
+                        backgroundColor: '#e5e7eb',
+                        opacity: 1,
+                      }}
+                    />
+                  )}
                   {/* Barra de fondo gris con popup */}
                   <div className="relative group h-8">
                     <div
