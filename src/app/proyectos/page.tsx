@@ -77,6 +77,7 @@ import {
   Maximize2,
   Minimize2,
   Crown,
+  UserCog,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
@@ -2354,45 +2355,52 @@ export default function ProyectosPage() {
                     {/* Tarjetas de cantidades */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4 flex-shrink-0">
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.encargados}</span>
-                          <span className="text-xs font-bold text-emerald-600">Encargados</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <Crown className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.encargados}</span>
+                          <span className="text-sm font-bold text-emerald-600">Encargados</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.coordinadores}</span>
-                          <span className="text-xs font-bold text-emerald-600">Coordinadores</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <UserCog className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.coordinadores}</span>
+                          <span className="text-sm font-bold text-emerald-600">Coordinadores</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.colaboradores}</span>
-                          <span className="text-xs font-bold text-emerald-600">Colaboradores</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <Users className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.colaboradores}</span>
+                          <span className="text-sm font-bold text-emerald-600">Colaboradores</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.docentes}</span>
-                          <span className="text-xs font-bold text-emerald-600">Docentes</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <GraduationCap className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.docentes}</span>
+                          <span className="text-sm font-bold text-emerald-600">Docentes</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.estudiantes}</span>
-                          <span className="text-xs font-bold text-emerald-600">Estudiantes</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <BookOpen className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.estudiantes}</span>
+                          <span className="text-sm font-bold text-emerald-600">Estudiantes</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.beneficiarios}</span>
-                          <span className="text-xs font-bold text-emerald-600">Beneficiarios</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <Heart className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.beneficiarios}</span>
+                          <span className="text-sm font-bold text-emerald-600">Beneficiarios</span>
                         </CardContent>
                       </Card>
                       <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex flex-col items-center gap-0.5">
-                          <span className="text-xl font-bold text-emerald-600">{counts.sociosComunitarios}</span>
-                          <span className="text-xs font-bold text-emerald-600">Socios comunitarios</span>
+                        <CardContent className="p-0 flex items-center justify-center gap-2">
+                          <Handshake className="h-8 w-8 shrink-0 text-emerald-600" />
+                          <span className="text-[25px] font-bold text-emerald-600">{counts.sociosComunitarios}</span>
+                          <span className="text-sm font-bold text-emerald-600">Socios comunitarios</span>
                         </CardContent>
                       </Card>
                     </div>

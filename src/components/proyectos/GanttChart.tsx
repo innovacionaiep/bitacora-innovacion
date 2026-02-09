@@ -1920,7 +1920,9 @@ export default function GanttChart({
                               style={{
                                 left: `${getTodayPositionPercent()}%`,
                                 top: '100%',
-                                height: 'calc(100vh - 375px)',
+                                height: isFullscreen
+                                  ? 'calc(100vh - 230px + 10px)'
+                                  : 'calc(100vh - 375px)',
                               }}
                             ></div>
                           )}
