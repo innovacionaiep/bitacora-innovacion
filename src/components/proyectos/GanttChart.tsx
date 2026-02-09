@@ -2101,9 +2101,9 @@ export default function GanttChart({
               <div
                 className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}
               >
-                {/* Contenedor con scroll horizontal que incluye todo */}
+                {/* Contenedor sin scroll horizontal: prohibido para evitar scroll lateral */}
                 <div
-                  className={`overflow-x-auto ${isFullscreen ? 'h-full' : ''}`}
+                  className={`overflow-x-hidden ${isFullscreen ? 'h-full' : ''}`}
                 >
                   <div
                     className={`w-full min-w-[800px] relative ${isFullscreen ? 'h-full' : ''}`}
@@ -2288,10 +2288,10 @@ export default function GanttChart({
                     ) : (
                       /* Vista Gantt */
                       <>
-                        {/* Contenedor con scroll vertical para filas de actividades */}
+                        {/* Contenedor con scroll vertical para filas de actividades (sin scroll horizontal) */}
                         <div
                           ref={scrollContainerRef}
-                          className="overflow-y-auto relative"
+                          className="overflow-y-auto overflow-x-hidden relative"
                           style={{
                             maxHeight: isFullscreen
                               ? 'calc(100vh - 230px)'

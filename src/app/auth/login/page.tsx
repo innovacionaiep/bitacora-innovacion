@@ -129,18 +129,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <div className="text-center text-sm text-gray-600">
-          <p>
-            ¿No tienes cuenta?{' '}
-            <a
-              href="/auth/register"
-              className="font-medium text-primary hover:text-primary/80"
-            >
-              Regístrate aquí
-            </a>
-          </p>
-        </div>
       </div>
     </div>
   );
