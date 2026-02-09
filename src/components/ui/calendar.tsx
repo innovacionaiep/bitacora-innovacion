@@ -16,6 +16,8 @@ interface CalendarProps {
   disabled?: boolean;
   minDate?: string | undefined;
   maxDate?: string | undefined;
+  /** Modo compacto para espacios reducidos (ej. dentro de modales) */
+  compact?: boolean;
 }
 
 // Configuración para Chile
@@ -45,6 +47,7 @@ export function Calendar({
   disabled = false,
   minDate,
   maxDate,
+  compact = false,
 }: CalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -233,28 +236,50 @@ export function Calendar({
       {/* Calendar dropdown */}
       {isOpen && (
         <div
-          className="absolute z-50 w-80 rounded-lg border bg-white shadow-lg"
-          style={{
-            left: 'calc(100% + 20px)',
-            top: '50%',
-            transform: 'translateY(-50%)',
-          }}
+          className={cn(
+            'absolute z-50 rounded-lg border bg-white shadow-lg',
+            compact
+              ? 'w-56 left-0 top-full mt-1'
+              : 'w-80'
+          )}
+          style={
+            compact
+              ? {}
+              : {
+                  left: 'calc(100% + 20px)',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }
+          }
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
+          <div
+            className={cn(
+              'flex items-center justify-between border-b',
+              compact ? 'p-2' : 'p-4'
+            )}
+          >
             <button
               type="button"
               onClick={() => navigateMonth('prev')}
-              className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              className={cn(
+                'p-0 inline-flex items-center justify-center rounded-md font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
+                compact ? 'h-6 w-6' : 'h-8 w-8'
+              )}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
             </button>
 
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3
+                className={cn(
+                  'font-semibold text-gray-900',
+                  compact ? 'text-xs' : 'text-lg'
+                )}
+              >
                 {CHILE_LOCALE.months[currentMonth.getMonth()]}
               </h3>
-              <div className="text-sm text-gray-500">
+              <div className={compact ? 'text-xs text-gray-500' : 'text-sm text-gray-500'}>
                 {currentMonth.getFullYear()}
               </div>
             </div>
@@ -262,38 +287,46 @@ export function Calendar({
             <button
               type="button"
               onClick={() => navigateMonth('next')}
-              className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              className={cn(
+                'p-0 inline-flex items-center justify-center rounded-md font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
+                compact ? 'h-6 w-6' : 'h-8 w-8'
+              )}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
             </button>
           </div>
 
           {/* Week days header */}
-          <div className="grid grid-cols-7 gap-1 p-2">
+          <div
+            className={cn(
+              'grid grid-cols-7',
+              compact ? 'gap-0.5 px-1 pt-1' : 'gap-1 p-2'
+            )}
+          >
             {CHILE_LOCALE.weekDays.map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-gray-500 py-2"
+                className={cn(
+                  'text-center font-medium text-gray-500',
+                  compact ? 'text-[10px] py-0.5' : 'text-sm py-2'
+                )}
               >
                 {day}
               </div>
             ))}
           </div>
 
-          {/* Calendar grid - MEJORADO */}
-          <div className="grid grid-cols-7 gap-1 p-2">
+          {/* Calendar grid */}
+          <div
+            className={cn(
+              'grid grid-cols-7',
+              compact ? 'gap-0.5 p-1 pb-2' : 'gap-1 p-2'
+            )}
+          >
             {days.map((day, index) => {
-              const isClickable = day.isCurrentMonth;
-
               const handleClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(
-                  'Div clickeado:',
-                  day.date,
-                  'isCurrentMonth:',
-                  day.isCurrentMonth
-                );
                 handleDateClick(day.date, day.isCurrentMonth);
               };
 
@@ -303,7 +336,8 @@ export function Calendar({
                   onClick={handleClick}
                   onMouseDown={(e) => e.preventDefault()}
                   className={cn(
-                    'h-8 w-8 text-sm inline-flex items-center justify-center rounded-md font-medium transition-colors select-none',
+                    'inline-flex items-center justify-center rounded-md font-medium transition-colors select-none',
+                    compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm',
                     !day.isCurrentMonth && 'text-gray-300 cursor-not-allowed',
                     day.isCurrentMonth &&
                       'hover:bg-gray-100 cursor-default active:bg-gray-200',

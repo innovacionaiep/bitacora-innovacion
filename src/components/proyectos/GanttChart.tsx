@@ -722,6 +722,24 @@ export default function GanttChart({
   // Estado para tareas temporales en el popup de crear actividad
   const [tempTasks, setTempTasks] = useState<Task[]>([]);
 
+  // Estado para tarea en edición inline
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskForm, setEditingTaskForm] = useState({
+    name: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+  });
+
+  // Estado para mostrar formulario inline de agregar tarea
+  const [showInlineAddTask, setShowInlineAddTask] = useState(false);
+  const [inlineTaskForm, setInlineTaskForm] = useState({
+    name: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+  });
+
   // Estado para comentarios de actividad
   const [comentariosActividad, setComentariosActividad] = useState<
     ComentarioActividadData[]
@@ -739,6 +757,7 @@ export default function GanttChart({
     error: ganttError,
     createActivity,
     updateActivity,
+    updateTask,
     deleteActivity,
     createTask,
     deleteTask,
@@ -805,6 +824,9 @@ export default function GanttChart({
     setEditingActivity(null);
     setSelectedActivityForPopup(null);
     setExpandedDescriptions(new Set());
+    setEditingTaskId(null);
+    setShowInlineAddTask(false);
+    setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
 
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
@@ -823,6 +845,8 @@ export default function GanttChart({
     setSelectedActivity(null);
     setEditingActivity(null);
     setSelectedActivityForPopup(null);
+    setEditingTaskId(null);
+    setShowInlineAddTask(false);
 
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
@@ -917,9 +941,9 @@ export default function GanttChart({
 
   // Manejar cambios en el formulario de tarea
   const handleTaskInputChange = (field: string, value: string) => {
-    // Limitar el nombre de la tarea a 62 caracteres máximo
-    if (field === 'name' && value.length > 62) {
-      alert('El nombre de la tarea no puede exceder 62 caracteres');
+    // Limitar el nombre de la tarea a 60 caracteres máximo
+    if (field === 'name' && value.length > 60) {
+      alert('El nombre de la tarea no puede exceder 60 caracteres');
       return;
     }
     setTaskForm((prev) => ({
@@ -1012,9 +1036,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar que el nombre no exceda 62 caracteres
-    if (taskForm.name.length > 62) {
-      alert('El nombre de la tarea no puede exceder 62 caracteres');
+    // Validar que el nombre no exceda 60 caracteres
+    if (taskForm.name.length > 60) {
+      alert('El nombre de la tarea no puede exceder 60 caracteres');
       return;
     }
 
@@ -1296,6 +1320,114 @@ export default function GanttChart({
     }));
   };
 
+  const handleSaveTaskEdit = async () => {
+    if (!editingTaskId) return;
+    if (editingTaskForm.name.length > 60) {
+      alert('El nombre de la tarea no puede exceder 60 caracteres');
+      return;
+    }
+    const task = [
+      ...(selectedActivityForPopup?.tasks || []),
+      ...tempTasks,
+    ].find((t) => t.id === editingTaskId);
+    if (!task) return;
+
+    const convertedStart = convertDateToISO(editingTaskForm.startDate);
+    const convertedEnd = convertDateToISO(editingTaskForm.endDate);
+
+    if (task.id.startsWith('temp-')) {
+      setTempTasks((prev) =>
+        prev.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                name: editingTaskForm.name,
+                description: editingTaskForm.description,
+                startDate: convertedStart,
+                endDate: convertedEnd,
+              }
+            : t
+        )
+      );
+    } else {
+      const { error } = await updateTask(task.id, {
+        name: editingTaskForm.name,
+        description: editingTaskForm.description,
+        startDate: convertedStart,
+        endDate: convertedEnd,
+      });
+      if (error) {
+        alert('Error al actualizar tarea: ' + error);
+        return;
+      }
+      if (selectedActivityForPopup) {
+        const updated = selectedActivityForPopup.tasks?.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                name: editingTaskForm.name,
+                description: editingTaskForm.description,
+                startDate: convertedStart,
+                endDate: convertedEnd,
+              }
+            : t
+        ) || [];
+        setSelectedActivityForPopup({ ...selectedActivityForPopup, tasks: updated });
+      }
+      await loadActivities();
+    }
+    setEditingTaskId(null);
+  };
+
+  const handleInlineAddTask = async () => {
+    if (!inlineTaskForm.name || !inlineTaskForm.startDate || !inlineTaskForm.endDate) {
+      alert('Completa nombre y fechas');
+      return;
+    }
+    if (inlineTaskForm.name.length > 60) {
+      alert('El nombre de la tarea no puede exceder 60 caracteres');
+      return;
+    }
+    const act = selectedActivityForPopup;
+    // En modo create, act es null - agregar a tempTasks
+    if (!act || act.id.startsWith('temp-')) {
+      const newTask: Task = {
+        id: `temp-${Date.now()}`,
+        name: inlineTaskForm.name,
+        description: inlineTaskForm.description,
+        startDate: convertDateToISO(inlineTaskForm.startDate),
+        endDate: convertDateToISO(inlineTaskForm.endDate),
+        completed: false,
+        activityId: act?.id || 'temp-activity',
+        progress: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setTempTasks((prev) => [...prev, newTask]);
+      setShowInlineAddTask(false);
+      setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+      return;
+    }
+    const { data: newTask, error } = await createTask(act.id, {
+      name: inlineTaskForm.name,
+      description: inlineTaskForm.description,
+      startDate: convertDateToISO(inlineTaskForm.startDate),
+      endDate: convertDateToISO(inlineTaskForm.endDate),
+    });
+    if (error) {
+      alert('Error al crear tarea: ' + error);
+      return;
+    }
+    if (newTask && selectedActivityForPopup) {
+      setSelectedActivityForPopup({
+        ...selectedActivityForPopup,
+        tasks: [...(selectedActivityForPopup.tasks || []), newTask as Task],
+      });
+    }
+    setShowInlineAddTask(false);
+    setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+  };
+
   const handleEnviarComentarioActividad = async () => {
     const actividadId = selectedActivityForPopup?.id;
     if (
@@ -1327,9 +1459,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (76 caracteres)
-    if (unifiedActivityForm.name.length > 76) {
-      alert('El nombre de la actividad no puede exceder los 76 caracteres');
+    // Validar longitud máxima del título (50 caracteres)
+    if (unifiedActivityForm.name.length > 50) {
+      alert('El nombre de la actividad no puede exceder los 50 caracteres');
       return;
     }
 
@@ -1342,13 +1474,13 @@ export default function GanttChart({
         return;
       }
 
-      // Validar que todas las tareas temporales tengan nombres válidos (máximo 62 caracteres)
+      // Validar que todas las tareas temporales tengan nombres válidos (máximo 60 caracteres)
       const tasksWithInvalidNames = tempTasks.filter(
-        (task) => task.name.length > 62
+        (task) => task.name.length > 60
       );
       if (tasksWithInvalidNames.length > 0) {
         alert(
-          `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 62 caracteres. Por favor, corrige los nombres antes de continuar.`
+          `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 60 caracteres. Por favor, corrige los nombres antes de continuar.`
         );
         return;
       }
@@ -1366,7 +1498,7 @@ export default function GanttChart({
         for (const task of tempTasks) {
           await createTask(newActivity.id, {
             name: task.name,
-            description: '',
+            description: task.description || '',
             startDate: task.startDate,
             endDate: task.endDate,
           });
@@ -1388,13 +1520,13 @@ export default function GanttChart({
       if (error) {
         alert('Error al actualizar la actividad: ' + error);
       } else {
-        // Validar que todas las tareas temporales tengan nombres válidos (máximo 64 caracteres)
+        // Validar que todas las tareas temporales tengan nombres válidos (máximo 60 caracteres)
         const tasksWithInvalidNames = tempTasks.filter(
-          (task) => task.name.length > 64
+          (task) => task.name.length > 60
         );
         if (tasksWithInvalidNames.length > 0) {
           alert(
-            `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 64 caracteres. Por favor, corrige los nombres antes de continuar.`
+            `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 60 caracteres. Por favor, corrige los nombres antes de continuar.`
           );
           return;
         }
@@ -1437,9 +1569,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (76 caracteres)
-    if (editActivityForm.name.length > 76) {
-      alert('El nombre de la actividad no puede exceder los 76 caracteres');
+    // Validar longitud máxima del título (50 caracteres)
+    if (editActivityForm.name.length > 50) {
+      alert('El nombre de la actividad no puede exceder los 50 caracteres');
       return;
     }
 
@@ -2289,11 +2421,11 @@ export default function GanttChart({
                       }
                       placeholder="Nombre de la tarea *"
                       className="w-full"
-                      maxLength={62}
+                      maxLength={60}
                       required
                     />
                     <div className="text-xs text-gray-500 mt-1 text-right">
-                      {taskForm.name.length}/62 caracteres
+                      {taskForm.name.length}/60 caracteres
                     </div>
                   </div>
 
@@ -2380,6 +2512,9 @@ export default function GanttChart({
               setUnifiedActivityForm({ name: '', description: '' });
               setTempTasks([]);
               setActivityPopupMode('view');
+              setEditingTaskId(null);
+              setShowInlineAddTask(false);
+              setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
             }
           }}
         >
@@ -2387,67 +2522,117 @@ export default function GanttChart({
             className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
+            {/* Header - ACTIVIDAD arriba, nombre + botones a la derecha, Progreso */}
             <div className="mb-6 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-2">
-                  {activityPopupMode === 'create'
-                    ? 'CREAR ACTIVIDAD'
-                    : activityPopupMode === 'edit'
-                      ? 'EDITAR ACTIVIDAD'
-                      : 'ACTIVIDAD'}
-                </DialogTitle>
-              </div>
-              <h1 className="text-2xl font-bold text-emerald-600">
-                {activityPopupMode === 'view'
-                  ? selectedActivityForPopup?.name
-                  : unifiedActivityForm.name || 'Nueva actividad'}
-              </h1>
-              {activityPopupMode === 'view' && selectedActivityForPopup && (
-                <div className="flex items-center gap-4 mt-3">
-                  <span className="text-base font-medium text-gray-700">
-                    Progreso
-                  </span>
-                  <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${getActivityProgress(selectedActivityForPopup)}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-lg font-bold text-emerald-600">
-                    {getActivityProgress(selectedActivityForPopup)}%
-                  </span>
+              <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-2">
+                ACTIVIDAD
+              </DialogTitle>
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  {activityPopupMode === 'view' ? (
+                    <>
+                      <h1 className="text-2xl font-bold text-emerald-600">
+                        {selectedActivityForPopup?.name || 'Sin nombre'}
+                      </h1>
+                      {selectedActivityForPopup && (
+                        <button
+                          onClick={() => {
+                            setActivityPopupMode('edit');
+                            setUnifiedActivityForm({
+                              name: selectedActivityForPopup.name || '',
+                              description:
+                                selectedActivityForPopup.description || '',
+                            });
+                            setTempTasks([]);
+                          }}
+                          className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
+                          title="Editar actividad"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        value={unifiedActivityForm.name}
+                        onChange={(e) =>
+                          handleUnifiedActivityInputChange('name', e.target.value)
+                        }
+                        placeholder="Nombre de la actividad"
+                        className="text-2xl font-bold text-emerald-600 h-auto py-1 px-2 border-emerald-300 w-full min-w-[42rem] max-w-full"
+                        maxLength={50}
+                      />
+                      <span className="text-xs text-gray-400">
+                        {unifiedActivityForm.name.length}/50 caracteres
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="w-full h-px bg-emerald-600 mt-3" />
+                {activityPopupMode === 'view' && selectedActivityForPopup && (
+                  <div className="flex items-center space-x-4 flex-shrink-0">
+                    <span className="text-base font-medium text-gray-700">
+                      Progreso
+                    </span>
+                    <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${getActivityProgress(selectedActivityForPopup)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-2xl font-bold text-emerald-600 min-w-[4rem]">
+                      {getActivityProgress(selectedActivityForPopup)}%
+                    </span>
+                  </div>
+                )}
+                {(activityPopupMode === 'edit' || activityPopupMode === 'create') && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={handleUnifiedActivityAction}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {activityPopupMode === 'create'
+                        ? 'Crear Actividad'
+                        : 'Guardar cambios'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (activityPopupMode === 'create') {
+                          setShowActivityPopup(false);
+                          setSelectedActivityForPopup(null);
+                          setUnifiedActivityForm({ name: '', description: '' });
+                          setTempTasks([]);
+                          setActivityPopupMode('view');
+                        } else {
+                          setActivityPopupMode('view');
+                          setUnifiedActivityForm({
+                            name: selectedActivityForPopup?.name || '',
+                            description:
+                              selectedActivityForPopup?.description || '',
+                          });
+                          setTempTasks([]);
+                        }
+                        setEditingTaskId(null);
+                        setShowInlineAddTask(false);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="w-full h-px bg-emerald-600 mt-2" />
             </div>
 
             {/* Layout de 3 columnas */}
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-8 mt-0 flex-1 min-h-0 overflow-hidden">
               {/* COLUMNA IZQUIERDA: Descripción + Período */}
-              <div className="space-y-6 overflow-y-auto min-h-0">
-                {activityPopupMode !== 'view' && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                      Nombre
-                    </h4>
-                    <Input
-                      value={unifiedActivityForm.name}
-                      onChange={(e) =>
-                        handleUnifiedActivityInputChange('name', e.target.value)
-                      }
-                      placeholder="Nombre de la actividad *"
-                      className="w-full"
-                      maxLength={76}
-                    />
-                    <span className="text-xs text-gray-400">
-                      {unifiedActivityForm.name.length}/76
-                    </span>
-                  </div>
-                )}
-
+              <div className="space-y-6 overflow-y-auto min-h-0 border-r border-gray-200 pr-8">
                 <div>
                   <h3 className="font-semibold text-gray-900 text-base mb-2">
                     Descripción
@@ -2511,38 +2696,103 @@ export default function GanttChart({
                       : `(${(selectedActivityForPopup?.tasks?.length ?? 0) + tempTasks.length})`}
                   </h3>
                   {activityPopupMode !== 'view' && (
-                    <Button
-                      onClick={() => {
-                        const tempActivity: Activity =
-                          selectedActivityForPopup || {
-                            id: 'temp-activity',
-                            name:
-                              unifiedActivityForm.name || 'Actividad temporal',
-                            description: unifiedActivityForm.description || '',
-                            progress: 0,
-                            tasks: tempTasks,
-                            projectId: projectId || '',
-                            color: '#3B82F6',
-                            orderIndex: 0,
-                            kanbanOrderIndex: 0,
-                            status: 'TODO',
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
-                          };
-                        setSelectedActivity(tempActivity);
-                        setShowAddTask(true);
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                    <button
+                      onClick={() => setShowInlineAddTask(true)}
+                      className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors"
+                      title="Agregar tarea"
                     >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Agregar Tarea
-                    </Button>
+                      <Plus className="h-5 w-5" />
+                    </button>
                   )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                  {/* Formulario inline para agregar tarea */}
+                  {showInlineAddTask && (
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">
+                          Nueva tarea
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowInlineAddTask(false);
+                            setInlineTaskForm({
+                              name: '',
+                              description: '',
+                              startDate: '',
+                              endDate: '',
+                            });
+                          }}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                      <Input
+                        value={inlineTaskForm.name}
+                        onChange={(e) =>
+                          setInlineTaskForm((p) => ({ ...p, name: e.target.value }))
+                        }
+                            placeholder="Nombre de la tarea *"
+                            maxLength={60}
+                      />
+                      <textarea
+                        value={inlineTaskForm.description}
+                        onChange={(e) =>
+                          setInlineTaskForm((p) => ({
+                            ...p,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="Descripción (opcional)"
+                        className="w-full px-3 py-2 border rounded-md text-sm resize-none"
+                        rows={2}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-gray-600">Inicio</Label>
+                          <Calendar
+                            compact
+                            value={inlineTaskForm.startDate || undefined}
+                            onChange={(d) =>
+                              setInlineTaskForm((p) => ({
+                                ...p,
+                                startDate: d || '',
+                              }))
+                            }
+                            placeholder="Fecha inicio"
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Término</Label>
+                          <Calendar
+                            compact
+                            value={inlineTaskForm.endDate || undefined}
+                            onChange={(d) =>
+                              setInlineTaskForm((p) => ({
+                                ...p,
+                                endDate: d || '',
+                              }))
+                            }
+                            placeholder="Fecha término"
+                            className="w-full"
+                            minDate={inlineTaskForm.startDate || undefined}
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleInlineAddTask}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Crear tarea
+                      </Button>
+                    </div>
+                  )}
+
                   {(() => {
                     let tasksToShow: Task[] = [];
                     if (activityPopupMode === 'view') {
@@ -2559,130 +2809,225 @@ export default function GanttChart({
                         new Date(b.startDate).getTime()
                     );
 
-                    if (tasksToShow.length === 0) {
+                    if (tasksToShow.length === 0 && !showInlineAddTask) {
                       return (
                         <p className="text-sm text-gray-500 italic text-center py-8">
                           {activityPopupMode === 'create'
-                            ? 'Agrega al menos una tarea'
+                            ? 'Haz clic en + para agregar una tarea'
                             : 'No hay tareas definidas'}
                         </p>
                       );
                     }
 
-                    return tasksToShow.map((task, index) => (
-                      <div
-                        key={task.id}
-                        className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-                      >
-                        <div className="flex items-start gap-3">
-                          <label
-                            className="relative inline-flex items-center flex-shrink-0 cursor-pointer"
-                            onPointerDown={(e) => e.stopPropagation()}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={task.completed}
-                              onChange={async () => {
-                                if (task.id.startsWith('temp-')) {
-                                  setTempTasks((prev) =>
-                                    prev.map((t) =>
-                                      t.id === task.id
-                                        ? { ...t, completed: !t.completed }
-                                        : t
-                                    )
-                                  );
-                                } else {
-                                  await handleToggleTaskCompletion(task.id);
-                                  if (selectedActivityForPopup) {
-                                    setSelectedActivityForPopup({
-                                      ...selectedActivityForPopup,
-                                      tasks:
-                                        selectedActivityForPopup.tasks?.map(
-                                          (t) =>
-                                            t.id === task.id
-                                              ? { ...t, completed: !t.completed }
-                                              : t
-                                        ) || [],
-                                    });
-                                  }
-                                }
-                              }}
-                              className="sr-only"
-                            />
-                            <div
-                              className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${
-                                task.completed
-                                  ? 'bg-emerald-500 border-emerald-500'
-                                  : 'bg-white border-gray-300 hover:border-emerald-400'
-                              }`}
-                            >
-                              {task.completed && (
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              )}
-                            </div>
-                          </label>
-                          <div className="flex-1 min-w-0">
-                            <span
-                              className={`font-medium block ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
-                            >
-                              {task.name}
+                    return tasksToShow.map((task) =>
+                      editingTaskId === task.id ? (
+                        <div
+                          key={task.id}
+                          className="p-4 bg-amber-50 rounded-lg border border-amber-200 space-y-3"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium text-gray-900">
+                              Editar tarea
                             </span>
-                            {task.description && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                {task.description}
-                              </p>
-                            )}
-                            <span className="text-xs text-gray-500 mt-2 block">
-                              {formatDateForTooltip(task.startDate)} -{' '}
-                              {formatDateForTooltip(task.endDate)}
-                            </span>
-                          </div>
-                          {activityPopupMode !== 'view' && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={async () => {
-                                if (task.id.startsWith('temp-')) {
-                                  setTempTasks((prev) =>
-                                    prev.filter((t) => t.id !== task.id)
-                                  );
-                                } else {
-                                  if (
-                                    window.confirm(
-                                      '¿Eliminar esta tarea?'
-                                    )
-                                  ) {
-                                    await handleDeleteTask(task.id);
+                              onClick={() => setEditingTaskId(null)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                          <Input
+                            value={editingTaskForm.name}
+                            onChange={(e) =>
+                              setEditingTaskForm((p) => ({
+                                ...p,
+                                name: e.target.value,
+                              }))
+                            }
+                            placeholder="Nombre"
+                            maxLength={60}
+                          />
+                          <textarea
+                            value={editingTaskForm.description}
+                            onChange={(e) =>
+                              setEditingTaskForm((p) => ({
+                                ...p,
+                                description: e.target.value,
+                              }))
+                            }
+                            placeholder="Descripción"
+                            className="w-full px-3 py-2 border rounded-md text-sm resize-none"
+                            rows={2}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-gray-600">Inicio</Label>
+                              <Calendar
+                                compact
+                                value={editingTaskForm.startDate || undefined}
+                                onChange={(d) =>
+                                  setEditingTaskForm((p) => ({
+                                    ...p,
+                                    startDate: d || '',
+                                  }))
+                                }
+                                placeholder="Fecha inicio"
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-gray-600">Término</Label>
+                              <Calendar
+                                compact
+                                value={editingTaskForm.endDate || undefined}
+                                onChange={(d) =>
+                                  setEditingTaskForm((p) => ({
+                                    ...p,
+                                    endDate: d || '',
+                                  }))
+                                }
+                                placeholder="Fecha término"
+                                className="w-full"
+                                minDate={editingTaskForm.startDate || undefined}
+                              />
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveTaskEdit}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            Guardar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          key={task.id}
+                          className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          <div className="flex items-start gap-3">
+                            <label
+                              className="relative inline-flex items-center flex-shrink-0 cursor-pointer"
+                              onPointerDown={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={task.completed}
+                                onChange={async () => {
+                                  if (task.id.startsWith('temp-')) {
+                                    setTempTasks((prev) =>
+                                      prev.map((t) =>
+                                        t.id === task.id
+                                          ? { ...t, completed: !t.completed }
+                                          : t
+                                      )
+                                    );
+                                  } else {
+                                    await handleToggleTaskCompletion(task.id);
                                     if (selectedActivityForPopup) {
                                       setSelectedActivityForPopup({
                                         ...selectedActivityForPopup,
                                         tasks:
-                                          selectedActivityForPopup.tasks?.filter(
-                                            (t) => t.id !== task.id
+                                          selectedActivityForPopup.tasks?.map(
+                                            (t) =>
+                                              t.id === task.id
+                                                ? { ...t, completed: !t.completed }
+                                                : t
                                           ) || [],
                                       });
                                     }
                                   }
-                                }
-                              }}
-                              className="text-red-500 hover:text-red-600 h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                                }}
+                                className="sr-only"
+                              />
+                              <div
+                                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${
+                                  task.completed
+                                    ? 'bg-emerald-500 border-emerald-500'
+                                    : 'bg-white border-gray-300 hover:border-emerald-400'
+                                }`}
+                              >
+                                {task.completed && (
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                            </label>
+                            <div className="flex-1 min-w-0">
+                              <span
+                                className={`font-medium block ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                              >
+                                {task.name}
+                              </span>
+                              {task.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {task.description}
+                                </p>
+                              )}
+                              <span className="text-xs text-gray-500 mt-2 block">
+                                {formatDateForTooltip(task.startDate)} -{' '}
+                                {formatDateForTooltip(task.endDate)}
+                              </span>
+                            </div>
+                            {activityPopupMode !== 'view' && (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setEditingTaskId(task.id);
+                                    setEditingTaskForm({
+                                      name: task.name,
+                                      description: task.description || '',
+                                      startDate: task.startDate,
+                                      endDate: task.endDate,
+                                    });
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300"
+                                  title="Editar tarea"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (task.id.startsWith('temp-')) {
+                                      setTempTasks((prev) =>
+                                        prev.filter((t) => t.id !== task.id)
+                                      );
+                                    } else if (
+                                      window.confirm('¿Eliminar esta tarea?')
+                                    ) {
+                                      await handleDeleteTask(task.id);
+                                      if (selectedActivityForPopup) {
+                                        setSelectedActivityForPopup({
+                                          ...selectedActivityForPopup,
+                                          tasks:
+                                            selectedActivityForPopup.tasks?.filter(
+                                              (t) => t.id !== task.id
+                                            ) || [],
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 hover:bg-red-200"
+                                  title="Eliminar tarea"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ));
+                      )
+                    );
                   })()}
                 </div>
               </div>
@@ -2808,57 +3153,6 @@ export default function GanttChart({
               </div>
             </div>
 
-            {/* Footer con botones */}
-            <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-gray-200 flex-shrink-0">
-              {activityPopupMode === 'view' && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setActivityPopupMode('edit');
-                    setUnifiedActivityForm({
-                      name: selectedActivityForPopup?.name || '',
-                      description:
-                        selectedActivityForPopup?.description || '',
-                    });
-                    setTempTasks([]);
-                  }}
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Editar
-                </Button>
-              )}
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (activityPopupMode === 'view') {
-                    setShowActivityPopup(false);
-                    setSelectedActivityForPopup(null);
-                    setUnifiedActivityForm({ name: '', description: '' });
-                    setTempTasks([]);
-                    setActivityPopupMode('view');
-                  } else {
-                    setActivityPopupMode('view');
-                    setUnifiedActivityForm({ name: '', description: '' });
-                    setTempTasks([]);
-                  }
-                }}
-              >
-                {activityPopupMode === 'view' ? 'Cerrar' : 'Cancelar'}
-              </Button>
-
-              {activityPopupMode !== 'view' && (
-                <Button
-                  onClick={handleUnifiedActivityAction}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {activityPopupMode === 'create'
-                    ? 'Crear Actividad'
-                    : 'Guardar Cambios'}
-                </Button>
-              )}
-            </div>
           </DialogContent>
         </Dialog>
 
