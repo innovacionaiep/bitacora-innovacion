@@ -676,7 +676,7 @@ export function IndicadorModal({
                 <div className="flex items-center">
                   {/* Resultado Esperado */}
                   <div className="flex-1 flex flex-col items-center py-3">
-                    <span className="text-base font-medium text-blue-600 mb-2">
+                    <span className="text-base font-medium text-gray-800 mb-2">
                       Esperado
                     </span>
                     {isEditMode ? (
@@ -692,7 +692,7 @@ export function IndicadorModal({
                         className="w-full max-w-[160px] px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl font-bold text-center"
                       />
                     ) : (
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-2xl font-bold text-gray-800">
                         {resultadoEsperadoFormateado}
                       </p>
                     )}

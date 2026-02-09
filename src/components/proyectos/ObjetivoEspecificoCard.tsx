@@ -1,9 +1,14 @@
 'use client';
 
-import { ListChecks, Search } from 'lucide-react';
+import { ListChecks, Search, Trash2 } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
 import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
-import type { ObjetivoGeneralData } from '@/lib/actions/indicadores';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ObjetivoEspecificoCardProps {
   objetivoEspecifico: {
@@ -36,12 +41,17 @@ interface ObjetivoEspecificoCardProps {
     fechaInicio?: string | null;
     fechaFin?: string | null;
   }) => void;
+  deleteMode?: boolean;
+  onDeleteIndicador?: (indicadorId: string) => Promise<void>;
 }
 
 export function ObjetivoEspecificoCard({
   objetivoEspecifico,
   onIndicadorClick,
+  deleteMode,
+  onDeleteIndicador,
 }: ObjetivoEspecificoCardProps) {
+  const canDelete = objetivoEspecifico.indicadores.length > 1;
   // Calcular el progreso del objetivo específico basado en sus indicadores
   const progresoObjetivo =
     objetivoEspecifico.indicadores.length > 0
@@ -157,22 +167,48 @@ export function ObjetivoEspecificoCard({
                 orden={1}
               />
 
-              {/* Botón Ver Detalles - fuera de la tarjeta, a la derecha */}
-              <div className="relative flex-shrink-0">
-                <button
-                  onClick={() =>
-                    onIndicadorClick(objetivoEspecifico.indicadores[0])
-                  }
-                  className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
-                  title="Ver detalles"
-                >
-                  <Search className="h-5 w-5 text-gray-700" />
-                </button>
-                {/* Badge de comentarios */}
-                {objetivoEspecifico.indicadores[0].comentariosCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
-                    {objetivoEspecifico.indicadores[0].comentariosCount}
-                  </span>
+              {/* Botón Ver Detalles + opcionalmente Eliminar */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      onIndicadorClick(objetivoEspecifico.indicadores[0])
+                    }
+                    className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                    title="Ver detalles"
+                  >
+                    <Search className="h-5 w-5 text-gray-700" />
+                  </button>
+                  {objetivoEspecifico.indicadores[0].comentariosCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                      {objetivoEspecifico.indicadores[0].comentariosCount}
+                    </span>
+                  )}
+                </div>
+                {deleteMode && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() =>
+                            canDelete &&
+                            onDeleteIndicador?.(objetivoEspecifico.indicadores[0].id)
+                          }
+                          disabled={!canDelete}
+                          className={`p-3 rounded-full transition-colors ${
+                            canDelete
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{canDelete ? 'Eliminar indicador' : 'No se puede eliminar'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             </div>
@@ -196,22 +232,50 @@ export function ObjetivoEspecificoCard({
                 />
               </div>
 
-              {/* Botones Ver Detalles - fuera de la tarjeta, a la derecha, uno por cada indicador */}
+              {/* Botones Ver Detalles + opcionalmente Eliminar - uno por cada indicador */}
               <div className="flex flex-col gap-3 justify-center">
                 {objetivoEspecifico.indicadores.map((indicador) => (
-                  <div key={indicador.id} className="relative flex-shrink-0">
-                    <button
-                      onClick={() => onIndicadorClick(indicador)}
-                      className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
-                      title="Ver detalles"
-                    >
-                      <Search className="h-5 w-5 text-gray-700" />
-                    </button>
-                    {/* Badge de comentarios */}
-                    {indicador.comentariosCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
-                        {indicador.comentariosCount}
-                      </span>
+                  <div
+                    key={indicador.id}
+                    className="flex-shrink-0 flex items-center gap-2"
+                  >
+                    <div className="relative">
+                      <button
+                        onClick={() => onIndicadorClick(indicador)}
+                        className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                        title="Ver detalles"
+                      >
+                        <Search className="h-5 w-5 text-gray-700" />
+                      </button>
+                      {indicador.comentariosCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                          {indicador.comentariosCount}
+                        </span>
+                      )}
+                    </div>
+                    {deleteMode && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() =>
+                                canDelete && onDeleteIndicador?.(indicador.id)
+                              }
+                              disabled={!canDelete}
+                              className={`p-3 rounded-full transition-colors ${
+                                canDelete
+                                  ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
+                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{canDelete ? 'Eliminar indicador' : 'No se puede eliminar'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
                 ))}

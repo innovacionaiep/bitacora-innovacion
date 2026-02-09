@@ -105,8 +105,8 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Esperado */}
             <div className="flex flex-col items-end" style={{ width: '80px' }}>
-              <span className="text-xs font-bold text-blue-600">Esperado</span>
-              <span className="text-lg font-bold text-blue-600 whitespace-nowrap">
+              <span className="text-xs font-bold text-gray-800">Esperado</span>
+              <span className="text-lg font-bold text-gray-800 whitespace-nowrap">
                 {resultadoEsperadoFormateado}
               </span>
             </div>

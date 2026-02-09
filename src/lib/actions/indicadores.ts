@@ -426,6 +426,115 @@ export async function updateIndicador(
   }
 }
 
+export async function createIndicador(
+  proyectoId: string,
+  objetivoEspecificoId: string,
+  data: {
+    nombre: string;
+    descripcion: string;
+    formaCalculo: string;
+    resultadoEsperado: string;
+    formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
+  }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const parseValue = (value: string | null | undefined): number => {
+      if (!value || value === '') return 0;
+      const cleaned = value
+        .toString()
+        .replace(/%/g, '')
+        .replace(/,/g, '.')
+        .trim();
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const resultadoEsperado = parseValue(data.resultadoEsperado);
+    const resultadoAlcanzado = 0;
+    const porcentajeCumplimiento = 0;
+    const porcentajeAvance = 0;
+
+    const indicador = await prisma.indicador.create({
+      data: {
+        proyectoId,
+        objetivoEspecificoId,
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        formaCalculo: data.formaCalculo,
+        resultadoEsperado: data.resultadoEsperado,
+        resultadoAlcanzado: '0',
+        formatoNumero: data.formatoNumero ?? 'Porcentaje',
+        porcentajeCumplimiento,
+        porcentajeAvance,
+        fechaInicio: data.fechaInicio ?? null,
+        fechaFin: data.fechaFin ?? null,
+      },
+    });
+
+    await createHistorialEntry({
+      proyectoId,
+      accion: 'Crear',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: `Indicador "${data.nombre}"`,
+      cambioGenerado: `Indicador creado (objetivo específico seleccionado)`,
+    });
+
+    await sincronizarObjetivosProyecto(proyectoId);
+
+    return { success: true, id: indicador.id };
+  } catch (error) {
+    console.error('Error creating indicador:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
+    };
+  }
+}
+
+export async function deleteIndicador(
+  indicadorId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const indicador = await prisma.indicador.findUnique({
+      where: { id: indicadorId },
+    });
+
+    if (!indicador) {
+      return {
+        success: false,
+        error: 'Indicador no encontrado',
+      };
+    }
+
+    const proyectoId = indicador.proyectoId;
+    const nombre = indicador.nombre;
+
+    await prisma.indicador.delete({
+      where: { id: indicadorId },
+    });
+
+    await createHistorialEntry({
+      proyectoId,
+      accion: 'Eliminar',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: `Indicador "${nombre}"`,
+      cambioGenerado: 'Indicador eliminado',
+    });
+
+    await sincronizarObjetivosProyecto(proyectoId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting indicador:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
+    };
+  }
+}
+
 // Función para recalcular y actualizar porcentajes de todos los indicadores de un proyecto
 export async function recalcularPorcentajesProyecto(
   proyectoId: string

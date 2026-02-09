@@ -3,7 +3,7 @@
 import { Target } from 'lucide-react';
 import { ObjetivoEspecificoCard } from './ObjetivoEspecificoCard';
 import type { ObjetivoGeneralData } from '@/lib/actions/indicadores';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 
 interface ObjetivoGeneralCardProps {
   objetivoGeneral: ObjetivoGeneralData;
@@ -19,12 +19,20 @@ interface ObjetivoGeneralCardProps {
     fechaInicio?: string | null;
     fechaFin?: string | null;
   }) => void;
+  /** Botones o acciones a la derecha del objetivo general (ej. Agregar / Eliminar indicador) */
+  actions?: ReactNode;
+  /** Si está activo el modo eliminar, se muestra botón papelera en cada indicador */
+  deleteMode?: boolean;
+  onDeleteIndicador?: (indicadorId: string) => Promise<void>;
 }
 
 export function ObjetivoGeneralCard({
   objetivoGeneral,
   progresoGeneral,
   onIndicadorClick,
+  actions,
+  deleteMode,
+  onDeleteIndicador,
 }: ObjetivoGeneralCardProps) {
   // Calcular el ancho máximo basado en los anchos conocidos de las tarjetas
   // Para cada objetivo específico: objetivo (560px) + gap (24px) + indicadores (580px cada uno + 24px gap entre ellos)
@@ -56,49 +64,56 @@ export function ObjetivoGeneralCard({
         <>
           {/* Contenedor wrapper que agrupa todo para alinear anchos */}
           <div className="flex flex-col gap-16 relative">
-            {/* Tarjeta del Objetivo General - ENCIMA de todo, con desplazamiento hacia la izquierda */}
+            {/* Fila: Tarjeta del Objetivo General + acciones (botones) a la derecha */}
             <div
-              className="relative group z-20"
-              style={
-                objetivoGeneralWidth
-                  ? {
-                      width: `${Math.round(objetivoGeneralWidth * 0.85)}px`,
-                      marginLeft: '-120px',
-                    }
-                  : { marginLeft: '-120px' }
-              }
+              className="relative group z-20 flex items-center gap-3"
+              style={{ marginLeft: '-120px' }}
             >
-              <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center w-full bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
-                {/* Badge en esquina superior izquierda con icono */}
-                <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-sm flex items-center space-x-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  <span>Objetivo General</span>
-                </div>
+              <div
+                className="relative flex-shrink-0"
+                style={
+                  objetivoGeneralWidth
+                    ? { width: `${Math.round(objetivoGeneralWidth * 0.85)}px` }
+                    : undefined
+                }
+              >
+                <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center w-full bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+                  {/* Badge en esquina superior izquierda con icono */}
+                  <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-sm flex items-center space-x-1.5">
+                    <Target className="h-3.5 w-3.5" />
+                    <span>Objetivo General</span>
+                  </div>
 
-                {/* Barra de progreso en esquina superior derecha */}
-                <div className="absolute top-3 right-3 flex items-center space-x-2">
-                  <span className="text-xs font-semibold text-gray-700">
-                    Progreso
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-96 bg-gray-200 rounded-full h-2 shadow-inner">
-                      <div
-                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-300 shadow-sm"
-                        style={{ width: `${progresoGeneral}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xl font-bold text-emerald-600">
-                      {progresoGeneral}%
+                  {/* Barra de progreso en esquina superior derecha */}
+                  <div className="absolute top-3 right-3 flex items-center space-x-2">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Progreso
                     </span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-96 bg-gray-200 rounded-full h-2 shadow-inner">
+                        <div
+                          className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-300 shadow-sm"
+                          style={{ width: `${progresoGeneral}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xl font-bold text-emerald-600">
+                        {progresoGeneral}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center w-full mt-8 pl-2 pr-2">
+                    <h3 className="font-bold text-[16px] leading-tight flex-1 min-w-0 text-emerald-900">
+                      {objetivoGeneral.descripcion}
+                    </h3>
                   </div>
                 </div>
-
-                <div className="flex items-center w-full mt-8 pl-2 pr-2">
-                  <h3 className="font-bold text-[16px] leading-tight flex-1 min-w-0 text-emerald-900">
-                    {objetivoGeneral.descripcion}
-                  </h3>
-                </div>
               </div>
+              {actions != null && (
+                <div className="flex flex-col gap-2 flex-shrink-0">
+                  {actions}
+                </div>
+              )}
             </div>
 
             {/* Contenedor de objetivos específicos - este define el ancho máximo (sin barras de progreso) */}
@@ -111,6 +126,8 @@ export function ObjetivoGeneralCard({
                     <ObjetivoEspecificoCard
                       objetivoEspecifico={objetivoEspecifico}
                       onIndicadorClick={onIndicadorClick}
+                      deleteMode={deleteMode}
+                      onDeleteIndicador={onDeleteIndicador}
                     />
                   </div>
                 )
@@ -119,7 +136,10 @@ export function ObjetivoGeneralCard({
           </div>
         </>
       ) : (
-        <div className="relative group" style={{ marginLeft: '-120px' }}>
+        <div
+          className="relative group flex items-center gap-3"
+          style={{ marginLeft: '-120px' }}
+        >
           <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
             {/* Badge en esquina superior izquierda con icono */}
             <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-sm flex items-center space-x-1.5">
@@ -151,6 +171,11 @@ export function ObjetivoGeneralCard({
               </h3>
             </div>
           </div>
+          {actions != null && (
+            <div className="flex flex-col gap-2 flex-shrink-0">
+              {actions}
+            </div>
+          )}
         </div>
       )}
     </div>

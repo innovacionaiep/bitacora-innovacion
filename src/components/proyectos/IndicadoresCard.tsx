@@ -1,9 +1,19 @@
 'use client';
 
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ObjetivoGeneralCard } from './ObjetivoGeneralCard';
 import { IndicadorModal } from './IndicadorModal';
+import { AgregarIndicadorModal } from './AgregarIndicadorModal';
+import { deleteIndicador } from '@/lib/actions/indicadores';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 
 interface IndicadoresCardProps {
@@ -13,6 +23,8 @@ interface IndicadoresCardProps {
 export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
   const { data, loading, error, progresoGeneral, fetchIndicadores } =
     useIndicadores(projectId);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [showAgregarModal, setShowAgregarModal] = useState(false);
   const [selectedIndicador, setSelectedIndicador] = useState<{
     id: string;
     nombre: string;
@@ -27,9 +39,29 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
 
   // Función para refrescar los datos después de guardar
   const handleIndicadorUpdated = async () => {
-    // Actualizar datos sin mostrar estado de carga para evitar "refresh" visual
     await fetchIndicadores(false);
   };
+
+  const handleDeleteIndicador = async (indicadorId: string) => {
+    if (!confirm('¿Eliminar este indicador?')) return;
+    const result = await deleteIndicador(indicadorId);
+    if (result.success) {
+      await fetchIndicadores(false);
+    } else {
+      alert(result.error || 'Error al eliminar');
+    }
+  };
+
+  const objetivosEspecificosForModal = useMemo(() => {
+    if (!data?.objetivosGenerales) return [];
+    return data.objetivosGenerales.flatMap((og) =>
+      og.objetivosEspecificos.map((oe) => ({
+        id: oe.id,
+        descripcion: oe.descripcion,
+        orden: oe.orden,
+      }))
+    );
+  }, [data]);
 
   // Actualizar el indicador seleccionado cuando cambian los datos
   useEffect(() => {
@@ -140,6 +172,52 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                     fechaFin: indicador.fechaFin,
                   });
                 }}
+                actions={index === 0 ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                            showAgregarModal
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                          }`}
+                          onClick={() => setShowAgregarModal(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Agregar indicador</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                            deleteMode
+                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                          }`}
+                          onClick={() => setDeleteMode((prev) => !prev)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{deleteMode ? 'Salir del modo eliminación' : 'Eliminar indicador'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : undefined}
+                deleteMode={deleteMode}
+                onDeleteIndicador={handleDeleteIndicador}
               />
             </div>
           ))}
@@ -154,6 +232,15 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
           onUpdate={handleIndicadorUpdated}
         />
       )}
+
+      {/* Modal para agregar indicador */}
+      <AgregarIndicadorModal
+        open={showAgregarModal}
+        onClose={() => setShowAgregarModal(false)}
+        onSuccess={handleIndicadorUpdated}
+        proyectoId={projectId}
+        objetivosEspecificos={objetivosEspecificosForModal}
+      />
     </div>
   );
 }

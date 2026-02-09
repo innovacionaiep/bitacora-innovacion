@@ -62,6 +62,7 @@ model User {
   proyectos ProyectoParticipante[]
   comentariosIndicador ComentarioIndicador[]
   comentariosItemPresupuesto ComentarioItemPresupuesto[]
+  comentariosActividad ComentarioActividad[]
   historialProyecto HistorialProyecto[]
   
   // Relaciones del Feed de Novedades
@@ -373,6 +374,7 @@ model Activity {
 
   project Proyecto @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks   Task[]
+  comentarios ComentarioActividad[]
 
   @@map("activities")
 }
@@ -480,6 +482,22 @@ model Indicador {
   actualizacionesEnReunion IndicadorActualizadoEnReunion[]
 
   @@map("indicadores")
+}
+
+// Comentarios de Actividades
+model ComentarioActividad {
+  id          String   @id @default(cuid())
+  actividadId String   @map("actividad_id")
+  userId      String   @map("user_id")
+  contenido   String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  actividad Activity @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([actividadId])
+  @@map("comentarios_actividad")
 }
 
 // Comentarios de Indicadores

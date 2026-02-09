@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -31,7 +32,15 @@ import {
   TrendingUp,
   Maximize,
   Minimize,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import {
+  getComentariosActividad,
+  createComentarioActividad,
+  type ComentarioActividadData,
+} from '@/lib/actions/comentarios-actividad';
 import KanbanBoard from '@/components/proyectos/KanbanBoard';
 import {
   Tooltip,
@@ -112,7 +121,6 @@ interface SortableActivityProps {
   };
   getBarWidth: (startDate: string, endDate: string) => number;
   formatDateForTooltip: (dateString: string) => string;
-  measureAlignment?: boolean;
 }
 
 function SortableActivity({
@@ -129,7 +137,6 @@ function SortableActivity({
   getBarWidth,
   formatDateForTooltip,
   scrollbarWidth,
-  measureAlignment = false,
 }: SortableActivityProps & { scrollbarWidth: number }) {
   const {
     attributes,
@@ -139,28 +146,6 @@ function SortableActivity({
     transition,
     isDragging,
   } = useSortable({ id: activity.id });
-
-  // #region agent log
-  const refLeftCollapsed = useRef<HTMLSpanElement | null>(null);
-  const refLeftExpanded = useRef<HTMLDivElement | null>(null);
-  const refGanttBarContainer = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!measureAlignment) return;
-    const run = () => {
-      const leftEl = refLeftCollapsed.current || refLeftExpanded.current;
-      const rightEl = refGanttBarContainer.current;
-      if (!leftEl || !rightEl) return;
-      const rL = leftEl.getBoundingClientRect();
-      const rR = rightEl.getBoundingClientRect();
-      const centerLeft = rL.top + rL.height / 2;
-      const centerRight = rR.top + rR.height / 2;
-      const diffPx = centerRight - centerLeft;
-      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttChart.tsx:alignment',message:'activity line vs bar center',data:{leftTop:rL.top,leftHeight:rL.height,centerLeft,rightTop:rR.top,rightHeight:rR.height,centerRight,diffPx,expanded:expandedDescriptions.has(activity.id)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    };
-    const t = setTimeout(run, 100);
-    return () => clearTimeout(t);
-  }, [measureAlignment, expandedDescriptions, activity.id]);
-  // #endregion
 
   // Función unificada para calcular altura de fila
   const getRowHeight = (isExpanded: boolean, taskCount: number) => {
@@ -250,7 +235,6 @@ function SortableActivity({
               {!expandedDescriptions.has(activity.id) && (
                 <div className="flex-1 min-w-0 flex items-center relative">
                   <span
-                    ref={measureAlignment ? refLeftCollapsed : undefined}
                     className={`activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
                     style={{
                       fontSize: '15px',
@@ -267,9 +251,9 @@ function SortableActivity({
                     title="Haz clic para ver detalles de la actividad"
                   >
                     {activity.name}
-                    {/* Punto gris al final del nombre de actividad */}
+                    {/* Punto oculto (mismo color que el fondo) para mantener la posición de la línea */}
                     <span
-                      className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 flex-shrink-0 relative"
+                      className="w-2 h-2 rounded-full inline-block ml-1 flex-shrink-0 relative bg-white"
                       style={{
                         verticalAlign: 'middle',
                         transform: 'translateY(-36%)',
@@ -318,7 +302,6 @@ function SortableActivity({
 
                   return (
                     <div
-                      ref={measureAlignment ? refLeftExpanded : undefined}
                       className={`absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
                       style={{
                         fontSize: '15px',
@@ -423,16 +406,16 @@ function SortableActivity({
                             }}
                           >
                             {task.name}
-                            {/* Punto gris al final del texto */}
+                            {/* Punto oculto (mismo color que el fondo) para mantener la posición de la línea */}
                             <span
-                              className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 relative"
+                              className="w-2 h-2 rounded-full inline-block ml-1 relative bg-white"
                               style={{
                                 verticalAlign: 'middle',
                                 transform: 'translateY(-36%)',
                                 top: '50%',
                               }}
                             >
-                              {/* Línea roja desde el punto gris hasta el borde derecho de la columna */}
+                              {/* Línea sutil desde el punto hasta el borde derecho de la columna */}
                               <div
                                 className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none"
                                 style={{
@@ -497,7 +480,6 @@ function SortableActivity({
                 }}
               >
                 <div
-                  ref={measureAlignment ? refGanttBarContainer : undefined}
                   className="relative h-8"
                   style={{
                     top: `${startOffset + activityBarTopOffset}px`,
@@ -628,6 +610,7 @@ export default function GanttChart({
   showProjectSelector = false,
   onProjectChange,
 }: GanttChartProps) {
+  const { data: session } = useSession();
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -738,6 +721,16 @@ export default function GanttChart({
 
   // Estado para tareas temporales en el popup de crear actividad
   const [tempTasks, setTempTasks] = useState<Task[]>([]);
+
+  // Estado para comentarios de actividad
+  const [comentariosActividad, setComentariosActividad] = useState<
+    ComentarioActividadData[]
+  >([]);
+  const [nuevoComentarioActividad, setNuevoComentarioActividad] = useState('');
+  const [isLoadingComentariosActividad, setIsLoadingComentariosActividad] =
+    useState(false);
+  const [isEnviandoComentarioActividad, setIsEnviandoComentarioActividad] =
+    useState(false);
 
   // Usar el hook de Gantt con el projectId recibido como prop
   const {
@@ -886,6 +879,33 @@ export default function GanttChart({
       window.removeEventListener('resize', calculateScrollbarWidth);
     };
   }, [activities, expandedDescriptions]);
+
+  // Cargar comentarios cuando se abre el popup de actividad en modo view/edit (actividad existente)
+  useEffect(() => {
+    const actividadId = selectedActivityForPopup?.id;
+    if (
+      !actividadId ||
+      actividadId.startsWith('temp-') ||
+      !showActivityPopup
+    ) {
+      setComentariosActividad([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const cargarComentarios = async () => {
+      setIsLoadingComentariosActividad(true);
+      const result = await getComentariosActividad(actividadId);
+      if (!isCancelled && result.success && result.data) {
+        setComentariosActividad(result.data);
+      }
+      setIsLoadingComentariosActividad(false);
+    };
+    cargarComentarios();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedActivityForPopup?.id, showActivityPopup]);
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -1274,6 +1294,30 @@ export default function GanttChart({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleEnviarComentarioActividad = async () => {
+    const actividadId = selectedActivityForPopup?.id;
+    if (
+      !nuevoComentarioActividad.trim() ||
+      !actividadId ||
+      actividadId.startsWith('temp-')
+    )
+      return;
+
+    setIsEnviandoComentarioActividad(true);
+    const result = await createComentarioActividad(
+      actividadId,
+      nuevoComentarioActividad.trim()
+    );
+
+    if (result.success && result.data) {
+      setComentariosActividad([result.data, ...comentariosActividad]);
+      setNuevoComentarioActividad('');
+    } else {
+      alert(result.error || 'Error al enviar comentario');
+    }
+    setIsEnviandoComentarioActividad(false);
   };
 
   // Función para manejar la acción principal del popup (crear o guardar)
@@ -1985,7 +2029,7 @@ export default function GanttChart({
                                 left: `${getTodayPositionPercent()}%`,
                                 top: '100%',
                                 height: isFullscreen
-                                  ? 'calc(100vh - 230px + 10px)'
+                                  ? 'calc(100vh - 230px + 5px)'
                                   : 'calc(100vh - 375px)',
                               }}
                             ></div>
@@ -2059,11 +2103,10 @@ export default function GanttChart({
                                 )}
                                 strategy={verticalListSortingStrategy}
                               >
-                                {activities.map((activity, index) => (
+                                {activities.map((activity) => (
                                   <SortableActivity
                                     key={activity.id}
                                     activity={activity}
-                                    measureAlignment={index === 0}
                                     expandedDescriptions={expandedDescriptions}
                                     toggleDescription={toggleDescription}
                                     handleActivityBarClick={
@@ -2327,430 +2370,497 @@ export default function GanttChart({
           </div>
         )}
 
-        {/* Popup unificado de actividad */}
-        {showActivityPopup && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
-            onClick={() => {
+        {/* Popup unificado de actividad - rediseñado con 3 columnas como IndicadorModal */}
+        <Dialog
+          open={showActivityPopup}
+          onOpenChange={(open) => {
+            if (!open) {
               setShowActivityPopup(false);
               setSelectedActivityForPopup(null);
               setUnifiedActivityForm({ name: '', description: '' });
               setTempTasks([]);
-            }}
+              setActivityPopupMode('view');
+            }
+          }}
+        >
+          <DialogContent
+            className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Card
-              className="w-[700px] max-h-[90vh] shadow-2xl border-2 mx-4 pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {activityPopupMode === 'create'
-                      ? 'Crear Actividad'
-                      : activityPopupMode === 'edit'
-                        ? 'Editar Actividad'
-                        : 'Información de Actividad'}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowActivityPopup(false);
-                      setSelectedActivityForPopup(null);
-                      setUnifiedActivityForm({ name: '', description: '' });
-                      setTempTasks([]);
-                    }}
-                    className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-105"
-                  >
-                    <span className="text-lg font-semibold text-gray-600 hover:text-gray-800">
-                      ×
-                    </span>
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Formulario de nombre y descripción */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-sm font-medium text-gray-700">
-                        Nombre
-                      </h4>
-                      {activityPopupMode !== 'view' && (
-                        <span
-                          className={`text-xs ${unifiedActivityForm.name.length > 76 ? 'text-red-500' : unifiedActivityForm.name.length > 60 ? 'text-yellow-500' : 'text-gray-400'}`}
-                        >
-                          {unifiedActivityForm.name.length}/76
-                        </span>
-                      )}
-                    </div>
-                    {activityPopupMode === 'view' ? (
-                      <p className="text-base text-gray-900 bg-gray-50 p-3 rounded-md">
-                        {selectedActivityForPopup?.name}
-                      </p>
-                    ) : (
-                      <Input
-                        value={unifiedActivityForm.name}
-                        onChange={(e) =>
-                          handleUnifiedActivityInputChange(
-                            'name',
-                            e.target.value
-                          )
-                        }
-                        placeholder="Nombre de la actividad *"
-                        className={`w-full ${unifiedActivityForm.name.length > 76 ? 'border-red-500 focus:border-red-500' : ''}`}
-                        maxLength={76}
-                        required
-                      />
-                    )}
+            {/* Header */}
+            <div className="mb-6 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-2">
+                  {activityPopupMode === 'create'
+                    ? 'CREAR ACTIVIDAD'
+                    : activityPopupMode === 'edit'
+                      ? 'EDITAR ACTIVIDAD'
+                      : 'ACTIVIDAD'}
+                </DialogTitle>
+              </div>
+              <h1 className="text-2xl font-bold text-emerald-600">
+                {activityPopupMode === 'view'
+                  ? selectedActivityForPopup?.name
+                  : unifiedActivityForm.name || 'Nueva actividad'}
+              </h1>
+              {activityPopupMode === 'view' && selectedActivityForPopup && (
+                <div className="flex items-center gap-4 mt-3">
+                  <span className="text-base font-medium text-gray-700">
+                    Progreso
+                  </span>
+                  <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${getActivityProgress(selectedActivityForPopup)}%`,
+                      }}
+                    />
                   </div>
+                  <span className="text-lg font-bold text-emerald-600">
+                    {getActivityProgress(selectedActivityForPopup)}%
+                  </span>
+                </div>
+              )}
+              <div className="w-full h-px bg-emerald-600 mt-3" />
+            </div>
 
+            {/* Layout de 3 columnas */}
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-8 mt-0 flex-1 min-h-0 overflow-hidden">
+              {/* COLUMNA IZQUIERDA: Descripción + Período */}
+              <div className="space-y-6 overflow-y-auto min-h-0">
+                {activityPopupMode !== 'view' && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
-                      Descripción
+                      Nombre
                     </h4>
-                    {activityPopupMode === 'view' ? (
-                      <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md whitespace-pre-wrap min-h-[60px]">
-                        {selectedActivityForPopup?.description ||
-                          'Sin descripción'}
-                      </p>
-                    ) : (
-                      <textarea
-                        value={unifiedActivityForm.description}
-                        onChange={(e) =>
-                          handleUnifiedActivityInputChange(
-                            'description',
-                            e.target.value
-                          )
-                        }
-                        placeholder="Descripción (opcional)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-gray-400 resize-none text-sm"
-                        rows={5}
-                      />
-                    )}
+                    <Input
+                      value={unifiedActivityForm.name}
+                      onChange={(e) =>
+                        handleUnifiedActivityInputChange('name', e.target.value)
+                      }
+                      placeholder="Nombre de la actividad *"
+                      className="w-full"
+                      maxLength={76}
+                    />
+                    <span className="text-xs text-gray-400">
+                      {unifiedActivityForm.name.length}/76
+                    </span>
                   </div>
+                )}
 
-                  {/* Período - siempre visible */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                    Descripción
+                  </h3>
+                  {activityPopupMode === 'view' ? (
+                    <p className="text-gray-700 text-base">
+                      {selectedActivityForPopup?.description || 'Sin descripción'}
+                    </p>
+                  ) : (
+                    <textarea
+                      value={unifiedActivityForm.description}
+                      onChange={(e) =>
+                        handleUnifiedActivityInputChange(
+                          'description',
+                          e.target.value
+                        )
+                      }
+                      placeholder="Descripción (opcional)"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px] resize-y text-base"
+                      rows={4}
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                    Período
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {(() => {
+                      const activityRange = selectedActivityForPopup
+                        ? getActivityDateRange(selectedActivityForPopup)
+                        : null;
+                      if (activityRange) {
+                        return (
+                          <PeriodTimeline
+                            startDate={activityRange.startDate}
+                            endDate={activityRange.endDate}
+                          />
+                        );
+                      }
+                      return (
+                        <p className="text-sm text-gray-500 italic text-center py-4">
+                          {activityPopupMode === 'create'
+                            ? 'El período se calculará según las tareas'
+                            : 'Sin tareas definidas'}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUMNA CENTRAL: Tareas */}
+              <div className="flex flex-col min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                  <h3 className="font-semibold text-gray-900 text-base">
+                    Tareas{' '}
+                    {activityPopupMode === 'view'
+                      ? `(${selectedActivityForPopup?.tasks?.length ?? 0})`
+                      : `(${(selectedActivityForPopup?.tasks?.length ?? 0) + tempTasks.length})`}
+                  </h3>
+                  {activityPopupMode !== 'view' && (
+                    <Button
+                      onClick={() => {
+                        const tempActivity: Activity =
+                          selectedActivityForPopup || {
+                            id: 'temp-activity',
+                            name:
+                              unifiedActivityForm.name || 'Actividad temporal',
+                            description: unifiedActivityForm.description || '',
+                            progress: 0,
+                            tasks: tempTasks,
+                            projectId: projectId || '',
+                            color: '#3B82F6',
+                            orderIndex: 0,
+                            kanbanOrderIndex: 0,
+                            status: 'TODO',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                          };
+                        setSelectedActivity(tempActivity);
+                        setShowAddTask(true);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar Tarea
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                   {(() => {
-                    const activityRange = selectedActivityForPopup
-                      ? getActivityDateRange(selectedActivityForPopup)
-                      : null;
-                    if (!activityRange && activityPopupMode === 'view')
-                      return null;
+                    let tasksToShow: Task[] = [];
+                    if (activityPopupMode === 'view') {
+                      tasksToShow = selectedActivityForPopup?.tasks || [];
+                    } else if (activityPopupMode === 'edit') {
+                      const existing = selectedActivityForPopup?.tasks || [];
+                      tasksToShow = [...existing, ...tempTasks];
+                    } else {
+                      tasksToShow = tempTasks;
+                    }
+                    tasksToShow = [...tasksToShow].sort(
+                      (a, b) =>
+                        new Date(a.startDate).getTime() -
+                        new Date(b.startDate).getTime()
+                    );
 
-                    return (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">
-                          Período
-                        </h4>
-                        <div className="bg-gray-50 p-4 rounded-md">
-                          {activityRange ? (
-                            <PeriodTimeline
-                              startDate={activityRange.startDate}
-                              endDate={activityRange.endDate}
+                    if (tasksToShow.length === 0) {
+                      return (
+                        <p className="text-sm text-gray-500 italic text-center py-8">
+                          {activityPopupMode === 'create'
+                            ? 'Agrega al menos una tarea'
+                            : 'No hay tareas definidas'}
+                        </p>
+                      );
+                    }
+
+                    return tasksToShow.map((task, index) => (
+                      <div
+                        key={task.id}
+                        className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          <label
+                            className="relative inline-flex items-center flex-shrink-0 cursor-pointer"
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={task.completed}
+                              onChange={async () => {
+                                if (task.id.startsWith('temp-')) {
+                                  setTempTasks((prev) =>
+                                    prev.map((t) =>
+                                      t.id === task.id
+                                        ? { ...t, completed: !t.completed }
+                                        : t
+                                    )
+                                  );
+                                } else {
+                                  await handleToggleTaskCompletion(task.id);
+                                  if (selectedActivityForPopup) {
+                                    setSelectedActivityForPopup({
+                                      ...selectedActivityForPopup,
+                                      tasks:
+                                        selectedActivityForPopup.tasks?.map(
+                                          (t) =>
+                                            t.id === task.id
+                                              ? { ...t, completed: !t.completed }
+                                              : t
+                                        ) || [],
+                                    });
+                                  }
+                                }
+                              }}
+                              className="sr-only"
                             />
-                          ) : (
-                            <div className="text-sm text-gray-500 italic text-center py-4">
-                              {activityPopupMode === 'create'
-                                ? 'El período se calculará automáticamente basado en las tareas que agregues'
-                                : 'Sin tareas definidas'}
+                            <div
+                              className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${
+                                task.completed
+                                  ? 'bg-emerald-500 border-emerald-500'
+                                  : 'bg-white border-gray-300 hover:border-emerald-400'
+                              }`}
+                            >
+                              {task.completed && (
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              )}
                             </div>
+                          </label>
+                          <div className="flex-1 min-w-0">
+                            <span
+                              className={`font-medium block ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                            >
+                              {task.name}
+                            </span>
+                            {task.description && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {task.description}
+                              </p>
+                            )}
+                            <span className="text-xs text-gray-500 mt-2 block">
+                              {formatDateForTooltip(task.startDate)} -{' '}
+                              {formatDateForTooltip(task.endDate)}
+                            </span>
+                          </div>
+                          {activityPopupMode !== 'view' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                if (task.id.startsWith('temp-')) {
+                                  setTempTasks((prev) =>
+                                    prev.filter((t) => t.id !== task.id)
+                                  );
+                                } else {
+                                  if (
+                                    window.confirm(
+                                      '¿Eliminar esta tarea?'
+                                    )
+                                  ) {
+                                    await handleDeleteTask(task.id);
+                                    if (selectedActivityForPopup) {
+                                      setSelectedActivityForPopup({
+                                        ...selectedActivityForPopup,
+                                        tasks:
+                                          selectedActivityForPopup.tasks?.filter(
+                                            (t) => t.id !== task.id
+                                          ) || [],
+                                      });
+                                    }
+                                  }
+                                }
+                              }}
+                              className="text-red-500 hover:text-red-600 h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </div>
-                    );
+                    ));
                   })()}
+                </div>
+              </div>
 
-                  {/* Progreso - solo en modo view */}
-                  {activityPopupMode === 'view' && selectedActivityForPopup && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Progreso
-                      </h4>
-                      <div className="bg-gray-50 p-3 rounded-md">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-gray-600">
-                            Completado
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {getActivityProgress(selectedActivityForPopup)}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+              {/* COLUMNA DERECHA: Comentarios */}
+              <div className="flex flex-col min-h-0 border-l border-gray-200 pl-8">
+                <div className="flex items-center gap-2 pb-3 border-b border-gray-200 mb-4 flex-shrink-0">
+                  <MessageSquare className="h-6 w-6 text-blue-600" />
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Comentarios
+                  </h3>
+                </div>
+
+                {selectedActivityForPopup?.id &&
+                !selectedActivityForPopup.id.startsWith('temp-') ? (
+                  <>
+                    <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-0">
+                      {isLoadingComentariosActividad ? (
+                        <p className="text-gray-500">Cargando comentarios...</p>
+                      ) : comentariosActividad.length === 0 ? (
+                        <p className="text-gray-500">No hay comentarios aún</p>
+                      ) : (
+                        comentariosActividad.map((c) => (
                           <div
-                            className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${getActivityProgress(selectedActivityForPopup)}%`,
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tareas - siempre visible */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-700">
-                        Tareas{' '}
-                        {(() => {
-                          if (activityPopupMode === 'view') {
-                            return selectedActivityForPopup?.tasks
-                              ? `(${selectedActivityForPopup.tasks.length})`
-                              : '(0)';
-                          } else if (activityPopupMode === 'edit') {
-                            const existingTasks =
-                              selectedActivityForPopup?.tasks || [];
-                            return `(${existingTasks.length + tempTasks.length})`;
-                          } else {
-                            return `(${tempTasks.length})`;
-                          }
-                        })()}
-                      </h4>
-                      {activityPopupMode !== 'view' && (
-                        <Button
-                          onClick={() => {
-                            const tempActivity: Activity =
-                              selectedActivityForPopup || {
-                                id: 'temp-activity',
-                                name:
-                                  unifiedActivityForm.name ||
-                                  'Actividad temporal',
-                                description:
-                                  unifiedActivityForm.description || '',
-                                progress: 0,
-                                tasks: tempTasks,
-                                projectId: projectId || '',
-                                color: '#3B82F6',
-                                orderIndex: 0,
-                                kanbanOrderIndex: 0,
-                                status: 'TODO',
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                              };
-                            setSelectedActivity(tempActivity);
-                            setShowAddTask(true);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Agregar Tarea
-                        </Button>
+                            key={c.id}
+                            className="flex gap-4 p-4 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex-shrink-0">
+                              {c.user.image ? (
+                                <img
+                                  src={c.user.image}
+                                  alt=""
+                                  className="w-10 h-10 rounded-full"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-gray-600">
+                                    {(c.user.name || c.user.email)[0].toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-gray-900">
+                                  {c.user.name || 'Usuario'}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  {new Date(c.createdAt).toLocaleDateString(
+                                    'es-ES',
+                                    {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    }
+                                  )}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 whitespace-pre-wrap">
+                                {c.contenido}
+                              </p>
+                            </div>
+                          </div>
+                        ))
                       )}
                     </div>
 
-                    <div className="bg-gray-50 p-3 rounded-md max-h-40 overflow-y-auto">
-                      {(() => {
-                        let tasksToShow = [];
-                        if (activityPopupMode === 'view') {
-                          tasksToShow = selectedActivityForPopup?.tasks || [];
-                        } else if (activityPopupMode === 'edit') {
-                          const existingTasks =
-                            selectedActivityForPopup?.tasks || [];
-                          tasksToShow = [...existingTasks, ...tempTasks];
-                        } else {
-                          tasksToShow = tempTasks;
-                        }
-
-                        return tasksToShow.length > 0 ? (
-                          <div className="space-y-2">
-                            {tasksToShow
-                              .sort(
-                                (a, b) =>
-                                  new Date(a.startDate).getTime() -
-                                  new Date(b.startDate).getTime()
-                              )
-                              .map((task, index) => (
-                                <div
-                                  key={task.id}
-                                  className="flex items-start justify-between p-2 bg-white rounded border"
-                                >
-                                  <div className="flex items-start space-x-2 flex-1 min-w-0">
-                                    <span className="text-xs text-gray-500">
-                                      {index + 1}.
-                                    </span>
-                                    <input
-                                      type="checkbox"
-                                      checked={task.completed}
-                                      onChange={async () => {
-                                        if (task.id.startsWith('temp-')) {
-                                          setTempTasks((prev) =>
-                                            prev.map((t) =>
-                                              t.id === task.id
-                                                ? {
-                                                    ...t,
-                                                    completed: !t.completed,
-                                                  }
-                                                : t
-                                            )
-                                          );
-                                        } else {
-                                          await handleToggleTaskCompletion(
-                                            task.id
-                                          );
-                                          if (selectedActivityForPopup) {
-                                            const updatedActivity = {
-                                              ...selectedActivityForPopup,
-                                              tasks:
-                                                selectedActivityForPopup.tasks?.map(
-                                                  (t) =>
-                                                    t.id === task.id
-                                                      ? {
-                                                          ...t,
-                                                          completed:
-                                                            !t.completed,
-                                                        }
-                                                      : t
-                                                ) || [],
-                                            };
-                                            setSelectedActivityForPopup(
-                                              updatedActivity
-                                            );
-                                          }
-                                        }
-                                      }}
-                                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <span
-                                      className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'} break-words max-w-[200px]`}
-                                    >
-                                      {task.name}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                                    <span className="text-xs text-gray-500">
-                                      {formatDateForTooltip(task.startDate)} -{' '}
-                                      {formatDateForTooltip(task.endDate)}
-                                    </span>
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${task.completed ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                                    ></div>
-                                    {activityPopupMode !== 'view' && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={async () => {
-                                          if (activityPopupMode === 'create') {
-                                            setTempTasks((prev) =>
-                                              prev.filter(
-                                                (t) => t.id !== task.id
-                                              )
-                                            );
-                                          } else if (
-                                            activityPopupMode === 'edit'
-                                          ) {
-                                            if (task.id.startsWith('temp-')) {
-                                              setTempTasks((prev) =>
-                                                prev.filter(
-                                                  (t) => t.id !== task.id
-                                                )
-                                              );
-                                            } else {
-                                              const confirmed = window.confirm(
-                                                '¿Estás seguro de que deseas eliminar esta tarea?'
-                                              );
-                                              if (confirmed) {
-                                                handleDeleteTask(task.id);
-                                                if (selectedActivityForPopup) {
-                                                  const updatedActivity = {
-                                                    ...selectedActivityForPopup,
-                                                    tasks:
-                                                      selectedActivityForPopup.tasks?.filter(
-                                                        (t) => t.id !== task.id
-                                                      ) || [],
-                                                  };
-                                                  setSelectedActivityForPopup(
-                                                    updatedActivity
-                                                  );
-                                                }
-                                              }
-                                            }
-                                          } else {
-                                            handleDeleteTask(task.id);
-                                          }
-                                        }}
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                    {session?.user && (
+                      <div className="flex gap-4 pt-4 border-t border-gray-200 flex-shrink-0">
+                        <div className="flex-shrink-0">
+                          {session.user.image ? (
+                            <img
+                              src={session.user.image}
+                              alt=""
+                              className="w-10 h-10 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-sm font-medium text-gray-600">
+                                {(session.user.name || session.user.email)[0].toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <p className="text-sm text-gray-500">
+                            Comentas como{' '}
+                            {session.user.name || session.user.email}
+                          </p>
+                          <div className="flex gap-2">
+                            <textarea
+                              value={nuevoComentarioActividad}
+                              onChange={(e) =>
+                                setNuevoComentarioActividad(e.target.value)
+                              }
+                              placeholder="Escribe un comentario..."
+                              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base"
+                              rows={3}
+                            />
+                            <button
+                              onClick={handleEnviarComentarioActividad}
+                              disabled={
+                                !nuevoComentarioActividad.trim() ||
+                                isEnviandoComentarioActividad
+                              }
+                              className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                            >
+                              <Send className="h-5 w-5" />
+                            </button>
                           </div>
-                        ) : (
-                          <div className="text-center py-4">
-                            <p className="text-sm text-gray-500">
-                              {activityPopupMode === 'create'
-                                ? 'Agrega al menos una tarea para crear la actividad'
-                                : 'No hay tareas definidas'}
-                            </p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex justify-end space-x-2 pt-4">
-                    {activityPopupMode === 'view' && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setActivityPopupMode('edit');
-                          setUnifiedActivityForm({
-                            name: selectedActivityForPopup?.name || '',
-                            description:
-                              selectedActivityForPopup?.description || '',
-                          });
-                          setTempTasks([]);
-                        }}
-                        size="sm"
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
+                        </div>
+                      </div>
                     )}
+                  </>
+                ) : (
+                  <p className="text-gray-500 italic">
+                    Los comentarios estarán disponibles después de crear la
+                    actividad.
+                  </p>
+                )}
+              </div>
+            </div>
 
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (activityPopupMode === 'view') {
-                          setShowActivityPopup(false);
-                          setSelectedActivityForPopup(null);
-                          setUnifiedActivityForm({ name: '', description: '' });
-                          setTempTasks([]);
-                          setActivityPopupMode('view');
-                        } else {
-                          setActivityPopupMode('view');
-                          setUnifiedActivityForm({ name: '', description: '' });
-                          setTempTasks([]);
-                        }
-                      }}
-                      size="sm"
-                    >
-                      {activityPopupMode === 'view' ? 'Cerrar' : 'Cancelar'}
-                    </Button>
+            {/* Footer con botones */}
+            <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-gray-200 flex-shrink-0">
+              {activityPopupMode === 'view' && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setActivityPopupMode('edit');
+                    setUnifiedActivityForm({
+                      name: selectedActivityForPopup?.name || '',
+                      description:
+                        selectedActivityForPopup?.description || '',
+                    });
+                    setTempTasks([]);
+                  }}
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Editar
+                </Button>
+              )}
 
-                    {activityPopupMode !== 'view' && (
-                      <Button
-                        onClick={handleUnifiedActivityAction}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        size="sm"
-                      >
-                        {activityPopupMode === 'create'
-                          ? 'Crear Actividad'
-                          : 'Guardar Cambios'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (activityPopupMode === 'view') {
+                    setShowActivityPopup(false);
+                    setSelectedActivityForPopup(null);
+                    setUnifiedActivityForm({ name: '', description: '' });
+                    setTempTasks([]);
+                    setActivityPopupMode('view');
+                  } else {
+                    setActivityPopupMode('view');
+                    setUnifiedActivityForm({ name: '', description: '' });
+                    setTempTasks([]);
+                  }
+                }}
+              >
+                {activityPopupMode === 'view' ? 'Cerrar' : 'Cancelar'}
+              </Button>
+
+              {activityPopupMode !== 'view' && (
+                <Button
+                  onClick={handleUnifiedActivityAction}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {activityPopupMode === 'create'
+                    ? 'Crear Actividad'
+                    : 'Guardar Cambios'}
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Tooltips independientes posicionados en el viewport */}
         <div
