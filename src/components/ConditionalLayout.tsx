@@ -37,7 +37,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           <SidebarNav />
           <ResponsiveMain>
             <div
-              className={`flex flex-col flex-1 h-full overflow-x-hidden ${isNovedadesRoute ? '' : 'overflow-y-auto p-4 pt-2'}`}
+              className={`flex flex-col flex-1 h-full overflow-x-hidden ${isNovedadesRoute ? '' : 'overflow-y-auto pt-2 pr-4 pb-4 pl-0'}`}
             >
               {children}
             </div>
