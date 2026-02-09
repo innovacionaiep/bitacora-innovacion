@@ -353,15 +353,15 @@ function DraggableActivityCard({
                     <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
                       <Check className="h-2.5 w-2.5 text-white" />
                     </div>
-                    <span className="inline-flex items-center gap-1 truncate">
+                    <span className="inline-flex items-center gap-1">
                       Validado por{' '}
-                      <Avatar className="h-4 w-4 flex-shrink-0">
+                      <Avatar className="h-5 w-5 flex-shrink-0">
                         <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
                         <AvatarFallback className="text-[10px]">
                           {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="truncate max-w-[80px]">
+                      <span>
                         {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
                       </span>
                     </span>

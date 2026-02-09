@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createHistorialEntry } from './historial';
+import { getSession } from '@/lib/auth-utils';
 
 export interface IndicadorData {
   id: string;
@@ -17,6 +18,12 @@ export interface IndicadorData {
   fechaInicio?: string | null;
   fechaFin?: string | null;
   comentariosCount: number;
+  validadoPorCoordinador?: boolean;
+  validadoPorCoordinadorPor?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null;
   objetivoEspecifico: {
     id: string;
     descripcion: string;
@@ -61,6 +68,9 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
               select: {
                 comentarios: true,
               },
+            },
+            validadoPorCoordinadorPor: {
+              select: { id: true, name: true, image: true },
             },
           },
         },
@@ -173,6 +183,8 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                 fechaInicio: ind.fechaInicio,
                 fechaFin: ind.fechaFin,
                 comentariosCount: ind._count.comentarios,
+                validadoPorCoordinador: ind.validadoPorCoordinador,
+                validadoPorCoordinadorPor: ind.validadoPorCoordinadorPor,
                 objetivoEspecifico: {
                   id: obj.id,
                   descripcion: obj.descripcion,
@@ -647,5 +659,140 @@ export async function sincronizarObjetivosProyecto(
       success: false,
       error: error instanceof Error ? error.message : 'Error desconocido',
     };
+  }
+}
+
+async function isCoordinatorOfProject(
+  userId: string,
+  projectId: string
+): Promise<boolean> {
+  const participante = await prisma.proyectoParticipante.findFirst({
+    where: {
+      proyectoId: projectId,
+      userId,
+      rol: 'Coordinador',
+    },
+  });
+  return !!participante;
+}
+
+/**
+ * Marcar o desmarcar validación de coordinador en un indicador.
+ * Solo coordinadores del proyecto pueden validar. El indicador debe tener cumplimiento al 100% para poder validar.
+ */
+export async function toggleIndicadorValidation(indicadorId: string) {
+  // #region agent log
+  const _log = (msg: string, data: Record<string, unknown>) => {
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: 'indicadores.ts:toggleIndicadorValidation', message: msg, data, timestamp: Date.now() }),
+    }).catch(() => {});
+  };
+  // #endregion
+  try {
+    const session = await getSession();
+    // #region agent log
+    _log('session check', { hasSession: !!session, hasUser: !!session?.user, userId: session?.user?.id ?? null });
+    // #endregion
+    if (!session?.user?.id) {
+      return { success: false, error: 'Debes iniciar sesión' };
+    }
+
+    const indicador = await prisma.indicador.findUnique({
+      where: { id: indicadorId },
+      include: {
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
+      },
+    });
+
+    // #region agent log
+    _log('indicador found', { found: !!indicador, proyectoId: indicador?.proyectoId });
+    // #endregion
+    if (!indicador) {
+      return { success: false, error: 'Indicador no encontrado' };
+    }
+
+    const isCoordinator = await isCoordinatorOfProject(
+      session.user.id,
+      indicador.proyectoId
+    );
+    // #region agent log
+    _log('coordinator check', { isCoordinator, userId: session.user.id, proyectoId: indicador.proyectoId });
+    // #endregion
+    if (!isCoordinator) {
+      return {
+        success: false,
+        error: 'Solo los coordinadores del proyecto pueden validar indicadores',
+      };
+    }
+
+    const resultadoEsperado = parseFloat(
+      String(indicador.resultadoEsperado).replace(/%/g, '').replace(/,/g, '.')
+    ) || 0;
+    const resultadoAlcanzado = parseFloat(
+      String(indicador.resultadoAlcanzado).replace(/%/g, '').replace(/,/g, '.')
+    ) || 0;
+    const cumplimiento100 =
+      resultadoEsperado > 0 &&
+      (resultadoAlcanzado / resultadoEsperado) * 100 >= 100;
+    // #region agent log
+    _log('cumplimiento check', {
+      resultadoEsperadoRaw: indicador.resultadoEsperado,
+      resultadoAlcanzadoRaw: indicador.resultadoAlcanzado,
+      resultadoEsperado,
+      resultadoAlcanzado,
+      cumplimiento100,
+      validadoPorCoordinador: indicador.validadoPorCoordinador,
+    });
+    // #endregion
+    if (!cumplimiento100 && !indicador.validadoPorCoordinador) {
+      return {
+        success: false,
+        error:
+          'El indicador debe alcanzar el 100% de cumplimiento para poder validar',
+      };
+    }
+
+    const newValidado = !indicador.validadoPorCoordinador;
+    // #region agent log
+    _log('before update', { newValidado, indicadorId });
+    // #endregion
+    const updated = await prisma.indicador.update({
+      where: { id: indicadorId },
+      data: {
+        validadoPorCoordinador: newValidado,
+        validadoPorCoordinadorId: newValidado ? session.user.id : null,
+      },
+      include: {
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
+      },
+    });
+
+    if (newValidado) {
+      await createHistorialEntry({
+        proyectoId: indicador.proyectoId,
+        accion: 'Validar',
+        tabProyecto: 'Indicadores',
+        elementoEspecifico: `Indicador "${indicador.nombre}"`,
+        cambioGenerado: 'Validado por coordinador',
+      });
+    }
+
+    revalidatePath('/proyectos');
+    return { success: true, data: updated };
+  } catch (error) {
+    // #region agent log
+    _log('catch', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : undefined,
+    });
+    // #endregion
+    console.error('Error toggling indicator validation:', error);
+    return { success: false, error: 'Error al validar indicador' };
   }
 }

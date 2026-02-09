@@ -18,11 +18,19 @@ import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 
 interface IndicadoresCardProps {
   projectId: string;
+  coordinadorIds?: string[];
+  currentUserId?: string;
 }
 
-export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
+export function IndicadoresCard({
+  projectId,
+  coordinadorIds = [],
+  currentUserId,
+}: IndicadoresCardProps) {
   const { data, loading, error, progresoGeneral, fetchIndicadores } =
     useIndicadores(projectId);
+  const canValidateAsCoordinator =
+    !!currentUserId && coordinadorIds.includes(currentUserId);
   const [deleteMode, setDeleteMode] = useState(false);
   const [showAgregarModal, setShowAgregarModal] = useState(false);
   const [selectedIndicador, setSelectedIndicador] = useState<{
@@ -35,6 +43,12 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
+    validadoPorCoordinador?: boolean;
+    validadoPorCoordinadorPor?: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    } | null;
   } | null>(null);
 
   // Función para refrescar los datos después de guardar
@@ -87,7 +101,9 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                 selectedIndicador.formaCalculo ||
               indicadorActualizado.fechaInicio !==
                 selectedIndicador.fechaInicio ||
-              indicadorActualizado.fechaFin !== selectedIndicador.fechaFin
+              indicadorActualizado.fechaFin !== selectedIndicador.fechaFin ||
+              indicadorActualizado.validadoPorCoordinador !==
+                selectedIndicador.validadoPorCoordinador
             ) {
               setSelectedIndicador({
                 id: indicadorActualizado.id,
@@ -99,6 +115,9 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                 formatoNumero: indicadorActualizado.formatoNumero,
                 fechaInicio: indicadorActualizado.fechaInicio,
                 fechaFin: indicadorActualizado.fechaFin,
+                validadoPorCoordinador: indicadorActualizado.validadoPorCoordinador,
+                validadoPorCoordinadorPor:
+                  indicadorActualizado.validadoPorCoordinadorPor,
               });
             }
             break;
@@ -159,6 +178,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
               <ObjetivoGeneralCard
                 objetivoGeneral={objetivoGeneral}
                 progresoGeneral={progresoGeneral}
+                canValidateAsCoordinator={canValidateAsCoordinator}
+                onIndicadorValidationToggle={handleIndicadorUpdated}
                 onIndicadorClick={(indicador) => {
                   setSelectedIndicador({
                     id: indicador.id,
@@ -170,6 +191,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
                     formatoNumero: indicador.formatoNumero,
                     fechaInicio: indicador.fechaInicio,
                     fechaFin: indicador.fechaFin,
+                    validadoPorCoordinador: indicador.validadoPorCoordinador,
+                    validadoPorCoordinadorPor: indicador.validadoPorCoordinadorPor,
                   });
                 }}
                 actions={index === 0 ? (
@@ -230,6 +253,8 @@ export function IndicadoresCard({ projectId }: IndicadoresCardProps) {
           indicador={selectedIndicador}
           onClose={() => setSelectedIndicador(null)}
           onUpdate={handleIndicadorUpdated}
+          projectId={projectId}
+          canValidateAsCoordinator={canValidateAsCoordinator}
         />
       )}
 

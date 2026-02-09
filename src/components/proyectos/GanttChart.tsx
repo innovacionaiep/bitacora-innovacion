@@ -552,9 +552,10 @@ function SortableActivity({
                         {activityProgress}%
                       </div>
                     </div>
-                    {/* Indicador de validación coordinador - solo para actividades finalizadas */}
+                    {/* Indicador de validación coordinador - solo para actividades finalizadas y cuando la actividad no está expandida */}
                     {activity.tasks.length > 0 &&
-                      activity.tasks.every((t) => t.completed) && (
+                      activity.tasks.every((t) => t.completed) &&
+                      !expandedDescriptions.has(activity.id) && (
                         <div
                           className="absolute top-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5 ml-2"
                           style={{
@@ -563,19 +564,19 @@ function SortableActivity({
                         >
                           {(activity as Activity & { validadoPorCoordinador?: boolean; validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinador &&
                           (activity as Activity & { validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinadorPor ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded whitespace-nowrap">
                               <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
                                 <Check className="h-2.5 w-2.5 text-white" />
                               </div>
-                              <span className="truncate max-w-[140px] inline-flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1">
                                 Validado por{' '}
-                                <Avatar className="h-4 w-4 flex-shrink-0">
+                                <Avatar className="h-5 w-5 flex-shrink-0">
                                   <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
                                   <AvatarFallback className="text-[10px]">
                                     {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
-                                <span className="truncate">
+                                <span>
                                   {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
                                 </span>
                               </span>

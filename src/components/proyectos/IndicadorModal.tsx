@@ -11,7 +11,7 @@ import {
   FileText,
   Calculator,
   Hash,
-  Edit2,
+  Edit,
   Check,
   Calendar,
   Info,
@@ -19,7 +19,12 @@ import {
   TrendingUp,
   Send,
   MessageSquare,
+  Paperclip,
+  Loader2,
+  X,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toggleIndicadorValidation } from '@/lib/actions/indicadores';
 import { useState, useEffect, useRef } from 'react';
 import { updateIndicador } from '@/lib/actions/indicadores';
 import {
@@ -27,6 +32,14 @@ import {
   createComentarioIndicador,
   type ComentarioIndicadorData,
 } from '@/lib/actions/comentarios-indicador';
+import {
+  getEvidenciasIndicador,
+  createEvidenciaIndicador,
+  deleteEvidenciaIndicador,
+  type EvidenciaIndicadorData,
+} from '@/lib/actions/evidencias-indicador';
+import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
+import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 
 interface IndicadorModalProps {
@@ -40,18 +53,29 @@ interface IndicadorModalProps {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
+    validadoPorCoordinador?: boolean;
+    validadoPorCoordinadorPor?: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    } | null;
   };
   onClose: () => void;
   onUpdate?: () => Promise<void>;
+  projectId?: string;
+  canValidateAsCoordinator?: boolean;
 }
 
 export function IndicadorModal({
   indicador,
   onClose,
   onUpdate,
+  projectId,
+  canValidateAsCoordinator = false,
 }: IndicadorModalProps) {
   const { data: session } = useSession();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isTogglingValidation, setIsTogglingValidation] = useState(false);
   const [editValues, setEditValues] = useState({
     nombre: indicador.nombre,
     descripcion: indicador.descripcion,
@@ -77,6 +101,14 @@ export function IndicadorModal({
     indicadorId: string;
     timestamp: number;
   } | null>(null);
+
+  // Estado para evidencias del indicador
+  const [evidenciasIndicador, setEvidenciasIndicador] = useState<
+    EvidenciaIndicadorData[]
+  >([]);
+  const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
+  const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
+  const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   // Actualizar editValues solo cuando cambia el ID del indicador (nuevo indicador seleccionado)
   useEffect(() => {
@@ -224,6 +256,24 @@ export function IndicadorModal({
       if (loadingComentariosRef.current?.indicadorId === currentIndicadorId) {
         loadingComentariosRef.current = null;
       }
+    };
+  }, [indicador.id]);
+
+  // Cargar evidencias cuando se abre el modal o cambia el indicador
+  useEffect(() => {
+    const currentIndicadorId = indicador.id;
+    let isCancelled = false;
+    const cargarEvidencias = async () => {
+      setIsLoadingEvidencias(true);
+      const result = await getEvidenciasIndicador(currentIndicadorId);
+      if (!isCancelled && result.success && result.data) {
+        setEvidenciasIndicador(result.data);
+      }
+      setIsLoadingEvidencias(false);
+    };
+    cargarEvidencias();
+    return () => {
+      isCancelled = true;
     };
   }, [indicador.id]);
 
@@ -451,12 +501,107 @@ export function IndicadorModal({
         className="w-[65vw] max-w-[65vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4"
       >
         {/* Header con título, nombre e indicador de cumplimiento */}
-        <div className="mb-6 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex-1">
-              <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-3">
-                INDICADOR
-              </DialogTitle>
+        <div className="mb-4 flex-shrink-0">
+          {/* Fila 1: INDICADOR + validación (cuando cumplimiento 100%) */}
+          <div className="flex items-center gap-3 mb-2">
+            <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-0 flex-shrink-0">
+              INDICADOR
+            </DialogTitle>
+            {!isEditMode && porcentajeCumplimiento >= 100 && (
+              <>
+                <div className="h-5 w-px bg-gray-300 flex-shrink-0" aria-hidden />
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {(() => {
+                    const validado = !!indicador.validadoPorCoordinador;
+                    const por = indicador.validadoPorCoordinadorPor;
+                    const canCheck = canValidateAsCoordinator;
+
+                    if (validado && por) {
+                      return (
+                        <label
+                          className={`flex items-center gap-2 text-emerald-700 ${
+                            canValidateAsCoordinator && !isTogglingValidation
+                              ? 'cursor-pointer'
+                              : 'cursor-default'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked
+                            disabled={!canValidateAsCoordinator || isTogglingValidation}
+                            className="sr-only"
+                            onChange={async () => {
+                              if (!canValidateAsCoordinator || isTogglingValidation) return;
+                              setIsTogglingValidation(true);
+                              const result = await toggleIndicadorValidation(indicador.id);
+                              setIsTogglingValidation(false);
+                              if (result.success && onUpdate) await onUpdate();
+                              else alert(result.error ?? 'Error al actualizar');
+                            }}
+                          />
+                          <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                            {isTogglingValidation ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-white" />
+                            ) : (
+                              <Check className="h-3 w-3 text-white" />
+                            )}
+                          </div>
+                          <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                            Validado por{' '}
+                            <Avatar className="h-7 w-7 flex-shrink-0">
+                              <AvatarImage src={por.image ?? undefined} />
+                              <AvatarFallback className="text-xs">
+                                {(por.name ?? 'U').slice(0, 1).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{por.name ?? 'Coordinador'}</span>
+                          </span>
+                        </label>
+                      );
+                    }
+                    return (
+                      <label
+                        className={`flex items-center gap-2 cursor-pointer select-none ${
+                          !canCheck ? 'cursor-not-allowed opacity-80' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          disabled={!canCheck || isTogglingValidation}
+                          className="sr-only"
+                          onChange={async () => {
+                            if (!canCheck || isTogglingValidation) return;
+                            setIsTogglingValidation(true);
+                            const result = await toggleIndicadorValidation(indicador.id);
+                            setIsTogglingValidation(false);
+                            if (result.success && onUpdate) await onUpdate();
+                            else alert(result.error ?? 'Error al validar');
+                          }}
+                        />
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                            canCheck && !isTogglingValidation
+                              ? 'border-gray-400 bg-white hover:border-gray-500'
+                              : 'border-gray-300 bg-gray-100'
+                          }`}
+                        >
+                          {isTogglingValidation && (
+                            <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
+                          )}
+                        </div>
+                        <span className="text-sm text-red-600 font-medium">
+                          Validación de Coordinador pendiente
+                        </span>
+                      </label>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="flex-1 flex items-center gap-2 min-w-0">
               {isEditMode ? (
                 <input
                   type="text"
@@ -468,12 +613,21 @@ export function IndicadorModal({
                   autoFocus
                 />
               ) : (
-                <h1 className="text-2xl font-bold text-emerald-600">
-                  {editValues.nombre}
-                </h1>
+                <>
+                  <h1 className="text-2xl font-bold text-emerald-600">
+                    {editValues.nombre}
+                  </h1>
+                  <button
+                    onClick={toggleEditMode}
+                    className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
+                    title="Editar indicador"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </button>
+                </>
               )}
             </div>
-            <div className="flex items-center space-x-4 ml-4">
+            <div className="flex items-center space-x-4 flex-shrink-0">
               <span className="text-base font-medium text-gray-700">
                 Cumplimiento
               </span>
@@ -504,7 +658,7 @@ export function IndicadorModal({
         <div className="grid grid-cols-[1fr_auto_1fr] gap-10 mt-0 flex-1 min-h-0">
           {/* COLUMNA IZQUIERDA: Fechas primero, luego información sin tarjetas */}
           <div
-            className={`space-y-8 overflow-y-auto ${isEditMode ? 'max-h-[calc(100%-140px)]' : 'h-full'}`}
+            className={`space-y-6 overflow-y-auto ${isEditMode ? 'max-h-[calc(100%-140px)]' : 'h-full'}`}
           >
             {/* FECHAS (Primero) - Horizontal */}
             <div className="flex items-center space-x-6">
@@ -608,66 +762,69 @@ export function IndicadorModal({
                 )}
               </div>
 
-              {/* Forma de Cálculo */}
-              <div>
-                <h3 className="font-semibold text-gray-900 text-base mb-2">
-                  Forma de Cálculo
-                </h3>
-                {isEditMode ? (
-                  <textarea
-                    value={editValues.formaCalculo}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        formaCalculo: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[110px] resize-y text-base"
-                    rows={3}
-                  />
-                ) : (
-                  <p className="text-gray-700 text-base">
-                    {editValues.formaCalculo}
-                  </p>
-                )}
-              </div>
+              {/* Forma de Cálculo y Formato del número en fila */}
+              <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                {/* Forma de Cálculo */}
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                    Forma de Cálculo
+                  </h3>
+                  {isEditMode ? (
+                    <textarea
+                      value={editValues.formaCalculo}
+                      onChange={(e) =>
+                        setEditValues({
+                          ...editValues,
+                          formaCalculo: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[110px] resize-y text-base"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-gray-700 text-base">
+                      {editValues.formaCalculo}
+                    </p>
+                  )}
+                </div>
 
-              {/* Formato del Número */}
-              <div>
-                <h3 className="font-semibold text-gray-900 text-base mb-2">
-                  Formato del número
-                </h3>
-                {isEditMode ? (
-                  <select
-                    value={editValues.formatoNumero}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        formatoNumero: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                  >
-                    {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
-                      (option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      )
-                    )}
-                  </select>
-                ) : (
-                  <p className="text-gray-700 text-base">
-                    {editValues.formatoNumero}
-                  </p>
-                )}
+                {/* Formato del Número */}
+                <div className="w-48 flex-shrink-0">
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                    Formato del número
+                  </h3>
+                  {isEditMode ? (
+                    <select
+                      value={editValues.formatoNumero}
+                      onChange={(e) =>
+                        setEditValues({
+                          ...editValues,
+                          formatoNumero: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    >
+                      {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
+                        (option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  ) : (
+                    <p className="text-gray-700 text-base">
+                      {editValues.formatoNumero}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Resultados */}
-              <div className="mt-6">
-                <div className="flex items-center space-x-2 pb-3 border-b border-gray-200 mb-3">
-                  <TrendingUp className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-bold text-gray-900">
+              <div className="mt-4">
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 mb-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-bold text-gray-900">
                     Resultados
                   </h2>
                 </div>
@@ -675,8 +832,8 @@ export function IndicadorModal({
                 {/* Esperado y Actual con línea separadora vertical */}
                 <div className="flex items-center">
                   {/* Resultado Esperado */}
-                  <div className="flex-1 flex flex-col items-center py-3">
-                    <span className="text-base font-medium text-gray-800 mb-2">
+                  <div className="flex-1 flex flex-col items-center py-1.5">
+                    <span className="text-sm font-medium text-gray-800 mb-1">
                       Esperado
                     </span>
                     {isEditMode ? (
@@ -689,22 +846,22 @@ export function IndicadorModal({
                             resultadoEsperado: e.target.value,
                           })
                         }
-                        className="w-full max-w-[160px] px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl font-bold text-center"
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
                       />
                     ) : (
-                      <p className="text-2xl font-bold text-gray-800">
+                      <p className="text-xl font-bold text-gray-800">
                         {resultadoEsperadoFormateado}
                       </p>
                     )}
                   </div>
 
                   {/* Línea separadora vertical */}
-                  <div className="w-px h-14 bg-gray-200 self-center"></div>
+                  <div className="w-px h-10 bg-gray-200 self-center"></div>
 
                   {/* Resultado Actual */}
-                  <div className="flex-1 flex flex-col items-center py-3">
+                  <div className="flex-1 flex flex-col items-center py-1.5">
                     <span
-                      className={`text-base font-medium mb-2 ${colorEstado}`}
+                      className={`text-sm font-medium mb-1 ${colorEstado}`}
                     >
                       Actual
                     </span>
@@ -718,10 +875,10 @@ export function IndicadorModal({
                             resultadoAlcanzado: e.target.value,
                           })
                         }
-                        className="w-full max-w-[160px] px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl font-bold text-center"
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
                       />
                     ) : (
-                      <p className={`text-2xl font-bold ${colorEstado}`}>
+                      <p className={`text-xl font-bold ${colorEstado}`}>
                         {resultadoAlcanzadoFormateado}
                       </p>
                     )}
@@ -729,7 +886,195 @@ export function IndicadorModal({
                 </div>
 
                 {/* Línea separadora horizontal debajo */}
-                <div className="w-full h-px bg-gray-200 mt-2"></div>
+                <div className="w-full h-px bg-gray-200 mt-1.5"></div>
+              </div>
+            </div>
+
+            {/* Evidencias */}
+            <div>
+              <h3 className="font-semibold text-gray-900 text-base mb-2">
+                Evidencias
+              </h3>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {isLoadingEvidencias ? (
+                  <p className="text-sm text-gray-500">Cargando evidencias...</p>
+                ) : evidenciasIndicador.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No se han cargado evidencias
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {evidenciasIndicador.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm"
+                      >
+                        {ev.tipo === 'image' ? (
+                          <a
+                            href={ev.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block aspect-video"
+                          >
+                            <img
+                              src={ev.url}
+                              alt={ev.nombreArchivo ?? 'Evidencia'}
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center aspect-video p-4 text-red-600">
+                            <a
+                              href={ev.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex flex-col items-center hover:bg-red-50 rounded transition-colors flex-1 w-full justify-center"
+                              title="Abrir PDF en nueva pestaña"
+                            >
+                              <FileText className="h-10 w-10 mb-1" />
+                              <span className="text-xs font-medium text-center truncate w-full">
+                                {ev.nombreArchivo ?? 'Documento PDF'}
+                              </span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const filename =
+                                  ev.nombreArchivo || 'documento.pdf';
+                                const apiUrl = `/api/evidencia-download?url=${encodeURIComponent(ev.url)}&filename=${encodeURIComponent(filename)}`;
+                                try {
+                                  const res = await fetch(apiUrl);
+                                  if (!res.ok) {
+                                    const text = await res.text();
+                                    alert(
+                                      text || 'No se pudo descargar el PDF.'
+                                    );
+                                    return;
+                                  }
+                                  const blob = await res.blob();
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = filename.toLowerCase().endsWith('.pdf')
+                                    ? filename
+                                    : `${filename}.pdf`;
+                                  a.click();
+                                  URL.revokeObjectURL(url);
+                                } catch {
+                                  alert(
+                                    'Error de conexión al descargar el PDF.'
+                                  );
+                                }
+                              }}
+                              className="mt-2 text-xs underline hover:no-underline text-red-700"
+                            >
+                              Descargar
+                            </button>
+                          </div>
+                        )}
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (
+                                !confirm('¿Eliminar esta evidencia?')
+                              )
+                                return;
+                              const res =
+                                await deleteEvidenciaIndicador(ev.id);
+                              if (res.success) {
+                                setEvidenciasIndicador((prev) =>
+                                  prev.filter((e) => e.id !== ev.id)
+                                );
+                              } else {
+                                alert(
+                                  res.error ?? 'Error al eliminar'
+                                );
+                              }
+                            }}
+                            className="absolute top-1 right-1 p-1.5 bg-red-100 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                            title="Eliminar evidencia"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {isEditMode && (
+                  <div className="mt-3">
+                    <input
+                      ref={evidenciasFileInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsUploadingEvidencia(true);
+                        const result = await uploadEvidenciaFile(file);
+                        if ('error' in result) {
+                          alert(result.error);
+                          setIsUploadingEvidencia(false);
+                          e.target.value = '';
+                          return;
+                        }
+                        const createResult =
+                          await createEvidenciaIndicador(indicador.id, {
+                            url: result.url,
+                            publicId: result.publicId,
+                            tipo: result.tipo,
+                            nombreArchivo: result.nombreArchivo,
+                          });
+                        if (
+                          createResult.success &&
+                          createResult.data
+                        ) {
+                          setEvidenciasIndicador((prev) => [
+                            ...prev,
+                            createResult.data!,
+                          ]);
+                        } else {
+                          alert(
+                            createResult.error ??
+                              'Error al guardar evidencia'
+                          );
+                        }
+                        setIsUploadingEvidencia(false);
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={isUploadingEvidencia}
+                      onClick={() =>
+                        evidenciasFileInputRef.current?.click()
+                      }
+                    >
+                      {isUploadingEvidencia ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Subiendo...
+                        </>
+                      ) : (
+                        <>
+                          <Paperclip className="h-4 w-4" />
+                          Agregar evidencia (JPG o PDF)
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Imágenes máx. 250 KB (se comprimen automáticamente).
+                      PDF máx. 2 MB.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -902,16 +1247,7 @@ export function IndicadorModal({
               )}
             </button>
           </div>
-        ) : (
-          /* Botón redondo de edición en la parte inferior izquierda (solo cuando NO está en modo edición) */
-          <button
-            onClick={toggleEditMode}
-            className="absolute bottom-6 left-6 w-14 h-14 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center z-50 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200"
-            title="Modo edición"
-          >
-            <Edit2 className="h-6 w-6" />
-          </button>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );

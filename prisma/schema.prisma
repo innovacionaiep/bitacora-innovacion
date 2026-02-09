@@ -81,6 +81,9 @@ model User {
   // Actividades validadas por este coordinador
   actividadesValidadasPor Activity[] @relation("ActivityValidadoPor")
 
+  // Indicadores validados por este coordinador
+  indicadoresValidadosPor Indicador[] @relation("IndicadorValidadoPor")
+
   @@map("users")
 }
 
@@ -208,11 +211,15 @@ model ProyectoParticipante {
   email              String? // Email del participante (cuando no tiene cuenta)
   cargo              String? // Cargo del participante en el proyecto
   socioComunitarioId String?  @map("socio_comunitario_id") // Socio comunitario (obligatorio para Beneficiarios)
+  sedeId             String?  @map("sede_id") // Sede (catálogo configuración - validación de datos)
+  escuelaId          String?  @map("escuela_id") // Escuela (catálogo configuración - validación de datos)
   createdAt          DateTime @default(now()) @map("created_at")
 
   proyecto         Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   socioComunitario SocioComunitario? @relation(fields: [socioComunitarioId], references: [id], onDelete: SetNull)
+  sede             Sede?            @relation(fields: [sedeId], references: [id], onDelete: SetNull)
+  escuela          Escuela?         @relation(fields: [escuelaId], references: [id], onDelete: SetNull)
 
   @@unique([proyectoId, userId, rol])
   @@map("proyecto_participantes")
@@ -220,21 +227,22 @@ model ProyectoParticipante {
 
 // Sedes (catálogo para listas desplegables; Proyecto.sede sigue siendo String)
 model Sede {
-  id     String @id @default(cuid())
-  nombre String
-  orden  Int    @default(0)
+  id                    String                 @id @default(cuid())
+  nombre                String
+  orden                 Int                    @default(0)
+  proyectoParticipantes ProyectoParticipante[]
 
   @@map("sedes")
 }
 
 // Escuelas del Proyecto (many-to-many)
 model Escuela {
-  id     String @id @default(cuid())
-  nombre String
-  codigo String @unique
-
-  proyectos ProyectoEscuela[]
-  carreras  Carrera[]
+  id                    String                 @id @default(cuid())
+  nombre                String
+  codigo                String                 @unique
+  proyectos             ProyectoEscuela[]
+  carreras              Carrera[]
+  proyectoParticipantes ProyectoParticipante[]
 
   @@map("escuelas")
 }
@@ -480,6 +488,8 @@ model Indicador {
   porcentajeAvance       Float    @default(0) @map("porcentaje_avance")
   fechaInicio            String?  @map("fecha_inicio") // Formato: YYYY-MM-DD
   fechaFin               String?  @map("fecha_fin") // Formato: YYYY-MM-DD
+  validadoPorCoordinador Boolean  @default(false) @map("validado_por_coordinador")
+  validadoPorCoordinadorId String? @map("validado_por_coordinador_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
@@ -487,6 +497,8 @@ model Indicador {
   objetivoEspecifico ObjetivoProyecto @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
   comentarios       ComentarioIndicador[]
   actualizacionesEnReunion IndicadorActualizadoEnReunion[]
+  evidencias        EvidenciaIndicador[]
+  validadoPorCoordinadorPor User? @relation("IndicadorValidadoPor", fields: [validadoPorCoordinadorId], references: [id], onDelete: SetNull)
 
   @@map("indicadores")
 }
@@ -521,6 +533,22 @@ model EvidenciaActividad {
 
   @@index([actividadId])
   @@map("evidencias_actividad")
+}
+
+// Evidencias de Indicadores (imágenes JPG y PDF en Cloudinary, misma carpeta que actividades)
+model EvidenciaIndicador {
+  id            String   @id @default(cuid())
+  indicadorId   String   @map("indicador_id")
+  url           String
+  publicId      String   @map("public_id")
+  tipo          String   // 'image' | 'pdf'
+  nombreArchivo String?  @map("nombre_archivo")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  indicador Indicador @relation(fields: [indicadorId], references: [id], onDelete: Cascade)
+
+  @@index([indicadorId])
+  @@map("evidencias_indicador")
 }
 
 // Comentarios de Indicadores

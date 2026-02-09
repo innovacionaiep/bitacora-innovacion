@@ -41,6 +41,10 @@ export async function updateSede(id: string, nombre: string, orden?: number) {
 
 export async function deleteSede(id: string) {
   try {
+    const enUso = await prisma.proyectoParticipante.count({ where: { sedeId: id } });
+    if (enUso > 0) {
+      return { success: false, error: 'No se puede eliminar: hay participantes que usan esta sede' };
+    }
     await prisma.sede.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
     revalidatePath('/proyectos');
@@ -161,9 +165,10 @@ export async function deleteEscuela(id: string) {
   try {
     const inUse =
       (await prisma.proyectoEscuela.count({ where: { escuelaId: id } })) > 0 ||
-      (await prisma.carrera.count({ where: { escuelaId: id } })) > 0;
+      (await prisma.carrera.count({ where: { escuelaId: id } })) > 0 ||
+      (await prisma.proyectoParticipante.count({ where: { escuelaId: id } })) > 0;
     if (inUse) {
-      return { success: false, error: 'No se puede eliminar: hay proyectos o carreras que usan esta escuela' };
+      return { success: false, error: 'No se puede eliminar: hay proyectos, carreras o participantes que usan esta escuela' };
     }
     await prisma.escuela.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);

@@ -81,6 +81,8 @@ async function _getProyectosFromDB() {
         include: {
           user: true,
           socioComunitario: true,
+          sede: true,
+          escuela: true,
         },
       },
       escuelas: {
@@ -697,6 +699,8 @@ const proyectoIncludeForParticipante = {
     include: {
       user: true,
       socioComunitario: true,
+      sede: true,
+      escuela: true,
     },
   },
   escuelas: { include: { escuela: true } },
@@ -715,6 +719,8 @@ export type AddParticipanteData = {
   email?: string;
   cargo?: string;
   socioComunitarioId?: string;
+  sedeId?: string;
+  escuelaId?: string;
 };
 
 export async function addParticipanteProyecto(
@@ -732,6 +738,8 @@ export async function addParticipanteProyecto(
         cargo: data.cargo ?? null,
         socioComunitarioId:
           data.rol === 'Beneficiario' ? data.socioComunitarioId ?? null : null,
+        sedeId: data.sedeId ?? null,
+        escuelaId: data.escuelaId ?? null,
       },
     });
     const proyecto = await prisma.proyecto.findUnique({
@@ -756,6 +764,8 @@ export type UpdateParticipanteData = {
   email?: string;
   cargo?: string;
   socioComunitarioId?: string;
+  sedeId?: string;
+  escuelaId?: string;
 };
 
 export async function updateParticipanteProyecto(
@@ -781,6 +791,8 @@ export async function updateParticipanteProyecto(
           socioComunitarioId:
             finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
         }),
+        ...(data.sedeId !== undefined && { sedeId: data.sedeId || null }),
+        ...(data.escuelaId !== undefined && { escuelaId: data.escuelaId || null }),
       },
     });
     const proyecto = await prisma.proyecto.findUnique({

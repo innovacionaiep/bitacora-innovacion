@@ -18,12 +18,20 @@ interface ObjetivoGeneralCardProps {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
+    validadoPorCoordinador?: boolean;
+    validadoPorCoordinadorPor?: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    } | null;
   }) => void;
   /** Botones o acciones a la derecha del objetivo general (ej. Agregar / Eliminar indicador) */
   actions?: ReactNode;
   /** Si está activo el modo eliminar, se muestra botón papelera en cada indicador */
   deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
+  canValidateAsCoordinator?: boolean;
+  onIndicadorValidationToggle?: () => void;
 }
 
 export function ObjetivoGeneralCard({
@@ -33,6 +41,8 @@ export function ObjetivoGeneralCard({
   actions,
   deleteMode,
   onDeleteIndicador,
+  canValidateAsCoordinator,
+  onIndicadorValidationToggle,
 }: ObjetivoGeneralCardProps) {
   // Calcular el ancho máximo basado en los anchos conocidos de las tarjetas
   // Para cada objetivo específico: objetivo (560px) + gap (24px) + indicadores (580px cada uno + 24px gap entre ellos)
@@ -128,6 +138,8 @@ export function ObjetivoGeneralCard({
                       onIndicadorClick={onIndicadorClick}
                       deleteMode={deleteMode}
                       onDeleteIndicador={onDeleteIndicador}
+                      canValidateAsCoordinator={canValidateAsCoordinator}
+                      onIndicadorValidationToggle={onIndicadorValidationToggle}
                     />
                   </div>
                 )

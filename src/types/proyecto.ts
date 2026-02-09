@@ -28,6 +28,8 @@ export type ProyectoWithRelations = Proyecto & {
   participantes_rel: (ProyectoParticipante & {
     user?: User | null;
     socioComunitario?: SocioComunitario | null;
+    sede?: { id: string; nombre: string } | null;
+    escuela?: { id: string; nombre: string } | null;
   })[];
   escuelas: (ProyectoEscuela & {
     escuela: Escuela;

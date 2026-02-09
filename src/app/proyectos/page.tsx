@@ -78,7 +78,9 @@ import {
   Minimize2,
   Crown,
   UserCog,
+  FileDown,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -112,7 +114,10 @@ import {
   updateParticipanteProyecto,
   deleteParticipanteProyecto,
 } from '@/lib/actions/proyectos';
-import { getSedes } from '@/lib/actions/configuracion';
+import { getSedes, getEscuelas as getEscuelasConfig } from '@/lib/actions/configuracion';
+
+// Valor sentinela para Select (Radix no permite value="" en SelectItem)
+const SELECT_NONE_VALUE = '__none__';
 
 // Helper para extraer el ID de video de YouTube desde una URL
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -294,7 +299,12 @@ export default function ProyectosPage() {
     email: '',
     cargo: '',
     socioComunitarioId: '',
+    sedeId: '',
+    escuelaId: '',
   });
+  // Catálogos para Sede y Escuela en Participantes (configuración - validación de datos)
+  const [sedesParticipantes, setSedesParticipantes] = useState<{ id: string; nombre: string }[]>([]);
+  const [escuelasParticipantes, setEscuelasParticipantes] = useState<{ id: string; nombre: string }[]>([]);
   const [participanteSubmitting, setParticipanteSubmitting] = useState(false);
 
   // Estado para videos de YouTube por proyecto
@@ -505,7 +515,7 @@ export default function ProyectosPage() {
 
   const handleSaveNewParticipante = async () => {
     if (!selectedProject) return;
-    const { rol, nombre, email, cargo, socioComunitarioId } = newParticipanteData;
+    const { rol, nombre, email, cargo, socioComunitarioId, sedeId, escuelaId } = newParticipanteData;
     if (!nombre?.trim()) {
       alert('El nombre es obligatorio.');
       return;
@@ -521,13 +531,15 @@ export default function ProyectosPage() {
       email: email.trim() || undefined,
       cargo: cargo.trim() || undefined,
       socioComunitarioId: rol === 'Beneficiario' ? socioComunitarioId || undefined : undefined,
+      sedeId: sedeId || undefined,
+      escuelaId: escuelaId || undefined,
     });
     setParticipanteSubmitting(false);
     if (result.success && result.data) {
       setSelectedProject(result.data);
       fetchProyectos();
       setIsAddingParticipante(false);
-      setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '' });
+      setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '', sedeId: '', escuelaId: '' });
     } else {
       alert(result.error ?? 'Error al agregar participante');
     }
@@ -535,15 +547,14 @@ export default function ProyectosPage() {
 
   const handleUpdateParticipante = async (
     participanteId: string,
-    data: { rol?: string; nombre?: string; email?: string; cargo?: string; socioComunitarioId?: string }
+    data: { rol?: string; nombre?: string; email?: string; cargo?: string; socioComunitarioId?: string; sedeId?: string; escuelaId?: string }
   ) => {
     setParticipanteSubmitting(true);
     const result = await updateParticipanteProyecto(participanteId, data);
     setParticipanteSubmitting(false);
     if (result.success && result.data) {
       setSelectedProject(result.data);
-      fetchProyectos();
-      setEditingParticipanteId(null);
+      // No fetchProyectos() ni setEditingParticipanteId(null): evita recarga/flicker y permite seguir editando la misma fila
     } else {
       alert(result.error ?? 'Error al actualizar participante');
     }
@@ -781,6 +792,22 @@ export default function ProyectosPage() {
       loadCatalogosGeneral();
     }
   }, [showAddForm]);
+
+  // Cargar sedes y escuelas para dropdowns de Participantes (configuración - validación de datos)
+  useEffect(() => {
+    if (selectedTab !== 'Participantes' || !selectedProject) return;
+    let cancelled = false;
+    (async () => {
+      const [sedes, escuelas] = await Promise.all([getSedes(), getEscuelasConfig()]);
+      if (!cancelled) {
+        setSedesParticipantes(sedes.map((s) => ({ id: s.id, nombre: s.nombre })));
+        setEscuelasParticipantes(escuelas.map((e) => ({ id: e.id, nombre: e.nombre })));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTab, selectedProject?.id]);
 
   const handleSaveVideo = () => {
     if (!selectedProject) return;
@@ -2448,10 +2475,10 @@ export default function ProyectosPage() {
                             <TooltipTrigger asChild>
                               <Button
                                 type="button"
-                                onClick={() => {
-                                  setIsAddingParticipante((v) => !v);
-                                  if (isAddingParticipante) setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '' });
-                                }}
+                                  onClick={() => {
+                                    setIsAddingParticipante((v) => !v);
+                                    if (isAddingParticipante) setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '', sedeId: '', escuelaId: '' });
+                                  }}
                                 variant="ghost"
                                 size="sm"
                                 className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
@@ -2510,6 +2537,40 @@ export default function ProyectosPage() {
                               <p>{isDeleteModeParticipante ? 'Salir del modo eliminación' : 'Eliminar participantes'}</p>
                             </TooltipContent>
                           </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const headers = ['Rol', 'Nombre', 'Correo', 'Cargo', 'Sede', 'Escuela', 'Socio comunitario'];
+                                  const rows = filteredParticipants.map((p) => [
+                                    p.rol,
+                                    p.user?.name ?? p.nombre ?? 'Sin nombre',
+                                    p.user?.email ?? p.email ?? '',
+                                    p.cargo ?? '',
+                                    p.sede?.nombre ?? '—',
+                                    p.escuela?.nombre ?? '—',
+                                    p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—',
+                                  ]);
+                                  const wsData = [headers, ...rows];
+                                  const ws = XLSX.utils.aoa_to_sheet(wsData);
+                                  const wb = XLSX.utils.book_new();
+                                  XLSX.utils.book_append_sheet(wb, ws, 'Participantes');
+                                  const nombreProyecto = (selectedProject?.nombre ?? 'proyecto').replace(/[^\w\s-]/gi, '').trim().slice(0, 50);
+                                  XLSX.writeFile(wb, `participantes_${nombreProyecto}.xlsx`);
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 gap-1.5 px-3"
+                              >
+                                <FileDown className="h-4 w-4" />
+                                <span className="text-sm font-medium">Exportar</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Exportar tabla de participantes a Excel (XLSX)</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </TooltipProvider>
                       </div>
                     </div>
@@ -2531,6 +2592,12 @@ export default function ProyectosPage() {
                               </TableHead>
                               <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px] text-center">
                                 Cargo
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
+                                Sede
+                              </TableHead>
+                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
+                                Escuela
                               </TableHead>
                               <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
                                 Socio comunitario
@@ -2596,6 +2663,46 @@ export default function ProyectosPage() {
                                   />
                                 </TableCell>
                                 <TableCell className="align-middle">
+                                  <Select
+                                    value={newParticipanteData.sedeId || SELECT_NONE_VALUE}
+                                    onValueChange={(v) =>
+                                      setNewParticipanteData((prev) => ({ ...prev, sedeId: v === SELECT_NONE_VALUE ? '' : v }))
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 text-sm w-full">
+                                      <SelectValue placeholder="Sede" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
+                                      {sedesParticipantes.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                          {s.nombre}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="align-middle">
+                                  <Select
+                                    value={newParticipanteData.escuelaId || SELECT_NONE_VALUE}
+                                    onValueChange={(v) =>
+                                      setNewParticipanteData((prev) => ({ ...prev, escuelaId: v === SELECT_NONE_VALUE ? '' : v }))
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 text-sm w-full">
+                                      <SelectValue placeholder="Escuela" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
+                                      {escuelasParticipantes.map((e) => (
+                                        <SelectItem key={e.id} value={e.id}>
+                                          {e.nombre}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="align-middle">
                                   {newParticipanteData.rol === 'Beneficiario' ? (
                                     <Select
                                       value={newParticipanteData.socioComunitarioId}
@@ -2643,6 +2750,8 @@ export default function ProyectosPage() {
                                           email: '',
                                           cargo: '',
                                           socioComunitarioId: '',
+                                          sedeId: '',
+                                          escuelaId: '',
                                         });
                                       }}
                                     >
@@ -2656,7 +2765,7 @@ export default function ProyectosPage() {
                             {filteredParticipants.length === 0 && !isAddingParticipante ? (
                               <TableRow>
                                 <TableCell
-                                  colSpan={showActionsColumn ? 6 : 5}
+                                  colSpan={showActionsColumn ? 8 : 7}
                                   className="text-center text-muted-foreground py-8"
                                 >
                                   No hay participantes que coincidan con los filtros.
@@ -2667,6 +2776,8 @@ export default function ProyectosPage() {
                                 const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
                                 const email = p.user?.email ?? p.email ?? '';
                                 const cargo = p.cargo ?? '';
+                                const sedeNombre = p.sede?.nombre ?? '—';
+                                const escuelaNombre = p.escuela?.nombre ?? '—';
                                 const socioComunitario =
                                   p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—';
                                 const colorClass = ROLE_COLORS[p.rol] ?? 'bg-gray-100 text-gray-800 border-gray-200';
@@ -2776,6 +2887,54 @@ export default function ProyectosPage() {
                                         cargo || '—'
                                       )}
                                     </TableCell>
+                                    <TableCell className="align-middle truncate max-w-[140px]">
+                                      {isEditing ? (
+                                        <Select
+                                          value={p.sede?.id ?? SELECT_NONE_VALUE}
+                                          onValueChange={(v) =>
+                                            handleUpdateParticipante(p.id, { sedeId: v === SELECT_NONE_VALUE ? undefined : v })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 text-sm w-full">
+                                            <SelectValue placeholder="Sede" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
+                                            {sedesParticipantes.map((s) => (
+                                              <SelectItem key={s.id} value={s.id}>
+                                                {s.nombre}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        sedeNombre
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="align-middle truncate max-w-[140px]">
+                                      {isEditing ? (
+                                        <Select
+                                          value={p.escuela?.id ?? SELECT_NONE_VALUE}
+                                          onValueChange={(v) =>
+                                            handleUpdateParticipante(p.id, { escuelaId: v === SELECT_NONE_VALUE ? undefined : v })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 text-sm w-full">
+                                            <SelectValue placeholder="Escuela" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
+                                            {escuelasParticipantes.map((e) => (
+                                              <SelectItem key={e.id} value={e.id}>
+                                                {e.nombre}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        escuelaNombre
+                                      )}
+                                    </TableCell>
                                     <TableCell className="align-middle truncate max-w-[180px]">
                                       {isEditing && p.rol === 'Beneficiario' ? (
                                         <Select
@@ -2865,7 +3024,15 @@ export default function ProyectosPage() {
 
               {selectedTab === 'Indicadores' && (
                 <div className="h-full pt-2">
-                  <IndicadoresCard projectId={selectedProject.id} />
+                  <IndicadoresCard
+                    projectId={selectedProject.id}
+                    coordinadorIds={
+                      selectedProject.participantes_rel
+                        ?.filter((p) => p.rol === 'Coordinador' && p.userId)
+                        .map((p) => p.userId as string) ?? []
+                    }
+                    currentUserId={session?.user?.id ?? undefined}
+                  />
                 </div>
               )}
 

@@ -55,6 +55,13 @@ const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
   INVERSION: 'Inversión',
 };
 
+/** Orden fijo para la tabla de desgloses: RRHH → Operación → Inversión */
+const CUENTA_ORDEN: Record<CuentaPresupuesto, number> = {
+  RRHH: 0,
+  OPERACION: 1,
+  INVERSION: 2,
+};
+
 const ESTADO_LABEL: Record<EstadoGastoPresupuesto, string> = {
   PENDIENTE: 'Pendiente',
   SOLICITADO: 'Solicitado',
@@ -471,7 +478,9 @@ export function PresupuestoCard({ projectId, presupuestoTotal = 0, projectName }
                       <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal"></TableCell>
                     </TableRow>
                   )}
-                  {items.map((row) => {
+                  {[...items]
+                    .sort((a, b) => CUENTA_ORDEN[a.cuenta] - CUENTA_ORDEN[b.cuenta])
+                    .map((row) => {
                     const mesesEjecucion = row.proyecciones
                       .filter((p) => p.anio === anio)
                       .map((p) => p.mes)
