@@ -4,12 +4,14 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
 import { createHistorialEntry } from './historial';
+import { getSession } from '@/lib/auth-utils';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
 export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
 export type ActivityWithTasks = Activity & {
   tasks: Task[];
+  validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null;
 };
 
 /**
@@ -24,6 +26,9 @@ export async function getActivities(projectId: string) {
           orderBy: {
             createdAt: 'asc',
           },
+        },
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
         },
       },
       orderBy: {
@@ -125,6 +130,108 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
   } catch (error) {
     console.error('Error updating activity:', error);
     return { success: false, error: 'Error al actualizar actividad' };
+  }
+}
+
+/**
+ * Verificar si el usuario es coordinador del proyecto
+ */
+async function isCoordinatorOfProject(userId: string, projectId: string): Promise<boolean> {
+  const participante = await prisma.proyectoParticipante.findFirst({
+    where: {
+      proyectoId: projectId,
+      userId,
+      rol: 'Coordinador',
+    },
+  });
+  return !!participante;
+}
+
+/**
+ * Marcar o desmarcar validación de coordinador en una actividad.
+ * Solo coordinadores del proyecto pueden validar. La actividad debe tener todas las tareas completadas para poder validar.
+ */
+export async function toggleActivityValidation(activityId: string) {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:toggleActivityValidation', message: 'entry', data: { activityId }, hypothesisId: 'H5', timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+  try {
+    const session = await getSession();
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:after getSession', message: 'session', data: { hasSession: !!session, hasUserId: !!session?.user?.id }, hypothesisId: 'H1', timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    if (!session?.user?.id) {
+      return { success: false, error: 'Debes iniciar sesión' };
+    }
+
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        tasks: true,
+        validadoPorCoordinadorPor: { select: { id: true, name: true, image: true } },
+      },
+    });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:after findUnique', message: 'activity', data: { activityFound: !!activity, projectId: activity?.projectId, tasksCount: activity?.tasks?.length }, hypothesisId: 'H2', timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    if (!activity) {
+      return { success: false, error: 'Actividad no encontrada' };
+    }
+
+    const isCoordinator = await isCoordinatorOfProject(session.user.id, activity.projectId);
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:after isCoordinator', message: 'coordinator check', data: { isCoordinator }, hypothesisId: 'H2', timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    if (!isCoordinator) {
+      return { success: false, error: 'Solo los coordinadores del proyecto pueden validar actividades' };
+    }
+
+    const allTasksCompleted =
+      activity.tasks.length > 0 && activity.tasks.every((t) => t.completed);
+    if (!allTasksCompleted && !activity.validadoPorCoordinador) {
+      return { success: false, error: 'La actividad debe tener todas las tareas completadas para poder validar' };
+    }
+
+    const newValidado = !activity.validadoPorCoordinador;
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:before update', message: 'before prisma update', data: { newValidado, validadoPorCoordinadorId: newValidado ? session.user.id : null }, hypothesisId: 'H3', timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    const updated = await prisma.activity.update({
+      where: { id: activityId },
+      data: {
+        validadoPorCoordinador: newValidado,
+        validadoPorCoordinadorId: newValidado ? session.user.id : null,
+      },
+      include: {
+        tasks: true,
+        validadoPorCoordinadorPor: { select: { id: true, name: true, image: true } },
+      },
+    });
+
+    if (newValidado) {
+      const histResult = await createHistorialEntry({
+        proyectoId: activity.projectId,
+        accion: 'Validar',
+        tabProyecto: 'Actividades',
+        elementoEspecifico: `Actividad "${activity.name}"`,
+        cambioGenerado: 'Validada por coordinador',
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:after createHistorialEntry', message: 'historial', data: { histSuccess: histResult?.success, histError: histResult?.error }, hypothesisId: 'H4', timestamp: Date.now() }) }).catch(() => {});
+      // #endregion
+    }
+
+    revalidatePath('/proyectos');
+    revalidatePath('/gantt');
+    return { success: true, data: updated };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'gantt.ts:catch', message: 'exception', data: { errorMessage: err.message, errorName: err.name }, hypothesisId: 'H3', timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    console.error('Error toggling activity validation:', error);
+    return { success: false, error: 'Error al validar actividad' };
   }
 }
 

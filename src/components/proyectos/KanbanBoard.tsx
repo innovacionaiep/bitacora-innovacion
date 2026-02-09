@@ -3,12 +3,14 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   ChevronDown,
   ChevronRight,
   CheckCircle,
   Circle,
   Plus,
+  Check,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Activity } from '@/hooks/useGantt';
@@ -58,6 +60,7 @@ interface KanbanBoardProps {
     status: KanbanStatus
   ) => void;
   onAddActivity: () => void;
+  onActivityTitleClick?: (activity: Activity) => void;
   isFullscreen?: boolean;
 }
 
@@ -143,6 +146,7 @@ interface ActivityCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onToggleTaskCompletion: (taskId: string) => Promise<void>;
+  onActivityTitleClick?: (activity: Activity) => void;
 }
 
 function DraggableActivityCard({
@@ -150,6 +154,7 @@ function DraggableActivityCard({
   isExpanded,
   onToggleExpand,
   onToggleTaskCompletion,
+  onActivityTitleClick,
 }: ActivityCardProps) {
   const {
     attributes,
@@ -217,9 +222,18 @@ function DraggableActivityCard({
         <CardContent className="p-4">
           {/* Header de la tarjeta */}
           <div className="flex items-start justify-between mb-3">
-            <h4 className="font-semibold text-sm text-gray-900 flex-1 pr-2 leading-tight">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onActivityTitleClick?.(activity);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="font-semibold text-sm text-gray-900 flex-1 pr-2 leading-tight text-left cursor-pointer hover:text-blue-600 transition-colors duration-200"
+              title="Haz clic para ver detalles de la actividad"
+            >
               {activity.name}
-            </h4>
+            </button>
             <Button
               variant="ghost"
               size="sm"
@@ -327,6 +341,38 @@ function DraggableActivityCard({
                 ))}
             </div>
           )}
+
+          {/* Validación coordinador - solo para actividades finalizadas (DONE con todas las tareas completadas) */}
+          {activity.status === 'DONE' &&
+            activity.tasks.length > 0 &&
+            activity.tasks.every((t) => t.completed) && (
+              <div className="mt-3 pt-2 border-t border-gray-200 flex justify-end">
+                {(activity as Activity & { validadoPorCoordinador?: boolean; validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinador &&
+                (activity as Activity & { validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinadorPor ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
+                    <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-2.5 w-2.5 text-white" />
+                    </div>
+                    <span className="inline-flex items-center gap-1 truncate">
+                      Validado por{' '}
+                      <Avatar className="h-4 w-4 flex-shrink-0">
+                        <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
+                        <AvatarFallback className="text-[10px]">
+                          {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate max-w-[80px]">
+                        {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
+                      </span>
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-red-600 font-medium">
+                    Validación pendiente
+                  </span>
+                )}
+              </div>
+            )}
         </CardContent>
       </Card>
     </div>
@@ -341,6 +387,7 @@ export default function KanbanBoard({
   onReorderActivities,
   onOptimisticReorder,
   onAddActivity,
+  onActivityTitleClick,
   isFullscreen = false,
 }: KanbanBoardProps) {
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(
@@ -584,6 +631,7 @@ export default function KanbanBoard({
             onToggleExpand={toggleExpand}
             onToggleTaskCompletion={onToggleTaskCompletion}
             onAddActivity={onAddActivity}
+            onActivityTitleClick={onActivityTitleClick}
           />
         ))}
       </div>
@@ -616,6 +664,7 @@ interface KanbanColumnProps {
   onToggleExpand: (activityId: string) => void;
   onToggleTaskCompletion: (taskId: string) => Promise<void>;
   onAddActivity: () => void;
+  onActivityTitleClick?: (activity: Activity) => void;
 }
 
 function KanbanColumn({
@@ -625,6 +674,7 @@ function KanbanColumn({
   onToggleExpand,
   onToggleTaskCompletion,
   onAddActivity,
+  onActivityTitleClick,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -709,6 +759,7 @@ function KanbanColumn({
                 isExpanded={expandedActivities.has(activity.id)}
                 onToggleExpand={() => onToggleExpand(activity.id)}
                 onToggleTaskCompletion={onToggleTaskCompletion}
+                onActivityTitleClick={onActivityTitleClick}
               />
             ))}
             {/* Indicador visual de drop al final */}

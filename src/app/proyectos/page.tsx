@@ -2853,6 +2853,12 @@ export default function ProyectosPage() {
                     projectId={selectedProject.id}
                     projectName={selectedProject.proyecto}
                     onProjectChange={() => setIsSheetOpen(true)}
+                    coordinadorIds={
+                      selectedProject.participantes_rel
+                        ?.filter((p) => p.rol === 'Coordinador' && p.userId)
+                        .map((p) => p.userId as string) ?? []
+                    }
+                    currentUserId={session?.user?.id ?? undefined}
                   />
                 </div>
               )}

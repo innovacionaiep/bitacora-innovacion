@@ -149,7 +149,7 @@ export async function uploadEvidenciaPdf(file: File): Promise<UploadEvidenciaRes
   }
 
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', file, file.name.replace(/\.[^.]+$/, '.pdf'));
   formData.append('upload_preset', preset);
   if (!EVIDENCIAS_PRESET_RAW) formData.append('folder', EVIDENCIAS_FOLDER);
 

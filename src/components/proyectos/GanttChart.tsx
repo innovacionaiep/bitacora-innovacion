@@ -38,6 +38,7 @@ import {
   Paperclip,
   Loader2,
   X,
+  Check,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -61,10 +62,14 @@ import {
 } from '@/components/ui/tooltip';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useState, useEffect, useRef } from 'react';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import { ActivityStatus } from '@prisma/client';
-import { reorderActivitiesKanban } from '@/lib/actions/gantt';
+import {
+  reorderActivitiesKanban,
+  toggleActivityValidation,
+} from '@/lib/actions/gantt';
 import {
   DndContext,
   closestCenter,
@@ -106,6 +111,10 @@ interface GanttChartProps {
   projectName?: string;
   showProjectSelector?: boolean;
   onProjectChange?: () => void;
+  /** IDs de usuarios que son coordinadores del proyecto (para permitir validación) */
+  coordinadorIds?: string[];
+  /** ID del usuario actual (para saber si puede validar) */
+  currentUserId?: string;
 }
 
 // Componente para actividad arrastrable
@@ -543,6 +552,41 @@ function SortableActivity({
                         {activityProgress}%
                       </div>
                     </div>
+                    {/* Indicador de validación coordinador - solo para actividades finalizadas */}
+                    {activity.tasks.length > 0 &&
+                      activity.tasks.every((t) => t.completed) && (
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5 ml-2"
+                          style={{
+                            left: `${startPos.left + barWidth}%`,
+                          }}
+                        >
+                          {(activity as Activity & { validadoPorCoordinador?: boolean; validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinador &&
+                          (activity as Activity & { validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinadorPor ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                <Check className="h-2.5 w-2.5 text-white" />
+                              </div>
+                              <span className="truncate max-w-[140px] inline-flex items-center gap-1">
+                                Validado por{' '}
+                                <Avatar className="h-4 w-4 flex-shrink-0">
+                                  <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">
+                                  {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
+                                </span>
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-red-600 font-medium whitespace-nowrap">
+                              Validación pendiente
+                            </span>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
@@ -620,8 +664,12 @@ export default function GanttChart({
   projectName,
   showProjectSelector = false,
   onProjectChange,
+  coordinadorIds = [],
+  currentUserId,
 }: GanttChartProps) {
   const { data: session } = useSession();
+  const canValidateAsCoordinator =
+    !!currentUserId && coordinadorIds.includes(currentUserId);
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -767,6 +815,7 @@ export default function GanttChart({
   >([]);
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
+  const [isTogglingValidation, setIsTogglingValidation] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   // Usar el hook de Gantt con el projectId recibido como prop
@@ -2230,6 +2279,9 @@ export default function GanttChart({
                               undefined as unknown as React.MouseEvent
                             )
                           }
+                          onActivityTitleClick={(activity) =>
+                            openActivityPopup('view', activity)
+                          }
                           isFullscreen={isFullscreen}
                         />
                       </div>
@@ -2568,11 +2620,174 @@ export default function GanttChart({
             className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-10"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header - ACTIVIDAD arriba, nombre + botones a la derecha, Progreso */}
+            {/* Header - ACTIVIDAD | validación a la derecha; debajo nombre + Progreso */}
             <div className="mb-6 flex-shrink-0">
-              <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-2">
-                ACTIVIDAD
-              </DialogTitle>
+              {/* Fila 1: ACTIVIDAD + línea separadora + checkbox validación */}
+              <div className="flex items-center gap-3 mb-2">
+                <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide flex-shrink-0">
+                  ACTIVIDAD
+                </DialogTitle>
+                {activityPopupMode === 'view' && selectedActivityForPopup && (
+                  <>
+                    <div className="h-5 w-px bg-gray-300 flex-shrink-0" aria-hidden />
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {(() => {
+                        const act = selectedActivityForPopup;
+                        const tasks = act.tasks ?? [];
+                        const allCompleted =
+                          tasks.length > 0 &&
+                          tasks.every((t) => t.completed);
+                        const validado = !!(
+                          act as Activity & {
+                            validadoPorCoordinador?: boolean;
+                            validadoPorCoordinadorPor?: {
+                              id: string;
+                              name: string | null;
+                              image: string | null;
+                            } | null;
+                          }
+                        ).validadoPorCoordinador;
+                        const por = (
+                          act as Activity & {
+                            validadoPorCoordinadorPor?: {
+                              id: string;
+                              name: string | null;
+                              image: string | null;
+                            } | null;
+                          }
+                        ).validadoPorCoordinadorPor;
+                        const canCheck =
+                          canValidateAsCoordinator && allCompleted;
+                        const isChecked = validado;
+
+                        if (!allCompleted) {
+                          return (
+                            <div className="flex items-center gap-2 text-gray-500">
+                              <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-100 flex-shrink-0" />
+                              <span className="text-sm">Actividad no finalizada</span>
+                            </div>
+                          );
+                        }
+                        if (isChecked && por) {
+                          return (
+                            <label
+                              className={`flex items-center gap-2 text-emerald-700 ${
+                                canValidateAsCoordinator && !isTogglingValidation
+                                  ? 'cursor-pointer'
+                                  : 'cursor-default'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked
+                                disabled={!canValidateAsCoordinator || isTogglingValidation}
+                                className="sr-only"
+                                onChange={async () => {
+                                  if (!canValidateAsCoordinator || isTogglingValidation) return;
+                                  const id = act.id;
+                                  if (id.startsWith('temp-')) return;
+                                  setIsTogglingValidation(true);
+                                  const result = await toggleActivityValidation(id);
+                                  setIsTogglingValidation(false);
+                                  if (result.success && result.data) {
+                                    setSelectedActivityForPopup({
+                                      ...act,
+                                      ...result.data,
+                                      validadoPorCoordinador: result.data.validadoPorCoordinador,
+                                      validadoPorCoordinadorId: undefined,
+                                      validadoPorCoordinadorPor: undefined,
+                                    } as Activity);
+                                    updateActivitiesState((prev) =>
+                                      prev.map((a) =>
+                                        a.id === id ? { ...a, ...result.data } : a
+                                      )
+                                    );
+                                    await loadActivities();
+                                  } else {
+                                    alert(result.error ?? 'Error al actualizar');
+                                  }
+                                }}
+                              />
+                              <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                {isTogglingValidation ? (
+                                  <Loader2 className="h-3 w-3 animate-spin text-white" />
+                                ) : (
+                                  <Check className="h-3 w-3 text-white" />
+                                )}
+                              </div>
+                              <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                                Validado por
+                                <Avatar className="h-7 w-7 flex-shrink-0">
+                                  <AvatarImage src={por.image ?? undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {(por.name ?? 'U').slice(0, 1).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{por.name ?? 'Coordinador'}</span>
+                              </span>
+                            </label>
+                          );
+                        }
+                        return (
+                          <label
+                            className={`flex items-center gap-2 cursor-pointer select-none ${
+                              !canCheck ? 'cursor-not-allowed opacity-80' : ''
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={false}
+                              disabled={!canCheck || isTogglingValidation}
+                              className="sr-only"
+                              onChange={async () => {
+                                if (!canCheck || isTogglingValidation) return;
+                                const id = act.id;
+                                if (id.startsWith('temp-')) return;
+                                setIsTogglingValidation(true);
+                                const result = await toggleActivityValidation(id);
+                                setIsTogglingValidation(false);
+                                if (result.success && result.data) {
+                                  setSelectedActivityForPopup({
+                                    ...act,
+                                    ...result.data,
+                                    validadoPorCoordinador: result.data.validadoPorCoordinador,
+                                    validadoPorCoordinadorId:
+                                      result.data.validadoPorCoordinadorId ?? undefined,
+                                    validadoPorCoordinadorPor: result.data.validadoPorCoordinadorPor ?? undefined,
+                                  } as Activity);
+                                  updateActivitiesState((prev) =>
+                                    prev.map((a) =>
+                                      a.id === id ? { ...a, ...result.data } : a
+                                    )
+                                  );
+                                  await loadActivities();
+                                } else {
+                                  alert(result.error ?? 'Error al validar');
+                                }
+                              }}
+                            />
+                            <div
+                              className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                                canCheck && !isTogglingValidation
+                                  ? 'border-gray-400 bg-white hover:border-gray-500'
+                                  : 'border-gray-300 bg-gray-100'
+                              }`}
+                            >
+                              {isTogglingValidation && (
+                                <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
+                              )}
+                            </div>
+                            <span className="text-sm text-red-600 font-medium">
+                              Validación de Coordinador pendiente
+                            </span>
+                          </label>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Fila 2: Nombre de actividad + Progreso (o botones en edit/create) */}
               <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex-1 flex items-center gap-2 min-w-0">
                   {activityPopupMode === 'view' ? (
