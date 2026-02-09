@@ -34,6 +34,10 @@ import {
   Minimize,
   MessageSquare,
   Send,
+  FileText,
+  Paperclip,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -41,6 +45,13 @@ import {
   createComentarioActividad,
   type ComentarioActividadData,
 } from '@/lib/actions/comentarios-actividad';
+import {
+  getEvidenciasActividad,
+  createEvidenciaActividad,
+  deleteEvidenciaActividad,
+  type EvidenciaActividadData,
+} from '@/lib/actions/evidencias-actividad';
+import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
 import KanbanBoard from '@/components/proyectos/KanbanBoard';
 import {
   Tooltip,
@@ -750,6 +761,14 @@ export default function GanttChart({
   const [isEnviandoComentarioActividad, setIsEnviandoComentarioActividad] =
     useState(false);
 
+  // Estado para evidencias de actividad
+  const [evidenciasActividad, setEvidenciasActividad] = useState<
+    EvidenciaActividadData[]
+  >([]);
+  const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
+  const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
+  const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
+
   // Usar el hook de Gantt con el projectId recibido como prop
   const {
     activities,
@@ -926,6 +945,32 @@ export default function GanttChart({
       setIsLoadingComentariosActividad(false);
     };
     cargarComentarios();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedActivityForPopup?.id, showActivityPopup]);
+
+  // Cargar evidencias cuando se abre el popup de actividad (actividad existente)
+  useEffect(() => {
+    const actividadId = selectedActivityForPopup?.id;
+    if (
+      !actividadId ||
+      actividadId.startsWith('temp-') ||
+      !showActivityPopup
+    ) {
+      setEvidenciasActividad([]);
+      return;
+    }
+    let isCancelled = false;
+    const cargarEvidencias = async () => {
+      setIsLoadingEvidencias(true);
+      const result = await getEvidenciasActividad(actividadId);
+      if (!isCancelled && result.success && result.data) {
+        setEvidenciasActividad(result.data);
+      }
+      setIsLoadingEvidencias(false);
+    };
+    cargarEvidencias();
     return () => {
       isCancelled = true;
     };
@@ -2515,11 +2560,12 @@ export default function GanttChart({
               setEditingTaskId(null);
               setShowInlineAddTask(false);
               setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+              setEvidenciasActividad([]);
             }
           }}
         >
           <DialogContent
-            className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4"
+            className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-10"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header - ACTIVIDAD arriba, nombre + botones a la derecha, Progreso */}
@@ -2682,6 +2728,177 @@ export default function GanttChart({
                         </p>
                       );
                     })()}
+                  </div>
+                </div>
+
+                {/* Evidencias */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                    Evidencias
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    {isLoadingEvidencias ? (
+                      <p className="text-sm text-gray-500">Cargando evidencias...</p>
+                    ) : evidenciasActividad.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic">
+                        No se han cargado evidencias
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {evidenciasActividad.map((ev) => (
+                          <div
+                            key={ev.id}
+                            className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm"
+                          >
+                            {ev.tipo === 'image' ? (
+                              <a
+                                href={ev.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block aspect-video"
+                              >
+                                <img
+                                  src={ev.url}
+                                  alt={ev.nombreArchivo ?? 'Evidencia'}
+                                  className="w-full h-full object-cover"
+                                />
+                              </a>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center aspect-video p-4 text-red-600">
+                                <a
+                                  href={ev.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex flex-col items-center hover:bg-red-50 rounded transition-colors flex-1 w-full justify-center"
+                                  title="Abrir PDF en nueva pestaña"
+                                >
+                                  <FileText className="h-10 w-10 mb-1" />
+                                  <span className="text-xs font-medium text-center truncate w-full">
+                                    {ev.nombreArchivo ?? 'Documento PDF'}
+                                  </span>
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const filename = ev.nombreArchivo || 'documento.pdf';
+                                    const apiUrl = `/api/evidencia-download?url=${encodeURIComponent(ev.url)}&filename=${encodeURIComponent(filename)}`;
+                                    try {
+                                      const res = await fetch(apiUrl);
+                                      if (!res.ok) {
+                                        const text = await res.text();
+                                        alert(text || 'No se pudo descargar el PDF.');
+                                        return;
+                                      }
+                                      const blob = await res.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    } catch {
+                                      alert('Error de conexión al descargar el PDF.');
+                                    }
+                                  }}
+                                  className="mt-2 text-xs underline hover:no-underline text-red-700"
+                                >
+                                  Descargar
+                                </button>
+                              </div>
+                            )}
+                            {activityPopupMode === 'edit' &&
+                              selectedActivityForPopup?.id &&
+                              !selectedActivityForPopup.id.startsWith('temp-') && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm('¿Eliminar esta evidencia?')) return;
+                                    const res = await deleteEvidenciaActividad(ev.id);
+                                    if (res.success) {
+                                      setEvidenciasActividad((prev) =>
+                                        prev.filter((e) => e.id !== ev.id)
+                                      );
+                                    } else {
+                                      alert(res.error ?? 'Error al eliminar');
+                                    }
+                                  }}
+                                  className="absolute top-1 right-1 p-1.5 bg-red-100 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                                  title="Eliminar evidencia"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {activityPopupMode === 'edit' &&
+                      selectedActivityForPopup?.id &&
+                      !selectedActivityForPopup.id.startsWith('temp-') && (
+                        <div className="mt-3">
+                          <input
+                            ref={evidenciasFileInputRef}
+                            type="file"
+                            accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const actividadId = selectedActivityForPopup?.id;
+                              if (!actividadId || actividadId.startsWith('temp-')) return;
+                              setIsUploadingEvidencia(true);
+                              const result = await uploadEvidenciaFile(file);
+                              if ('error' in result) {
+                                alert(result.error);
+                                setIsUploadingEvidencia(false);
+                                e.target.value = '';
+                                return;
+                              }
+                              const createResult = await createEvidenciaActividad(
+                                actividadId,
+                                {
+                                  url: result.url,
+                                  publicId: result.publicId,
+                                  tipo: result.tipo,
+                                  nombreArchivo: result.nombreArchivo,
+                                }
+                              );
+                              if (createResult.success && createResult.data) {
+                                setEvidenciasActividad((prev) => [...prev, createResult.data!]);
+                              } else {
+                                alert(createResult.error ?? 'Error al guardar evidencia');
+                              }
+                              setIsUploadingEvidencia(false);
+                              e.target.value = '';
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            disabled={isUploadingEvidencia}
+                            onClick={() => evidenciasFileInputRef.current?.click()}
+                          >
+                            {isUploadingEvidencia ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <Paperclip className="h-4 w-4" />
+                                Agregar evidencia (JPG o PDF)
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Imágenes máx. 250 KB (se comprimen automáticamente). PDF máx. 2 MB.
+                          </p>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
@@ -3098,7 +3315,7 @@ export default function GanttChart({
                     </div>
 
                     {session?.user && (
-                      <div className="flex gap-4 pt-4 border-t border-gray-200 flex-shrink-0">
+                      <div className="flex gap-4 pt-4 pb-2 border-t border-gray-200 flex-shrink-0">
                         <div className="flex-shrink-0">
                           {session.user.image ? (
                             <img

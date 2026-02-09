@@ -375,6 +375,7 @@ model Activity {
   project Proyecto @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks   Task[]
   comentarios ComentarioActividad[]
+  evidencias EvidenciaActividad[]
 
   @@map("activities")
 }
@@ -498,6 +499,22 @@ model ComentarioActividad {
 
   @@index([actividadId])
   @@map("comentarios_actividad")
+}
+
+// Evidencias de Actividades (imágenes JPG y PDF en Cloudinary, carpeta evidencias_actividades)
+model EvidenciaActividad {
+  id            String   @id @default(cuid())
+  actividadId   String   @map("actividad_id")
+  url           String
+  publicId      String   @map("public_id")
+  tipo          String   // 'image' | 'pdf'
+  nombreArchivo String?  @map("nombre_archivo")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  actividad Activity @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+
+  @@index([actividadId])
+  @@map("evidencias_actividad")
 }
 
 // Comentarios de Indicadores
