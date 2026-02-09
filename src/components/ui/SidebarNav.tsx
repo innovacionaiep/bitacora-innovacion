@@ -40,7 +40,7 @@ const navItemsBase = [
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  { href: '/seguimiento', label: 'Seguimiento', icon: ClipboardCheck, rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO },
+  { href: '/seguimiento', label: 'Meetings', icon: ClipboardCheck, rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO },
   { href: '/reportes', label: 'Reportes', icon: AtSign },
 ];
 
@@ -112,12 +112,12 @@ export default function SidebarNav() {
             );
           })}
 
-          {/* Configuración (solo Admin) */}
+          {/* Ajustes (solo Admin) */}
           {showConfig && (
             <SidebarMenuItem className="flex justify-center">
               <SidebarMenuButton
                 asChild
-                tooltip={state === 'collapsed' ? 'Configuración' : undefined}
+                tooltip={state === 'collapsed' ? 'Ajustes' : undefined}
               >
                 <Link
                   href="/configuracion"
@@ -135,7 +135,7 @@ export default function SidebarNav() {
                     }`}
                   />
                   <span className="ml-3 group-data-[collapsible=icon]:hidden hover:!text-gray-300">
-                    Configuración
+                    Ajustes
                   </span>
                 </Link>
               </SidebarMenuButton>

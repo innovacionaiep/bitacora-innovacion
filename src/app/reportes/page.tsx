@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -13,22 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { sendEmail } from '@/lib/actions/email';
 import { getProyectos } from '@/lib/actions/proyectos';
 import { sendReporteProyecto } from '@/lib/actions/reporte-proyecto';
-import { Loader2, Send, FileText } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import type { ProyectoConVariaciones } from '@/types/proyecto';
 
 export default function ReportesPage() {
-  const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('');
-  const [html, setHtml] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-
   const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
   const [proyectosLoading, setProyectosLoading] = useState(true);
   const [reporteProyectoId, setReporteProyectoId] = useState<string>('');
@@ -51,45 +40,6 @@ export default function ReportesPage() {
     }
     loadProyectos();
   }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage(null);
-
-    const trimmedTo = to.trim();
-    const trimmedHtml = html.trim();
-
-    if (!trimmedTo) {
-      setMessage({ type: 'error', text: 'Indica al menos un destinatario.' });
-      return;
-    }
-    if (!trimmedHtml) {
-      setMessage({
-        type: 'error',
-        text: 'El contenido HTML no puede estar vacío.',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await sendEmail({
-        to: trimmedTo,
-        subject: subject.trim() || undefined,
-        html: trimmedHtml,
-      });
-
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Correo enviado correctamente.' });
-      } else {
-        setMessage({ type: 'error', text: result.error ?? 'Error al enviar.' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error inesperado al enviar.' });
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSendReporte(e: React.FormEvent) {
     e.preventDefault();
@@ -137,78 +87,6 @@ export default function ReportesPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Reportes</h1>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Enviar correo de prueba</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="to">Destinatarios</Label>
-              <Input
-                id="to"
-                type="text"
-                placeholder="correo1@ejemplo.com, correo2@ejemplo.com"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="subject">Asunto (opcional)</Label>
-              <Input
-                id="subject"
-                type="text"
-                placeholder="Asunto del correo"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="html">Contenido HTML</Label>
-              <Textarea
-                id="html"
-                placeholder="<p>Hola, este es un correo de prueba.</p>"
-                value={html}
-                onChange={(e) => setHtml(e.target.value)}
-                disabled={loading}
-                className="min-h-[200px] font-mono text-sm"
-                rows={10}
-              />
-            </div>
-
-            {message && (
-              <p
-                className={
-                  message.type === 'success'
-                    ? 'text-sm text-emerald-600'
-                    : 'text-sm text-destructive'
-                }
-              >
-                {message.text}
-              </p>
-            )}
-
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Enviar
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

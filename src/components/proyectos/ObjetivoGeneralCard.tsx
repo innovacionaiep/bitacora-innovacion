@@ -72,13 +72,10 @@ export function ObjetivoGeneralCard({
       {/* Objetivos Específicos - Se expanden horizontalmente hacia la derecha */}
       {objetivoGeneral.objetivosEspecificos.length > 0 ? (
         <>
-          {/* Contenedor wrapper que agrupa todo para alinear anchos */}
-          <div className="flex flex-col gap-16 relative">
+          {/* Bloque conjunto: Objetivo General + Objetivos específicos + Indicadores + Validaciones (ligero desplazamiento a la izquierda para evitar scroll horizontal) */}
+          <div className="flex flex-col gap-16 relative" style={{ marginLeft: '-140px' }}>
             {/* Fila: Tarjeta del Objetivo General + acciones (botones) a la derecha */}
-            <div
-              className="relative group z-20 flex items-center gap-3"
-              style={{ marginLeft: '-120px' }}
-            >
+            <div className="relative group z-20 flex items-center gap-3">
               <div
                 className="relative flex-shrink-0"
                 style={
@@ -126,8 +123,8 @@ export function ObjetivoGeneralCard({
               )}
             </div>
 
-            {/* Contenedor de objetivos específicos - este define el ancho máximo (sin barras de progreso) */}
-            <div className="flex flex-col gap-16 relative">
+            {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores + validaciones (80px a la derecha respecto al Objetivo General) */}
+            <div className="flex flex-col gap-16 relative" style={{ marginLeft: '80px' }}>
               {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
               <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
               {objetivoGeneral.objetivosEspecificos.map(
@@ -150,7 +147,7 @@ export function ObjetivoGeneralCard({
       ) : (
         <div
           className="relative group flex items-center gap-3"
-          style={{ marginLeft: '-120px' }}
+          style={{ marginLeft: '-140px' }}
         >
           <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
             {/* Badge en esquina superior izquierda con icono */}

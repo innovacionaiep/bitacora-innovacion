@@ -3023,7 +3023,7 @@ export default function ProyectosPage() {
               )}
 
               {selectedTab === 'Indicadores' && (
-                <div className="h-full pt-2">
+                <div className="h-full pt-2 overflow-x-hidden">
                   <IndicadoresCard
                     projectId={selectedProject.id}
                     coordinadorIds={

@@ -238,10 +238,10 @@ export function ObjetivoEspecificoCard({
                           )}
                         </div>
                         <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                          Validado por{' '}
-                          <Avatar className="h-5 w-5 flex-shrink-0">
+                          Validado{' '}
+                          <Avatar className="h-7 w-7 flex-shrink-0">
                             <AvatarImage src={objetivoEspecifico.indicadores[0].validadoPorCoordinadorPor?.image ?? undefined} />
-                            <AvatarFallback className="text-[10px]">
+                            <AvatarFallback className="text-xs">
                               {(objetivoEspecifico.indicadores[0].validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -249,32 +249,9 @@ export function ObjetivoEspecificoCard({
                         </span>
                       </label>
                     ) : (
-                      <label
-                        className={`flex items-center gap-1.5 text-xs text-red-600 font-medium whitespace-nowrap ${
-                          canValidateAsCoordinator && !togglingValidationId ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          disabled={!canValidateAsCoordinator || !!togglingValidationId}
-                          className="sr-only"
-                          onChange={async () => {
-                            if (!canValidateAsCoordinator || togglingValidationId) return;
-                            setTogglingValidationId(objetivoEspecifico.indicadores[0].id);
-                            const result = await toggleIndicadorValidation(objetivoEspecifico.indicadores[0].id);
-                            setTogglingValidationId(null);
-                            if (result.success) onIndicadorValidationToggle?.();
-                            else alert(result.error ?? 'Error al validar');
-                          }}
-                        />
-                        <div className="w-4 h-4 rounded border-2 border-gray-400 bg-white flex items-center justify-center flex-shrink-0">
-                          {togglingValidationId === objetivoEspecifico.indicadores[0].id && (
-                            <Loader2 className="h-2.5 w-2.5 animate-spin text-gray-500" />
-                          )}
-                        </div>
-                        <span>Validación pendiente</span>
-                      </label>
+                      <span className="text-xs text-red-600 font-medium whitespace-nowrap">
+                        Validación pendiente
+                      </span>
                     )}
                   </div>
                 )}
@@ -378,10 +355,10 @@ export function ObjetivoEspecificoCard({
                               )}
                             </div>
                             <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                              Validado por{' '}
-                              <Avatar className="h-5 w-5 flex-shrink-0">
+                              Validado{' '}
+                              <Avatar className="h-7 w-7 flex-shrink-0">
                                 <AvatarImage src={indicador.validadoPorCoordinadorPor?.image ?? undefined} />
-                                <AvatarFallback className="text-[10px]">
+                                <AvatarFallback className="text-xs">
                                   {(indicador.validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
@@ -389,32 +366,9 @@ export function ObjetivoEspecificoCard({
                             </span>
                           </label>
                         ) : (
-                          <label
-                            className={`flex items-center gap-1.5 text-xs text-red-600 font-medium whitespace-nowrap ${
-                              canValidateAsCoordinator && !togglingValidationId ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={false}
-                              disabled={!canValidateAsCoordinator || !!togglingValidationId}
-                              className="sr-only"
-                              onChange={async () => {
-                                if (!canValidateAsCoordinator || togglingValidationId) return;
-                                setTogglingValidationId(indicador.id);
-                                const result = await toggleIndicadorValidation(indicador.id);
-                                setTogglingValidationId(null);
-                                if (result.success) onIndicadorValidationToggle?.();
-                                else alert(result.error ?? 'Error al validar');
-                              }}
-                            />
-                            <div className="w-4 h-4 rounded border-2 border-gray-400 bg-white flex items-center justify-center flex-shrink-0">
-                              {togglingValidationId === indicador.id && (
-                                <Loader2 className="h-2.5 w-2.5 animate-spin text-gray-500" />
-                              )}
-                            </div>
-                            <span>Validación pendiente</span>
-                          </label>
+                          <span className="text-xs text-red-600 font-medium whitespace-nowrap">
+                            Validación pendiente
+                          </span>
                         )}
                       </div>
                     )}

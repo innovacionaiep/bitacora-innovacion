@@ -109,6 +109,8 @@ export function IndicadorModal({
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
+  /** Ids de evidencias al entrar en modo edición, para detectar si se añadieron o eliminaron */
+  const evidenciasIdsAtEditStartRef = useRef<string[]>([]);
 
   // Actualizar editValues solo cuando cambia el ID del indicador (nuevo indicador seleccionado)
   useEffect(() => {
@@ -313,6 +315,9 @@ export function IndicadorModal({
         fechaInicio: indicador.fechaInicio ?? '',
         fechaFin: indicador.fechaFin ?? '',
       });
+    } else {
+      // Al entrar en modo edición, guardar snapshot de evidencias para detectar cambios
+      evidenciasIdsAtEditStartRef.current = evidenciasIndicador.map((e) => e.id);
     }
     setIsEditMode(!isEditMode);
   };
@@ -413,7 +418,7 @@ export function IndicadorModal({
   };
 
   const hasChanges = () => {
-    return (
+    const formChanged =
       editValues.nombre !== indicador.nombre ||
       editValues.descripcion !== indicador.descripcion ||
       editValues.formaCalculo !== indicador.formaCalculo ||
@@ -421,8 +426,13 @@ export function IndicadorModal({
       editValues.resultadoEsperado !== indicador.resultadoEsperado ||
       editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado ||
       editValues.fechaInicio !== (indicador.fechaInicio ?? '') ||
-      editValues.fechaFin !== (indicador.fechaFin ?? '')
-    );
+      editValues.fechaFin !== (indicador.fechaFin ?? '');
+    const idsNow = evidenciasIndicador.map((e) => e.id).sort();
+    const idsAtStart = [...evidenciasIdsAtEditStartRef.current].sort();
+    const evidenceChanged =
+      idsNow.length !== idsAtStart.length ||
+      idsNow.some((id, i) => id !== idsAtStart[i]);
+    return formChanged || evidenceChanged;
   };
 
   // Funciones para cálculo y formateo (igual que en IndicadorCard)
@@ -547,7 +557,7 @@ export function IndicadorModal({
                             )}
                           </div>
                           <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                            Validado por{' '}
+                            Validado{' '}
                             <Avatar className="h-7 w-7 flex-shrink-0">
                               <AvatarImage src={por.image ?? undefined} />
                               <AvatarFallback className="text-xs">

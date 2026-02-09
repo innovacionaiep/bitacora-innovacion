@@ -169,9 +169,9 @@ export function IndicadoresCard({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Main Content - Sistema de tarjetas tipo mapa mental */}
-      <div className="flex-1 overflow-auto">
+    <div className="h-full flex flex-col overflow-x-hidden">
+      {/* Main Content - Sistema de tarjetas tipo mapa mental (sin scroll horizontal) */}
+      <div className="flex-1 overflow-x-hidden overflow-y-auto">
         <div className="pt-3 pb-6 pl-40 pr-6 min-w-max">
           {data.objetivosGenerales.map((objetivoGeneral, index) => (
             <div key={objetivoGeneral.id} className={index > 0 ? 'mt-12' : ''}>
