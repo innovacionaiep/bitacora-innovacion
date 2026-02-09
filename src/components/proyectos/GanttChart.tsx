@@ -112,6 +112,7 @@ interface SortableActivityProps {
   };
   getBarWidth: (startDate: string, endDate: string) => number;
   formatDateForTooltip: (dateString: string) => string;
+  measureAlignment?: boolean;
 }
 
 function SortableActivity({
@@ -128,6 +129,7 @@ function SortableActivity({
   getBarWidth,
   formatDateForTooltip,
   scrollbarWidth,
+  measureAlignment = false,
 }: SortableActivityProps & { scrollbarWidth: number }) {
   const {
     attributes,
@@ -137,6 +139,28 @@ function SortableActivity({
     transition,
     isDragging,
   } = useSortable({ id: activity.id });
+
+  // #region agent log
+  const refLeftCollapsed = useRef<HTMLSpanElement | null>(null);
+  const refLeftExpanded = useRef<HTMLDivElement | null>(null);
+  const refGanttBarContainer = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!measureAlignment) return;
+    const run = () => {
+      const leftEl = refLeftCollapsed.current || refLeftExpanded.current;
+      const rightEl = refGanttBarContainer.current;
+      if (!leftEl || !rightEl) return;
+      const rL = leftEl.getBoundingClientRect();
+      const rR = rightEl.getBoundingClientRect();
+      const centerLeft = rL.top + rL.height / 2;
+      const centerRight = rR.top + rR.height / 2;
+      const diffPx = centerRight - centerLeft;
+      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttChart.tsx:alignment',message:'activity line vs bar center',data:{leftTop:rL.top,leftHeight:rL.height,centerLeft,rightTop:rR.top,rightHeight:rR.height,centerRight,diffPx,expanded:expandedDescriptions.has(activity.id)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    };
+    const t = setTimeout(run, 100);
+    return () => clearTimeout(t);
+  }, [measureAlignment, expandedDescriptions, activity.id]);
+  // #endregion
 
   // Función unificada para calcular altura de fila
   const getRowHeight = (isExpanded: boolean, taskCount: number) => {
@@ -225,8 +249,9 @@ function SortableActivity({
               {/* Contenido de la actividad - solo visible cuando NO está expandido */}
               {!expandedDescriptions.has(activity.id) && (
                 <div className="flex-1 min-w-0 flex items-center relative">
-                  <h4
-                    className={`activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 ${isDragging ? 'dragging-text' : ''}`}
+                  <span
+                    ref={measureAlignment ? refLeftCollapsed : undefined}
+                    className={`activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
                     style={{
                       fontSize: '15px',
                       lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
@@ -242,7 +267,29 @@ function SortableActivity({
                     title="Haz clic para ver detalles de la actividad"
                   >
                     {activity.name}
-                  </h4>
+                    {/* Punto gris al final del nombre de actividad */}
+                    <span
+                      className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 flex-shrink-0 relative"
+                      style={{
+                        verticalAlign: 'middle',
+                        transform: 'translateY(-36%)',
+                      }}
+                    >
+                      {/* Línea sutil desde el punto hasta el borde derecho de la columna (bajada ~2px para alinear con la línea del timeline) */}
+                      <div
+                        className="absolute transform -translate-y-1/2 pointer-events-none"
+                        style={{
+                          top: 'calc(50% + 2px)',
+                          left: 'calc(100% + 0px)',
+                          right: 'calc(-100vw + 416px - 8px)',
+                          height: '0.1px',
+                          backgroundColor: '#e5e7eb',
+                          opacity: 1,
+                          zIndex: 9999,
+                        }}
+                      />
+                    </span>
+                  </span>
                 </div>
               )}
             </div>
@@ -271,7 +318,8 @@ function SortableActivity({
 
                   return (
                     <div
-                      className={`absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto ${isDragging ? 'dragging-text' : ''}`}
+                      ref={measureAlignment ? refLeftExpanded : undefined}
+                      className={`absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
                       style={{
                         fontSize: '15px',
                         lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
@@ -294,6 +342,28 @@ function SortableActivity({
                         data-activity-id={activity.id}
                       >
                         {activity.name}
+                      </span>
+                      {/* Punto gris al final del nombre de actividad (expandido) */}
+                      <span
+                        className="w-2 h-2 bg-gray-400 rounded-full inline-block ml-1 flex-shrink-0 relative"
+                        style={{
+                          verticalAlign: 'middle',
+                          transform: 'translateY(-36%)',
+                        }}
+                      >
+                        {/* Línea sutil desde el punto hasta el borde derecho de la columna (bajada ~2px para alinear con la línea del timeline) */}
+                        <div
+                          className="absolute transform -translate-y-1/2 pointer-events-none"
+                          style={{
+                            top: 'calc(50% + 2px)',
+                            left: 'calc(100% + 0px)',
+                            right: 'calc(-100vw + 416px - 8px)',
+                            height: '0.1px',
+                            backgroundColor: '#e5e7eb',
+                            opacity: 1,
+                            zIndex: 9999,
+                          }}
+                        />
                       </span>
                     </div>
                   );
@@ -433,6 +503,8 @@ function SortableActivity({
 
             const taskSpacing = 22;
             const startOffset = 4;
+            // Bajada milimétrica de la barra para alinear su línea con la del nombre (2.5px)
+            const activityBarTopOffset = 2.5;
 
             const activityProgress = getActivityProgress(activity);
 
@@ -447,11 +519,23 @@ function SortableActivity({
                 }}
               >
                 <div
+                  ref={measureAlignment ? refGanttBarContainer : undefined}
                   className="relative h-8"
                   style={{
-                    top: `${startOffset}px`,
+                    top: `${startOffset + activityBarTopOffset}px`,
                   }}
                 >
+                  {/* Línea de conexión desde el inicio del timeline hasta la barra de actividad */}
+                  <div
+                    className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10"
+                    style={{
+                      left: '0%',
+                      width: `${startPos.left}%`,
+                      height: '0.1px',
+                      backgroundColor: '#e5e7eb',
+                      opacity: 1,
+                    }}
+                  />
                   {/* Barra de fondo gris con popup */}
                   <div className="relative group h-8">
                     <div
@@ -1995,10 +2079,11 @@ export default function GanttChart({
                                 )}
                                 strategy={verticalListSortingStrategy}
                               >
-                                {activities.map((activity) => (
+                                {activities.map((activity, index) => (
                                   <SortableActivity
                                     key={activity.id}
                                     activity={activity}
+                                    measureAlignment={index === 0}
                                     expandedDescriptions={expandedDescriptions}
                                     toggleDescription={toggleDescription}
                                     handleActivityBarClick={
