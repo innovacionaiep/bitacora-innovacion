@@ -681,19 +681,25 @@ async function isCoordinatorOfProject(
  * Solo coordinadores del proyecto pueden validar. El indicador debe tener cumplimiento al 100% para poder validar.
  */
 export async function toggleIndicadorValidation(indicadorId: string) {
-  // #region agent log
-  const _log = (msg: string, data: Record<string, unknown>) => {
-    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'indicadores.ts:toggleIndicadorValidation',
-        message: msg,
-        data,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  };
+  // #region agent log (solo en desarrollo; en producción evita aviso de "acceso a red local")
+  const _log =
+    process.env.NODE_ENV === 'development'
+      ? (msg: string, data: Record<string, unknown>) => {
+          fetch(
+            'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'indicadores.ts:toggleIndicadorValidation',
+                message: msg,
+                data,
+                timestamp: Date.now(),
+              }),
+            }
+          ).catch(() => {});
+        }
+      : () => {};
   // #endregion
   try {
     const session = await getSession();

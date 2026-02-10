@@ -130,29 +130,32 @@ export default function ConfiguracionUsuariosPage() {
       const theadPosition = thead ? getComputedStyle(thead).position : 'no-ref';
       const parent = root?.parentElement;
       const parentH = parent?.offsetHeight ?? 0;
-      fetch(
-        'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'configuracion/usuarios/page.tsx:layout',
-            message: 'layout heights and thead position',
-            data: {
-              viewportHeight: vh,
-              pageRootHeight: rootH,
-              scrollAreaHeight: scrollH,
-              scrollAreaScrollHeight: scrollScrollH,
-              parentHeight: parentH,
-              theadPosition,
-              loading,
-            },
-            timestamp: Date.now(),
-            hypothesisId: 'H1-H5',
-            runId: 'post-fix',
-          }),
-        }
-      ).catch(() => {});
+      // Solo en localhost (debug); en producción evita el aviso de "acceso a red local"
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        fetch(
+          'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'configuracion/usuarios/page.tsx:layout',
+              message: 'layout heights and thead position',
+              data: {
+                viewportHeight: vh,
+                pageRootHeight: rootH,
+                scrollAreaHeight: scrollH,
+                scrollAreaScrollHeight: scrollScrollH,
+                parentHeight: parentH,
+                theadPosition,
+                loading,
+              },
+              timestamp: Date.now(),
+              hypothesisId: 'H1-H5',
+              runId: 'post-fix',
+            }),
+          }
+        ).catch(() => {});
+      }
     }, 500);
     return () => clearTimeout(t);
   }, [loading]);
