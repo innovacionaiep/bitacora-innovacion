@@ -11,7 +11,7 @@ import { getVoskModel } from '@/lib/vosk-model-loader';
  */
 export function useVoskTranscription() {
   const ctx = useMeetingLiveOptional();
-  const modelRef = useRef<Awaited<ReturnType<typeof createModel>> | null>(null);
+  const modelRef = useRef<Awaited<ReturnType<typeof getVoskModel>> | null>(null);
   const recognizerRef = useRef<KaldiRecognizer | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -37,24 +37,26 @@ export function useVoskTranscription() {
         const recognizer = new model.KaldiRecognizer(16000);
         recognizerRef.current = recognizer;
 
-        recognizer.on('result', (msg: { result: { text: string } }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recognizer.on('result', ((msg: unknown) => {
           if (cancelled) return;
-          const text = msg.result?.text?.trim();
+          const m = msg as { result?: { text?: string } };
+          const text = m.result?.text?.trim();
           if (text) ctx.appendTranscript(text);
           lastInterimRef.current = '';
-        });
+        }) as any);
 
         recognizer.on(
           'partialresult',
-          (msg: { result: { partial: string } }) => {
+          ((msg: { result?: { partial?: string } }) => {
             if (cancelled) return;
             lastInterimRef.current = msg.result?.partial?.trim() ?? '';
-          }
+          }) as any
         );
 
-        recognizer.on('error', () => {
+        recognizer.on('error', (() => {
           lastInterimRef.current = '';
-        });
+        }) as any);
 
         const audioContext = new AudioContext({ sampleRate: 16000 });
         if (cancelled) return;

@@ -30,7 +30,8 @@ function formatElapsed(ms: number): string {
 }
 
 export function MeetingLiveFloatingWidget() {
-  const { meeting, endMeeting, setExpanded, startTabCapture } = useMeetingLive();
+  const { meeting, endMeeting, setExpanded, startTabCapture } =
+    useMeetingLive();
   const router = useRouter();
   const [elapsedMs, setElapsedMs] = useState(0);
   const [ending, setEnding] = useState(false);

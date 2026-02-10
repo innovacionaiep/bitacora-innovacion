@@ -7,11 +7,15 @@
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-const UPLOAD_PRESET_RAW = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_RAW ?? process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const UPLOAD_PRESET_RAW =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_RAW ??
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 /** Preset dedicado para evidencias (imágenes). Debe tener en Cloudinary Folder = "evidencias_actividades". Si no está definido, se usa el preset general y se envía folder por API (el dashboard puede seguir mostrando la carpeta del preset). */
-const EVIDENCIAS_PRESET_IMAGE = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS;
+const EVIDENCIAS_PRESET_IMAGE =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS;
 /** Preset dedicado para evidencias (PDF/raw). Debe tener en Cloudinary Folder = "evidencias_actividades" y Resource type = Raw. */
-const EVIDENCIAS_PRESET_RAW = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS_RAW;
+const EVIDENCIAS_PRESET_RAW =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS_RAW;
 const EVIDENCIAS_FOLDER = 'evidencias_actividades';
 const MAX_IMAGE_BYTES = 250 * 1024; // 250 KB
 const MAX_PDF_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -30,7 +34,10 @@ export interface UploadEvidenciaResult {
  * Comprime una imagen a máximo 250 KB usando canvas (client-side).
  * Reduce calidad y, si hace falta, dimensiones.
  */
-async function compressImageToMaxKb(file: File, maxBytes: number): Promise<Blob> {
+async function compressImageToMaxKb(
+  file: File,
+  maxBytes: number
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = document.createElement('img');
     const url = URL.createObjectURL(file);
@@ -92,7 +99,9 @@ async function compressImageToMaxKb(file: File, maxBytes: number): Promise<Blob>
  * Sube una imagen (JPG) a Cloudinary en la carpeta evidencias_actividades.
  * Comprime a máximo 250 KB antes de subir.
  */
-export async function uploadEvidenciaImage(file: File): Promise<UploadEvidenciaResult | { error: string }> {
+export async function uploadEvidenciaImage(
+  file: File
+): Promise<UploadEvidenciaResult | { error: string }> {
   const preset = EVIDENCIAS_PRESET_IMAGE || UPLOAD_PRESET;
   if (!CLOUD_NAME || !preset) {
     return { error: 'Configuración de Cloudinary no encontrada' };
@@ -136,7 +145,9 @@ export async function uploadEvidenciaImage(file: File): Promise<UploadEvidenciaR
  * Sube un PDF a Cloudinary en la carpeta evidencias_actividades.
  * Tamaño máximo: 2 MB.
  */
-export async function uploadEvidenciaPdf(file: File): Promise<UploadEvidenciaResult | { error: string }> {
+export async function uploadEvidenciaPdf(
+  file: File
+): Promise<UploadEvidenciaResult | { error: string }> {
   const preset = EVIDENCIAS_PRESET_RAW || UPLOAD_PRESET_RAW;
   if (!CLOUD_NAME || !preset) {
     return { error: 'Configuración de Cloudinary no encontrada' };
@@ -157,7 +168,10 @@ export async function uploadEvidenciaPdf(file: File): Promise<UploadEvidenciaRes
   try {
     const response = await fetch(uploadUrl, { method: 'POST', body: formData });
     if (!response.ok) {
-      return { error: 'Error al subir PDF. Verifica que el preset de Cloudinary permita archivos raw.' };
+      return {
+        error:
+          'Error al subir PDF. Verifica que el preset de Cloudinary permita archivos raw.',
+      };
     }
     const data = await response.json();
     return {
@@ -174,7 +188,9 @@ export async function uploadEvidenciaPdf(file: File): Promise<UploadEvidenciaRes
 /**
  * Sube un archivo de evidencia (imagen JPG o PDF) según su tipo.
  */
-export async function uploadEvidenciaFile(file: File): Promise<UploadEvidenciaResult | { error: string }> {
+export async function uploadEvidenciaFile(
+  file: File
+): Promise<UploadEvidenciaResult | { error: string }> {
   if (ACCEPTED_IMAGE_TYPES.includes(file.type)) {
     return uploadEvidenciaImage(file);
   }

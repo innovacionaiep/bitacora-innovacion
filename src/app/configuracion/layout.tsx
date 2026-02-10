@@ -19,8 +19,16 @@ export default async function ConfiguracionLayout({
 
   const navItems = [
     { href: '/configuracion/usuarios', label: 'Usuarios', icon: Users },
-    { href: '/configuracion/validacion', label: 'Validación de datos', icon: ListChecks },
-    { href: '/configuracion/desarrollo-tecnico', label: 'Desarrollo técnico', icon: FileCode },
+    {
+      href: '/configuracion/validacion',
+      label: 'Validación de datos',
+      icon: ListChecks,
+    },
+    {
+      href: '/configuracion/desarrollo-tecnico',
+      label: 'Desarrollo técnico',
+      icon: FileCode,
+    },
   ];
 
   return (
@@ -44,9 +52,7 @@ export default async function ConfiguracionLayout({
           })}
         </nav>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {children}
-      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
     </div>
   );
 }

@@ -45,10 +45,7 @@ export function MultiSelectOptions({
   triggerClassName,
 }: MultiSelectOptionsProps) {
   const [open, setOpen] = React.useState(false);
-  const selectedSet = React.useMemo(
-    () => new Set(parseValues(value)),
-    [value]
-  );
+  const selectedSet = React.useMemo(() => new Set(parseValues(value)), [value]);
 
   const toggle = (optionValue: string) => {
     const current = parseValues(value);

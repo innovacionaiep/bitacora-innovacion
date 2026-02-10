@@ -81,7 +81,10 @@ export function MultiSelectNombres({
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-[280px] overflow-y-auto" align="start">
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-2 max-h-[280px] overflow-y-auto"
+        align="start"
+      >
         {options.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">Sin opciones</p>
         ) : (

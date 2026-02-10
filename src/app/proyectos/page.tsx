@@ -25,7 +25,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { MultiSelectNombres, MULTI_VALUE_SEP } from '@/components/ui/multi-select-nombres';
+import {
+  MultiSelectNombres,
+  MULTI_VALUE_SEP,
+} from '@/components/ui/multi-select-nombres';
 import {
   MultiSelectOptions,
   MULTI_SELECT_SEP,
@@ -114,7 +117,10 @@ import {
   updateParticipanteProyecto,
   deleteParticipanteProyecto,
 } from '@/lib/actions/proyectos';
-import { getSedes, getEscuelas as getEscuelasConfig } from '@/lib/actions/configuracion';
+import {
+  getSedes,
+  getEscuelas as getEscuelasConfig,
+} from '@/lib/actions/configuracion';
 
 // Valor sentinela para Select (Radix no permite value="" en SelectItem)
 const SELECT_NONE_VALUE = '__none__';
@@ -210,21 +216,26 @@ const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
       orden: obj.orden,
     })),
     sede: (project.sede ?? '').replace(/, /g, MULTI_VALUE_SEP),
-    escuelasTexto: project.escuelas
-      ?.map((item) => item.escuela.nombre)
-      .join(MULTI_VALUE_SEP) ?? '',
-    carrerasTexto: project.carreras
-      ?.map((item) => item.carrera.nombre)
-      .join(MULTI_VALUE_SEP) ?? '',
-    comunasTexto: project.comunas
-      ?.map((item) => item.comuna.nombre)
-      .join(MULTI_VALUE_SEP) ?? '',
-    gruposInteresTexto: project.gruposInteres
-      ?.map((item) => item.grupoInteres.nombre)
-      .join(MULTI_VALUE_SEP) ?? '',
-    sociosComunitariosTexto: project.sociosComunitarios
-      ?.map((item) => item.socioComunitario.nombre)
-      .join(MULTI_VALUE_SEP) ?? '',
+    escuelasTexto:
+      project.escuelas
+        ?.map((item) => item.escuela.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
+    carrerasTexto:
+      project.carreras
+        ?.map((item) => item.carrera.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
+    comunasTexto:
+      project.comunas
+        ?.map((item) => item.comuna.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
+    gruposInteresTexto:
+      project.gruposInteres
+        ?.map((item) => item.grupoInteres.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
+    sociosComunitariosTexto:
+      project.sociosComunitarios
+        ?.map((item) => item.socioComunitario.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
     desarrolloTecnico: {
       continuidadFasesAnteriores:
         project.desarrolloTecnico?.continuidadFasesAnteriores ?? '',
@@ -237,8 +248,7 @@ const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
       perspectiveGenero: project.desarrolloTecnico?.perspectiveGenero ?? '',
       resultadosContribucion:
         project.desarrolloTecnico?.resultadosContribucion ?? '',
-      metodologiaMedicion:
-        project.desarrolloTecnico?.metodologiaMedicion ?? '',
+      metodologiaMedicion: project.desarrolloTecnico?.metodologiaMedicion ?? '',
       ejesImpacto: project.desarrolloTecnico?.ejesImpacto ?? '',
       factorInnovador: project.desarrolloTecnico?.factorInnovador ?? '',
       escalabilidad: project.desarrolloTecnico?.escalabilidad ?? '',
@@ -283,7 +293,8 @@ export default function ProyectosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filtros de la pestaña Participantes
-  const [filterParticipantesNombre, setFilterParticipantesNombre] = useState('');
+  const [filterParticipantesNombre, setFilterParticipantesNombre] =
+    useState('');
   const [filterParticipantesRol, setFilterParticipantesRol] = useState('');
   const [filterParticipantesCargo, setFilterParticipantesCargo] = useState('');
   const [filterParticipantesSocio, setFilterParticipantesSocio] = useState('');
@@ -291,10 +302,22 @@ export default function ProyectosPage() {
   // Modos y estado de la tabla Participantes (estilo PresupuestoCard)
   const [isAddingParticipante, setIsAddingParticipante] = useState(false);
   const [isEditModeParticipante, setIsEditModeParticipante] = useState(false);
-  const [isDeleteModeParticipante, setIsDeleteModeParticipante] = useState(false);
-  const [editingParticipanteId, setEditingParticipanteId] = useState<string | null>(null);
-  const [newParticipanteData, setNewParticipanteData] = useState({
-    rol: 'Colaborador' as const,
+  const [isDeleteModeParticipante, setIsDeleteModeParticipante] =
+    useState(false);
+  const [editingParticipanteId, setEditingParticipanteId] = useState<
+    string | null
+  >(null);
+  type NewParticipanteForm = {
+    rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
+    nombre: string;
+    email: string;
+    cargo: string;
+    socioComunitarioId: string;
+    sedeId: string;
+    escuelaId: string;
+  };
+  const [newParticipanteData, setNewParticipanteData] = useState<NewParticipanteForm>({
+    rol: 'Colaborador',
     nombre: '',
     email: '',
     cargo: '',
@@ -303,8 +326,12 @@ export default function ProyectosPage() {
     escuelaId: '',
   });
   // Catálogos para Sede y Escuela en Participantes (configuración - validación de datos)
-  const [sedesParticipantes, setSedesParticipantes] = useState<{ id: string; nombre: string }[]>([]);
-  const [escuelasParticipantes, setEscuelasParticipantes] = useState<{ id: string; nombre: string }[]>([]);
+  const [sedesParticipantes, setSedesParticipantes] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  const [escuelasParticipantes, setEscuelasParticipantes] = useState<
+    { id: string; nombre: string }[]
+  >([]);
   const [participanteSubmitting, setParticipanteSubmitting] = useState(false);
 
   // Estado para videos de YouTube por proyecto
@@ -515,7 +542,8 @@ export default function ProyectosPage() {
 
   const handleSaveNewParticipante = async () => {
     if (!selectedProject) return;
-    const { rol, nombre, email, cargo, socioComunitarioId, sedeId, escuelaId } = newParticipanteData;
+    const { rol, nombre, email, cargo, socioComunitarioId, sedeId, escuelaId } =
+      newParticipanteData;
     if (!nombre?.trim()) {
       alert('El nombre es obligatorio.');
       return;
@@ -530,7 +558,8 @@ export default function ProyectosPage() {
       nombre: nombre.trim(),
       email: email.trim() || undefined,
       cargo: cargo.trim() || undefined,
-      socioComunitarioId: rol === 'Beneficiario' ? socioComunitarioId || undefined : undefined,
+      socioComunitarioId:
+        rol === 'Beneficiario' ? socioComunitarioId || undefined : undefined,
       sedeId: sedeId || undefined,
       escuelaId: escuelaId || undefined,
     });
@@ -539,7 +568,15 @@ export default function ProyectosPage() {
       setSelectedProject(result.data);
       fetchProyectos();
       setIsAddingParticipante(false);
-      setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '', sedeId: '', escuelaId: '' });
+      setNewParticipanteData({
+        rol: 'Colaborador',
+        nombre: '',
+        email: '',
+        cargo: '',
+        socioComunitarioId: '',
+        sedeId: '',
+        escuelaId: '',
+      });
     } else {
       alert(result.error ?? 'Error al agregar participante');
     }
@@ -547,7 +584,15 @@ export default function ProyectosPage() {
 
   const handleUpdateParticipante = async (
     participanteId: string,
-    data: { rol?: string; nombre?: string; email?: string; cargo?: string; socioComunitarioId?: string; sedeId?: string; escuelaId?: string }
+    data: {
+      rol?: string;
+      nombre?: string;
+      email?: string;
+      cargo?: string;
+      socioComunitarioId?: string;
+      sedeId?: string;
+      escuelaId?: string;
+    }
   ) => {
     setParticipanteSubmitting(true);
     const result = await updateParticipanteProyecto(participanteId, data);
@@ -622,11 +667,26 @@ export default function ProyectosPage() {
     ]);
 
     setCatalogosGeneral({
-      escuelas: escuelasResult.success ? escuelasResult.data ?? [] : [],
-      carreras: carrerasResult.success ? carrerasResult.data ?? [] : [],
-      comunas: comunasResult.success ? comunasResult.data ?? [] : [],
-      gruposInteres: gruposResult.success ? gruposResult.data ?? [] : [],
-      sociosComunitarios: sociosResult.success ? sociosResult.data ?? [] : [],
+      escuelas: escuelasResult.success ? (escuelasResult.data ?? []) : [],
+      carreras: carrerasResult.success
+        ? (carrerasResult.data ?? []).map((c) => ({
+            ...c,
+            escuelaId: c.escuelaId ?? undefined,
+          }))
+        : [],
+      comunas: comunasResult.success ? (comunasResult.data ?? []) : [],
+      gruposInteres: gruposResult.success
+        ? (gruposResult.data ?? []).map((g) => ({
+            ...g,
+            descripcion: g.descripcion ?? undefined,
+          }))
+        : [],
+      sociosComunitarios: sociosResult.success
+        ? (sociosResult.data ?? []).map((s) => ({
+            ...s,
+            descripcion: s.descripcion ?? undefined,
+          }))
+        : [],
       sedes: sedesList ?? [],
     });
 
@@ -798,10 +858,17 @@ export default function ProyectosPage() {
     if (selectedTab !== 'Participantes' || !selectedProject) return;
     let cancelled = false;
     (async () => {
-      const [sedes, escuelas] = await Promise.all([getSedes(), getEscuelasConfig()]);
+      const [sedes, escuelas] = await Promise.all([
+        getSedes(),
+        getEscuelasConfig(),
+      ]);
       if (!cancelled) {
-        setSedesParticipantes(sedes.map((s) => ({ id: s.id, nombre: s.nombre })));
-        setEscuelasParticipantes(escuelas.map((e) => ({ id: e.id, nombre: e.nombre })));
+        setSedesParticipantes(
+          sedes.map((s) => ({ id: s.id, nombre: s.nombre }))
+        );
+        setEscuelasParticipantes(
+          escuelas.map((e) => ({ id: e.id, nombre: e.nombre }))
+        );
       }
     })();
     return () => {
@@ -1329,9 +1396,7 @@ export default function ProyectosPage() {
                         value={generalDraft?.proyecto ?? ''}
                         onChange={(e) =>
                           setGeneralDraft((prev) =>
-                            prev
-                              ? { ...prev, proyecto: e.target.value }
-                              : prev
+                            prev ? { ...prev, proyecto: e.target.value } : prev
                           )
                         }
                         className="h-10 text-4xl font-bold text-gray-900 px-3 py-2 border-2 border-gray-300 rounded-lg w-fit min-w-[720px]"
@@ -1607,7 +1672,8 @@ export default function ProyectosPage() {
                                         {isGeneralEditMode ? (
                                           <Textarea
                                             value={
-                                              generalDraft?.objetivoGeneral ?? ''
+                                              generalDraft?.objetivoGeneral ??
+                                              ''
                                             }
                                             onChange={(e) =>
                                               setGeneralDraft((prev) =>
@@ -1803,35 +1869,40 @@ export default function ProyectosPage() {
                                     </h3>
                                   </div>
                                   <div className="flex flex-wrap gap-3">
-                                  {isGeneralEditMode ? (
-                                    <MultiSelectNombres
-                                      options={catalogosGeneral.sedes.map((s) => ({ id: s.id, nombre: s.nombre }))}
-                                      value={generalDraft?.sede ?? ''}
-                                      onChange={(v) =>
-                                        setGeneralDraft((prev) =>
-                                          prev ? { ...prev, sede: v } : prev
-                                        )
-                                      }
-                                      placeholder="Seleccionar sedes"
-                                      className="min-h-[80px]"
-                                    />
-                                  ) : (
-                                    <>
-                                      {(selectedProject.sede ?? '')
-                                        .split(/\s*\|\s*|\s*,\s*/)
-                                        .map((s) => s.trim())
-                                        .filter(Boolean)
-                                        .map((sedeNombre, idx) => (
-                                          <Badge
-                                            key={idx}
-                                            variant="secondary"
-                                            className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                          >
-                                            {sedeNombre}
-                                          </Badge>
-                                        ))}
-                                    </>
-                                  )}
+                                    {isGeneralEditMode ? (
+                                      <MultiSelectNombres
+                                        options={catalogosGeneral.sedes.map(
+                                          (s) => ({
+                                            id: s.id,
+                                            nombre: s.nombre,
+                                          })
+                                        )}
+                                        value={generalDraft?.sede ?? ''}
+                                        onChange={(v) =>
+                                          setGeneralDraft((prev) =>
+                                            prev ? { ...prev, sede: v } : prev
+                                          )
+                                        }
+                                        placeholder="Seleccionar sedes"
+                                        className="min-h-[80px]"
+                                      />
+                                    ) : (
+                                      <>
+                                        {(selectedProject.sede ?? '')
+                                          .split(/\s*\|\s*|\s*,\s*/)
+                                          .map((s) => s.trim())
+                                          .filter(Boolean)
+                                          .map((sedeNombre, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="secondary"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                            >
+                                              {sedeNombre}
+                                            </Badge>
+                                          ))}
+                                      </>
+                                    )}
                                   </div>
                                 </div>
 
@@ -1839,42 +1910,46 @@ export default function ProyectosPage() {
                                 {(isGeneralEditMode ||
                                   (selectedProject.comunas &&
                                     selectedProject.comunas.length > 0)) && (
-                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Building2 className="h-4 w-4 text-emerald-600" />
-                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                          Comunas
-                                        </h3>
-                                      </div>
-                                      <div className="flex flex-wrap gap-3">
-                                        {isGeneralEditMode ? (
-                                          <MultiSelectNombres
-                                            options={catalogosGeneral.comunas}
-                                            value={generalDraft?.comunasTexto ?? ''}
-                                            onChange={(v) =>
-                                              setGeneralDraft((prev) =>
-                                                prev ? { ...prev, comunasTexto: v } : prev
-                                              )
-                                            }
-                                            placeholder="Seleccionar comunas"
-                                            className="min-h-[80px]"
-                                          />
-                                        ) : (
-                                          selectedProject.comunas.map(
-                                            (comunaRel, idx) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="outline"
-                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                              >
-                                                {comunaRel.comuna.nombre}
-                                              </Badge>
-                                            )
-                                          )
-                                        )}
-                                      </div>
+                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Building2 className="h-4 w-4 text-emerald-600" />
+                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Comunas
+                                      </h3>
                                     </div>
-                                  )}
+                                    <div className="flex flex-wrap gap-3">
+                                      {isGeneralEditMode ? (
+                                        <MultiSelectNombres
+                                          options={catalogosGeneral.comunas}
+                                          value={
+                                            generalDraft?.comunasTexto ?? ''
+                                          }
+                                          onChange={(v) =>
+                                            setGeneralDraft((prev) =>
+                                              prev
+                                                ? { ...prev, comunasTexto: v }
+                                                : prev
+                                            )
+                                          }
+                                          placeholder="Seleccionar comunas"
+                                          className="min-h-[80px]"
+                                        />
+                                      ) : (
+                                        selectedProject.comunas.map(
+                                          (comunaRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {comunaRel.comuna.nombre}
+                                            </Badge>
+                                          )
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1891,83 +1966,91 @@ export default function ProyectosPage() {
                                 {(isGeneralEditMode ||
                                   (selectedProject.escuelas &&
                                     selectedProject.escuelas.length > 0)) && (
-                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <GraduationCap className="h-4 w-4 text-emerald-600" />
-                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                          Escuelas
-                                        </h3>
-                                      </div>
-                                      <div className="flex flex-wrap gap-3">
-                                        {isGeneralEditMode ? (
-                                          <MultiSelectNombres
-                                            options={catalogosGeneral.escuelas}
-                                            value={generalDraft?.escuelasTexto ?? ''}
-                                            onChange={(v) =>
-                                              setGeneralDraft((prev) =>
-                                                prev ? { ...prev, escuelasTexto: v } : prev
-                                              )
-                                            }
-                                            placeholder="Seleccionar escuelas"
-                                            className="min-h-[80px]"
-                                          />
-                                        ) : (
-                                          selectedProject.escuelas.map(
-                                            (escuelaRel, idx) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="secondary"
-                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                              >
-                                                {escuelaRel.escuela.nombre}
-                                              </Badge>
-                                            )
-                                          )
-                                        )}
-                                      </div>
+                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <GraduationCap className="h-4 w-4 text-emerald-600" />
+                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Escuelas
+                                      </h3>
                                     </div>
-                                  )}
+                                    <div className="flex flex-wrap gap-3">
+                                      {isGeneralEditMode ? (
+                                        <MultiSelectNombres
+                                          options={catalogosGeneral.escuelas}
+                                          value={
+                                            generalDraft?.escuelasTexto ?? ''
+                                          }
+                                          onChange={(v) =>
+                                            setGeneralDraft((prev) =>
+                                              prev
+                                                ? { ...prev, escuelasTexto: v }
+                                                : prev
+                                            )
+                                          }
+                                          placeholder="Seleccionar escuelas"
+                                          className="min-h-[80px]"
+                                        />
+                                      ) : (
+                                        selectedProject.escuelas.map(
+                                          (escuelaRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="secondary"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                            >
+                                              {escuelaRel.escuela.nombre}
+                                            </Badge>
+                                          )
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Carreras */}
                                 {(isGeneralEditMode ||
                                   (selectedProject.carreras &&
                                     selectedProject.carreras.length > 0)) && (
-                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <BookOpen className="h-4 w-4 text-emerald-600" />
-                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                          Carreras
-                                        </h3>
-                                      </div>
-                                      <div className="flex flex-wrap gap-3">
-                                        {isGeneralEditMode ? (
-                                          <MultiSelectNombres
-                                            options={catalogosGeneral.carreras}
-                                            value={generalDraft?.carrerasTexto ?? ''}
-                                            onChange={(v) =>
-                                              setGeneralDraft((prev) =>
-                                                prev ? { ...prev, carrerasTexto: v } : prev
-                                              )
-                                            }
-                                            placeholder="Seleccionar carreras"
-                                            className="min-h-[80px]"
-                                          />
-                                        ) : (
-                                          selectedProject.carreras.map(
-                                            (carreraRel, idx) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="outline"
-                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                              >
-                                                {carreraRel.carrera.nombre}
-                                              </Badge>
-                                            )
-                                          )
-                                        )}
-                                      </div>
+                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <BookOpen className="h-4 w-4 text-emerald-600" />
+                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Carreras
+                                      </h3>
                                     </div>
-                                  )}
+                                    <div className="flex flex-wrap gap-3">
+                                      {isGeneralEditMode ? (
+                                        <MultiSelectNombres
+                                          options={catalogosGeneral.carreras}
+                                          value={
+                                            generalDraft?.carrerasTexto ?? ''
+                                          }
+                                          onChange={(v) =>
+                                            setGeneralDraft((prev) =>
+                                              prev
+                                                ? { ...prev, carrerasTexto: v }
+                                                : prev
+                                            )
+                                          }
+                                          placeholder="Seleccionar carreras"
+                                          className="min-h-[80px]"
+                                        />
+                                      ) : (
+                                        selectedProject.carreras.map(
+                                          (carreraRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {carreraRel.carrera.nombre}
+                                            </Badge>
+                                          )
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1985,42 +2068,52 @@ export default function ProyectosPage() {
                                   (selectedProject.gruposInteres &&
                                     selectedProject.gruposInteres.length >
                                       0)) && (
-                                    <div className="border-l-4 border-emerald-500 pl-4 py-2">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <UsersRound className="h-4 w-4 text-emerald-600" />
-                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                          Grupos de Interés
-                                        </h3>
-                                      </div>
-                                      <div className="flex flex-wrap gap-3">
-                                        {isGeneralEditMode ? (
-                                          <MultiSelectNombres
-                                            options={catalogosGeneral.gruposInteres}
-                                            value={generalDraft?.gruposInteresTexto ?? ''}
-                                            onChange={(v) =>
-                                              setGeneralDraft((prev) =>
-                                                prev ? { ...prev, gruposInteresTexto: v } : prev
-                                              )
-                                            }
-                                            placeholder="Seleccionar grupos de interés"
-                                            className="min-h-[80px]"
-                                          />
-                                        ) : (
-                                          selectedProject.gruposInteres.map(
-                                            (grupoRel, idx) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="outline"
-                                                className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                                              >
-                                                {grupoRel.grupoInteres.nombre}
-                                              </Badge>
-                                            )
-                                          )
-                                        )}
-                                      </div>
+                                  <div className="border-l-4 border-emerald-500 pl-4 py-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <UsersRound className="h-4 w-4 text-emerald-600" />
+                                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Grupos de Interés
+                                      </h3>
                                     </div>
-                                  )}
+                                    <div className="flex flex-wrap gap-3">
+                                      {isGeneralEditMode ? (
+                                        <MultiSelectNombres
+                                          options={
+                                            catalogosGeneral.gruposInteres
+                                          }
+                                          value={
+                                            generalDraft?.gruposInteresTexto ??
+                                            ''
+                                          }
+                                          onChange={(v) =>
+                                            setGeneralDraft((prev) =>
+                                              prev
+                                                ? {
+                                                    ...prev,
+                                                    gruposInteresTexto: v,
+                                                  }
+                                                : prev
+                                            )
+                                          }
+                                          placeholder="Seleccionar grupos de interés"
+                                          className="min-h-[80px]"
+                                        />
+                                      ) : (
+                                        selectedProject.gruposInteres.map(
+                                          (grupoRel, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-base font-normal bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                                            >
+                                              {grupoRel.grupoInteres.nombre}
+                                            </Badge>
+                                          )
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2062,7 +2155,8 @@ export default function ProyectosPage() {
                             {
                               key: 'pertinenciaLocal',
                               title: 'Pertinencia Local',
-                              content: desarrolloTecnico?.pertinenciaLocal ?? '',
+                              content:
+                                desarrolloTecnico?.pertinenciaLocal ?? '',
                               icon: <MapPin className="h-4 w-4" />,
                               group: 'impacto',
                               field: 'pertinenciaLocal',
@@ -2095,7 +2189,8 @@ export default function ProyectosPage() {
                             {
                               key: 'genero',
                               title: 'Perspectiva de Género',
-                              content: desarrolloTecnico?.perspectiveGenero ?? '',
+                              content:
+                                desarrolloTecnico?.perspectiveGenero ?? '',
                               icon: <Heart className="h-4 w-4" />,
                               group: 'publico-objetivo',
                               field: 'perspectiveGenero',
@@ -2103,7 +2198,8 @@ export default function ProyectosPage() {
                             {
                               key: 'necesidad',
                               title: 'Necesidad, Problema u Oportunidad',
-                              content: desarrolloTecnico?.necesidadProblema ?? '',
+                              content:
+                                desarrolloTecnico?.necesidadProblema ?? '',
                               icon: <AlertCircle className="h-4 w-4" />,
                               group: 'innovacion-escalabilidad',
                               field: 'necesidadProblema',
@@ -2281,730 +2377,980 @@ export default function ProyectosPage() {
                 </div>
               )}
 
-              {selectedTab === 'Participantes' && selectedProject && (() => {
-                const ROLES: { value: string; label: string }[] = [
-                  { value: 'Encargado', label: 'Encargado' },
-                  { value: 'Coordinador', label: 'Coordinador' },
-                  { value: 'Colaborador', label: 'Colaborador' },
-                  { value: 'Docente', label: 'Docente' },
-                  { value: 'Estudiante', label: 'Estudiante' },
-                  { value: 'Beneficiario', label: 'Beneficiario' },
-                ];
-                const ROLE_COLORS: Record<string, string> = {
-                  Encargado: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                  Coordinador: 'bg-blue-100 text-blue-800 border-blue-200',
-                  Colaborador: 'bg-violet-100 text-violet-800 border-violet-200',
-                  Docente: 'bg-amber-100 text-amber-800 border-amber-200',
-                  Estudiante: 'bg-sky-100 text-sky-800 border-sky-200',
-                  Beneficiario: 'bg-rose-100 text-rose-800 border-rose-200',
-                };
-                const list = selectedProject.participantes_rel ?? [];
-                const rolesSelected = filterParticipantesRol
-                  ? filterParticipantesRol.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
-                  : [];
-                const cargosSelected = filterParticipantesCargo
-                  ? filterParticipantesCargo.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
-                  : [];
-                const sociosSelected = filterParticipantesSocio
-                  ? filterParticipantesSocio.split(MULTI_SELECT_SEP).map((s) => s.trim()).filter(Boolean)
-                  : [];
-                const filteredParticipants = list.filter((p) => {
-                  const nombre = (p.user?.name ?? p.nombre ?? '').toLowerCase();
-                  const email = (p.user?.email ?? p.email ?? '').toLowerCase();
-                  const cargo = (p.cargo ?? '').toLowerCase();
-                  const socioId = p.socioComunitario?.id ?? '';
-                  const q = filterParticipantesNombre.trim().toLowerCase();
-                  if (q && !nombre.includes(q) && !email.includes(q)) return false;
-                  if (rolesSelected.length > 0 && !rolesSelected.includes(p.rol)) return false;
-                  if (cargosSelected.length > 0) {
-                    const cargoNorm = (p.cargo ?? '').trim().toLowerCase();
-                    const match = cargoNorm && cargosSelected.some((c) => c.trim().toLowerCase() === cargoNorm);
-                    if (!match) return false;
-                  }
-                  if (sociosSelected.length > 0 && p.rol === 'Beneficiario') {
-                    if (!socioId || !sociosSelected.includes(socioId)) return false;
-                  }
-                  return true;
-                });
-                const uniqueCargos = (() => {
-                  const set = new Set<string>();
-                  list.forEach((p) => {
-                    if (p.cargo?.trim()) set.add(p.cargo.trim());
-                  });
-                  return Array.from(set).sort();
-                })();
-                const cargoOptions = uniqueCargos.map((c) => ({ value: c, label: c }));
-                const sociosFromProject = selectedProject.sociosComunitarios?.map((sc) => ({
-                  value: sc.socioComunitario.id,
-                  label: sc.socioComunitario.nombre,
-                })) ?? [];
-                const sociosFromParticipants = (() => {
-                  const seen = new Set<string>();
-                  return list
-                    .filter((p) => p.rol === 'Beneficiario' && p.socioComunitario)
-                    .map((p) => p.socioComunitario!)
-                    .filter((s) => {
-                      if (seen.has(s.id)) return false;
-                      seen.add(s.id);
-                      return true;
-                    })
-                    .map((s) => ({ value: s.id, label: s.nombre }));
-                })();
-                const socioOptions = sociosFromProject.length > 0
-                  ? sociosFromProject
-                  : sociosFromParticipants;
-                const counts = (() => {
-                  const encargados = list.filter((p) => p.rol === 'Encargado').length;
-                  const coordinadores = list.filter((p) => p.rol === 'Coordinador').length;
-                  const colaboradores = list.filter((p) => p.rol === 'Colaborador').length;
-                  const docentes = list.filter((p) => p.rol === 'Docente').length;
-                  const estudiantes = list.filter((p) => p.rol === 'Estudiante').length;
-                  const beneficiarios = list.filter((p) => p.rol === 'Beneficiario').length;
-                  const sociosUnicos = new Set(
-                    list
-                      .filter((p) => p.rol === 'Beneficiario' && p.socioComunitario?.id)
-                      .map((p) => p.socioComunitario!.id)
-                  );
-                  return {
-                    encargados,
-                    coordinadores,
-                    colaboradores,
-                    docentes,
-                    estudiantes,
-                    beneficiarios,
-                    sociosComunitarios: sociosUnicos.size,
+              {selectedTab === 'Participantes' &&
+                selectedProject &&
+                (() => {
+                  const ROLES: { value: string; label: string }[] = [
+                    { value: 'Encargado', label: 'Encargado' },
+                    { value: 'Coordinador', label: 'Coordinador' },
+                    { value: 'Colaborador', label: 'Colaborador' },
+                    { value: 'Docente', label: 'Docente' },
+                    { value: 'Estudiante', label: 'Estudiante' },
+                    { value: 'Beneficiario', label: 'Beneficiario' },
+                  ];
+                  const ROLE_COLORS: Record<string, string> = {
+                    Encargado:
+                      'bg-emerald-100 text-emerald-800 border-emerald-200',
+                    Coordinador: 'bg-blue-100 text-blue-800 border-blue-200',
+                    Colaborador:
+                      'bg-violet-100 text-violet-800 border-violet-200',
+                    Docente: 'bg-amber-100 text-amber-800 border-amber-200',
+                    Estudiante: 'bg-sky-100 text-sky-800 border-sky-200',
+                    Beneficiario: 'bg-rose-100 text-rose-800 border-rose-200',
                   };
-                })();
-                const showActionsColumn =
-                  isEditModeParticipante || isDeleteModeParticipante || isAddingParticipante;
-                return (
-                  <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
-                    {/* Tarjetas de cantidades */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4 flex-shrink-0">
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <Crown className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.encargados}</span>
-                          <span className="text-sm font-bold text-emerald-600">Encargados</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <UserCog className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.coordinadores}</span>
-                          <span className="text-sm font-bold text-emerald-600">Coordinadores</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <Users className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.colaboradores}</span>
-                          <span className="text-sm font-bold text-emerald-600">Colaboradores</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <GraduationCap className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.docentes}</span>
-                          <span className="text-sm font-bold text-emerald-600">Docentes</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <BookOpen className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.estudiantes}</span>
-                          <span className="text-sm font-bold text-emerald-600">Estudiantes</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <Heart className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.beneficiarios}</span>
-                          <span className="text-sm font-bold text-emerald-600">Beneficiarios</span>
-                        </CardContent>
-                      </Card>
-                      <Card className="py-2 px-3">
-                        <CardContent className="p-0 flex items-center justify-center gap-2">
-                          <Handshake className="h-8 w-8 shrink-0 text-emerald-600" />
-                          <span className="text-[25px] font-bold text-emerald-600">{counts.sociosComunitarios}</span>
-                          <span className="text-sm font-bold text-emerald-600">Socios comunitarios</span>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Filtros + Botones */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 flex-shrink-0">
-                      <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 min-w-[180px]">
-                          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <Input
-                            placeholder="Buscar por nombre o correo..."
-                            value={filterParticipantesNombre}
-                            onChange={(e) => setFilterParticipantesNombre(e.target.value)}
-                            className="max-w-[220px] h-9"
-                          />
-                        </div>
-                        <div className="w-[160px]">
-                          <MultiSelectOptions
-                            options={ROLES}
-                            value={filterParticipantesRol}
-                            onChange={setFilterParticipantesRol}
-                            placeholder="Rol"
-                          />
-                        </div>
-                        <div className="w-[160px]">
-                          <MultiSelectOptions
-                            options={cargoOptions}
-                            value={filterParticipantesCargo}
-                            onChange={setFilterParticipantesCargo}
-                            placeholder="Cargo"
-                          />
-                        </div>
-                        <div className="w-[180px]">
-                          <MultiSelectOptions
-                            options={socioOptions}
-                            value={filterParticipantesSocio}
-                            onChange={setFilterParticipantesSocio}
-                            placeholder="Socio comunitario"
-                          />
-                        </div>
+                  const list = selectedProject.participantes_rel ?? [];
+                  const rolesSelected = filterParticipantesRol
+                    ? filterParticipantesRol
+                        .split(MULTI_SELECT_SEP)
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [];
+                  const cargosSelected = filterParticipantesCargo
+                    ? filterParticipantesCargo
+                        .split(MULTI_SELECT_SEP)
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [];
+                  const sociosSelected = filterParticipantesSocio
+                    ? filterParticipantesSocio
+                        .split(MULTI_SELECT_SEP)
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [];
+                  const filteredParticipants = list.filter((p) => {
+                    const nombre = (
+                      p.user?.name ??
+                      p.nombre ??
+                      ''
+                    ).toLowerCase();
+                    const email = (
+                      p.user?.email ??
+                      p.email ??
+                      ''
+                    ).toLowerCase();
+                    const cargo = (p.cargo ?? '').toLowerCase();
+                    const socioId = p.socioComunitario?.id ?? '';
+                    const q = filterParticipantesNombre.trim().toLowerCase();
+                    if (q && !nombre.includes(q) && !email.includes(q))
+                      return false;
+                    if (
+                      rolesSelected.length > 0 &&
+                      !rolesSelected.includes(p.rol)
+                    )
+                      return false;
+                    if (cargosSelected.length > 0) {
+                      const cargoNorm = (p.cargo ?? '').trim().toLowerCase();
+                      const match =
+                        cargoNorm &&
+                        cargosSelected.some(
+                          (c) => c.trim().toLowerCase() === cargoNorm
+                        );
+                      if (!match) return false;
+                    }
+                    if (sociosSelected.length > 0 && p.rol === 'Beneficiario') {
+                      if (!socioId || !sociosSelected.includes(socioId))
+                        return false;
+                    }
+                    return true;
+                  });
+                  const uniqueCargos = (() => {
+                    const set = new Set<string>();
+                    list.forEach((p) => {
+                      if (p.cargo?.trim()) set.add(p.cargo.trim());
+                    });
+                    return Array.from(set).sort();
+                  })();
+                  const cargoOptions = uniqueCargos.map((c) => ({
+                    value: c,
+                    label: c,
+                  }));
+                  const sociosFromProject =
+                    selectedProject.sociosComunitarios?.map((sc) => ({
+                      value: sc.socioComunitario.id,
+                      label: sc.socioComunitario.nombre,
+                    })) ?? [];
+                  const sociosFromParticipants = (() => {
+                    const seen = new Set<string>();
+                    return list
+                      .filter(
+                        (p) => p.rol === 'Beneficiario' && p.socioComunitario
+                      )
+                      .map((p) => p.socioComunitario!)
+                      .filter((s) => {
+                        if (seen.has(s.id)) return false;
+                        seen.add(s.id);
+                        return true;
+                      })
+                      .map((s) => ({ value: s.id, label: s.nombre }));
+                  })();
+                  const socioOptions =
+                    sociosFromProject.length > 0
+                      ? sociosFromProject
+                      : sociosFromParticipants;
+                  const counts = (() => {
+                    const encargados = list.filter(
+                      (p) => p.rol === 'Encargado'
+                    ).length;
+                    const coordinadores = list.filter(
+                      (p) => p.rol === 'Coordinador'
+                    ).length;
+                    const colaboradores = list.filter(
+                      (p) => p.rol === 'Colaborador'
+                    ).length;
+                    const docentes = list.filter(
+                      (p) => p.rol === 'Docente'
+                    ).length;
+                    const estudiantes = list.filter(
+                      (p) => p.rol === 'Estudiante'
+                    ).length;
+                    const beneficiarios = list.filter(
+                      (p) => p.rol === 'Beneficiario'
+                    ).length;
+                    const sociosUnicos = new Set(
+                      list
+                        .filter(
+                          (p) =>
+                            p.rol === 'Beneficiario' && p.socioComunitario?.id
+                        )
+                        .map((p) => p.socioComunitario!.id)
+                    );
+                    return {
+                      encargados,
+                      coordinadores,
+                      colaboradores,
+                      docentes,
+                      estudiantes,
+                      beneficiarios,
+                      sociosComunitarios: sociosUnicos.size,
+                    };
+                  })();
+                  const showActionsColumn =
+                    isEditModeParticipante ||
+                    isDeleteModeParticipante ||
+                    isAddingParticipante;
+                  return (
+                    <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
+                      {/* Tarjetas de cantidades */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4 flex-shrink-0">
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <Crown className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.encargados}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Encargados
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <UserCog className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.coordinadores}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Coordinadores
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <Users className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.colaboradores}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Colaboradores
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <GraduationCap className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.docentes}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Docentes
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <BookOpen className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.estudiantes}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Estudiantes
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <Heart className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.beneficiarios}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Beneficiarios
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card className="py-2 px-3">
+                          <CardContent className="p-0 flex items-center justify-center gap-2">
+                            <Handshake className="h-8 w-8 shrink-0 text-emerald-600" />
+                            <span className="text-[25px] font-bold text-emerald-600">
+                              {counts.sociosComunitarios}
+                            </span>
+                            <span className="text-sm font-bold text-emerald-600">
+                              Socios comunitarios
+                            </span>
+                          </CardContent>
+                        </Card>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
+
+                      {/* Filtros + Botones */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 flex-shrink-0">
+                        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-[180px]">
+                            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <Input
+                              placeholder="Buscar por nombre o correo..."
+                              value={filterParticipantesNombre}
+                              onChange={(e) =>
+                                setFilterParticipantesNombre(e.target.value)
+                              }
+                              className="max-w-[220px] h-9"
+                            />
+                          </div>
+                          <div className="w-[160px]">
+                            <MultiSelectOptions
+                              options={ROLES}
+                              value={filterParticipantesRol}
+                              onChange={setFilterParticipantesRol}
+                              placeholder="Rol"
+                            />
+                          </div>
+                          <div className="w-[160px]">
+                            <MultiSelectOptions
+                              options={cargoOptions}
+                              value={filterParticipantesCargo}
+                              onChange={setFilterParticipantesCargo}
+                              placeholder="Cargo"
+                            />
+                          </div>
+                          <div className="w-[180px]">
+                            <MultiSelectOptions
+                              options={socioOptions}
+                              value={filterParticipantesSocio}
+                              onChange={setFilterParticipantesSocio}
+                              placeholder="Socio comunitario"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
                                   onClick={() => {
                                     setIsAddingParticipante((v) => !v);
-                                    if (isAddingParticipante) setNewParticipanteData({ rol: 'Colaborador', nombre: '', email: '', cargo: '', socioComunitarioId: '', sedeId: '', escuelaId: '' });
+                                    if (isAddingParticipante)
+                                      setNewParticipanteData({
+                                        rol: 'Colaborador',
+                                        nombre: '',
+                                        email: '',
+                                        cargo: '',
+                                        socioComunitarioId: '',
+                                        sedeId: '',
+                                        escuelaId: '',
+                                      });
                                   }}
-                                variant="ghost"
-                                size="sm"
-                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                                  isAddingParticipante
-                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                                }`}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{isAddingParticipante ? 'Cancelar agregar participante' : 'Agregar participante'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                onClick={() => {
-                                  setIsEditModeParticipante((v) => !v);
-                                  if (isEditModeParticipante) setEditingParticipanteId(null);
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
-                                  isEditModeParticipante
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                                }`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{isEditModeParticipante ? 'Salir del modo edición' : 'Editar participantes'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                onClick={() => setIsDeleteModeParticipante((v) => !v)}
-                                variant="ghost"
-                                size="sm"
-                                className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
-                                  isDeleteModeParticipante
-                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                                }`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{isDeleteModeParticipante ? 'Salir del modo eliminación' : 'Eliminar participantes'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                onClick={() => {
-                                  const headers = ['Rol', 'Nombre', 'Correo', 'Cargo', 'Sede', 'Escuela', 'Socio comunitario'];
-                                  const rows = filteredParticipants.map((p) => [
-                                    p.rol,
-                                    p.user?.name ?? p.nombre ?? 'Sin nombre',
-                                    p.user?.email ?? p.email ?? '',
-                                    p.cargo ?? '',
-                                    p.sede?.nombre ?? '—',
-                                    p.escuela?.nombre ?? '—',
-                                    p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—',
-                                  ]);
-                                  const wsData = [headers, ...rows];
-                                  const ws = XLSX.utils.aoa_to_sheet(wsData);
-                                  const wb = XLSX.utils.book_new();
-                                  XLSX.utils.book_append_sheet(wb, ws, 'Participantes');
-                                  const nombreProyecto = (selectedProject?.nombre ?? 'proyecto').replace(/[^\w\s-]/gi, '').trim().slice(0, 50);
-                                  XLSX.writeFile(wb, `participantes_${nombreProyecto}.xlsx`);
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className="h-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 gap-1.5 px-3"
-                              >
-                                <FileDown className="h-4 w-4" />
-                                <span className="text-sm font-medium">Exportar</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Exportar tabla de participantes a Excel (XLSX)</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                                    isAddingParticipante
+                                      ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                  }`}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {isAddingParticipante
+                                    ? 'Cancelar agregar participante'
+                                    : 'Agregar participante'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsEditModeParticipante((v) => !v);
+                                    if (isEditModeParticipante)
+                                      setEditingParticipanteId(null);
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
+                                    isEditModeParticipante
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                  }`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {isEditModeParticipante
+                                    ? 'Salir del modo edición'
+                                    : 'Editar participantes'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  onClick={() =>
+                                    setIsDeleteModeParticipante((v) => !v)
+                                  }
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 ${
+                                    isDeleteModeParticipante
+                                      ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                                  }`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {isDeleteModeParticipante
+                                    ? 'Salir del modo eliminación'
+                                    : 'Eliminar participantes'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    const headers = [
+                                      'Rol',
+                                      'Nombre',
+                                      'Correo',
+                                      'Cargo',
+                                      'Sede',
+                                      'Escuela',
+                                      'Socio comunitario',
+                                    ];
+                                    const rows = filteredParticipants.map(
+                                      (p) => [
+                                        p.rol,
+                                        p.user?.name ??
+                                          p.nombre ??
+                                          'Sin nombre',
+                                        p.user?.email ?? p.email ?? '',
+                                        p.cargo ?? '',
+                                        p.sede?.nombre ?? '—',
+                                        p.escuela?.nombre ?? '—',
+                                        p.rol === 'Beneficiario'
+                                          ? (p.socioComunitario?.nombre ?? '—')
+                                          : '—',
+                                      ]
+                                    );
+                                    const wsData = [headers, ...rows];
+                                    const ws = XLSX.utils.aoa_to_sheet(wsData);
+                                    const wb = XLSX.utils.book_new();
+                                    XLSX.utils.book_append_sheet(
+                                      wb,
+                                      ws,
+                                      'Participantes'
+                                    );
+                                    const nombreProyecto = (
+                                      selectedProject?.proyecto ?? 'proyecto'
+                                    )
+                                      .replace(/[^\w\s-]/gi, '')
+                                      .trim()
+                                      .slice(0, 50);
+                                    XLSX.writeFile(
+                                      wb,
+                                      `participantes_${nombreProyecto}.xlsx`
+                                    );
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 gap-1.5 px-3"
+                                >
+                                  <FileDown className="h-4 w-4" />
+                                  <span className="text-sm font-medium">
+                                    Exportar
+                                  </span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  Exportar tabla de participantes a Excel (XLSX)
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Tabla con encabezados sticky y cuerpo scrolleable */}
-                    <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
-                      <div className="overflow-auto flex-1 custom-scrollbar">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/60 hover:bg-muted/60">
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[140px] text-center">
-                                Rol
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[200px] text-center">
-                                Nombre
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
-                                Correo
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px] text-center">
-                                Cargo
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
-                                Sede
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
-                                Escuela
-                              </TableHead>
-                              <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
-                                Socio comunitario
-                              </TableHead>
-                              {showActionsColumn && (
-                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[60px] text-center" />
-                              )}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {isAddingParticipante && (
-                              <TableRow className="bg-green-50/80 border-2 border-green-200">
-                                <TableCell className="align-middle text-center">
-                                  <Select
-                                    value={newParticipanteData.rol}
-                                    onValueChange={(v) =>
-                                      setNewParticipanteData((prev) => ({
-                                        ...prev,
-                                        rol: v as typeof prev.rol,
-                                      }))
-                                    }
-                                  >
-                                    <SelectTrigger className="h-8 text-sm w-full">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {ROLES.map((r) => (
-                                        <SelectItem key={r.value} value={r.value}>
-                                          {r.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  <Input
-                                    value={newParticipanteData.nombre}
-                                    onChange={(e) =>
-                                      setNewParticipanteData((prev) => ({ ...prev, nombre: e.target.value }))
-                                    }
-                                    placeholder="Nombre *"
-                                    className="h-8 text-sm"
-                                  />
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  <Input
-                                    value={newParticipanteData.email}
-                                    onChange={(e) =>
-                                      setNewParticipanteData((prev) => ({ ...prev, email: e.target.value }))
-                                    }
-                                    placeholder="Correo"
-                                    className="h-8 text-sm"
-                                  />
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  <Input
-                                    value={newParticipanteData.cargo}
-                                    onChange={(e) =>
-                                      setNewParticipanteData((prev) => ({ ...prev, cargo: e.target.value }))
-                                    }
-                                    placeholder="Cargo"
-                                    className="h-8 text-sm"
-                                  />
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  <Select
-                                    value={newParticipanteData.sedeId || SELECT_NONE_VALUE}
-                                    onValueChange={(v) =>
-                                      setNewParticipanteData((prev) => ({ ...prev, sedeId: v === SELECT_NONE_VALUE ? '' : v }))
-                                    }
-                                  >
-                                    <SelectTrigger className="h-8 text-sm w-full">
-                                      <SelectValue placeholder="Sede" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                                      {sedesParticipantes.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                          {s.nombre}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  <Select
-                                    value={newParticipanteData.escuelaId || SELECT_NONE_VALUE}
-                                    onValueChange={(v) =>
-                                      setNewParticipanteData((prev) => ({ ...prev, escuelaId: v === SELECT_NONE_VALUE ? '' : v }))
-                                    }
-                                  >
-                                    <SelectTrigger className="h-8 text-sm w-full">
-                                      <SelectValue placeholder="Escuela" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                                      {escuelasParticipantes.map((e) => (
-                                        <SelectItem key={e.id} value={e.id}>
-                                          {e.nombre}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell className="align-middle">
-                                  {newParticipanteData.rol === 'Beneficiario' ? (
+                      {/* Tabla con encabezados sticky y cuerpo scrolleable */}
+                      <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+                        <div className="overflow-auto flex-1 custom-scrollbar">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/60 hover:bg-muted/60">
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[140px] text-center">
+                                  Rol
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[200px] text-center">
+                                  Nombre
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
+                                  Correo
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[160px] text-center">
+                                  Cargo
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
+                                  Sede
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[140px] text-center">
+                                  Escuela
+                                </TableHead>
+                                <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 min-w-[180px] text-center">
+                                  Socio comunitario
+                                </TableHead>
+                                {showActionsColumn && (
+                                  <TableHead className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 w-[60px] text-center" />
+                                )}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {isAddingParticipante && (
+                                <TableRow className="bg-green-50/80 border-2 border-green-200">
+                                  <TableCell className="align-middle text-center">
                                     <Select
-                                      value={newParticipanteData.socioComunitarioId}
+                                      value={newParticipanteData.rol}
                                       onValueChange={(v) =>
                                         setNewParticipanteData((prev) => ({
                                           ...prev,
-                                          socioComunitarioId: v,
+                                          rol: v as typeof prev.rol,
                                         }))
                                       }
                                     >
                                       <SelectTrigger className="h-8 text-sm w-full">
-                                        <SelectValue placeholder="Socio comunitario *" />
+                                        <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {socioOptions.map((s) => (
-                                          <SelectItem key={s.value} value={s.value}>
-                                            {s.label}
+                                        {ROLES.map((r) => (
+                                          <SelectItem
+                                            key={r.value}
+                                            value={r.value}
+                                          >
+                                            {r.label}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  ) : (
-                                    '—'
-                                  )}
-                                </TableCell>
-                                {showActionsColumn && (
-                                  <TableCell className="align-middle text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={handleSaveNewParticipante}
-                                      disabled={participanteSubmitting}
-                                      className="bg-green-600 hover:bg-green-700 text-white"
-                                    >
-                                      {participanteSubmitting ? 'Guardando...' : 'Guardar'}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setIsAddingParticipante(false);
-                                        setNewParticipanteData({
-                                          rol: 'Colaborador',
-                                          nombre: '',
-                                          email: '',
-                                          cargo: '',
-                                          socioComunitarioId: '',
-                                          sedeId: '',
-                                          escuelaId: '',
-                                        });
-                                      }}
-                                    >
-                                      Cancelar
-                                    </Button>
-                                    </div>
                                   </TableCell>
-                                )}
-                              </TableRow>
-                            )}
-                            {filteredParticipants.length === 0 && !isAddingParticipante ? (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={showActionsColumn ? 8 : 7}
-                                  className="text-center text-muted-foreground py-8"
-                                >
-                                  No hay participantes que coincidan con los filtros.
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filteredParticipants.map((p) => {
-                                const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
-                                const email = p.user?.email ?? p.email ?? '';
-                                const cargo = p.cargo ?? '';
-                                const sedeNombre = p.sede?.nombre ?? '—';
-                                const escuelaNombre = p.escuela?.nombre ?? '—';
-                                const socioComunitario =
-                                  p.rol === 'Beneficiario' ? (p.socioComunitario?.nombre ?? '—') : '—';
-                                const colorClass = ROLE_COLORS[p.rol] ?? 'bg-gray-100 text-gray-800 border-gray-200';
-                                const isEditing = editingParticipanteId === p.id;
-                                const onRowClick = () => {
-                                  if (!isEditModeParticipante && !isDeleteModeParticipante) {
-                                    setSelectedParticipante(p as ProyectoParticipante & { user?: UserType | null });
-                                    setIsModalOpen(true);
-                                  }
-                                };
-                                return (
-                                  <TableRow
-                                    key={p.id}
-                                    className={`hover:bg-muted/50 ${isEditing ? 'bg-blue-50/80' : ''} ${
-                                      !showActionsColumn ? 'cursor-pointer' : ''
-                                    }`}
-                                    onClick={onRowClick}
-                                  >
+                                  <TableCell className="align-middle">
+                                    <Input
+                                      value={newParticipanteData.nombre}
+                                      onChange={(e) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          nombre: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Nombre *"
+                                      className="h-8 text-sm"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    <Input
+                                      value={newParticipanteData.email}
+                                      onChange={(e) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          email: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Correo"
+                                      className="h-8 text-sm"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    <Input
+                                      value={newParticipanteData.cargo}
+                                      onChange={(e) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          cargo: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Cargo"
+                                      className="h-8 text-sm"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    <Select
+                                      value={
+                                        newParticipanteData.sedeId ||
+                                        SELECT_NONE_VALUE
+                                      }
+                                      onValueChange={(v) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          sedeId:
+                                            v === SELECT_NONE_VALUE ? '' : v,
+                                        }))
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-sm w-full">
+                                        <SelectValue placeholder="Sede" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value={SELECT_NONE_VALUE}>
+                                          —
+                                        </SelectItem>
+                                        {sedesParticipantes.map((s) => (
+                                          <SelectItem key={s.id} value={s.id}>
+                                            {s.nombre}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    <Select
+                                      value={
+                                        newParticipanteData.escuelaId ||
+                                        SELECT_NONE_VALUE
+                                      }
+                                      onValueChange={(v) =>
+                                        setNewParticipanteData((prev) => ({
+                                          ...prev,
+                                          escuelaId:
+                                            v === SELECT_NONE_VALUE ? '' : v,
+                                        }))
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-sm w-full">
+                                        <SelectValue placeholder="Escuela" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value={SELECT_NONE_VALUE}>
+                                          —
+                                        </SelectItem>
+                                        {escuelasParticipantes.map((e) => (
+                                          <SelectItem key={e.id} value={e.id}>
+                                            {e.nombre}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    {newParticipanteData.rol ===
+                                    'Beneficiario' ? (
+                                      <Select
+                                        value={
+                                          newParticipanteData.socioComunitarioId
+                                        }
+                                        onValueChange={(v) =>
+                                          setNewParticipanteData((prev) => ({
+                                            ...prev,
+                                            socioComunitarioId: v,
+                                          }))
+                                        }
+                                      >
+                                        <SelectTrigger className="h-8 text-sm w-full">
+                                          <SelectValue placeholder="Socio comunitario *" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {socioOptions.map((s) => (
+                                            <SelectItem
+                                              key={s.value}
+                                              value={s.value}
+                                            >
+                                              {s.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </TableCell>
+                                  {showActionsColumn && (
                                     <TableCell className="align-middle text-center">
-                                      {isEditing ? (
-                                        <Select
-                                          value={p.rol}
-                                          onValueChange={(v) =>
-                                            handleUpdateParticipante(p.id, { rol: v })
-                                          }
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={handleSaveNewParticipante}
+                                          disabled={participanteSubmitting}
+                                          className="bg-green-600 hover:bg-green-700 text-white"
                                         >
-                                          <SelectTrigger className="h-8 text-sm w-full">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {ROLES.map((r) => (
-                                              <SelectItem key={r.value} value={r.value}>
-                                                {r.label}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        <span
-                                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}
-                                        >
-                                          #{p.rol}
-                                        </span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="align-middle">
-                                      {isEditing ? (
-                                        <Input
-                                          defaultValue={nombre}
-                                          onBlur={(e) => {
-                                            const v = e.target.value.trim();
-                                            if (v && v !== nombre)
-                                              handleUpdateParticipante(p.id, {
-                                                nombre: v,
-                                              });
+                                          {participanteSubmitting
+                                            ? 'Guardando...'
+                                            : 'Guardar'}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setIsAddingParticipante(false);
+                                            setNewParticipanteData({
+                                              rol: 'Colaborador',
+                                              nombre: '',
+                                              email: '',
+                                              cargo: '',
+                                              socioComunitarioId: '',
+                                              sedeId: '',
+                                              escuelaId: '',
+                                            });
                                           }}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                              const v = (e.target as HTMLInputElement).value.trim();
-                                              if (v && v !== nombre)
-                                                handleUpdateParticipante(p.id, { nombre: v });
-                                            }
-                                          }}
-                                          className="h-8 text-sm"
-                                        />
-                                      ) : (
-                                        <div className="flex items-center gap-3">
-                                          <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
-                                            {p.user?.image ? (
-                                              <AvatarImage src={p.user.image} alt={nombre} />
-                                            ) : null}
-                                            <AvatarFallback className="bg-gray-100 text-gray-700">
-                                              <Users className="h-4 w-4" />
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <span className="font-medium truncate">{nombre}</span>
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="align-middle text-muted-foreground truncate max-w-[200px]">
-                                      {isEditing ? (
-                                        <Input
-                                          defaultValue={email}
-                                          onBlur={(e) => {
-                                            const v = e.target.value.trim();
-                                            if (v !== (email || ''))
-                                              handleUpdateParticipante(p.id, { email: v || undefined });
-                                          }}
-                                          className="h-8 text-sm"
-                                        />
-                                      ) : (
-                                        email || '—'
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="align-middle truncate max-w-[160px]">
-                                      {isEditing ? (
-                                        <Input
-                                          defaultValue={cargo}
-                                          onBlur={(e) => {
-                                            const v = e.target.value.trim();
-                                            if (v !== (cargo || ''))
-                                              handleUpdateParticipante(p.id, { cargo: v || undefined });
-                                          }}
-                                          className="h-8 text-sm"
-                                        />
-                                      ) : (
-                                        cargo || '—'
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="align-middle truncate max-w-[140px]">
-                                      {isEditing ? (
-                                        <Select
-                                          value={p.sede?.id ?? SELECT_NONE_VALUE}
-                                          onValueChange={(v) =>
-                                            handleUpdateParticipante(p.id, { sedeId: v === SELECT_NONE_VALUE ? undefined : v })
-                                          }
                                         >
-                                          <SelectTrigger className="h-8 text-sm w-full">
-                                            <SelectValue placeholder="Sede" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                                            {sedesParticipantes.map((s) => (
-                                              <SelectItem key={s.id} value={s.id}>
-                                                {s.nombre}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        sedeNombre
-                                      )}
+                                          Cancelar
+                                        </Button>
+                                      </div>
                                     </TableCell>
-                                    <TableCell className="align-middle truncate max-w-[140px]">
-                                      {isEditing ? (
-                                        <Select
-                                          value={p.escuela?.id ?? SELECT_NONE_VALUE}
-                                          onValueChange={(v) =>
-                                            handleUpdateParticipante(p.id, { escuelaId: v === SELECT_NONE_VALUE ? undefined : v })
-                                          }
-                                        >
-                                          <SelectTrigger className="h-8 text-sm w-full">
-                                            <SelectValue placeholder="Escuela" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                                            {escuelasParticipantes.map((e) => (
-                                              <SelectItem key={e.id} value={e.id}>
-                                                {e.nombre}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        escuelaNombre
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="align-middle truncate max-w-[180px]">
-                                      {isEditing && p.rol === 'Beneficiario' ? (
-                                        <Select
-                                          value={p.socioComunitario?.id ?? ''}
-                                          onValueChange={(v) =>
-                                            handleUpdateParticipante(p.id, {
-                                              socioComunitarioId: v,
-                                            })
-                                          }
-                                        >
-                                          <SelectTrigger className="h-8 text-sm w-full">
-                                            <SelectValue placeholder="Socio comunitario" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {socioOptions.map((s) => (
-                                              <SelectItem key={s.value} value={s.value}>
-                                                {s.label}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        socioComunitario
-                                      )}
-                                    </TableCell>
-                                    {showActionsColumn && (
+                                  )}
+                                </TableRow>
+                              )}
+                              {filteredParticipants.length === 0 &&
+                              !isAddingParticipante ? (
+                                <TableRow>
+                                  <TableCell
+                                    colSpan={showActionsColumn ? 8 : 7}
+                                    className="text-center text-muted-foreground py-8"
+                                  >
+                                    No hay participantes que coincidan con los
+                                    filtros.
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredParticipants.map((p) => {
+                                  const nombre =
+                                    p.user?.name ?? p.nombre ?? 'Sin nombre';
+                                  const email = p.user?.email ?? p.email ?? '';
+                                  const cargo = p.cargo ?? '';
+                                  const sedeNombre = p.sede?.nombre ?? '—';
+                                  const escuelaNombre =
+                                    p.escuela?.nombre ?? '—';
+                                  const socioComunitario =
+                                    p.rol === 'Beneficiario'
+                                      ? (p.socioComunitario?.nombre ?? '—')
+                                      : '—';
+                                  const colorClass =
+                                    ROLE_COLORS[p.rol] ??
+                                    'bg-gray-100 text-gray-800 border-gray-200';
+                                  const isEditing =
+                                    editingParticipanteId === p.id;
+                                  const onRowClick = () => {
+                                    if (
+                                      !isEditModeParticipante &&
+                                      !isDeleteModeParticipante
+                                    ) {
+                                      setSelectedParticipante(
+                                        p as ProyectoParticipante & {
+                                          user?: UserType | null;
+                                        }
+                                      );
+                                      setIsModalOpen(true);
+                                    }
+                                  };
+                                  return (
+                                    <TableRow
+                                      key={p.id}
+                                      className={`hover:bg-muted/50 ${isEditing ? 'bg-blue-50/80' : ''} ${
+                                        !showActionsColumn
+                                          ? 'cursor-pointer'
+                                          : ''
+                                      }`}
+                                      onClick={onRowClick}
+                                    >
                                       <TableCell className="align-middle text-center">
-                                        {isEditModeParticipante && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={`h-6 w-6 p-0 ${
-                                              isEditing
-                                                ? 'text-blue-600 bg-blue-50'
-                                                : 'text-gray-600 hover:bg-blue-50'
-                                            }`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingParticipanteId(isEditing ? null : p.id);
-                                            }}
+                                        {isEditing ? (
+                                          <Select
+                                            value={p.rol}
+                                            onValueChange={(v) =>
+                                              handleUpdateParticipante(p.id, {
+                                                rol: v,
+                                              })
+                                            }
                                           >
-                                            <Pencil className="h-3 w-3" />
-                                          </Button>
-                                        )}
-                                        {isDeleteModeParticipante && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDeleteParticipante(p.id);
-                                            }}
+                                            <SelectTrigger className="h-8 text-sm w-full">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {ROLES.map((r) => (
+                                                <SelectItem
+                                                  key={r.value}
+                                                  value={r.value}
+                                                >
+                                                  {r.label}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          <span
+                                            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}
                                           >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
+                                            #{p.rol}
+                                          </span>
                                         )}
                                       </TableCell>
-                                    )}
-                                  </TableRow>
-                                );
-                              })
-                            )}
-                          </TableBody>
-                        </Table>
+                                      <TableCell className="align-middle">
+                                        {isEditing ? (
+                                          <Input
+                                            defaultValue={nombre}
+                                            onBlur={(e) => {
+                                              const v = e.target.value.trim();
+                                              if (v && v !== nombre)
+                                                handleUpdateParticipante(p.id, {
+                                                  nombre: v,
+                                                });
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                const v = (
+                                                  e.target as HTMLInputElement
+                                                ).value.trim();
+                                                if (v && v !== nombre)
+                                                  handleUpdateParticipante(
+                                                    p.id,
+                                                    { nombre: v }
+                                                  );
+                                              }
+                                            }}
+                                            className="h-8 text-sm"
+                                          />
+                                        ) : (
+                                          <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
+                                              {p.user?.image ? (
+                                                <AvatarImage
+                                                  src={p.user.image}
+                                                  alt={nombre}
+                                                />
+                                              ) : null}
+                                              <AvatarFallback className="bg-gray-100 text-gray-700">
+                                                <Users className="h-4 w-4" />
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium truncate">
+                                              {nombre}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle text-muted-foreground truncate max-w-[200px]">
+                                        {isEditing ? (
+                                          <Input
+                                            defaultValue={email}
+                                            onBlur={(e) => {
+                                              const v = e.target.value.trim();
+                                              if (v !== (email || ''))
+                                                handleUpdateParticipante(p.id, {
+                                                  email: v || undefined,
+                                                });
+                                            }}
+                                            className="h-8 text-sm"
+                                          />
+                                        ) : (
+                                          email || '—'
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle truncate max-w-[160px]">
+                                        {isEditing ? (
+                                          <Input
+                                            defaultValue={cargo}
+                                            onBlur={(e) => {
+                                              const v = e.target.value.trim();
+                                              if (v !== (cargo || ''))
+                                                handleUpdateParticipante(p.id, {
+                                                  cargo: v || undefined,
+                                                });
+                                            }}
+                                            className="h-8 text-sm"
+                                          />
+                                        ) : (
+                                          cargo || '—'
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle truncate max-w-[140px]">
+                                        {isEditing ? (
+                                          <Select
+                                            value={
+                                              p.sede?.id ?? SELECT_NONE_VALUE
+                                            }
+                                            onValueChange={(v) =>
+                                              handleUpdateParticipante(p.id, {
+                                                sedeId:
+                                                  v === SELECT_NONE_VALUE
+                                                    ? undefined
+                                                    : v,
+                                              })
+                                            }
+                                          >
+                                            <SelectTrigger className="h-8 text-sm w-full">
+                                              <SelectValue placeholder="Sede" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem
+                                                value={SELECT_NONE_VALUE}
+                                              >
+                                                —
+                                              </SelectItem>
+                                              {sedesParticipantes.map((s) => (
+                                                <SelectItem
+                                                  key={s.id}
+                                                  value={s.id}
+                                                >
+                                                  {s.nombre}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          sedeNombre
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle truncate max-w-[140px]">
+                                        {isEditing ? (
+                                          <Select
+                                            value={
+                                              p.escuela?.id ?? SELECT_NONE_VALUE
+                                            }
+                                            onValueChange={(v) =>
+                                              handleUpdateParticipante(p.id, {
+                                                escuelaId:
+                                                  v === SELECT_NONE_VALUE
+                                                    ? undefined
+                                                    : v,
+                                              })
+                                            }
+                                          >
+                                            <SelectTrigger className="h-8 text-sm w-full">
+                                              <SelectValue placeholder="Escuela" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem
+                                                value={SELECT_NONE_VALUE}
+                                              >
+                                                —
+                                              </SelectItem>
+                                              {escuelasParticipantes.map(
+                                                (e) => (
+                                                  <SelectItem
+                                                    key={e.id}
+                                                    value={e.id}
+                                                  >
+                                                    {e.nombre}
+                                                  </SelectItem>
+                                                )
+                                              )}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          escuelaNombre
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle truncate max-w-[180px]">
+                                        {isEditing &&
+                                        p.rol === 'Beneficiario' ? (
+                                          <Select
+                                            value={p.socioComunitario?.id ?? ''}
+                                            onValueChange={(v) =>
+                                              handleUpdateParticipante(p.id, {
+                                                socioComunitarioId: v,
+                                              })
+                                            }
+                                          >
+                                            <SelectTrigger className="h-8 text-sm w-full">
+                                              <SelectValue placeholder="Socio comunitario" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {socioOptions.map((s) => (
+                                                <SelectItem
+                                                  key={s.value}
+                                                  value={s.value}
+                                                >
+                                                  {s.label}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          socioComunitario
+                                        )}
+                                      </TableCell>
+                                      {showActionsColumn && (
+                                        <TableCell className="align-middle text-center">
+                                          {isEditModeParticipante && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className={`h-6 w-6 p-0 ${
+                                                isEditing
+                                                  ? 'text-blue-600 bg-blue-50'
+                                                  : 'text-gray-600 hover:bg-blue-50'
+                                              }`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingParticipanteId(
+                                                  isEditing ? null : p.id
+                                                );
+                                              }}
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                          {isDeleteModeParticipante && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteParticipante(p.id);
+                                              }}
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                        </TableCell>
+                                      )}
+                                    </TableRow>
+                                  );
+                                })
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
               {selectedTab === 'Gantt' && (
                 <div className="h-full pt-4">

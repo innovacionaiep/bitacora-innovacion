@@ -317,7 +317,9 @@ export function IndicadorModal({
       });
     } else {
       // Al entrar en modo edición, guardar snapshot de evidencias para detectar cambios
-      evidenciasIdsAtEditStartRef.current = evidenciasIndicador.map((e) => e.id);
+      evidenciasIdsAtEditStartRef.current = evidenciasIndicador.map(
+        (e) => e.id
+      );
     }
     setIsEditMode(!isEditMode);
   };
@@ -519,7 +521,10 @@ export function IndicadorModal({
             </DialogTitle>
             {!isEditMode && porcentajeCumplimiento >= 100 && (
               <>
-                <div className="h-5 w-px bg-gray-300 flex-shrink-0" aria-hidden />
+                <div
+                  className="h-5 w-px bg-gray-300 flex-shrink-0"
+                  aria-hidden
+                />
                 <div className="flex items-center gap-3 flex-shrink-0">
                   {(() => {
                     const validado = !!indicador.validadoPorCoordinador;
@@ -538,12 +543,20 @@ export function IndicadorModal({
                           <input
                             type="checkbox"
                             checked
-                            disabled={!canValidateAsCoordinator || isTogglingValidation}
+                            disabled={
+                              !canValidateAsCoordinator || isTogglingValidation
+                            }
                             className="sr-only"
                             onChange={async () => {
-                              if (!canValidateAsCoordinator || isTogglingValidation) return;
+                              if (
+                                !canValidateAsCoordinator ||
+                                isTogglingValidation
+                              )
+                                return;
                               setIsTogglingValidation(true);
-                              const result = await toggleIndicadorValidation(indicador.id);
+                              const result = await toggleIndicadorValidation(
+                                indicador.id
+                              );
                               setIsTogglingValidation(false);
                               if (result.success && onUpdate) await onUpdate();
                               else alert(result.error ?? 'Error al actualizar');
@@ -583,7 +596,9 @@ export function IndicadorModal({
                           onChange={async () => {
                             if (!canCheck || isTogglingValidation) return;
                             setIsTogglingValidation(true);
-                            const result = await toggleIndicadorValidation(indicador.id);
+                            const result = await toggleIndicadorValidation(
+                              indicador.id
+                            );
                             setIsTogglingValidation(false);
                             if (result.success && onUpdate) await onUpdate();
                             else alert(result.error ?? 'Error al validar');
@@ -870,9 +885,7 @@ export function IndicadorModal({
 
                   {/* Resultado Actual */}
                   <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span
-                      className={`text-sm font-medium mb-1 ${colorEstado}`}
-                    >
+                    <span className={`text-sm font-medium mb-1 ${colorEstado}`}>
                       Actual
                     </span>
                     {isEditMode ? (
@@ -907,7 +920,9 @@ export function IndicadorModal({
               </h3>
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 {isLoadingEvidencias ? (
-                  <p className="text-sm text-gray-500">Cargando evidencias...</p>
+                  <p className="text-sm text-gray-500">
+                    Cargando evidencias...
+                  </p>
                 ) : evidenciasIndicador.length === 0 ? (
                   <p className="text-sm text-gray-500 italic">
                     No se han cargado evidencias
@@ -967,7 +982,9 @@ export function IndicadorModal({
                                   const url = URL.createObjectURL(blob);
                                   const a = document.createElement('a');
                                   a.href = url;
-                                  a.download = filename.toLowerCase().endsWith('.pdf')
+                                  a.download = filename
+                                    .toLowerCase()
+                                    .endsWith('.pdf')
                                     ? filename
                                     : `${filename}.pdf`;
                                   a.click();
@@ -988,20 +1005,14 @@ export function IndicadorModal({
                           <button
                             type="button"
                             onClick={async () => {
-                              if (
-                                !confirm('¿Eliminar esta evidencia?')
-                              )
-                                return;
-                              const res =
-                                await deleteEvidenciaIndicador(ev.id);
+                              if (!confirm('¿Eliminar esta evidencia?')) return;
+                              const res = await deleteEvidenciaIndicador(ev.id);
                               if (res.success) {
                                 setEvidenciasIndicador((prev) =>
                                   prev.filter((e) => e.id !== ev.id)
                                 );
                               } else {
-                                alert(
-                                  res.error ?? 'Error al eliminar'
-                                );
+                                alert(res.error ?? 'Error al eliminar');
                               }
                             }}
                             className="absolute top-1 right-1 p-1.5 bg-red-100 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
@@ -1032,25 +1043,23 @@ export function IndicadorModal({
                           e.target.value = '';
                           return;
                         }
-                        const createResult =
-                          await createEvidenciaIndicador(indicador.id, {
+                        const createResult = await createEvidenciaIndicador(
+                          indicador.id,
+                          {
                             url: result.url,
                             publicId: result.publicId,
                             tipo: result.tipo,
                             nombreArchivo: result.nombreArchivo,
-                          });
-                        if (
-                          createResult.success &&
-                          createResult.data
-                        ) {
+                          }
+                        );
+                        if (createResult.success && createResult.data) {
                           setEvidenciasIndicador((prev) => [
                             ...prev,
                             createResult.data!,
                           ]);
                         } else {
                           alert(
-                            createResult.error ??
-                              'Error al guardar evidencia'
+                            createResult.error ?? 'Error al guardar evidencia'
                           );
                         }
                         setIsUploadingEvidencia(false);
@@ -1063,9 +1072,7 @@ export function IndicadorModal({
                       size="sm"
                       className="w-full gap-2"
                       disabled={isUploadingEvidencia}
-                      onClick={() =>
-                        evidenciasFileInputRef.current?.click()
-                      }
+                      onClick={() => evidenciasFileInputRef.current?.click()}
                     >
                       {isUploadingEvidencia ? (
                         <>
@@ -1080,8 +1087,8 @@ export function IndicadorModal({
                       )}
                     </Button>
                     <p className="text-xs text-gray-500 mt-1">
-                      Imágenes máx. 250 KB (se comprimen automáticamente).
-                      PDF máx. 2 MB.
+                      Imágenes máx. 250 KB (se comprimen automáticamente). PDF
+                      máx. 2 MB.
                     </p>
                   </div>
                 )}

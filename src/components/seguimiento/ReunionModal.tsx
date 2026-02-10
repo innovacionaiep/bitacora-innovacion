@@ -155,7 +155,10 @@ export function ReunionModal({
                     Transcripción
                   </h4>
                   <p className="text-gray-700 text-sm whitespace-pre-wrap">
-                    {(reunion as { transcripcion?: string | null }).transcripcion}
+                    {
+                      (reunion as { transcripcion?: string | null })
+                        .transcripcion
+                    }
                   </p>
                 </div>
               )}

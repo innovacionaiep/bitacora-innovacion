@@ -73,7 +73,10 @@ export function ObjetivoGeneralCard({
       {objetivoGeneral.objetivosEspecificos.length > 0 ? (
         <>
           {/* Bloque conjunto: Objetivo General + Objetivos específicos + Indicadores + Validaciones (ligero desplazamiento a la izquierda para evitar scroll horizontal) */}
-          <div className="flex flex-col gap-16 relative" style={{ marginLeft: '-140px' }}>
+          <div
+            className="flex flex-col gap-16 relative"
+            style={{ marginLeft: '-140px' }}
+          >
             {/* Fila: Tarjeta del Objetivo General + acciones (botones) a la derecha */}
             <div className="relative group z-20 flex items-center gap-3">
               <div
@@ -124,7 +127,10 @@ export function ObjetivoGeneralCard({
             </div>
 
             {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores + validaciones (80px a la derecha respecto al Objetivo General) */}
-            <div className="flex flex-col gap-16 relative" style={{ marginLeft: '80px' }}>
+            <div
+              className="flex flex-col gap-16 relative"
+              style={{ marginLeft: '80px' }}
+            >
               {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
               <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
               {objetivoGeneral.objetivosEspecificos.map(
@@ -181,9 +187,7 @@ export function ObjetivoGeneralCard({
             </div>
           </div>
           {actions != null && (
-            <div className="flex flex-col gap-2 flex-shrink-0">
-              {actions}
-            </div>
+            <div className="flex flex-col gap-2 flex-shrink-0">{actions}</div>
           )}
         </div>
       )}

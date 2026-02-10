@@ -347,8 +347,25 @@ function DraggableActivityCard({
             activity.tasks.length > 0 &&
             activity.tasks.every((t) => t.completed) && (
               <div className="mt-3 pt-2 border-t border-gray-200 flex justify-end">
-                {(activity as Activity & { validadoPorCoordinador?: boolean; validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinador &&
-                (activity as Activity & { validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinadorPor ? (
+                {(
+                  activity as Activity & {
+                    validadoPorCoordinador?: boolean;
+                    validadoPorCoordinadorPor?: {
+                      id: string;
+                      name: string | null;
+                      image: string | null;
+                    } | null;
+                  }
+                ).validadoPorCoordinador &&
+                (
+                  activity as Activity & {
+                    validadoPorCoordinadorPor?: {
+                      id: string;
+                      name: string | null;
+                      image: string | null;
+                    } | null;
+                  }
+                ).validadoPorCoordinadorPor ? (
                   <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
                     <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
                       <Check className="h-2.5 w-2.5 text-white" />
@@ -356,13 +373,37 @@ function DraggableActivityCard({
                     <span className="inline-flex items-center gap-1">
                       Validado por{' '}
                       <Avatar className="h-5 w-5 flex-shrink-0">
-                        <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
+                        <AvatarImage
+                          src={
+                            (
+                              activity as Activity & {
+                                validadoPorCoordinadorPor?: {
+                                  image: string | null;
+                                };
+                              }
+                            ).validadoPorCoordinadorPor?.image ?? undefined
+                          }
+                        />
                         <AvatarFallback className="text-[10px]">
-                          {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
+                          {(
+                            (
+                              activity as Activity & {
+                                validadoPorCoordinadorPor?: {
+                                  name: string | null;
+                                };
+                              }
+                            ).validadoPorCoordinadorPor?.name ?? 'U'
+                          )
+                            .slice(0, 1)
+                            .toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <span>
-                        {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
+                        {(
+                          activity as Activity & {
+                            validadoPorCoordinadorPor?: { name: string | null };
+                          }
+                        ).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
                       </span>
                     </span>
                   </span>

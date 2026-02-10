@@ -46,7 +46,9 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Registrar última actividad (inicio de sesión) para mostrar en Configuración > Usuarios (raw para no depender del cliente Prisma)
-        await prisma.$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${user.id}`.catch(() => {});
+        await prisma.$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${user.id}`.catch(
+          () => {}
+        );
 
         // Obtener roles del usuario
         const roles = await getUserRoles(user.id);

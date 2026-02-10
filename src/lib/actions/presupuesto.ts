@@ -2,16 +2,17 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import type {
-  CuentaPresupuesto,
-  EstadoGastoPresupuesto,
-} from '@prisma/client';
+import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
 import type { ResumenPresupuesto, ResumenCuenta } from '@/types/presupuesto';
 
 const CUENTAS: CuentaPresupuesto[] = ['RRHH', 'OPERACION', 'INVERSION'];
 
 function computeResumenFromItems(
-  items: Array<{ cuenta: CuentaPresupuesto; monto: number; estado: EstadoGastoPresupuesto }>,
+  items: Array<{
+    cuenta: CuentaPresupuesto;
+    monto: number;
+    estado: EstadoGastoPresupuesto;
+  }>,
   presupuestoTotalProyecto: number
 ): ResumenPresupuesto {
   const totalMonto = items.reduce((s, i) => s + i.monto, 0);
@@ -47,9 +48,7 @@ function computeResumenFromItems(
       )
       .reduce((s, i) => s + i.monto, 0);
     const montoEnPedido = filtrados
-      .filter(
-        (i) => i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK'
-      )
+      .filter((i) => i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK')
       .reduce((s, i) => s + i.monto, 0);
     const montoEjecutado = filtrados
       .filter((i) => i.estado === 'EJECUTADO_OK')
@@ -145,15 +144,14 @@ async function syncPresupuestoProyecto(projectId: string): Promise<void> {
   });
 }
 
-export type ItemPresupuestoWithProyecciones = Awaited<
-  ReturnType<typeof getPresupuestoByProyecto>
-> extends { data: infer D }
-  ? D extends { items: infer I }
-    ? I extends (infer U)[]
-      ? U
+export type ItemPresupuestoWithProyecciones =
+  Awaited<ReturnType<typeof getPresupuestoByProyecto>> extends { data: infer D }
+    ? D extends { items: infer I }
+      ? I extends (infer U)[]
+        ? U
+        : never
       : never
-    : never
-  : never;
+    : never;
 
 export interface CreateItemPresupuestoData {
   cuenta: CuentaPresupuesto;
@@ -384,11 +382,13 @@ export async function setProyeccionMensualMultiple(
       where: { itemPresupuestoId, anio },
       select: { mes: true },
     });
-    const mesesActuales = new Set(proyeccionesActuales.map(p => p.mes));
+    const mesesActuales = new Set(proyeccionesActuales.map((p) => p.mes));
     const mesesNuevos = new Set(meses);
 
     // Eliminar proyecciones de meses que ya no están seleccionados
-    const mesesAEliminar = [...mesesActuales].filter(m => !mesesNuevos.has(m));
+    const mesesAEliminar = [...mesesActuales].filter(
+      (m) => !mesesNuevos.has(m)
+    );
     if (mesesAEliminar.length > 0) {
       await prisma.proyeccionPresupuesto.deleteMany({
         where: {

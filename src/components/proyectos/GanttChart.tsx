@@ -562,8 +562,25 @@ function SortableActivity({
                             left: `${startPos.left + barWidth}%`,
                           }}
                         >
-                          {(activity as Activity & { validadoPorCoordinador?: boolean; validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinador &&
-                          (activity as Activity & { validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null }).validadoPorCoordinadorPor ? (
+                          {(
+                            activity as Activity & {
+                              validadoPorCoordinador?: boolean;
+                              validadoPorCoordinadorPor?: {
+                                id: string;
+                                name: string | null;
+                                image: string | null;
+                              } | null;
+                            }
+                          ).validadoPorCoordinador &&
+                          (
+                            activity as Activity & {
+                              validadoPorCoordinadorPor?: {
+                                id: string;
+                                name: string | null;
+                                image: string | null;
+                              } | null;
+                            }
+                          ).validadoPorCoordinadorPor ? (
                             <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded whitespace-nowrap">
                               <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
                                 <Check className="h-2.5 w-2.5 text-white" />
@@ -571,13 +588,41 @@ function SortableActivity({
                               <span className="inline-flex items-center gap-1">
                                 Validado por{' '}
                                 <Avatar className="h-5 w-5 flex-shrink-0">
-                                  <AvatarImage src={(activity as Activity & { validadoPorCoordinadorPor?: { image: string | null } }).validadoPorCoordinadorPor?.image ?? undefined} />
+                                  <AvatarImage
+                                    src={
+                                      (
+                                        activity as Activity & {
+                                          validadoPorCoordinadorPor?: {
+                                            image: string | null;
+                                          };
+                                        }
+                                      ).validadoPorCoordinadorPor?.image ??
+                                      undefined
+                                    }
+                                  />
                                   <AvatarFallback className="text-[10px]">
-                                    {((activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'U').slice(0, 1).toUpperCase()}
+                                    {(
+                                      (
+                                        activity as Activity & {
+                                          validadoPorCoordinadorPor?: {
+                                            name: string | null;
+                                          };
+                                        }
+                                      ).validadoPorCoordinadorPor?.name ?? 'U'
+                                    )
+                                      .slice(0, 1)
+                                      .toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span>
-                                  {(activity as Activity & { validadoPorCoordinadorPor?: { name: string | null } }).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
+                                  {(
+                                    activity as Activity & {
+                                      validadoPorCoordinadorPor?: {
+                                        name: string | null;
+                                      };
+                                    }
+                                  ).validadoPorCoordinadorPor?.name ??
+                                    'Coordinador'}
                                 </span>
                               </span>
                             </span>
@@ -895,7 +940,12 @@ export default function GanttChart({
     setExpandedDescriptions(new Set());
     setEditingTaskId(null);
     setShowInlineAddTask(false);
-    setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+    setInlineTaskForm({
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+    });
 
     // Resetear formularios
     setActivityForm({ name: '', description: '', startDate: '', endDate: '' });
@@ -976,11 +1026,7 @@ export default function GanttChart({
   // Cargar comentarios cuando se abre el popup de actividad en modo view/edit (actividad existente)
   useEffect(() => {
     const actividadId = selectedActivityForPopup?.id;
-    if (
-      !actividadId ||
-      actividadId.startsWith('temp-') ||
-      !showActivityPopup
-    ) {
+    if (!actividadId || actividadId.startsWith('temp-') || !showActivityPopup) {
       setComentariosActividad([]);
       return;
     }
@@ -1003,11 +1049,7 @@ export default function GanttChart({
   // Cargar evidencias cuando se abre el popup de actividad (actividad existente)
   useEffect(() => {
     const actividadId = selectedActivityForPopup?.id;
-    if (
-      !actividadId ||
-      actividadId.startsWith('temp-') ||
-      !showActivityPopup
-    ) {
+    if (!actividadId || actividadId.startsWith('temp-') || !showActivityPopup) {
       setEvidenciasActividad([]);
       return;
     }
@@ -1456,18 +1498,22 @@ export default function GanttChart({
         return;
       }
       if (selectedActivityForPopup) {
-        const updated = selectedActivityForPopup.tasks?.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                name: editingTaskForm.name,
-                description: editingTaskForm.description,
-                startDate: convertedStart,
-                endDate: convertedEnd,
-              }
-            : t
-        ) || [];
-        setSelectedActivityForPopup({ ...selectedActivityForPopup, tasks: updated });
+        const updated =
+          selectedActivityForPopup.tasks?.map((t) =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  name: editingTaskForm.name,
+                  description: editingTaskForm.description,
+                  startDate: convertedStart,
+                  endDate: convertedEnd,
+                }
+              : t
+          ) || [];
+        setSelectedActivityForPopup({
+          ...selectedActivityForPopup,
+          tasks: updated,
+        });
       }
       await loadActivities();
     }
@@ -1475,7 +1521,11 @@ export default function GanttChart({
   };
 
   const handleInlineAddTask = async () => {
-    if (!inlineTaskForm.name || !inlineTaskForm.startDate || !inlineTaskForm.endDate) {
+    if (
+      !inlineTaskForm.name ||
+      !inlineTaskForm.startDate ||
+      !inlineTaskForm.endDate
+    ) {
       alert('Completa nombre y fechas');
       return;
     }
@@ -1500,7 +1550,12 @@ export default function GanttChart({
       };
       setTempTasks((prev) => [...prev, newTask]);
       setShowInlineAddTask(false);
-      setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+      setInlineTaskForm({
+        name: '',
+        description: '',
+        startDate: '',
+        endDate: '',
+      });
       return;
     }
     const { data: newTask, error } = await createTask(act.id, {
@@ -1520,7 +1575,12 @@ export default function GanttChart({
       });
     }
     setShowInlineAddTask(false);
-    setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+    setInlineTaskForm({
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+    });
   };
 
   const handleEnviarComentarioActividad = async () => {
@@ -2612,7 +2672,12 @@ export default function GanttChart({
               setActivityPopupMode('view');
               setEditingTaskId(null);
               setShowInlineAddTask(false);
-              setInlineTaskForm({ name: '', description: '', startDate: '', endDate: '' });
+              setInlineTaskForm({
+                name: '',
+                description: '',
+                startDate: '',
+                endDate: '',
+              });
               setEvidenciasActividad([]);
             }
           }}
@@ -2630,14 +2695,16 @@ export default function GanttChart({
                 </DialogTitle>
                 {activityPopupMode === 'view' && selectedActivityForPopup && (
                   <>
-                    <div className="h-5 w-px bg-gray-300 flex-shrink-0" aria-hidden />
+                    <div
+                      className="h-5 w-px bg-gray-300 flex-shrink-0"
+                      aria-hidden
+                    />
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {(() => {
                         const act = selectedActivityForPopup;
                         const tasks = act.tasks ?? [];
                         const allCompleted =
-                          tasks.length > 0 &&
-                          tasks.every((t) => t.completed);
+                          tasks.length > 0 && tasks.every((t) => t.completed);
                         const validado = !!(
                           act as Activity & {
                             validadoPorCoordinador?: boolean;
@@ -2665,7 +2732,9 @@ export default function GanttChart({
                           return (
                             <div className="flex items-center gap-2 text-gray-500">
                               <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-100 flex-shrink-0" />
-                              <span className="text-sm">Actividad no finalizada</span>
+                              <span className="text-sm">
+                                Actividad no finalizada
+                              </span>
                             </div>
                           );
                         }
@@ -2673,7 +2742,8 @@ export default function GanttChart({
                           return (
                             <label
                               className={`flex items-center gap-2 text-emerald-700 ${
-                                canValidateAsCoordinator && !isTogglingValidation
+                                canValidateAsCoordinator &&
+                                !isTogglingValidation
                                   ? 'cursor-pointer'
                                   : 'cursor-default'
                               }`}
@@ -2681,31 +2751,48 @@ export default function GanttChart({
                               <input
                                 type="checkbox"
                                 checked
-                                disabled={!canValidateAsCoordinator || isTogglingValidation}
+                                disabled={
+                                  !canValidateAsCoordinator ||
+                                  isTogglingValidation
+                                }
                                 className="sr-only"
                                 onChange={async () => {
-                                  if (!canValidateAsCoordinator || isTogglingValidation) return;
+                                  if (
+                                    !canValidateAsCoordinator ||
+                                    isTogglingValidation
+                                  )
+                                    return;
                                   const id = act.id;
                                   if (id.startsWith('temp-')) return;
                                   setIsTogglingValidation(true);
-                                  const result = await toggleActivityValidation(id);
+                                  const result =
+                                    await toggleActivityValidation(id);
                                   setIsTogglingValidation(false);
                                   if (result.success && result.data) {
                                     setSelectedActivityForPopup({
                                       ...act,
                                       ...result.data,
-                                      validadoPorCoordinador: result.data.validadoPorCoordinador,
-                                      validadoPorCoordinadorId: undefined,
-                                      validadoPorCoordinadorPor: undefined,
+                                      validadoPorCoordinador:
+                                        result.data.validadoPorCoordinador,
+                                      validadoPorCoordinadorId:
+                                        result.data.validadoPorCoordinadorId ??
+                                        null,
+                                      validadoPorCoordinadorPor:
+                                        result.data.validadoPorCoordinadorPor ??
+                                        null,
                                     } as Activity);
                                     updateActivitiesState((prev) =>
                                       prev.map((a) =>
-                                        a.id === id ? { ...a, ...result.data } : a
+                                        a.id === id
+                                          ? { ...a, ...result.data }
+                                          : a
                                       )
                                     );
                                     await loadActivities();
                                   } else {
-                                    alert(result.error ?? 'Error al actualizar');
+                                    alert(
+                                      result.error ?? 'Error al actualizar'
+                                    );
                                   }
                                 }}
                               />
@@ -2721,7 +2808,9 @@ export default function GanttChart({
                                 <Avatar className="h-7 w-7 flex-shrink-0">
                                   <AvatarImage src={por.image ?? undefined} />
                                   <AvatarFallback className="text-xs">
-                                    {(por.name ?? 'U').slice(0, 1).toUpperCase()}
+                                    {(por.name ?? 'U')
+                                      .slice(0, 1)
+                                      .toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span>{por.name ?? 'Coordinador'}</span>
@@ -2745,16 +2834,21 @@ export default function GanttChart({
                                 const id = act.id;
                                 if (id.startsWith('temp-')) return;
                                 setIsTogglingValidation(true);
-                                const result = await toggleActivityValidation(id);
+                                const result =
+                                  await toggleActivityValidation(id);
                                 setIsTogglingValidation(false);
                                 if (result.success && result.data) {
                                   setSelectedActivityForPopup({
                                     ...act,
                                     ...result.data,
-                                    validadoPorCoordinador: result.data.validadoPorCoordinador,
+                                    validadoPorCoordinador:
+                                      result.data.validadoPorCoordinador,
                                     validadoPorCoordinadorId:
-                                      result.data.validadoPorCoordinadorId ?? undefined,
-                                    validadoPorCoordinadorPor: result.data.validadoPorCoordinadorPor ?? undefined,
+                                      result.data.validadoPorCoordinadorId ??
+                                      undefined,
+                                    validadoPorCoordinadorPor:
+                                      result.data.validadoPorCoordinadorPor ??
+                                      undefined,
                                   } as Activity);
                                   updateActivitiesState((prev) =>
                                     prev.map((a) =>
@@ -2819,7 +2913,10 @@ export default function GanttChart({
                       <Input
                         value={unifiedActivityForm.name}
                         onChange={(e) =>
-                          handleUnifiedActivityInputChange('name', e.target.value)
+                          handleUnifiedActivityInputChange(
+                            'name',
+                            e.target.value
+                          )
                         }
                         placeholder="Nombre de la actividad"
                         className="text-2xl font-bold text-emerald-600 h-auto py-1 px-2 border-emerald-300 w-full min-w-[42rem] max-w-full"
@@ -2849,7 +2946,8 @@ export default function GanttChart({
                     </span>
                   </div>
                 )}
-                {(activityPopupMode === 'edit' || activityPopupMode === 'create') && (
+                {(activityPopupMode === 'edit' ||
+                  activityPopupMode === 'create') && (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       size="sm"
@@ -2901,7 +2999,8 @@ export default function GanttChart({
                   </h3>
                   {activityPopupMode === 'view' ? (
                     <p className="text-gray-700 text-base">
-                      {selectedActivityForPopup?.description || 'Sin descripción'}
+                      {selectedActivityForPopup?.description ||
+                        'Sin descripción'}
                     </p>
                   ) : (
                     <textarea
@@ -2954,7 +3053,9 @@ export default function GanttChart({
                   </h3>
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     {isLoadingEvidencias ? (
-                      <p className="text-sm text-gray-500">Cargando evidencias...</p>
+                      <p className="text-sm text-gray-500">
+                        Cargando evidencias...
+                      </p>
                     ) : evidenciasActividad.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">
                         No se han cargado evidencias
@@ -2998,24 +3099,33 @@ export default function GanttChart({
                                   onClick={async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    const filename = ev.nombreArchivo || 'documento.pdf';
+                                    const filename =
+                                      ev.nombreArchivo || 'documento.pdf';
                                     const apiUrl = `/api/evidencia-download?url=${encodeURIComponent(ev.url)}&filename=${encodeURIComponent(filename)}`;
                                     try {
                                       const res = await fetch(apiUrl);
                                       if (!res.ok) {
                                         const text = await res.text();
-                                        alert(text || 'No se pudo descargar el PDF.');
+                                        alert(
+                                          text || 'No se pudo descargar el PDF.'
+                                        );
                                         return;
                                       }
                                       const blob = await res.blob();
                                       const url = URL.createObjectURL(blob);
                                       const a = document.createElement('a');
                                       a.href = url;
-                                      a.download = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+                                      a.download = filename
+                                        .toLowerCase()
+                                        .endsWith('.pdf')
+                                        ? filename
+                                        : `${filename}.pdf`;
                                       a.click();
                                       URL.revokeObjectURL(url);
                                     } catch {
-                                      alert('Error de conexión al descargar el PDF.');
+                                      alert(
+                                        'Error de conexión al descargar el PDF.'
+                                      );
                                     }
                                   }}
                                   className="mt-2 text-xs underline hover:no-underline text-red-700"
@@ -3026,12 +3136,17 @@ export default function GanttChart({
                             )}
                             {activityPopupMode === 'edit' &&
                               selectedActivityForPopup?.id &&
-                              !selectedActivityForPopup.id.startsWith('temp-') && (
+                              !selectedActivityForPopup.id.startsWith(
+                                'temp-'
+                              ) && (
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    if (!confirm('¿Eliminar esta evidencia?')) return;
-                                    const res = await deleteEvidenciaActividad(ev.id);
+                                    if (!confirm('¿Eliminar esta evidencia?'))
+                                      return;
+                                    const res = await deleteEvidenciaActividad(
+                                      ev.id
+                                    );
                                     if (res.success) {
                                       setEvidenciasActividad((prev) =>
                                         prev.filter((e) => e.id !== ev.id)
@@ -3063,7 +3178,11 @@ export default function GanttChart({
                               const file = e.target.files?.[0];
                               if (!file) return;
                               const actividadId = selectedActivityForPopup?.id;
-                              if (!actividadId || actividadId.startsWith('temp-')) return;
+                              if (
+                                !actividadId ||
+                                actividadId.startsWith('temp-')
+                              )
+                                return;
                               setIsUploadingEvidencia(true);
                               const result = await uploadEvidenciaFile(file);
                               if ('error' in result) {
@@ -3072,19 +3191,23 @@ export default function GanttChart({
                                 e.target.value = '';
                                 return;
                               }
-                              const createResult = await createEvidenciaActividad(
-                                actividadId,
-                                {
+                              const createResult =
+                                await createEvidenciaActividad(actividadId, {
                                   url: result.url,
                                   publicId: result.publicId,
                                   tipo: result.tipo,
                                   nombreArchivo: result.nombreArchivo,
-                                }
-                              );
+                                });
                               if (createResult.success && createResult.data) {
-                                setEvidenciasActividad((prev) => [...prev, createResult.data!]);
+                                setEvidenciasActividad((prev) => [
+                                  ...prev,
+                                  createResult.data! as EvidenciaActividadData,
+                                ]);
                               } else {
-                                alert(createResult.error ?? 'Error al guardar evidencia');
+                                alert(
+                                  createResult.error ??
+                                    'Error al guardar evidencia'
+                                );
                               }
                               setIsUploadingEvidencia(false);
                               e.target.value = '';
@@ -3096,7 +3219,9 @@ export default function GanttChart({
                             size="sm"
                             className="w-full gap-2"
                             disabled={isUploadingEvidencia}
-                            onClick={() => evidenciasFileInputRef.current?.click()}
+                            onClick={() =>
+                              evidenciasFileInputRef.current?.click()
+                            }
                           >
                             {isUploadingEvidencia ? (
                               <>
@@ -3111,7 +3236,8 @@ export default function GanttChart({
                             )}
                           </Button>
                           <p className="text-xs text-gray-500 mt-1">
-                            Imágenes máx. 250 KB (se comprimen automáticamente). PDF máx. 2 MB.
+                            Imágenes máx. 250 KB (se comprimen automáticamente).
+                            PDF máx. 2 MB.
                           </p>
                         </div>
                       )}
@@ -3166,10 +3292,13 @@ export default function GanttChart({
                       <Input
                         value={inlineTaskForm.name}
                         onChange={(e) =>
-                          setInlineTaskForm((p) => ({ ...p, name: e.target.value }))
+                          setInlineTaskForm((p) => ({
+                            ...p,
+                            name: e.target.value,
+                          }))
                         }
-                            placeholder="Nombre de la tarea *"
-                            maxLength={60}
+                        placeholder="Nombre de la tarea *"
+                        maxLength={60}
                       />
                       <textarea
                         value={inlineTaskForm.description}
@@ -3185,7 +3314,9 @@ export default function GanttChart({
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-xs text-gray-600">Inicio</Label>
+                          <Label className="text-xs text-gray-600">
+                            Inicio
+                          </Label>
                           <Calendar
                             compact
                             value={inlineTaskForm.startDate || undefined}
@@ -3200,7 +3331,9 @@ export default function GanttChart({
                           />
                         </div>
                         <div>
-                          <Label className="text-xs text-gray-600">Término</Label>
+                          <Label className="text-xs text-gray-600">
+                            Término
+                          </Label>
                           <Calendar
                             compact
                             value={inlineTaskForm.endDate || undefined}
@@ -3295,7 +3428,9 @@ export default function GanttChart({
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs text-gray-600">Inicio</Label>
+                              <Label className="text-xs text-gray-600">
+                                Inicio
+                              </Label>
                               <Calendar
                                 compact
                                 value={editingTaskForm.startDate || undefined}
@@ -3310,7 +3445,9 @@ export default function GanttChart({
                               />
                             </div>
                             <div>
-                              <Label className="text-xs text-gray-600">Término</Label>
+                              <Label className="text-xs text-gray-600">
+                                Término
+                              </Label>
                               <Calendar
                                 compact
                                 value={editingTaskForm.endDate || undefined}
@@ -3365,7 +3502,10 @@ export default function GanttChart({
                                           selectedActivityForPopup.tasks?.map(
                                             (t) =>
                                               t.id === task.id
-                                                ? { ...t, completed: !t.completed }
+                                                ? {
+                                                    ...t,
+                                                    completed: !t.completed,
+                                                  }
                                                 : t
                                           ) || [],
                                       });
@@ -3498,7 +3638,8 @@ export default function GanttChart({
                               ) : (
                                 <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
                                   <span className="text-sm font-medium text-gray-600">
-                                    {(c.user.name || c.user.email)[0].toUpperCase()}
+                                    {(c.user.name ||
+                                      c.user.email)[0].toUpperCase()}
                                   </span>
                                 </div>
                               )}
@@ -3542,7 +3683,8 @@ export default function GanttChart({
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
                               <span className="text-sm font-medium text-gray-600">
-                                {(session.user.name || session.user.email)[0].toUpperCase()}
+                                {(session.user.name ||
+                                  session.user.email)[0].toUpperCase()}
                               </span>
                             </div>
                           )}
@@ -3585,7 +3727,6 @@ export default function GanttChart({
                 )}
               </div>
             </div>
-
           </DialogContent>
         </Dialog>
 

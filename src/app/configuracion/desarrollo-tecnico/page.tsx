@@ -31,7 +31,9 @@ import * as DT from '@/lib/actions/desarrollo-tecnico-config';
 import { IconByName, ICON_NAMES } from '@/components/config/IconByName';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 
-type CategoriaWithSub = Awaited<ReturnType<typeof DT.getCategoriasWithSubcategorias>>[number];
+type CategoriaWithSub = Awaited<
+  ReturnType<typeof DT.getCategoriasWithSubcategorias>
+>[number];
 
 export default function ConfiguracionDesarrolloTecnicoPage() {
   const [categorias, setCategorias] = useState<CategoriaWithSub[]>([]);
@@ -104,7 +106,10 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
     setError(null);
   };
 
-  const openEditSubcategoria = (sub: CategoriaWithSub['subcategorias'][number], categoriaId: string) => {
+  const openEditSubcategoria = (
+    sub: CategoriaWithSub['subcategorias'][number],
+    categoriaId: string
+  ) => {
     setSheetType('sub');
     setEditSubId(sub.id);
     setParentCatId(categoriaId);
@@ -125,7 +130,8 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
     setError(null);
     let res: { success: boolean; error?: string } = { success: false };
     if (sheetType === 'cat') {
-      if (editCatId) res = await DT.updateCategoria(editCatId, formNombre, formOrden);
+      if (editCatId)
+        res = await DT.updateCategoria(editCatId, formNombre, formOrden);
       else res = await DT.createCategoria(formNombre, formOrden);
     } else {
       if (editSubId) {
@@ -136,7 +142,12 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
           ...(formCategoriaId && { categoriaId: formCategoriaId }),
         });
       } else if (parentCatId) {
-        res = await DT.createSubcategoria(parentCatId, formNombre, formIcono, formOrden);
+        res = await DT.createSubcategoria(
+          parentCatId,
+          formNombre,
+          formIcono,
+          formOrden
+        );
       }
     }
     if (res.success) {
@@ -182,7 +193,9 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
           <div>
             <CardTitle>Desarrollo técnico</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Categorías y subcategorías usadas en el formulario de desarrollo técnico de cada proyecto. Puedes editar nombres, orden, iconos y mover subcategorías entre categorías.
+              Categorías y subcategorías usadas en el formulario de desarrollo
+              técnico de cada proyecto. Puedes editar nombres, orden, iconos y
+              mover subcategorías entre categorías.
             </p>
           </div>
           <Button onClick={openAddCategoria}>
@@ -191,68 +204,93 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
-          <div className="space-y-2">
-            {categorias.map((c) => (
-              <div key={c.id} className="border rounded-lg overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                  onClick={() => toggleCat(c.id)}
-                >
-                  <div className="flex items-center gap-2">
-                    {expandedCat.has(c.id) ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                    <span className="font-medium">{c.nombre}</span>
-                    <span className="text-muted-foreground text-sm">(Orden: {c.orden})</span>
-                  </div>
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" onClick={() => openEditCategoria(c)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openAddSubcategoria(c.id)}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteCategoria(c.id)}>
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </div>
+        <div className="space-y-2">
+          {categorias.map((c) => (
+            <div key={c.id} className="border rounded-lg overflow-hidden">
+              <div
+                className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                onClick={() => toggleCat(c.id)}
+              >
+                <div className="flex items-center gap-2">
+                  {expandedCat.has(c.id) ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                  <span className="font-medium">{c.nombre}</span>
+                  <span className="text-muted-foreground text-sm">
+                    (Orden: {c.orden})
+                  </span>
                 </div>
-                {expandedCat.has(c.id) && (
-                  <Table>
-                    <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
-                      <TableRow>
-                        <TableHead className="w-10">Icono</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Orden</TableHead>
-                        <TableHead className="w-[140px]">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {c.subcategorias.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>
-                            <IconByName name={s.icono} className="h-4 w-4" />
-                          </TableCell>
-                          <TableCell>{s.nombre}</TableCell>
-                          <TableCell>{s.orden}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" onClick={() => openEditSubcategoria(s, c.id)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteSubcategoria(s.id)}>
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                <div
+                  className="flex items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditCategoria(c)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openAddSubcategoria(c.id)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteCategoria(c.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  </Button>
+                </div>
               </div>
-            ))}
-          </div>
+              {expandedCat.has(c.id) && (
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
+                    <TableRow>
+                      <TableHead className="w-10">Icono</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Orden</TableHead>
+                      <TableHead className="w-[140px]">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {c.subcategorias.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <IconByName name={s.icono} className="h-4 w-4" />
+                        </TableCell>
+                        <TableCell>{s.nombre}</TableCell>
+                        <TableCell>{s.orden}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditSubcategoria(s, c.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteSubcategoria(s.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -271,14 +309,20 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Nombre</Label>
-              <Input value={formNombre} onChange={(e) => setFormNombre(e.target.value)} placeholder="Nombre" />
+              <Input
+                value={formNombre}
+                onChange={(e) => setFormNombre(e.target.value)}
+                placeholder="Nombre"
+              />
             </div>
             <div className="space-y-2">
               <Label>Orden</Label>
               <Input
                 type="number"
                 value={formOrden}
-                onChange={(e) => setFormOrden(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) =>
+                  setFormOrden(parseInt(e.target.value, 10) || 0)
+                }
               />
             </div>
             {sheetType === 'sub' && (
@@ -286,7 +330,9 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                 <div className="space-y-2">
                   <Label>Icono</Label>
                   <Select value={formIcono} onValueChange={setFormIcono}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {ICON_NAMES.map((name) => (
                         <SelectItem key={name} value={name}>
@@ -306,7 +352,9 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                       value={formCategoriaId ?? ''}
                       onValueChange={(v) => setFormCategoriaId(v || null)}
                     >
-                      <SelectTrigger><SelectValue placeholder="Mantener categoría" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mantener categoría" />
+                      </SelectTrigger>
                       <SelectContent>
                         {categorias.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
@@ -321,8 +369,12 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
             )}
           </div>
           <SheetFooter>
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+            <Button variant="outline" onClick={() => setSheetOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

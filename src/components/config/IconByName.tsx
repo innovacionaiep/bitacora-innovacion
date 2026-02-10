@@ -115,7 +115,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 export const ICON_NAMES = Object.keys(ICON_MAP).sort();
 
-export function IconByName({ name, className }: { name: string; className?: string }) {
+export function IconByName({
+  name,
+  className,
+}: {
+  name: string;
+  className?: string;
+}) {
   const Icon = ICON_MAP[name] ?? FileText;
   return <Icon className={className} />;
 }

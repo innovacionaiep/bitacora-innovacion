@@ -3,10 +3,28 @@
 import { useEffect, useRef } from 'react';
 import { useMeetingLiveOptional } from '@/contexts/MeetingLiveContext';
 
+type SpeechResultItem = { isFinal: boolean; 0?: { transcript?: string } };
+type SpeechResultEvent = {
+  results: Record<number, SpeechResultItem>;
+  resultIndex: number;
+};
+
+interface SpeechRecognitionInstance {
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechResultEvent) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+}
+
 declare global {
   interface Window {
-    SpeechRecognition?: typeof SpeechRecognition;
-    webkitSpeechRecognition?: typeof SpeechRecognition;
+    SpeechRecognition?: new (...args: unknown[]) => SpeechRecognitionInstance;
+    webkitSpeechRecognition?: new (...args: unknown[]) => SpeechRecognitionInstance;
   }
 }
 
@@ -25,9 +43,7 @@ const SpeechRecognitionAPI =
  */
 export function useMeetingTranscription() {
   const ctx = useMeetingLiveOptional();
-  const recognitionRef = useRef<InstanceType<
-    NonNullable<typeof SpeechRecognitionAPI>
-  > | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const lastInterimRef = useRef<string>('');
 
@@ -62,7 +78,7 @@ export function useMeetingTranscription() {
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'es-CL';
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event: SpeechResultEvent) => {
         if (cancelled) return;
         const result = event.results[event.resultIndex];
         const text = result[0]?.transcript?.trim();
@@ -74,7 +90,7 @@ export function useMeetingTranscription() {
           lastInterimRef.current = text;
         }
       };
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: { error?: string }) => {
         if (event.error === 'no-speech' || event.error === 'aborted') return;
         console.warn('Speech recognition error:', event.error);
       };

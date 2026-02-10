@@ -85,7 +85,9 @@ export default function ConfiguracionUsuariosPage() {
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  const [editUser, setEditUser] = useState<UserListRowWithPassword | null>(null);
+  const [editUser, setEditUser] = useState<UserListRowWithPassword | null>(
+    null
+  );
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
@@ -128,7 +130,29 @@ export default function ConfiguracionUsuariosPage() {
       const theadPosition = thead ? getComputedStyle(thead).position : 'no-ref';
       const parent = root?.parentElement;
       const parentH = parent?.offsetHeight ?? 0;
-      fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'configuracion/usuarios/page.tsx:layout',message:'layout heights and thead position',data:{viewportHeight:vh,pageRootHeight:rootH,scrollAreaHeight:scrollH,scrollAreaScrollHeight:scrollScrollH,parentHeight:parentH,theadPosition,loading},timestamp:Date.now(),hypothesisId:'H1-H5',runId:'post-fix'})}).catch(()=>{});
+      fetch(
+        'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'configuracion/usuarios/page.tsx:layout',
+            message: 'layout heights and thead position',
+            data: {
+              viewportHeight: vh,
+              pageRootHeight: rootH,
+              scrollAreaHeight: scrollH,
+              scrollAreaScrollHeight: scrollScrollH,
+              parentHeight: parentH,
+              theadPosition,
+              loading,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H1-H5',
+            runId: 'post-fix',
+          }),
+        }
+      ).catch(() => {});
     }, 500);
     return () => clearTimeout(t);
   }, [loading]);
@@ -173,7 +197,9 @@ export default function ConfiguracionUsuariosPage() {
     if (res.success) {
       setEditUser(null);
       if (unlocked && unlockPasswordRef.current) {
-        const resList = await listUsersAdminWithPasswords(unlockPasswordRef.current);
+        const resList = await listUsersAdminWithPasswords(
+          unlockPasswordRef.current
+        );
         if (resList.success && resList.data) setUsers(resList.data);
         else await load();
       } else {
@@ -205,7 +231,9 @@ export default function ConfiguracionUsuariosPage() {
       setAddPassword('');
       setAddRole('Colaborador');
       if (unlocked && unlockPasswordRef.current) {
-        const resList = await listUsersAdminWithPasswords(unlockPasswordRef.current);
+        const resList = await listUsersAdminWithPasswords(
+          unlockPasswordRef.current
+        );
         if (resList.success && resList.data) setUsers(resList.data);
         else await load();
       } else {
@@ -224,7 +252,8 @@ export default function ConfiguracionUsuariosPage() {
           <div>
             <CardTitle>Usuarios</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Lista de usuarios, roles y participación en proyectos. Desbloquea para editar contraseñas.
+              Lista de usuarios, roles y participación en proyectos. Desbloquea
+              para editar contraseñas.
             </p>
           </div>
           <div className="flex gap-2">
@@ -271,7 +300,10 @@ export default function ConfiguracionUsuariosPage() {
           </div>
         </div>
       </div>
-      <div ref={scrollAreaRef} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div
+        ref={scrollAreaRef}
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
+      >
         {error && (
           <p className="text-sm text-red-600 mb-4 px-6 pt-4">{error}</p>
         )}
@@ -333,7 +365,7 @@ export default function ConfiguracionUsuariosPage() {
                               className="h-8 text-sm"
                             />
                           ) : (
-                            u.name ?? '—'
+                            (u.name ?? '—')
                           )}
                         </TableCell>
                         <TableCell>
@@ -359,7 +391,7 @@ export default function ConfiguracionUsuariosPage() {
                               className="h-8 text-sm font-mono"
                             />
                           ) : unlocked ? (
-                            u.passwordPlain ?? '—'
+                            (u.passwordPlain ?? '—')
                           ) : (
                             '****'
                           )}
@@ -377,7 +409,10 @@ export default function ConfiguracionUsuariosPage() {
                             {u.proyectos.length ? (
                               <ul className="list-disc list-inside space-y-0.5 my-0 pl-0">
                                 {u.proyectos.map((p, i) => (
-                                  <li key={i} className="flex flex-wrap items-center gap-1">
+                                  <li
+                                    key={i}
+                                    className="flex flex-wrap items-center gap-1"
+                                  >
                                     <span>{p.proyectoNombre}</span>
                                     <span
                                       className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${getRolTagClasses(p.rol)}`}
@@ -445,7 +480,8 @@ export default function ConfiguracionUsuariosPage() {
             <DialogTitle>Desbloquear edición de contraseñas</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Ingresa la contraseña de administración para poder ver y editar contraseñas de usuarios.
+            Ingresa la contraseña de administración para poder ver y editar
+            contraseñas de usuarios.
           </p>
           <div className="space-y-2">
             <Label>Contraseña</Label>

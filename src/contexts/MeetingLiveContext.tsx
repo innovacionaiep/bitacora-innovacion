@@ -60,12 +60,14 @@ export function MeetingLiveProvider({ children }: { children: ReactNode }) {
           audio: {
             echoCancellation: false,
             noiseSuppression: false,
-            suppressLocalAudioPlayback: false,
+            ...({
+              suppressLocalAudioPlayback: false,
+            } as Record<string, unknown>),
           },
           systemAudio: 'include',
           monitorTypeSurfaces: 'include',
           preferCurrentTab: false,
-        });
+        } as DisplayMediaStreamOptions);
       } catch {
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: true,

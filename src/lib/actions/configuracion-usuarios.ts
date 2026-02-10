@@ -7,8 +7,7 @@ import { revalidatePath } from 'next/cache';
 import type { Role } from '@/lib/auth-utils';
 
 const SALT_ROUNDS = 10;
-const CONFIG_UNLOCK_PASSWORD =
-  process.env.CONFIG_UNLOCK_PASSWORD ?? 'bitacora';
+const CONFIG_UNLOCK_PASSWORD = process.env.CONFIG_UNLOCK_PASSWORD ?? 'bitacora';
 
 const ENCRYPTION_KEY = (() => {
   const secret = process.env.PASSWORD_DISPLAY_SECRET ?? CONFIG_UNLOCK_PASSWORD;
@@ -31,10 +30,7 @@ export type UserListRowWithPassword = UserListRow & {
 function encryptPassword(plain: string): string {
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
-  const enc = Buffer.concat([
-    cipher.update(plain, 'utf8'),
-    cipher.final(),
-  ]);
+  const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return Buffer.concat([iv, enc]).toString('base64');
 }
 
@@ -54,7 +50,9 @@ function decryptPassword(encrypted: string): string | null {
 async function getLastActiveByUserId(): Promise<Map<string, Date | null>> {
   const map = new Map<string, Date | null>();
   try {
-    const raw = await prisma.$queryRaw<{ id: string; last_active_at: Date | null }[]>`
+    const raw = await prisma.$queryRaw<
+      { id: string; last_active_at: Date | null }[]
+    >`
       SELECT id, last_active_at FROM users
     `;
     raw.forEach((r) => map.set(r.id, r.last_active_at));
@@ -101,7 +99,8 @@ export async function listUsersAdmin(): Promise<{
       id: u.id,
       name: u.name,
       email: u.email,
-      lastSessionExpires: lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+      lastSessionExpires:
+        lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
       roles: u.roles.map((r) => r.role),
       proyectos: u.proyectos.map((p) => ({
         proyectoNombre: p.proyecto.proyecto,
@@ -132,7 +131,9 @@ export async function verifyConfigUnlock(password: string): Promise<{
 /**
  * Listar usuarios con contraseñas en claro (solo si la contraseña de desbloqueo es correcta).
  */
-export async function listUsersAdminWithPasswords(unlockPassword: string): Promise<{
+export async function listUsersAdminWithPasswords(
+  unlockPassword: string
+): Promise<{
   success: boolean;
   data?: UserListRowWithPassword[];
   error?: string;
@@ -170,7 +171,8 @@ export async function listUsersAdminWithPasswords(unlockPassword: string): Promi
       id: u.id,
       name: u.name,
       email: u.email,
-      lastSessionExpires: lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+      lastSessionExpires:
+        lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
       roles: u.roles.map((r) => r.role),
       proyectos: u.proyectos.map((p) => ({
         proyectoNombre: p.proyecto.proyecto,

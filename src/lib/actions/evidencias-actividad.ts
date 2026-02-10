@@ -19,7 +19,10 @@ export async function getEvidenciasActividad(actividadId: string) {
       where: { actividadId },
       orderBy: { createdAt: 'asc' },
     });
-    return { success: true, data: evidencias };
+    return {
+      success: true,
+      data: evidencias as EvidenciaActividadData[],
+    };
   } catch (error) {
     console.error('Error al obtener evidencias:', error);
     return { success: false, error: 'Error al obtener evidencias', data: [] };
@@ -28,7 +31,12 @@ export async function getEvidenciasActividad(actividadId: string) {
 
 export async function createEvidenciaActividad(
   actividadId: string,
-  data: { url: string; publicId: string; tipo: 'image' | 'pdf'; nombreArchivo?: string }
+  data: {
+    url: string;
+    publicId: string;
+    tipo: 'image' | 'pdf';
+    nombreArchivo?: string;
+  }
 ) {
   try {
     const activity = await prisma.activity.findUnique({
@@ -49,7 +57,7 @@ export async function createEvidenciaActividad(
       },
     });
     revalidatePath('/proyectos');
-    return { success: true, data: evidencia };
+    return { success: true, data: evidencia as EvidenciaActividadData };
   } catch (error) {
     console.error('Error al crear evidencia:', error);
     return { success: false, error: 'Error al crear evidencia' };
@@ -60,17 +68,24 @@ export async function createEvidenciaActividad(
  * Elimina un asset en Cloudinary (Admin API destroy).
  * resourceType: 'image' | 'raw'
  */
-async function deleteFromCloudinary(publicId: string, resourceType: 'image' | 'raw'): Promise<boolean> {
+async function deleteFromCloudinary(
+  publicId: string,
+  resourceType: 'image' | 'raw'
+): Promise<boolean> {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   if (!cloudName || !apiKey || !apiSecret) {
-    console.warn('Cloudinary API key/secret no configurados; no se elimina el archivo en Cloudinary.');
+    console.warn(
+      'Cloudinary API key/secret no configurados; no se elimina el archivo en Cloudinary.'
+    );
     return false;
   }
   const timestamp = Math.floor(Date.now() / 1000);
   const params = `invalidate=true&public_id=${publicId}&timestamp=${timestamp}`;
-  const signature = createHash('sha1').update(params + apiSecret).digest('hex');
+  const signature = createHash('sha1')
+    .update(params + apiSecret)
+    .digest('hex');
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
   const body = new URLSearchParams({
     invalidate: 'true',

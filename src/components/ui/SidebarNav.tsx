@@ -34,13 +34,17 @@ const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el tÃ
 
 const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
 
-
 const navItemsBase = [
   { href: '/', label: 'Inicio', icon: Home },
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  { href: '/seguimiento', label: 'Meetings', icon: ClipboardCheck, rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO },
+  {
+    href: '/seguimiento',
+    label: 'Meetings',
+    icon: ClipboardCheck,
+    rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO,
+  },
   { href: '/reportes', label: 'Reportes', icon: AtSign },
 ];
 
@@ -51,7 +55,8 @@ export default function SidebarNav() {
   const activeRole = session?.user?.activeRole ?? null;
 
   const navItems = navItemsBase.filter((item) => {
-    const rolesRequeridos = 'rolesRequeridos' in item ? item.rolesRequeridos : null;
+    const rolesRequeridos =
+      'rolesRequeridos' in item ? item.rolesRequeridos : null;
     if (!rolesRequeridos) return true;
     return activeRole && rolesRequeridos.includes(activeRole);
   });

@@ -16,7 +16,12 @@ function computeResumen(
 ): ResumenPresupuesto {
   const totalMonto = items.reduce((s, i) => s + i.monto, 0);
   const totalSolicitado = items
-    .filter((i) => i.estado === 'SOLICITADO' || i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK')
+    .filter(
+      (i) =>
+        i.estado === 'SOLICITADO' ||
+        i.estado === 'EN_PEDIDO' ||
+        i.estado === 'EJECUTADO_OK'
+    )
     .reduce((s, i) => s + i.monto, 0);
   const totalEnPedido = items
     .filter((i) => i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK')

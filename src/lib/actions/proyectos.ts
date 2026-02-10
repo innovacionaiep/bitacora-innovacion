@@ -110,11 +110,11 @@ async function _getProyectosFromDB() {
           socioComunitario: true,
         },
       },
-        objetivos_rel: {
-          orderBy: {
-            orden: 'asc',
-          },
+      objetivos_rel: {
+        orderBy: {
+          orden: 'asc',
         },
+      },
       desarrolloTecnico: true,
       desarrolloTecnicoValores: {
         include: { subcategoria: true },
@@ -587,7 +587,10 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
           where: { campoKey: { not: null } },
           select: { id: true, campoKey: true },
         });
-        const dt = data.desarrolloTecnico as Record<string, string | null | undefined>;
+        const dt = data.desarrolloTecnico as Record<
+          string,
+          string | null | undefined
+        >;
         for (const sub of subcategorias) {
           const key = sub.campoKey as string;
           const valor = dt[key];
@@ -667,7 +670,10 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
-    return { success: true, data: proyectoActualizado as ProyectoWithRelations };
+    return {
+      success: true,
+      data: proyectoActualizado as ProyectoWithRelations,
+    };
   } catch (error) {
     console.error('Error updating general tab:', error);
     return { success: false, error: 'Error al actualizar el proyecto' };
@@ -737,7 +743,9 @@ export async function addParticipanteProyecto(
         email: data.email ?? null,
         cargo: data.cargo ?? null,
         socioComunitarioId:
-          data.rol === 'Beneficiario' ? data.socioComunitarioId ?? null : null,
+          data.rol === 'Beneficiario'
+            ? (data.socioComunitarioId ?? null)
+            : null,
         sedeId: data.sedeId ?? null,
         escuelaId: data.escuelaId ?? null,
       },
@@ -792,7 +800,9 @@ export async function updateParticipanteProyecto(
             finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
         }),
         ...(data.sedeId !== undefined && { sedeId: data.sedeId || null }),
-        ...(data.escuelaId !== undefined && { escuelaId: data.escuelaId || null }),
+        ...(data.escuelaId !== undefined && {
+          escuelaId: data.escuelaId || null,
+        }),
       },
     });
     const proyecto = await prisma.proyecto.findUnique({

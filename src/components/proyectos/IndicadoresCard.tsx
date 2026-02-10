@@ -115,7 +115,8 @@ export function IndicadoresCard({
                 formatoNumero: indicadorActualizado.formatoNumero,
                 fechaInicio: indicadorActualizado.fechaInicio,
                 fechaFin: indicadorActualizado.fechaFin,
-                validadoPorCoordinador: indicadorActualizado.validadoPorCoordinador,
+                validadoPorCoordinador:
+                  indicadorActualizado.validadoPorCoordinador,
                 validadoPorCoordinadorPor:
                   indicadorActualizado.validadoPorCoordinadorPor,
               });
@@ -192,53 +193,60 @@ export function IndicadoresCard({
                     fechaInicio: indicador.fechaInicio,
                     fechaFin: indicador.fechaFin,
                     validadoPorCoordinador: indicador.validadoPorCoordinador,
-                    validadoPorCoordinadorPor: indicador.validadoPorCoordinadorPor,
+                    validadoPorCoordinadorPor:
+                      indicador.validadoPorCoordinadorPor,
                   });
                 }}
-                actions={index === 0 ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                            showAgregarModal
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                          }`}
-                          onClick={() => setShowAgregarModal(true)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Agregar indicador</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                            deleteMode
-                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                          }`}
-                          onClick={() => setDeleteMode((prev) => !prev)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{deleteMode ? 'Salir del modo eliminación' : 'Eliminar indicador'}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : undefined}
+                actions={
+                  index === 0 ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                              showAgregarModal
+                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                            }`}
+                            onClick={() => setShowAgregarModal(true)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Agregar indicador</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                              deleteMode
+                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                            }`}
+                            onClick={() => setDeleteMode((prev) => !prev)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {deleteMode
+                              ? 'Salir del modo eliminación'
+                              : 'Eliminar indicador'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : undefined
+                }
                 deleteMode={deleteMode}
                 onDeleteIndicador={handleDeleteIndicador}
               />

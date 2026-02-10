@@ -7,7 +7,9 @@ const CONFIG_PATH = '/configuracion/validacion';
 
 // ----- Sedes -----
 export async function getSedes() {
-  return prisma.sede.findMany({ orderBy: [{ orden: 'asc' }, { nombre: 'asc' }] });
+  return prisma.sede.findMany({
+    orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+  });
 }
 
 export async function createSede(nombre: string, orden?: number) {
@@ -41,9 +43,14 @@ export async function updateSede(id: string, nombre: string, orden?: number) {
 
 export async function deleteSede(id: string) {
   try {
-    const enUso = await prisma.proyectoParticipante.count({ where: { sedeId: id } });
+    const enUso = await prisma.proyectoParticipante.count({
+      where: { sedeId: id },
+    });
     if (enUso > 0) {
-      return { success: false, error: 'No se puede eliminar: hay participantes que usan esta sede' };
+      return {
+        success: false,
+        error: 'No se puede eliminar: hay participantes que usan esta sede',
+      };
     }
     await prisma.sede.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
@@ -56,9 +63,15 @@ export async function deleteSede(id: string) {
 }
 
 /** Rellena la tabla Sedes con los valores distintos de Proyecto.sede que aún no existan. */
-export async function backfillSedesFromProyectos(): Promise<{ success: boolean; created?: number; error?: string }> {
+export async function backfillSedesFromProyectos(): Promise<{
+  success: boolean;
+  created?: number;
+  error?: string;
+}> {
   try {
-    const proyectos = await prisma.proyecto.findMany({ select: { sede: true } });
+    const proyectos = await prisma.proyecto.findMany({
+      select: { sede: true },
+    });
     const nombres = Array.from(
       new Set(proyectos.map((p) => p.sede?.trim()).filter(Boolean))
     ).sort();
@@ -84,7 +97,9 @@ export async function backfillSedesFromProyectos(): Promise<{ success: boolean; 
 
 // ----- Comunas -----
 export async function getComunas() {
-  return prisma.comuna.findMany({ orderBy: [{ region: 'asc' }, { nombre: 'asc' }] });
+  return prisma.comuna.findMany({
+    orderBy: [{ region: 'asc' }, { nombre: 'asc' }],
+  });
 }
 
 export async function createComuna(nombre: string, region: string) {
@@ -116,9 +131,14 @@ export async function updateComuna(id: string, nombre: string, region: string) {
 
 export async function deleteComuna(id: string) {
   try {
-    const inUse = await prisma.proyectoComuna.count({ where: { comunaId: id } });
+    const inUse = await prisma.proyectoComuna.count({
+      where: { comunaId: id },
+    });
     if (inUse > 0) {
-      return { success: false, error: 'No se puede eliminar: hay proyectos que usan esta comuna' };
+      return {
+        success: false,
+        error: 'No se puede eliminar: hay proyectos que usan esta comuna',
+      };
     }
     await prisma.comuna.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
@@ -147,7 +167,11 @@ export async function createEscuela(nombre: string, codigo: string) {
   }
 }
 
-export async function updateEscuela(id: string, nombre: string, codigo: string) {
+export async function updateEscuela(
+  id: string,
+  nombre: string,
+  codigo: string
+) {
   try {
     await prisma.escuela.update({
       where: { id },
@@ -166,9 +190,14 @@ export async function deleteEscuela(id: string) {
     const inUse =
       (await prisma.proyectoEscuela.count({ where: { escuelaId: id } })) > 0 ||
       (await prisma.carrera.count({ where: { escuelaId: id } })) > 0 ||
-      (await prisma.proyectoParticipante.count({ where: { escuelaId: id } })) > 0;
+      (await prisma.proyectoParticipante.count({ where: { escuelaId: id } })) >
+        0;
     if (inUse) {
-      return { success: false, error: 'No se puede eliminar: hay proyectos, carreras o participantes que usan esta escuela' };
+      return {
+        success: false,
+        error:
+          'No se puede eliminar: hay proyectos, carreras o participantes que usan esta escuela',
+      };
     }
     await prisma.escuela.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
@@ -200,7 +229,11 @@ export async function createCarrera(nombre: string, escuelaId: string | null) {
   }
 }
 
-export async function updateCarrera(id: string, nombre: string, escuelaId: string | null) {
+export async function updateCarrera(
+  id: string,
+  nombre: string,
+  escuelaId: string | null
+) {
   try {
     await prisma.carrera.update({
       where: { id },
@@ -216,9 +249,14 @@ export async function updateCarrera(id: string, nombre: string, escuelaId: strin
 
 export async function deleteCarrera(id: string) {
   try {
-    const inUse = await prisma.proyectoCarrera.count({ where: { carreraId: id } });
+    const inUse = await prisma.proyectoCarrera.count({
+      where: { carreraId: id },
+    });
     if (inUse > 0) {
-      return { success: false, error: 'No se puede eliminar: hay proyectos que usan esta carrera' };
+      return {
+        success: false,
+        error: 'No se puede eliminar: hay proyectos que usan esta carrera',
+      };
     }
     await prisma.carrera.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
@@ -247,7 +285,11 @@ export async function createGrupoInteres(nombre: string, descripcion?: string) {
   }
 }
 
-export async function updateGrupoInteres(id: string, nombre: string, descripcion?: string) {
+export async function updateGrupoInteres(
+  id: string,
+  nombre: string,
+  descripcion?: string
+) {
   try {
     await prisma.grupoInteres.update({
       where: { id },
@@ -263,9 +305,14 @@ export async function updateGrupoInteres(id: string, nombre: string, descripcion
 
 export async function deleteGrupoInteres(id: string) {
   try {
-    const inUse = await prisma.proyectoGrupoInteres.count({ where: { grupoInteresId: id } });
+    const inUse = await prisma.proyectoGrupoInteres.count({
+      where: { grupoInteresId: id },
+    });
     if (inUse > 0) {
-      return { success: false, error: 'No se puede eliminar: hay proyectos que usan este grupo' };
+      return {
+        success: false,
+        error: 'No se puede eliminar: hay proyectos que usan este grupo',
+      };
     }
     await prisma.grupoInteres.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);

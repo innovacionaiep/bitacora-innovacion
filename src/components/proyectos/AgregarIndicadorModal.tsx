@@ -77,21 +77,33 @@ export function AgregarIndicadorModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.objetivoEspecificoId || !form.nombre.trim() || !form.descripcion.trim() || !form.formaCalculo.trim() || !form.resultadoEsperado.trim()) {
-      alert('Complete los campos obligatorios: Objetivo específico, Nombre, Descripción, Forma de cálculo y Resultado esperado.');
+    if (
+      !form.objetivoEspecificoId ||
+      !form.nombre.trim() ||
+      !form.descripcion.trim() ||
+      !form.formaCalculo.trim() ||
+      !form.resultadoEsperado.trim()
+    ) {
+      alert(
+        'Complete los campos obligatorios: Objetivo específico, Nombre, Descripción, Forma de cálculo y Resultado esperado.'
+      );
       return;
     }
     setIsSaving(true);
     try {
-      const result = await createIndicador(proyectoId, form.objetivoEspecificoId, {
-        nombre: form.nombre.trim(),
-        descripcion: form.descripcion.trim(),
-        formaCalculo: form.formaCalculo.trim(),
-        resultadoEsperado: form.resultadoEsperado.trim(),
-        formatoNumero: form.formatoNumero || null,
-        fechaInicio: form.fechaInicio.trim() || null,
-        fechaFin: form.fechaFin.trim() || null,
-      });
+      const result = await createIndicador(
+        proyectoId,
+        form.objetivoEspecificoId,
+        {
+          nombre: form.nombre.trim(),
+          descripcion: form.descripcion.trim(),
+          formaCalculo: form.formaCalculo.trim(),
+          resultadoEsperado: form.resultadoEsperado.trim(),
+          formatoNumero: form.formatoNumero || null,
+          fechaInicio: form.fechaInicio.trim() || null,
+          fechaFin: form.fechaFin.trim() || null,
+        }
+      );
       if (result.success) {
         resetForm();
         onClose();
@@ -225,9 +237,7 @@ export function AgregarIndicadorModal({
                 id="fechaFin"
                 type="date"
                 value={form.fechaFin}
-                onChange={(e) =>
-                  setForm({ ...form, fechaFin: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
                 className="mt-1"
               />
             </div>

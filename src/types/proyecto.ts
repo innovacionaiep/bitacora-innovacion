@@ -51,7 +51,7 @@ export type ProyectoWithRelations = Proyecto & {
   desarrolloTecnicoValores?: (DesarrolloTecnicoValor & {
     subcategoria?: DesarrolloTecnicoSubcategoria;
   })[];
-}
+};
 
 // Tipo extendido con variaciones mensuales para el dashboard
 export type ProyectoConVariaciones = ProyectoWithRelations & {

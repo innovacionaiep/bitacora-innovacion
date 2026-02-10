@@ -9,8 +9,7 @@ const VOSK_MODEL_URL =
     : '/vosk-model/model.tar.gz';
 
 let cachedModel: Awaited<ReturnType<typeof createModel>> | null = null;
-let loadPromise: Promise<Awaited<ReturnType<typeof createModel>>> | null =
-  null;
+let loadPromise: Promise<Awaited<ReturnType<typeof createModel>>> | null = null;
 
 /**
  * Preloads the Vosk model in the background. Call when the user enters the
@@ -27,9 +26,9 @@ export function preloadVoskModel(): void {
 /**
  * Returns the Vosk model, loading it if necessary.
  */
-export async function getVoskModel(): Promise<Awaited<
-  ReturnType<typeof createModel>
->> {
+export async function getVoskModel(): Promise<
+  Awaited<ReturnType<typeof createModel>>
+> {
   if (cachedModel) return cachedModel;
   if (!loadPromise) loadPromise = createModel(VOSK_MODEL_URL, -1);
   const model = await loadPromise;

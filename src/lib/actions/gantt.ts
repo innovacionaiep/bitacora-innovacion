@@ -7,11 +7,19 @@ import { createHistorialEntry } from './historial';
 import { getSession } from '@/lib/auth-utils';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateActivityInput = Omit<
+  ActivityData,
+  'validadoPorCoordinador' | 'validadoPorCoordinadorId'
+>;
 export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
 export type ActivityWithTasks = Activity & {
   tasks: Task[];
-  validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null;
+  validadoPorCoordinadorPor?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null;
 };
 
 /**
@@ -46,7 +54,7 @@ export async function getActivities(projectId: string) {
 /**
  * Crear una nueva actividad
  */
-export async function createActivity(data: ActivityData) {
+export async function createActivity(data: CreateActivityInput) {
   try {
     // Verificar que el proyecto existe
     const project = await prisma.proyecto.findUnique({
@@ -136,7 +144,10 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
 /**
  * Verificar si el usuario es coordinador del proyecto
  */
-async function isCoordinatorOfProject(userId: string, projectId: string): Promise<boolean> {
+async function isCoordinatorOfProject(
+  userId: string,
+  projectId: string
+): Promise<boolean> {
   const participante = await prisma.proyectoParticipante.findFirst({
     where: {
       proyectoId: projectId,
@@ -162,7 +173,9 @@ export async function toggleActivityValidation(activityId: string) {
       where: { id: activityId },
       include: {
         tasks: true,
-        validadoPorCoordinadorPor: { select: { id: true, name: true, image: true } },
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
       },
     });
 
@@ -170,15 +183,25 @@ export async function toggleActivityValidation(activityId: string) {
       return { success: false, error: 'Actividad no encontrada' };
     }
 
-    const isCoordinator = await isCoordinatorOfProject(session.user.id, activity.projectId);
+    const isCoordinator = await isCoordinatorOfProject(
+      session.user.id,
+      activity.projectId
+    );
     if (!isCoordinator) {
-      return { success: false, error: 'Solo los coordinadores del proyecto pueden validar actividades' };
+      return {
+        success: false,
+        error: 'Solo los coordinadores del proyecto pueden validar actividades',
+      };
     }
 
     const allTasksCompleted =
       activity.tasks.length > 0 && activity.tasks.every((t) => t.completed);
     if (!allTasksCompleted && !activity.validadoPorCoordinador) {
-      return { success: false, error: 'La actividad debe tener todas las tareas completadas para poder validar' };
+      return {
+        success: false,
+        error:
+          'La actividad debe tener todas las tareas completadas para poder validar',
+      };
     }
 
     const newValidado = !activity.validadoPorCoordinador;
@@ -190,7 +213,9 @@ export async function toggleActivityValidation(activityId: string) {
       },
       include: {
         tasks: true,
-        validadoPorCoordinadorPor: { select: { id: true, name: true, image: true } },
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
       },
     });
 

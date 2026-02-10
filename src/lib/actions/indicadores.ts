@@ -686,14 +686,23 @@ export async function toggleIndicadorValidation(indicadorId: string) {
     fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location: 'indicadores.ts:toggleIndicadorValidation', message: msg, data, timestamp: Date.now() }),
+      body: JSON.stringify({
+        location: 'indicadores.ts:toggleIndicadorValidation',
+        message: msg,
+        data,
+        timestamp: Date.now(),
+      }),
     }).catch(() => {});
   };
   // #endregion
   try {
     const session = await getSession();
     // #region agent log
-    _log('session check', { hasSession: !!session, hasUser: !!session?.user, userId: session?.user?.id ?? null });
+    _log('session check', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id ?? null,
+    });
     // #endregion
     if (!session?.user?.id) {
       return { success: false, error: 'Debes iniciar sesión' };
@@ -709,7 +718,10 @@ export async function toggleIndicadorValidation(indicadorId: string) {
     });
 
     // #region agent log
-    _log('indicador found', { found: !!indicador, proyectoId: indicador?.proyectoId });
+    _log('indicador found', {
+      found: !!indicador,
+      proyectoId: indicador?.proyectoId,
+    });
     // #endregion
     if (!indicador) {
       return { success: false, error: 'Indicador no encontrado' };
@@ -720,7 +732,11 @@ export async function toggleIndicadorValidation(indicadorId: string) {
       indicador.proyectoId
     );
     // #region agent log
-    _log('coordinator check', { isCoordinator, userId: session.user.id, proyectoId: indicador.proyectoId });
+    _log('coordinator check', {
+      isCoordinator,
+      userId: session.user.id,
+      proyectoId: indicador.proyectoId,
+    });
     // #endregion
     if (!isCoordinator) {
       return {
@@ -729,12 +745,16 @@ export async function toggleIndicadorValidation(indicadorId: string) {
       };
     }
 
-    const resultadoEsperado = parseFloat(
-      String(indicador.resultadoEsperado).replace(/%/g, '').replace(/,/g, '.')
-    ) || 0;
-    const resultadoAlcanzado = parseFloat(
-      String(indicador.resultadoAlcanzado).replace(/%/g, '').replace(/,/g, '.')
-    ) || 0;
+    const resultadoEsperado =
+      parseFloat(
+        String(indicador.resultadoEsperado).replace(/%/g, '').replace(/,/g, '.')
+      ) || 0;
+    const resultadoAlcanzado =
+      parseFloat(
+        String(indicador.resultadoAlcanzado)
+          .replace(/%/g, '')
+          .replace(/,/g, '.')
+      ) || 0;
     const cumplimiento100 =
       resultadoEsperado > 0 &&
       (resultadoAlcanzado / resultadoEsperado) * 100 >= 100;

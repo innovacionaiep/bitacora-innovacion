@@ -28,7 +28,11 @@ export async function createCategoria(nombre: string, orden: number) {
   }
 }
 
-export async function updateCategoria(id: string, nombre: string, orden: number) {
+export async function updateCategoria(
+  id: string,
+  nombre: string,
+  orden: number
+) {
   try {
     await prisma.desarrolloTecnicoCategoria.update({
       where: { id },
@@ -81,14 +85,21 @@ export async function createSubcategoria(
 
 export async function updateSubcategoria(
   id: string,
-  data: { nombre?: string; categoriaId?: string; icono?: string; orden?: number }
+  data: {
+    nombre?: string;
+    categoriaId?: string;
+    icono?: string;
+    orden?: number;
+  }
 ) {
   try {
     await prisma.desarrolloTecnicoSubcategoria.update({
       where: { id },
       data: {
         ...(data.nombre !== undefined && { nombre: data.nombre.trim() }),
-        ...(data.categoriaId !== undefined && { categoriaId: data.categoriaId }),
+        ...(data.categoriaId !== undefined && {
+          categoriaId: data.categoriaId,
+        }),
         ...(data.icono !== undefined && { icono: data.icono }),
         ...(data.orden !== undefined && { orden: data.orden }),
       },

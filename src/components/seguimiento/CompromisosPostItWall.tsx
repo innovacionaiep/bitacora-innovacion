@@ -19,18 +19,22 @@ import {
   toggleCompromiso,
   toggleValidacionCompromiso,
 } from '@/lib/actions/seguimiento';
-import { Plus, Loader2, ClipboardCheck, CircleAlert, CheckCircle, BadgeCheck } from 'lucide-react';
+import {
+  Plus,
+  Loader2,
+  ClipboardCheck,
+  CircleAlert,
+  CheckCircle,
+  BadgeCheck,
+} from 'lucide-react';
 
 type CompromisoItem = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosProyecto>
 >['data'][number];
 
-const POST_IT_ROJO =
-  'bg-red-100 border-red-300 shadow-red-200/50';
-const POST_IT_AMARILLO =
-  'bg-amber-100 border-amber-300 shadow-amber-200/50';
-const POST_IT_VERDE =
-  'bg-emerald-100 border-emerald-400 shadow-emerald-300/50';
+const POST_IT_ROJO = 'bg-red-100 border-red-300 shadow-red-200/50';
+const POST_IT_AMARILLO = 'bg-amber-100 border-amber-300 shadow-amber-200/50';
+const POST_IT_VERDE = 'bg-emerald-100 border-emerald-400 shadow-emerald-300/50';
 
 /** Clase de la tarjeta según estado: pendiente (rojo), realizado (amarillo), validado (verde). */
 function getPostItClass(compromiso: CompromisoItem): string {
@@ -40,11 +44,7 @@ function getPostItClass(compromiso: CompromisoItem): string {
 }
 
 /** Icono y etiqueta de estado para la tarjeta (esquina superior derecha). */
-function EstadoIcon({
-  compromiso,
-}: {
-  compromiso: CompromisoItem;
-}) {
+function EstadoIcon({ compromiso }: { compromiso: CompromisoItem }) {
   const isValidado = compromiso.validadoPorCoordinador;
   const isRealizado = compromiso.completado;
   if (isValidado) {
@@ -241,24 +241,31 @@ export function CompromisosPostItWall({
         <div className="flex-1 overflow-auto min-h-0 p-4">
           {compromisos.length === 0 ? (
             <div className="text-center py-8 rounded-lg bg-gray-50/50">
-                <p className="text-sm text-gray-500">
-                  No hay compromisos pendientes
-                </p>
-                {isCoordinadorOrAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    Agregar primer compromiso
-                  </Button>
-                )}
+              <p className="text-sm text-gray-500">
+                No hay compromisos pendientes
+              </p>
+              {isCoordinadorOrAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  Agregar primer compromiso
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
-                {compromisos.filter(compromiso => compromiso.descripcion && compromiso.descripcion.trim()).map((compromiso) => {
-                  const titulo = compromiso.titulo?.trim() || tituloDeDescripcion(compromiso.descripcion);
+              {compromisos
+                .filter(
+                  (compromiso) =>
+                    compromiso.descripcion && compromiso.descripcion.trim()
+                )
+                .map((compromiso) => {
+                  const titulo =
+                    compromiso.titulo?.trim() ||
+                    tituloDeDescripcion(compromiso.descripcion);
 
                   return (
                     <div
@@ -283,7 +290,8 @@ export function CompromisosPostItWall({
                           }`}
                           title={compromiso.descripcion}
                         >
-                          {compromiso.titulo?.trim() || tituloDeDescripcion(compromiso.descripcion)}
+                          {compromiso.titulo?.trim() ||
+                            tituloDeDescripcion(compromiso.descripcion)}
                         </p>
                         <EstadoIcon compromiso={compromiso} />
                       </div>
@@ -341,18 +349,25 @@ export function CompromisosPostItWall({
 
       {/* Popup detalle del compromiso (mismo diseño que crear) */}
       {selectedCompromiso && detailModalOpen && (
-        <Dialog open={true} onOpenChange={(open) => !open && handleCloseDetail()}>
-          <DialogContent className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}>
+        <Dialog
+          open={true}
+          onOpenChange={(open) => !open && handleCloseDetail()}
+        >
+          <DialogContent
+            className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}
+          >
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ClipboardCheck className={`h-5 w-5 ${
-                    selectedCompromiso.validadoPorCoordinador
-                      ? 'text-emerald-600'
-                      : selectedCompromiso.completado
-                      ? 'text-amber-600'
-                      : 'text-red-600'
-                  }`} />
+                  <ClipboardCheck
+                    className={`h-5 w-5 ${
+                      selectedCompromiso.validadoPorCoordinador
+                        ? 'text-emerald-600'
+                        : selectedCompromiso.completado
+                          ? 'text-amber-600'
+                          : 'text-red-600'
+                    }`}
+                  />
                   {isEditingCompromiso ? (
                     <Input
                       value={editTitulo}
@@ -362,12 +377,16 @@ export function CompromisosPostItWall({
                         selectedCompromiso.validadoPorCoordinador
                           ? 'bg-emerald-100 border-emerald-400'
                           : selectedCompromiso.completado
-                          ? 'bg-amber-100 border-amber-300'
-                          : 'bg-red-100 border-red-300'
+                            ? 'bg-amber-100 border-amber-300'
+                            : 'bg-red-100 border-red-300'
                       }`}
                     />
                   ) : (
-                    selectedCompromiso.titulo?.trim() || tituloDeDescripcion(selectedCompromiso.descripcion || '', 50)
+                    selectedCompromiso.titulo?.trim() ||
+                    tituloDeDescripcion(
+                      selectedCompromiso.descripcion || '',
+                      50
+                    )
                   )}
                 </div>
                 <EstadoIcon compromiso={selectedCompromiso} />
@@ -464,8 +483,10 @@ export function CompromisosPostItWall({
                     disabled={
                       !editDescripcion.trim() ||
                       savingEdit ||
-                      (editDescripcion.trim() === selectedCompromiso.descripcion &&
-                        (editTitulo.trim() || null) === (selectedCompromiso.titulo ?? null))
+                      (editDescripcion.trim() ===
+                        selectedCompromiso.descripcion &&
+                        (editTitulo.trim() || null) ===
+                          (selectedCompromiso.titulo ?? null))
                     }
                     className="bg-emerald-600 hover:bg-emerald-700"
                   >
@@ -503,7 +524,7 @@ export function CompromisosPostItWall({
               Nuevo compromiso
             </DialogTitle>
           </DialogHeader>
-            <div className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-gray-500 text-xs uppercase tracking-wide">
                 Título

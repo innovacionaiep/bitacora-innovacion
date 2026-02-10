@@ -22,9 +22,7 @@ const HISTORIAL_LIMIT = 10;
 /**
  * Obtiene todos los datos del tab Resumen del proyecto (mismo contenido que la página).
  */
-export async function getDatosResumenProyecto(
-  proyectoId: string
-): Promise<{
+export async function getDatosResumenProyecto(proyectoId: string): Promise<{
   success: boolean;
   data?: DatosResumenProyecto;
   error?: string;
@@ -81,7 +79,8 @@ export async function getDatosResumenProyecto(
     };
   }
 
-  const reuniones = reunionesResult.success && reunionesResult.data ? reunionesResult.data : [];
+  const reuniones =
+    reunionesResult.success && reunionesResult.data ? reunionesResult.data : [];
   const oportunidadesAmenazas =
     oportunidadesResult.success && oportunidadesResult.data
       ? oportunidadesResult.data

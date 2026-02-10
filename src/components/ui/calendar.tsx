@@ -238,9 +238,7 @@ export function Calendar({
         <div
           className={cn(
             'absolute z-50 rounded-lg border bg-white shadow-lg',
-            compact
-              ? 'w-56 left-0 top-full mt-1'
-              : 'w-80'
+            compact ? 'w-56 left-0 top-full mt-1' : 'w-80'
           )}
           style={
             compact
@@ -279,7 +277,11 @@ export function Calendar({
               >
                 {CHILE_LOCALE.months[currentMonth.getMonth()]}
               </h3>
-              <div className={compact ? 'text-xs text-gray-500' : 'text-sm text-gray-500'}>
+              <div
+                className={
+                  compact ? 'text-xs text-gray-500' : 'text-sm text-gray-500'
+                }
+              >
                 {currentMonth.getFullYear()}
               </div>
             </div>

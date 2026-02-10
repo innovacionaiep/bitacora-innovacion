@@ -36,7 +36,20 @@ interface GastoPresupuestoModalProps {
   onUpdate?: () => Promise<void>;
 }
 
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTHS = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
 
 export function GastoPresupuestoModal({
   gasto,
@@ -44,7 +57,9 @@ export function GastoPresupuestoModal({
   onUpdate,
 }: GastoPresupuestoModalProps) {
   const { data: session } = useSession();
-  const [comentarios, setComentarios] = useState<ComentarioItemPresupuestoData[]>([]);
+  const [comentarios, setComentarios] = useState<
+    ComentarioItemPresupuestoData[]
+  >([]);
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [isLoadingComentarios, setIsLoadingComentarios] = useState(false);
   const [isEnviandoComentario, setIsEnviandoComentario] = useState(false);
@@ -95,9 +110,10 @@ export function GastoPresupuestoModal({
     .filter((p) => p.mes > 0)
     .map((p) => p.mes)
     .sort((a, b) => a - b);
-  const mesesTexto = mesesEjecucion.length > 0
-    ? mesesEjecucion.map((mes) => MONTHS[mes - 1]).join(', ')
-    : 'No definido';
+  const mesesTexto =
+    mesesEjecucion.length > 0
+      ? mesesEjecucion.map((mes) => MONTHS[mes - 1]).join(', ')
+      : 'No definido';
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -144,9 +160,11 @@ export function GastoPresupuestoModal({
                     Cuenta
                   </h3>
                   <p className="text-gray-700 text-base">
-                    {gasto.cuenta === 'RRHH' ? 'RRHH' :
-                     gasto.cuenta === 'OPERACION' ? 'Operación' :
-                     'Inversión'}
+                    {gasto.cuenta === 'RRHH'
+                      ? 'RRHH'
+                      : gasto.cuenta === 'OPERACION'
+                        ? 'Operación'
+                        : 'Inversión'}
                   </p>
                 </div>
                 <div>
@@ -172,9 +190,7 @@ export function GastoPresupuestoModal({
                 <h3 className="font-semibold text-gray-900 text-base mb-2">
                   Mes de ejecución
                 </h3>
-                <p className="text-gray-700 text-base">
-                  {mesesTexto}
-                </p>
+                <p className="text-gray-700 text-base">{mesesTexto}</p>
               </div>
 
               {/* IDs administrativos */}

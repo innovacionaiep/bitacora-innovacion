@@ -19,7 +19,10 @@ export async function getEvidenciasIndicador(indicadorId: string) {
       where: { indicadorId },
       orderBy: { createdAt: 'asc' },
     });
-    return { success: true, data: evidencias };
+    return {
+      success: true,
+      data: evidencias as EvidenciaIndicadorData[],
+    };
   } catch (error) {
     console.error('Error al obtener evidencias del indicador:', error);
     return { success: false, error: 'Error al obtener evidencias', data: [] };
@@ -28,7 +31,12 @@ export async function getEvidenciasIndicador(indicadorId: string) {
 
 export async function createEvidenciaIndicador(
   indicadorId: string,
-  data: { url: string; publicId: string; tipo: 'image' | 'pdf'; nombreArchivo?: string }
+  data: {
+    url: string;
+    publicId: string;
+    tipo: 'image' | 'pdf';
+    nombreArchivo?: string;
+  }
 ) {
   try {
     const indicador = await prisma.indicador.findUnique({
@@ -49,7 +57,7 @@ export async function createEvidenciaIndicador(
       },
     });
     revalidatePath('/proyectos');
-    return { success: true, data: evidencia };
+    return { success: true, data: evidencia as EvidenciaIndicadorData };
   } catch (error) {
     console.error('Error al crear evidencia del indicador:', error);
     return { success: false, error: 'Error al crear evidencia' };
@@ -68,7 +76,9 @@ async function deleteFromCloudinary(
   }
   const timestamp = Math.floor(Date.now() / 1000);
   const params = `invalidate=true&public_id=${publicId}&timestamp=${timestamp}`;
-  const signature = createHash('sha1').update(params + apiSecret).digest('hex');
+  const signature = createHash('sha1')
+    .update(params + apiSecret)
+    .digest('hex');
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
   const body = new URLSearchParams({
     invalidate: 'true',

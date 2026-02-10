@@ -34,14 +34,24 @@ export type DatosResumenProyecto = {
     elementoEspecifico: string;
     cambioGenerado: string;
     fecha: Date;
-    user: { id: string; name: string | null; email: string; image: string | null };
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+      image: string | null;
+    };
   }>;
   activities: Array<{
     id: string;
     name: string;
     progress: number;
     status: string;
-    tasks: Array<{ id: string; name: string; endDate: Date | string; completed: boolean }>;
+    tasks: Array<{
+      id: string;
+      name: string;
+      endDate: Date | string;
+      completed: boolean;
+    }>;
   }>;
   resumenPresupuesto: ResumenPresupuesto;
   reuniones: Array<{ id: string; fecha: Date }>;
@@ -146,20 +156,21 @@ export async function getReporteResumenInlineAttachments(): Promise<
 > {
   try {
     const sharp = (await import('sharp')).default;
-    const result: Array<{ filename: string; content: Buffer; cid: string }> = [];
+    const result: Array<{ filename: string; content: Buffer; cid: string }> =
+      [];
     for (const name of REPORTE_ICON_NAMES) {
       const svg = iconSvg(name, 24, ICON_COLOR);
       const png = await sharp(Buffer.from(svg, 'utf-8'))
         .resize(24, 24)
         .png()
         .toBuffer();
-    result.push({
-      filename: `${name}.png`,
-      content: png,
-      cid: iconCid(name),
-    });
-  }
-  return result;
+      result.push({
+        filename: `${name}.png`,
+        content: png,
+        cid: iconCid(name),
+      });
+    }
+    return result;
   } catch {
     return REPORTE_ICON_NAMES.map((name) => ({
       filename: `${name}.svg`,
@@ -170,7 +181,8 @@ export async function getReporteResumenInlineAttachments(): Promise<
 }
 
 const LUCIDE_ICONS: Record<string, string> = {
-  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'file-text':
+    '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   'chart-column':
     '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   'dollar-sign':
@@ -476,7 +488,7 @@ export function buildHtmlReporteProyecto(datos: DatosReporteProyecto): string {
  */
 export function buildHtmlReporteResumen(
   datos: DatosResumenProyecto,
-  options?: { baseUrl?: string }
+  options?: { baseUrl?: string; useCid?: boolean }
 ): string {
   const {
     proyecto,
@@ -758,7 +770,7 @@ export function buildHtmlReporteResumen(
   } else {
     compromisos.forEach((c) => {
       const titulo =
-        c.titulo ?? (c.descripcion?.substring(0, 60) ?? 'Sin título');
+        c.titulo ?? c.descripcion?.substring(0, 60) ?? 'Sin título';
       const completado = c.completado;
       html += `
       <div style="padding: 6px 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px;">

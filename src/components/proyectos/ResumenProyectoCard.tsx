@@ -109,8 +109,7 @@ export function ResumenProyectoCard({
       .then(([rRes, oaRes, cRes, hRes]) => {
         if (cancelled) return;
         if (rRes.success && rRes.data) setReuniones(rRes.data);
-        if (oaRes.success && oaRes.data)
-          setOportunidadesAmenazas(oaRes.data);
+        if (oaRes.success && oaRes.data) setOportunidadesAmenazas(oaRes.data);
         if (cRes.success && cRes.data) setCompromisos(cRes.data);
         if (hRes.success && hRes.data) setHistorial(hRes.data);
       })
@@ -122,8 +121,7 @@ export function ResumenProyectoCard({
     };
   }, [projectId]);
 
-  const loadingAvances =
-    loadingGantt || loadingPresupuesto;
+  const loadingAvances = loadingGantt || loadingPresupuesto;
   const pctActividades = useMemo(() => {
     if (!activities.length) return 0;
     const sum = activities.reduce((s, a) => s + a.progress, 0);
@@ -219,7 +217,7 @@ export function ResumenProyectoCard({
       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pt-4">
         <div className="flex flex-col items-center pb-6">
           <div className="w-full max-w-[800px] space-y-6">
-          {/* 1. Información General */}
+            {/* 1. Información General */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-1.5 flex items-center space-x-2.5 border-b border-gray-200">
                 <FileText className="h-5 w-5 text-emerald-600" />
@@ -277,21 +275,21 @@ export function ResumenProyectoCard({
                       </h4>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {project.escuelas?.length
-                        ? project.escuelas.map((rel, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="secondary"
-                              className="text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200"
-                            >
-                              {rel.escuela.nombre}
-                            </Badge>
-                          ))
-                        : (
-                          <span className="text-xs text-gray-500">
-                            Sin escuelas asignadas
-                          </span>
-                        )}
+                      {project.escuelas?.length ? (
+                        project.escuelas.map((rel, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="secondary"
+                            className="text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200"
+                          >
+                            {rel.escuela.nombre}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">
+                          Sin escuelas asignadas
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -305,8 +303,7 @@ export function ResumenProyectoCard({
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {encargados.map((p) => {
-                        const nombre =
-                          p.user?.name ?? p.nombre ?? 'Sin nombre';
+                        const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
                         const cargo = p.cargo ?? '';
                         return (
                           <div
@@ -330,8 +327,7 @@ export function ResumenProyectoCard({
                         );
                       })}
                       {coordinadores.map((p) => {
-                        const nombre =
-                          p.user?.name ?? p.nombre ?? 'Sin nombre';
+                        const nombre = p.user?.name ?? p.nombre ?? 'Sin nombre';
                         const cargo = p.cargo ?? '';
                         return (
                           <div
@@ -354,18 +350,19 @@ export function ResumenProyectoCard({
                           </div>
                         );
                       })}
-                      {encargados.length === 0 && coordinadores.length === 0 && (
-                        <span className="text-xs text-gray-500 py-1.5 block">
-                          No hay encargados ni coordinadores
-                        </span>
-                      )}
+                      {encargados.length === 0 &&
+                        coordinadores.length === 0 && (
+                          <span className="text-xs text-gray-500 py-1.5 block">
+                            No hay encargados ni coordinadores
+                          </span>
+                        )}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-          {/* 2. Avances */}
+            {/* 2. Avances */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-1.5 flex items-center space-x-2.5 border-b border-gray-200">
                 <BarChart3 className="h-5 w-5 text-emerald-600" />
@@ -384,7 +381,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-          {/* 3. Presupuesto */}
+            {/* 3. Presupuesto */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <DollarSign className="h-5 w-5 text-emerald-600" />
@@ -402,29 +399,72 @@ export function ResumenProyectoCard({
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-100">
-                          <TableHead className="font-semibold">Cuenta</TableHead>
-                          <TableHead className="font-semibold text-right">Monto</TableHead>
-                          <TableHead className="font-semibold text-right">Solicitado</TableHead>
-                          <TableHead className="font-semibold text-right">En pedido</TableHead>
-                          <TableHead className="font-semibold text-right">Ejecutado</TableHead>
+                          <TableHead className="font-semibold">
+                            Cuenta
+                          </TableHead>
+                          <TableHead className="font-semibold text-right">
+                            Monto
+                          </TableHead>
+                          <TableHead className="font-semibold text-right">
+                            Solicitado
+                          </TableHead>
+                          <TableHead className="font-semibold text-right">
+                            En pedido
+                          </TableHead>
+                          <TableHead className="font-semibold text-right">
+                            Ejecutado
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {resumenPorCuenta.porCuenta?.map((row) => (
-                          <TableRow key={row.cuenta} className="odd:bg-gray-50/50">
-                            <TableCell className="font-medium text-sm">{CUENTA_LABEL[row.cuenta]}</TableCell>
-                            <TableCell className="text-right text-sm tabular-nums">${row.monto.toLocaleString('es-CL')}</TableCell>
-                            <TableCell className="text-right text-sm tabular-nums">${row.montoSolicitado.toLocaleString('es-CL')}</TableCell>
-                            <TableCell className="text-right text-sm tabular-nums">${row.montoEnPedido.toLocaleString('es-CL')}</TableCell>
-                            <TableCell className="text-right text-sm tabular-nums">${row.montoEjecutado.toLocaleString('es-CL')}</TableCell>
+                          <TableRow
+                            key={row.cuenta}
+                            className="odd:bg-gray-50/50"
+                          >
+                            <TableCell className="font-medium text-sm">
+                              {CUENTA_LABEL[row.cuenta]}
+                            </TableCell>
+                            <TableCell className="text-right text-sm tabular-nums">
+                              ${row.monto.toLocaleString('es-CL')}
+                            </TableCell>
+                            <TableCell className="text-right text-sm tabular-nums">
+                              ${row.montoSolicitado.toLocaleString('es-CL')}
+                            </TableCell>
+                            <TableCell className="text-right text-sm tabular-nums">
+                              ${row.montoEnPedido.toLocaleString('es-CL')}
+                            </TableCell>
+                            <TableCell className="text-right text-sm tabular-nums">
+                              ${row.montoEjecutado.toLocaleString('es-CL')}
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-gray-100 font-semibold">
                           <TableCell className="text-sm">TOTALES</TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">${(resumenPorCuenta.totalMonto ?? 0).toLocaleString('es-CL')}</TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">${(resumenPorCuenta.totalSolicitado ?? 0).toLocaleString('es-CL')}</TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">${(resumenPorCuenta.totalEnPedido ?? 0).toLocaleString('es-CL')}</TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">${(resumenPorCuenta.totalEjecutado ?? 0).toLocaleString('es-CL')}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">
+                            $
+                            {(resumenPorCuenta.totalMonto ?? 0).toLocaleString(
+                              'es-CL'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">
+                            $
+                            {(
+                              resumenPorCuenta.totalSolicitado ?? 0
+                            ).toLocaleString('es-CL')}
+                          </TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">
+                            $
+                            {(
+                              resumenPorCuenta.totalEnPedido ?? 0
+                            ).toLocaleString('es-CL')}
+                          </TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">
+                            $
+                            {(
+                              resumenPorCuenta.totalEjecutado ?? 0
+                            ).toLocaleString('es-CL')}
+                          </TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -433,7 +473,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-          {/* 4. Indicadores */}
+            {/* 4. Indicadores */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <Target className="h-5 w-5 text-emerald-600" />
@@ -447,22 +487,32 @@ export function ResumenProyectoCard({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : indicadoresFlat.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-2">No hay indicadores</p>
+                  <p className="text-sm text-gray-500 py-2">
+                    No hay indicadores
+                  </p>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-100">
-                          <TableHead className="font-semibold">Nombre indicador</TableHead>
-                          <TableHead className="font-semibold">Resultado alcanzado</TableHead>
+                          <TableHead className="font-semibold">
+                            Nombre indicador
+                          </TableHead>
+                          <TableHead className="font-semibold">
+                            Resultado alcanzado
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {indicadoresFlat.map((ind, idx) => (
                           <TableRow key={idx} className="odd:bg-gray-50/50">
-                            <TableCell className="text-sm">{ind.nombre}</TableCell>
+                            <TableCell className="text-sm">
+                              {ind.nombre}
+                            </TableCell>
                             <TableCell className="text-sm text-gray-700">
-                              {ind.resultadoAlcanzado.trim() ? ind.resultadoAlcanzado : 'Sin registrar'}
+                              {ind.resultadoAlcanzado.trim()
+                                ? ind.resultadoAlcanzado
+                                : 'Sin registrar'}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -473,7 +523,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-          {/* 5. Actividades */}
+            {/* 5. Actividades */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <ListChecks className="h-5 w-5 text-emerald-600" />
@@ -487,22 +537,36 @@ export function ResumenProyectoCard({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : activities.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-2">No hay actividades</p>
+                  <p className="text-sm text-gray-500 py-2">
+                    No hay actividades
+                  </p>
                 ) : (
                   <ul className="space-y-2">
                     {activities.map((act) => {
                       const fueraDePlazo = isActivityFueraDePlazo(act);
-                      const statusLabel = ACTIVITY_STATUS_LABEL[act.status as ActivityStatus] ?? act.status;
+                      const statusLabel =
+                        ACTIVITY_STATUS_LABEL[act.status as ActivityStatus] ??
+                        act.status;
                       return (
                         <li
                           key={act.id}
                           className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
                         >
-                          <span className="text-sm text-gray-900 truncate flex-1 min-w-0">{act.name}</span>
+                          <span className="text-sm text-gray-900 truncate flex-1 min-w-0">
+                            {act.name}
+                          </span>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <Badge variant="secondary" className="text-xs font-normal">{statusLabel}</Badge>
+                            <Badge
+                              variant="secondary"
+                              className="text-xs font-normal"
+                            >
+                              {statusLabel}
+                            </Badge>
                             {fueraDePlazo && (
-                              <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200">
+                              <Badge
+                                variant="destructive"
+                                className="text-xs bg-red-100 text-red-800 border-red-200"
+                              >
                                 Fuera de plazo
                               </Badge>
                             )}
@@ -515,7 +579,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-          {/* 6. Seguimiento (Reuniones, Oportunidades y amenazas, Compromisos) */}
+            {/* 6. Seguimiento (Reuniones, Oportunidades y amenazas, Compromisos) */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <Calendar className="h-5 w-5 text-emerald-600" />
@@ -536,13 +600,25 @@ export function ResumenProyectoCard({
                         Reuniones
                       </h4>
                       {reuniones.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">No hay reuniones registradas</p>
+                        <p className="text-sm text-gray-500 py-2">
+                          No hay reuniones registradas
+                        </p>
                       ) : (
                         <ul className="space-y-2">
                           {reuniones.map((r) => (
-                            <li key={r.id} className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100">
-                              <span className="text-sm text-gray-900">{formatFechaCorta(r.fecha)}</span>
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleReunionDetails(r.id)}>
+                            <li
+                              key={r.id}
+                              className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
+                            >
+                              <span className="text-sm text-gray-900">
+                                {formatFechaCorta(r.fecha)}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => handleReunionDetails(r.id)}
+                              >
                                 Detalles
                               </Button>
                             </li>
@@ -556,24 +632,39 @@ export function ResumenProyectoCard({
                         Oportunidades y amenazas
                       </h4>
                       {oportunidadesAmenazas.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">No hay oportunidades ni amenazas</p>
+                        <p className="text-sm text-gray-500 py-2">
+                          No hay oportunidades ni amenazas
+                        </p>
                       ) : (
                         <div className="border rounded-lg overflow-hidden">
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-gray-100">
-                                <TableHead className="font-semibold">Tipo - Nombre</TableHead>
-                                <TableHead className="font-semibold">Plan de acción</TableHead>
+                                <TableHead className="font-semibold">
+                                  Tipo - Nombre
+                                </TableHead>
+                                <TableHead className="font-semibold">
+                                  Plan de acción
+                                </TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {oportunidadesAmenazas.map((oa) => {
-                                const abordado = Boolean(oa.planDeAccion?.trim());
+                                const abordado = Boolean(
+                                  oa.planDeAccion?.trim()
+                                );
                                 return (
-                                  <TableRow key={oa.id} className="odd:bg-gray-50/50">
-                                    <TableCell className="text-sm">{oa.tipo} - {oa.nombre}</TableCell>
+                                  <TableRow
+                                    key={oa.id}
+                                    className="odd:bg-gray-50/50"
+                                  >
+                                    <TableCell className="text-sm">
+                                      {oa.tipo} - {oa.nombre}
+                                    </TableCell>
                                     <TableCell>
-                                      <span className={`text-sm font-medium ${abordado ? 'text-green-600 bg-green-100 px-2 py-0.5 rounded' : 'text-red-600 bg-red-100 px-2 py-0.5 rounded'}`}>
+                                      <span
+                                        className={`text-sm font-medium ${abordado ? 'text-green-600 bg-green-100 px-2 py-0.5 rounded' : 'text-red-600 bg-red-100 px-2 py-0.5 rounded'}`}
+                                      >
                                         {abordado ? 'Abordado' : 'Pendiente'}
                                       </span>
                                     </TableCell>
@@ -591,15 +682,35 @@ export function ResumenProyectoCard({
                         Compromisos asignados
                       </h4>
                       {compromisos.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">No hay compromisos</p>
+                        <p className="text-sm text-gray-500 py-2">
+                          No hay compromisos
+                        </p>
                       ) : (
                         <ul className="space-y-2">
                           {compromisos.map((c) => {
-                            const titulo = c.titulo ?? c.descripcion?.substring(0, 60) ?? 'Sin título';
+                            const titulo =
+                              c.titulo ??
+                              c.descripcion?.substring(0, 60) ??
+                              'Sin título';
                             return (
-                              <li key={c.id} className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100">
-                                <span className="text-sm text-gray-900 truncate flex-1 min-w-0">{titulo}{titulo.length >= 60 ? '…' : ''}</span>
-                                <Badge variant={c.completado ? 'default' : 'secondary'} className={c.completado ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-gray-200 text-gray-700'}>
+                              <li
+                                key={c.id}
+                                className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
+                              >
+                                <span className="text-sm text-gray-900 truncate flex-1 min-w-0">
+                                  {titulo}
+                                  {titulo.length >= 60 ? '…' : ''}
+                                </span>
+                                <Badge
+                                  variant={
+                                    c.completado ? 'default' : 'secondary'
+                                  }
+                                  className={
+                                    c.completado
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                      : 'bg-gray-200 text-gray-700'
+                                  }
+                                >
                                   {c.completado ? 'Realizado' : 'Pendiente'}
                                 </Badge>
                               </li>
@@ -613,7 +724,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-          {/* 7. Últimas 10 actualizaciones */}
+            {/* 7. Últimas 10 actualizaciones */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <History className="h-5 w-5 text-emerald-600" />
@@ -623,11 +734,16 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4">
                 {historial.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-2">No hay registros en el historial</p>
+                  <p className="text-sm text-gray-500 py-2">
+                    No hay registros en el historial
+                  </p>
                 ) : (
                   <ul className="space-y-1.5">
                     {historial.map((entry) => (
-                      <li key={entry.id} className="text-sm text-gray-700 py-1.5 px-2 rounded bg-gray-50 border border-gray-100">
+                      <li
+                        key={entry.id}
+                        className="text-sm text-gray-700 py-1.5 px-2 rounded bg-gray-50 border border-gray-100"
+                      >
                         {formatHistorialEntry(entry)}
                       </li>
                     ))}
@@ -635,7 +751,6 @@ export function ResumenProyectoCard({
                 )}
               </CardContent>
             </Card>
-
           </div>
         </div>
       </div>
