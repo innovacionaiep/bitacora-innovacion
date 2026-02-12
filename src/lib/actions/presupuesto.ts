@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
+import { createHistorialEntry } from './historial';
 import type { ResumenPresupuesto, ResumenCuenta } from '@/types/presupuesto';
 
 const CUENTAS: CuentaPresupuesto[] = ['RRHH', 'OPERACION', 'INVERSION'];
@@ -269,6 +270,14 @@ export async function createItemPresupuesto(
       },
     });
 
+    await createHistorialEntry({
+      proyectoId: projectId,
+      accion: 'Agregar gasto',
+      tabProyecto: 'Presupuesto',
+      elementoEspecifico: data.item,
+      cambioGenerado: `Gasto creado: ${data.item} (${data.cuenta}, $${data.monto})`,
+    });
+
     await syncPresupuestoProyecto(projectId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
@@ -287,6 +296,14 @@ export async function updateItemPresupuesto(
   data: UpdateItemPresupuestoData
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const itemBefore = await prisma.itemPresupuesto.findUnique({
+      where: { id },
+      select: { proyectoId: true, item: true, idSolicitud: true, idPedido: true, idRecepcion: true },
+    });
+    if (!itemBefore) {
+      return { success: false, error: 'Ítem no encontrado' };
+    }
+
     const updated = await prisma.itemPresupuesto.update({
       where: { id },
       data: {
@@ -305,6 +322,45 @@ export async function updateItemPresupuesto(
         ...(data.orden !== undefined && { orden: data.orden }),
       },
     });
+
+    const partes: string[] = [];
+    if (data.cuenta !== undefined || data.item !== undefined || data.detalle !== undefined || data.monto !== undefined || data.estado !== undefined) {
+      partes.push('Información del gasto editada');
+    }
+    if (data.idSolicitud !== undefined) {
+      partes.push(
+        data.idSolicitud
+          ? `Registrado ID de solicitud: ${data.idSolicitud}`
+          : 'Eliminado ID de solicitud'
+      );
+    }
+    if (data.idPedido !== undefined) {
+      const ocId = updated.idPedido ?? data.idPedido;
+      const solicitudId = updated.idSolicitud ?? itemBefore.idSolicitud;
+      partes.push(
+        data.idPedido
+          ? `Registrado ID de OC: ${ocId}${solicitudId ? ` (asociado a solicitud ${solicitudId})` : ''}`
+          : 'Eliminado ID de OC'
+      );
+    }
+    if (data.idRecepcion !== undefined) {
+      const ocId = updated.idPedido ?? itemBefore.idPedido;
+      partes.push(
+        data.idRecepcion
+          ? `Registrado ID de recepción: ${data.idRecepcion} (asociado a OC ${ocId ?? '—'})`
+          : 'Eliminado ID de recepción'
+      );
+    }
+    if (partes.length > 0) {
+      await createHistorialEntry({
+        proyectoId: updated.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'Presupuesto',
+        elementoEspecifico: updated.item,
+        cambioGenerado: partes.join('; '),
+      });
+    }
+
     await syncPresupuestoProyecto(updated.proyectoId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
@@ -324,7 +380,7 @@ export async function deleteItemPresupuesto(
   try {
     const item = await prisma.itemPresupuesto.findUnique({
       where: { id },
-      select: { proyectoId: true },
+      select: { proyectoId: true, item: true },
     });
     if (!item) {
       return { success: false, error: 'Ítem no encontrado' };
@@ -332,6 +388,15 @@ export async function deleteItemPresupuesto(
     await prisma.itemPresupuesto.delete({
       where: { id },
     });
+
+    await createHistorialEntry({
+      proyectoId: item.proyectoId,
+      accion: 'Eliminar gasto',
+      tabProyecto: 'Presupuesto',
+      elementoEspecifico: item.item,
+      cambioGenerado: 'Gasto eliminado del presupuesto',
+    });
+
     await syncPresupuestoProyecto(item.proyectoId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');

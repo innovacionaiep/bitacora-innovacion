@@ -72,13 +72,15 @@ export function MultiSelectNombres({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white min-h-[80px] h-auto py-2',
+            'w-full justify-between border-2 border-gray-300 rounded-lg focus:border-blue-500 bg-white min-h-[52px] h-auto py-2 text-left',
             triggerClassName,
             className
           )}
         >
-          <span className="truncate text-left font-normal">{displayLabel}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          <span className="line-clamp-2 text-left font-normal flex-1 min-w-0">
+            {displayLabel}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

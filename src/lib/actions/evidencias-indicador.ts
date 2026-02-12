@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
+import { createHistorialEntry } from './historial';
 
 export interface EvidenciaIndicadorData {
   id: string;
@@ -41,7 +42,7 @@ export async function createEvidenciaIndicador(
   try {
     const indicador = await prisma.indicador.findUnique({
       where: { id: indicadorId },
-      select: { id: true },
+      select: { id: true, nombre: true, proyectoId: true },
     });
     if (!indicador) {
       return { success: false, error: 'Indicador no encontrado' };
@@ -56,6 +57,17 @@ export async function createEvidenciaIndicador(
         nombreArchivo: data.nombreArchivo ?? null,
       },
     });
+
+    await createHistorialEntry({
+      proyectoId: indicador.proyectoId,
+      accion: 'Subir evidencia',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: `Indicador "${indicador.nombre}"`,
+      cambioGenerado: data.nombreArchivo
+        ? `Evidencia subida: ${data.nombreArchivo}`
+        : 'Nueva evidencia subida',
+    });
+
     revalidatePath('/proyectos');
     return { success: true, data: evidencia as EvidenciaIndicadorData };
   } catch (error) {
@@ -100,7 +112,12 @@ export async function deleteEvidenciaIndicador(id: string) {
   try {
     const evidencia = await prisma.evidenciaIndicador.findUnique({
       where: { id },
-      select: { publicId: true, tipo: true },
+      select: {
+        publicId: true,
+        tipo: true,
+        nombreArchivo: true,
+        indicador: { select: { nombre: true, proyectoId: true } },
+      },
     });
     if (!evidencia) {
       return { success: false, error: 'Evidencia no encontrada' };
@@ -110,6 +127,17 @@ export async function deleteEvidenciaIndicador(id: string) {
     await prisma.evidenciaIndicador.delete({
       where: { id },
     });
+
+    await createHistorialEntry({
+      proyectoId: evidencia.indicador.proyectoId,
+      accion: 'Eliminar evidencia',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: `Indicador "${evidencia.indicador.nombre}"`,
+      cambioGenerado: evidencia.nombreArchivo
+        ? `Evidencia eliminada: ${evidencia.nombreArchivo}`
+        : 'Evidencia eliminada',
+    });
+
     revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {

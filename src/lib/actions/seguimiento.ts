@@ -413,6 +413,17 @@ export async function finalizarReunionEnVivo(
       },
     });
 
+    await createHistorialEntry({
+      proyectoId: reunion.proyectoId,
+      accion: 'Finalizar reunión',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico: `Reunión del ${updated.fecha.toLocaleDateString('es-CL')}`,
+      cambioGenerado:
+        duracionMinutos != null
+          ? `Reunión finalizada (duración: ${duracionMinutos} min)`
+          : 'Reunión finalizada',
+    });
+
     revalidatePath('/proyectos');
     revalidatePath('/seguimiento');
     return { success: true, data: updated };
@@ -1043,7 +1054,7 @@ export async function updatePlanDeAccionOportunidadAmenaza(
 
     const item = await prisma.oportunidadAmenaza.findUnique({
       where: { id },
-      select: { proyectoId: true },
+      select: { proyectoId: true, descripcion: true, planDeAccion: true },
     });
     if (!item) {
       return { success: false, error: 'No encontrado', data: null };
@@ -1065,6 +1076,16 @@ export async function updatePlanDeAccionOportunidadAmenaza(
     const updated = await prisma.oportunidadAmenaza.update({
       where: { id },
       data: { planDeAccion: planDeAccion ?? null },
+    });
+
+    await createHistorialEntry({
+      proyectoId: item.proyectoId,
+      accion: 'Plan de acción',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico: item.descripcion?.substring(0, 50) ?? 'Oportunidad/Amenaza',
+      cambioGenerado: planDeAccion
+        ? (item.planDeAccion ? 'Plan de acción actualizado' : 'Plan de acción generado')
+        : 'Plan de acción eliminado',
     });
 
     revalidatePath('/proyectos');
@@ -1089,7 +1110,7 @@ export async function toggleOkCoordinadorOportunidadAmenaza(id: string) {
 
     const item = await prisma.oportunidadAmenaza.findUnique({
       where: { id },
-      select: { proyectoId: true, okCoordinador: true },
+      select: { proyectoId: true, okCoordinador: true, descripcion: true },
     });
     if (!item) {
       return { success: false, error: 'No encontrado', data: null };
@@ -1114,6 +1135,16 @@ export async function toggleOkCoordinadorOportunidadAmenaza(id: string) {
         okCoordinadorPorId: nuevoOk ? user.id : null,
         okCoordinadorPorRolActivo: nuevoOk ? (activeRole ?? null) : null,
       },
+    });
+
+    await createHistorialEntry({
+      proyectoId: item.proyectoId,
+      accion: nuevoOk ? 'Validar plan (Ok coordinador)' : 'Quitar validación plan',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico: item.descripcion?.substring(0, 50) ?? 'Oportunidad/Amenaza',
+      cambioGenerado: nuevoOk
+        ? 'Coordinador marcó Ok (plan de acción validado)'
+        : 'Validación Ok del coordinador quitada',
     });
 
     revalidatePath('/proyectos');
@@ -1318,6 +1349,115 @@ export async function getCompromisosProyecto(proyectoId: string) {
     return {
       success: false,
       error: 'Error al obtener compromisos',
+      data: [],
+    };
+  }
+}
+
+/**
+ * Obtener compromisos pendientes de los proyectos donde el usuario participa con el rol activo (portal Inicio).
+ */
+export async function getCompromisosPendientesParaUsuario(activeRole: string | null) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: [] };
+    }
+    if (!activeRole) {
+      return { success: true, data: [] };
+    }
+
+    const participaciones = await prisma.proyectoParticipante.findMany({
+      where: { userId: user.id, rol: activeRole },
+      select: { proyectoId: true },
+    });
+    const proyectoIds = participaciones.map((p) => p.proyectoId);
+    if (proyectoIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const compromisos = await prisma.compromisoProyecto.findMany({
+      where: {
+        proyectoId: { in: proyectoIds },
+        completado: false,
+      },
+      include: {
+        reunion: {
+          select: {
+            id: true,
+            fecha: true,
+            coordinador: { select: { name: true } },
+          },
+        },
+        proyecto: {
+          select: { id: true, proyecto: true },
+        },
+      },
+      orderBy: [{ fechaLimite: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    return { success: true, data: compromisos };
+  } catch (error) {
+    console.error('Error al obtener compromisos para usuario:', error);
+    return {
+      success: false,
+      error: 'Error al obtener compromisos',
+      data: [],
+    };
+  }
+}
+
+/**
+ * Obtener próximas reuniones (fecha >= hoy) de los proyectos donde el usuario participa con el rol activo (portal Inicio).
+ */
+export async function getProximasReunionesParaUsuario(
+  activeRole: string | null,
+  limit = 10
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: [] };
+    }
+    if (!activeRole) {
+      return { success: true, data: [] };
+    }
+
+    const participaciones = await prisma.proyectoParticipante.findMany({
+      where: { userId: user.id, rol: activeRole },
+      select: { proyectoId: true },
+    });
+    const proyectoIds = participaciones.map((p) => p.proyectoId);
+    if (proyectoIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const reuniones = await prisma.reunionSeguimiento.findMany({
+      where: {
+        proyectoId: { in: proyectoIds },
+        fecha: { gte: hoy },
+      },
+      include: {
+        proyecto: {
+          select: { id: true, proyecto: true },
+        },
+        coordinador: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { fecha: 'asc' },
+      take: limit,
+    });
+
+    return { success: true, data: reuniones };
+  } catch (error) {
+    console.error('Error al obtener próximas reuniones:', error);
+    return {
+      success: false,
+      error: 'Error al obtener reuniones',
       data: [],
     };
   }

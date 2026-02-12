@@ -82,9 +82,11 @@ import {
   Crown,
   UserCog,
   FileDown,
+  Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useProyectos } from '@/hooks/useProyectos';
 import {
@@ -256,6 +258,48 @@ const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
   };
 };
 
+/** Textarea para tab General: 2 líneas por defecto, se expande al enfocar para mostrar todo el texto */
+function GeneralTabTextarea({
+  className,
+  onFocus,
+  onBlur,
+  onChange,
+  ...props
+}: React.ComponentProps<typeof Textarea>) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+  const expandHeight = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 52)}px`;
+  };
+  const resetHeight = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = '';
+  };
+  return (
+    <Textarea
+      ref={ref}
+      rows={2}
+      className={cn('min-h-[52px] resize-none overflow-y-auto', className)}
+      onFocus={(e) => {
+        expandHeight();
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        resetHeight();
+        onBlur?.(e);
+      }}
+      onChange={(e) => {
+        if (document.activeElement === e.target) expandHeight();
+        onChange?.(e);
+      }}
+      {...props}
+    />
+  );
+}
+
 export default function ProyectosPage() {
   const { data: session } = useSession();
   const {
@@ -353,6 +397,7 @@ export default function ProyectosPage() {
 
   const [isGeneralEditMode, setIsGeneralEditMode] = useState(false);
   const [isGeneralSaving, setIsGeneralSaving] = useState(false);
+  const [showGeneralSaveToast, setShowGeneralSaveToast] = useState(false);
   const [generalDraft, setGeneralDraft] = useState<GeneralDraft | null>(null);
   const [catalogosGeneral, setCatalogosGeneral] = useState<CatalogosGeneral>({
     escuelas: [],
@@ -398,7 +443,8 @@ export default function ProyectosPage() {
   ) {
     const firstProject = proyectosIniciales[0];
     setSelectedProject(firstProject);
-    setTempVideoUrl(projectVideos[firstProject.id] || '');
+    const videoUrl = (firstProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[firstProject.id] ?? '';
+    setTempVideoUrl(videoUrl);
   }
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -536,8 +582,8 @@ export default function ProyectosPage() {
   const handleSelectProject = (project: ProyectoWithRelations) => {
     setSelectedProject(project);
     setIsSheetOpen(false);
-    // Cargar URL del video del proyecto seleccionado si existe
-    setTempVideoUrl(projectVideos[project.id] || '');
+    const videoUrl = (project as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
+    setTempVideoUrl(videoUrl);
   };
 
   const handleSaveNewParticipante = async () => {
@@ -566,7 +612,8 @@ export default function ProyectosPage() {
     setParticipanteSubmitting(false);
     if (result.success && result.data) {
       setSelectedProject(result.data);
-      fetchProyectos();
+      setShowGeneralSaveToast(true);
+      fetchProyectos({ silent: true });
       setIsAddingParticipante(false);
       setNewParticipanteData({
         rol: 'Colaborador',
@@ -599,7 +646,8 @@ export default function ProyectosPage() {
     setParticipanteSubmitting(false);
     if (result.success && result.data) {
       setSelectedProject(result.data);
-      // No fetchProyectos() ni setEditingParticipanteId(null): evita recarga/flicker y permite seguir editando la misma fila
+      setShowGeneralSaveToast(true);
+      fetchProyectos({ silent: true });
     } else {
       alert(result.error ?? 'Error al actualizar participante');
     }
@@ -612,7 +660,8 @@ export default function ProyectosPage() {
     setParticipanteSubmitting(false);
     if (result.success && result.data) {
       setSelectedProject(result.data);
-      fetchProyectos();
+      setShowGeneralSaveToast(true);
+      fetchProyectos({ silent: true });
     } else {
       alert(result.error ?? 'Error al eliminar participante');
     }
@@ -704,13 +753,13 @@ export default function ProyectosPage() {
   const handleCancelGeneralEdit = () => {
     if (!selectedProject) return;
     setGeneralDraft(buildGeneralDraft(selectedProject));
-    setTempVideoUrl(projectVideos[selectedProject.id] || '');
+    const videoUrl = (selectedProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[selectedProject.id] ?? '';
+    setTempVideoUrl(videoUrl);
     setIsGeneralEditMode(false);
   };
 
   const handleSaveGeneralTab = async () => {
     if (!selectedProject || !generalDraft || isGeneralSaving) return;
-    setIsGeneralSaving(true);
 
     try {
       if (
@@ -762,28 +811,120 @@ export default function ProyectosPage() {
         alert(
           `No se encontraron estos valores en el catálogo: ${missing.join(', ')}`
         );
-        setIsGeneralSaving(false);
         return;
       }
 
-      const result = await updateProyectoGeneralTab({
+      // Estado guardado actual (solo lo que está en BD) para enviar únicamente cambios
+      const initialDraft = buildGeneralDraft(selectedProject);
+      const idsEqual = (a: string[], b: string[]) => {
+        if (a.length !== b.length) return false;
+        const sa = [...a].sort();
+        const sb = [...b].sort();
+        return sa.every((id, i) => id === sb[i]);
+      };
+
+      const payload: Parameters<typeof updateProyectoGeneralTab>[0] = {
         proyectoId: selectedProject.id,
-        proyecto: generalDraft.proyecto.trim(),
-        sede: generalDraft.sede.trim(),
-        objetivoGeneral: {
+      };
+
+      if (generalDraft.proyecto.trim() !== initialDraft.proyecto.trim()) {
+        payload.proyecto = generalDraft.proyecto.trim();
+      }
+      if (generalDraft.sede.trim() !== initialDraft.sede.trim()) {
+        payload.sede = generalDraft.sede.trim();
+      }
+      const currentVideoUrl = (selectedProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? '';
+      if (tempVideoUrl.trim() !== currentVideoUrl.trim()) {
+        const videoTrimmed = tempVideoUrl.trim();
+        if (videoTrimmed && !extractYouTubeVideoId(videoTrimmed)) {
+          alert('Por favor ingresa una URL válida de YouTube');
+          return;
+        }
+        payload.youtubeUrl = videoTrimmed || null;
+      }
+      if (
+        generalDraft.objetivoGeneralId !== initialDraft.objetivoGeneralId ||
+        generalDraft.objetivoGeneral.trim() !== initialDraft.objetivoGeneral.trim()
+      ) {
+        payload.objetivoGeneral = {
           id: generalDraft.objetivoGeneralId,
           descripcion: generalDraft.objetivoGeneral.trim(),
-        },
-        objetivosEspecificos: generalDraft.objetivosEspecificos.map((obj) => ({
-          ...obj,
-          descripcion: obj.descripcion.trim(),
-        })),
-        escuelasIds: escuelasMapped.ids,
-        carrerasIds: carrerasMapped.ids,
-        comunasIds: comunasMapped.ids,
-        gruposInteresIds: gruposMapped.ids,
-        sociosComunitariosIds: sociosMapped.ids,
-        desarrolloTecnico: {
+        };
+      }
+      const obsEq =
+        generalDraft.objetivosEspecificos.length ===
+          initialDraft.objetivosEspecificos.length &&
+        generalDraft.objetivosEspecificos.every(
+          (o, i) =>
+            o.id === initialDraft.objetivosEspecificos[i]?.id &&
+            o.descripcion.trim() ===
+              initialDraft.objetivosEspecificos[i]?.descripcion?.trim() &&
+            o.orden === initialDraft.objetivosEspecificos[i]?.orden
+        );
+      if (!obsEq) {
+        payload.objetivosEspecificos = generalDraft.objetivosEspecificos.map(
+          (obj) => ({
+            ...obj,
+            descripcion: obj.descripcion.trim(),
+          })
+        );
+      }
+      const initialEscuelasIds = mapNamesToIds(
+        parseNameList(initialDraft.escuelasTexto),
+        catalogosGeneral.escuelas
+      ).ids;
+      if (!idsEqual(escuelasMapped.ids, initialEscuelasIds)) {
+        payload.escuelasIds = escuelasMapped.ids;
+      }
+      const initialCarrerasIds = mapNamesToIds(
+        parseNameList(initialDraft.carrerasTexto),
+        catalogosGeneral.carreras
+      ).ids;
+      if (!idsEqual(carrerasMapped.ids, initialCarrerasIds)) {
+        payload.carrerasIds = carrerasMapped.ids;
+      }
+      const initialComunasIds = mapNamesToIds(
+        parseNameList(initialDraft.comunasTexto),
+        catalogosGeneral.comunas
+      ).ids;
+      if (!idsEqual(comunasMapped.ids, initialComunasIds)) {
+        payload.comunasIds = comunasMapped.ids;
+      }
+      const initialGruposIds = mapNamesToIds(
+        parseNameList(initialDraft.gruposInteresTexto),
+        catalogosGeneral.gruposInteres
+      ).ids;
+      if (!idsEqual(gruposMapped.ids, initialGruposIds)) {
+        payload.gruposInteresIds = gruposMapped.ids;
+      }
+      const initialSociosIds = mapNamesToIds(
+        parseNameList(initialDraft.sociosComunitariosTexto),
+        catalogosGeneral.sociosComunitarios
+      ).ids;
+      if (!idsEqual(sociosMapped.ids, initialSociosIds)) {
+        payload.sociosComunitariosIds = sociosMapped.ids;
+      }
+      const dtKeys: (keyof GeneralDraft['desarrolloTecnico'])[] = [
+        'continuidadFasesAnteriores',
+        'pertinenciaLocal',
+        'pertinenciaDisciplinar',
+        'necesidadProblema',
+        'publicoObjetivo',
+        'solucionAvance',
+        'perspectiveGenero',
+        'resultadosContribucion',
+        'metodologiaMedicion',
+        'ejesImpacto',
+        'factorInnovador',
+        'escalabilidad',
+      ];
+      const dtChanged = dtKeys.some(
+        (k) =>
+          generalDraft.desarrolloTecnico[k].trim() !==
+          initialDraft.desarrolloTecnico[k].trim()
+      );
+      if (dtChanged) {
+        payload.desarrolloTecnico = {
           continuidadFasesAnteriores:
             generalDraft.desarrolloTecnico.continuidadFasesAnteriores.trim(),
           pertinenciaLocal:
@@ -805,24 +946,93 @@ export default function ProyectosPage() {
           factorInnovador:
             generalDraft.desarrolloTecnico.factorInnovador.trim(),
           escalabilidad: generalDraft.desarrolloTecnico.escalabilidad.trim(),
-        },
-      });
+        };
+      }
+
+      // Proyecto optimista: la vista muestra ya los valores editados (evita parpadeo a valores viejos)
+      const optimisticObjetivosRel = [
+        ...(generalDraft.objetivoGeneral.trim()
+          ? [
+              {
+                id: generalDraft.objetivoGeneralId ?? '',
+                descripcion: generalDraft.objetivoGeneral.trim(),
+                orden: 0,
+                tipo: 'General' as const,
+              },
+            ]
+          : []),
+        ...generalDraft.objetivosEspecificos.map((o) => ({
+          id: o.id,
+          descripcion: o.descripcion.trim(),
+          orden: o.orden,
+          tipo: 'Especifico' as const,
+        })),
+      ];
+      const optimisticDesarrolloTecnico = {
+        ...selectedProject.desarrolloTecnico,
+        continuidadFasesAnteriores:
+          generalDraft.desarrolloTecnico.continuidadFasesAnteriores.trim(),
+        pertinenciaLocal:
+          generalDraft.desarrolloTecnico.pertinenciaLocal.trim(),
+        pertinenciaDisciplinar:
+          generalDraft.desarrolloTecnico.pertinenciaDisciplinar.trim(),
+        necesidadProblema:
+          generalDraft.desarrolloTecnico.necesidadProblema.trim(),
+        publicoObjetivo:
+          generalDraft.desarrolloTecnico.publicoObjetivo.trim(),
+        solucionAvance:
+          generalDraft.desarrolloTecnico.solucionAvance.trim(),
+        perspectiveGenero:
+          generalDraft.desarrolloTecnico.perspectiveGenero.trim(),
+        resultadosContribucion:
+          generalDraft.desarrolloTecnico.resultadosContribucion.trim(),
+        metodologiaMedicion:
+          generalDraft.desarrolloTecnico.metodologiaMedicion.trim(),
+        ejesImpacto: generalDraft.desarrolloTecnico.ejesImpacto.trim(),
+        factorInnovador:
+          generalDraft.desarrolloTecnico.factorInnovador.trim(),
+        escalabilidad: generalDraft.desarrolloTecnico.escalabilidad.trim(),
+      };
+      const optimisticProject = {
+        ...selectedProject,
+        proyecto: generalDraft.proyecto.trim(),
+        sede: generalDraft.sede.trim(),
+        youtubeUrl: tempVideoUrl.trim() || null,
+        objetivos_rel: optimisticObjetivosRel,
+        desarrolloTecnico: optimisticDesarrolloTecnico,
+      } as ProyectoWithRelations & { youtubeUrl?: string | null };
+
+      setSelectedProject(optimisticProject);
+      setGeneralDraft(buildGeneralDraft(optimisticProject));
+      setTempVideoUrl(tempVideoUrl.trim());
+      setProjectVideos((prev) => ({
+        ...prev,
+        [selectedProject.id]: tempVideoUrl.trim() || '',
+      }));
+      setIsGeneralEditMode(false);
+      setShowGeneralSaveToast(true);
+      setIsGeneralSaving(false);
+
+      const result = await updateProyectoGeneralTab(payload);
 
       if (!result.success || !result.data) {
+        setIsGeneralEditMode(true);
+        setShowGeneralSaveToast(false);
         alert(result.error || 'Error al actualizar el proyecto');
-        setIsGeneralSaving(false);
         return;
       }
 
-      handleSaveVideo();
+      const updated = result.data as ProyectoWithRelations & { youtubeUrl?: string | null };
       setSelectedProject(result.data);
       setGeneralDraft(buildGeneralDraft(result.data));
-      setIsGeneralEditMode(false);
-      fetchProyectos();
-      setIsGeneralSaving(false);
+      setTempVideoUrl(updated.youtubeUrl ?? '');
+      setProjectVideos((prev) => ({ ...prev, [updated.id]: updated.youtubeUrl ?? '' }));
+      fetchProyectos({ silent: true });
     } catch (error) {
-      alert('Error inesperado al guardar los cambios');
+      setIsGeneralEditMode(true);
+      setShowGeneralSaveToast(false);
       setIsGeneralSaving(false);
+      alert('Error inesperado al guardar los cambios');
     }
   };
 
@@ -832,6 +1042,8 @@ export default function ProyectosPage() {
       return;
     }
     setGeneralDraft(buildGeneralDraft(selectedProject));
+    const videoUrl = (selectedProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[selectedProject.id] ?? '';
+    setTempVideoUrl(videoUrl);
     setIsGeneralEditMode(false);
   }, [selectedProject]);
 
@@ -876,31 +1088,11 @@ export default function ProyectosPage() {
     };
   }, [selectedTab, selectedProject?.id]);
 
-  const handleSaveVideo = () => {
-    if (!selectedProject) return;
-
-    if (!tempVideoUrl.trim()) {
-      // Si está vacío, eliminar el video
-      setProjectVideos((prev) => {
-        const newVideos = { ...prev };
-        delete newVideos[selectedProject.id];
-        return newVideos;
-      });
-      return;
-    }
-
-    const videoId = extractYouTubeVideoId(tempVideoUrl);
-    if (!videoId) {
-      alert('Por favor ingresa una URL válida de YouTube');
-      return;
-    }
-
-    // Guardar la URL del video para este proyecto
-    setProjectVideos((prev) => ({
-      ...prev,
-      [selectedProject.id]: tempVideoUrl,
-    }));
-  };
+  useEffect(() => {
+    if (!showGeneralSaveToast) return;
+    const t = setTimeout(() => setShowGeneralSaveToast(false), 3000);
+    return () => clearTimeout(t);
+  }, [showGeneralSaveToast]);
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
@@ -960,6 +1152,14 @@ export default function ProyectosPage() {
 
   return (
     <>
+      {/* Toast "Cambios guardados" (tab General y Participantes) */}
+      {showGeneralSaveToast && (
+        <div className="fixed bottom-6 right-6 bg-emerald-500 text-white px-8 py-4 rounded-lg shadow-lg flex items-center space-x-2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Check className="h-6 w-6" />
+          <span className="font-semibold text-base">Cambios guardados</span>
+        </div>
+      )}
+
       {/* Sheet Panel - Project Selector */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="w-full sm:w-[400px] p-0">
@@ -1369,7 +1569,7 @@ export default function ProyectosPage() {
             </CardContent>
           </Card>
         ) : selectedProject ? (
-          <div className="flex flex-col h-full px-8 pt-6 pb-6">
+          <div className="flex flex-col h-full pl-12 pr-8 pt-6 pb-6">
             {/* Header del proyecto - Fixed, no scroll */}
             <div className="flex-shrink-0">
               <div className="flex items-start justify-between gap-4">
@@ -1670,7 +1870,7 @@ export default function ProyectosPage() {
                                     <div className="border-l-4 border-emerald-600 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-md hover:shadow-lg transition-shadow duration-200">
                                       <div className="py-4 px-6">
                                         {isGeneralEditMode ? (
-                                          <Textarea
+                                          <GeneralTabTextarea
                                             value={
                                               generalDraft?.objetivoGeneral ??
                                               ''
@@ -1686,7 +1886,7 @@ export default function ProyectosPage() {
                                                   : prev
                                               )
                                             }
-                                            className="min-h-[120px] text-base border-2 border-emerald-200 focus:border-emerald-400 bg-white"
+                                            className="text-base border-2 border-emerald-200 focus:border-emerald-400 bg-white"
                                           />
                                         ) : (
                                           <p className="text-gray-800 leading-loose text-base">
@@ -1718,7 +1918,7 @@ export default function ProyectosPage() {
                                               {index + 1}
                                             </div>
                                             {isGeneralEditMode ? (
-                                              <Textarea
+                                              <GeneralTabTextarea
                                                 value={
                                                   generalDraft
                                                     ?.objetivosEspecificos?.[
@@ -1746,7 +1946,7 @@ export default function ProyectosPage() {
                                                       : prev
                                                   )
                                                 }
-                                                className="min-h-[90px] text-[15px] border-2 border-emerald-200 focus:border-emerald-400 bg-white flex-1"
+                                                className="text-[15px] border-2 border-emerald-200 focus:border-emerald-400 bg-white flex-1"
                                               />
                                             ) : (
                                               <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
@@ -1780,29 +1980,19 @@ export default function ProyectosPage() {
                                 <Label className="text-sm font-medium text-gray-700">
                                   URL del video (YouTube)
                                 </Label>
-                                <div className="flex items-center gap-2">
-                                  <Input
-                                    value={tempVideoUrl}
-                                    onChange={(e) =>
-                                      setTempVideoUrl(e.target.value)
-                                    }
-                                    placeholder="https://www.youtube.com/watch?v=..."
-                                    className="border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                                  />
-                                  <Button
-                                    type="button"
-                                    onClick={handleSaveVideo}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                  >
-                                    Guardar
-                                  </Button>
-                                </div>
+                                <Input
+                                  value={tempVideoUrl}
+                                  onChange={(e) =>
+                                    setTempVideoUrl(e.target.value)
+                                  }
+                                  placeholder="https://www.youtube.com/watch?v=..."
+                                  className="border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                                />
                               </div>
                             )}
                             {(() => {
-                              const activeVideoUrl =
-                                projectVideos[selectedProject.id] ||
-                                tempVideoUrl;
+                              const projVideo = (selectedProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[selectedProject.id] ?? '';
+                              const activeVideoUrl = isGeneralEditMode ? tempVideoUrl : projVideo;
                               const videoId = activeVideoUrl
                                 ? extractYouTubeVideoId(activeVideoUrl)
                                 : null;
@@ -1884,7 +2074,6 @@ export default function ProyectosPage() {
                                           )
                                         }
                                         placeholder="Seleccionar sedes"
-                                        className="min-h-[80px]"
                                       />
                                     ) : (
                                       <>
@@ -1932,7 +2121,6 @@ export default function ProyectosPage() {
                                             )
                                           }
                                           placeholder="Seleccionar comunas"
-                                          className="min-h-[80px]"
                                         />
                                       ) : (
                                         selectedProject.comunas.map(
@@ -1988,7 +2176,6 @@ export default function ProyectosPage() {
                                             )
                                           }
                                           placeholder="Seleccionar escuelas"
-                                          className="min-h-[80px]"
                                         />
                                       ) : (
                                         selectedProject.escuelas.map(
@@ -2033,7 +2220,6 @@ export default function ProyectosPage() {
                                             )
                                           }
                                           placeholder="Seleccionar carreras"
-                                          className="min-h-[80px]"
                                         />
                                       ) : (
                                         selectedProject.carreras.map(
@@ -2096,7 +2282,6 @@ export default function ProyectosPage() {
                                             )
                                           }
                                           placeholder="Seleccionar grupos de interés"
-                                          className="min-h-[80px]"
                                         />
                                       ) : (
                                         selectedProject.gruposInteres.map(
@@ -2332,7 +2517,7 @@ export default function ProyectosPage() {
                                       </div>
                                       <div className="px-2 pb-3">
                                         {isGeneralEditMode ? (
-                                          <Textarea
+                                          <GeneralTabTextarea
                                             value={section.content}
                                             onChange={(e) =>
                                               setGeneralDraft((prev) =>
@@ -2348,7 +2533,7 @@ export default function ProyectosPage() {
                                                   : prev
                                               )
                                             }
-                                            className="min-h-[120px] text-[15px] border-2 border-gray-200 focus:border-emerald-400 bg-white"
+                                            className="text-[15px] border-2 border-gray-200 focus:border-emerald-400 bg-white"
                                           />
                                         ) : (
                                           <div className="text-[15px] text-gray-700 leading-relaxed whitespace-pre-wrap">

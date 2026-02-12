@@ -38,13 +38,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
 
 export default function SeguimientoPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const proyectoIdFromUrl = searchParams.get('proyectoId');
   const [proyectos, setProyectos] = useState<
     { id: string; proyecto: string; sede: string }[]
   >([]);
@@ -88,13 +90,17 @@ export default function SeguimientoPage() {
     getProyectosParaSeguimiento().then((result) => {
       if (result.success && result.data) {
         setProyectos(result.data);
-        if (result.data.length > 0 && selectedProyectoIds.length === 0) {
-          setSelectedProyectoIds(result.data.map((p) => p.id));
+        if (result.data.length > 0) {
+          if (proyectoIdFromUrl && result.data.some((p) => p.id === proyectoIdFromUrl)) {
+            setSelectedProyectoIds([proyectoIdFromUrl]);
+          } else if (selectedProyectoIds.length === 0) {
+            setSelectedProyectoIds(result.data.map((p) => p.id));
+          }
         }
       }
       setLoading(false);
     });
-  }, [session?.user?.activeRole, status]);
+  }, [session?.user?.activeRole, status, proyectoIdFromUrl]);
 
   useEffect(() => {
     if (selectedProyectoIds.length === 0) {

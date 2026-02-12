@@ -17,6 +17,8 @@ interface DateRangePickerProps {
   disabled?: boolean;
   placeholder?: string;
   showLabels?: boolean;
+  /** Solo renderiza el contenido del calendario (sin botón disparador), para uso dentro de Popover */
+  inline?: boolean;
 }
 
 export function DateRangePicker({
@@ -29,6 +31,7 @@ export function DateRangePicker({
   disabled = false,
   placeholder = 'Seleccionar rango de fechas',
   showLabels = true,
+  inline = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -70,38 +73,8 @@ export function DateRangePicker({
     return placeholder;
   };
 
-  return (
-    <div className={cn('space-y-3', className)}>
-      {/* Trigger button */}
-      <Button
-        variant="outline"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className={cn(
-          'w-full justify-start text-left font-normal',
-          !startDate && !endDate && 'text-muted-foreground'
-        )}
-      >
-        <CalendarIcon className="mr-2 h-4 w-4" />
-        {formatRange()}
-        {(startDate || endDate) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              clearRange();
-            }}
-            className="ml-auto h-6 w-6 p-0 hover:bg-gray-100"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        )}
-      </Button>
-
-      {/* Date picker dropdown */}
-      {isOpen && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-lg p-4">
+  const calendarContent = (
+    <div className={cn(inline ? 'p-0' : 'absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-lg p-4', inline && 'relative')}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               {showLabels && (
@@ -143,25 +116,63 @@ export function DateRangePicker({
             >
               Limpiar
             </Button>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                disabled={!startDate || !endDate}
-              >
-                Aplicar
-              </Button>
-            </div>
+            {!inline && (
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                  disabled={!startDate || !endDate}
+                >
+                  Aplicar
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      )}
+  );
+
+  if (inline) {
+    return <div className={cn('space-y-3', className)}>{calendarContent}</div>;
+  }
+
+  return (
+    <div className={cn('space-y-3', className)}>
+      {/* Trigger button */}
+      <Button
+        variant="outline"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={cn(
+          'w-full justify-start text-left font-normal',
+          !startDate && !endDate && 'text-muted-foreground'
+        )}
+      >
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {formatRange()}
+        {(startDate || endDate) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              clearRange();
+            }}
+            className="ml-auto h-6 w-6 p-0 hover:bg-gray-100"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </Button>
+
+      {/* Date picker dropdown */}
+      {isOpen && calendarContent}
     </div>
   );
 }

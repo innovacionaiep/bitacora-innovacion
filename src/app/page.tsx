@@ -1,138 +1,188 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Home as HomeIcon, BarChart3, FolderKanban, Users } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import {
+  PortalWelcomeHeader,
+  PortalMisProyectos,
+  PortalAlertasPendientes,
+  PortalProximasReuniones,
+  PortalCompromisosPendientes,
+  PortalHistorialReciente,
+} from '@/components/portal';
+import {
+  getRolesConProyectosVigentes,
+  getProyectosDelUsuarioConRol,
+  getAlertasPortalUsuario,
+} from '@/lib/actions/portal-inicio';
+import { getCompromisosPendientesParaUsuario, getProximasReunionesParaUsuario } from '@/lib/actions/seguimiento';
+import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
+import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
-  return (
-    <div className="space-y-8 w-full">
-      {/* Hero Section */}
-      <div className="text-center space-y-4 py-12">
-        <h1 className="text-5xl font-bold tracking-tight">
-          Bienvenido a Bemindr
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Tu sistema de gestión de proyectos todo en uno. Organiza, planifica y
-          realiza seguimiento de todos tus proyectos en un solo lugar.
-        </p>
-        <div className="flex gap-4 justify-center pt-6">
-          <Link href="/dashboard">
-            <Button size="lg" className="text-lg px-8">
-              Ir al Dashboard
-            </Button>
-          </Link>
-          <Link href="/proyectos">
-            <Button size="lg" variant="outline" className="text-lg px-8">
-              Ver Proyectos
-            </Button>
-          </Link>
+  const { data: session, status } = useSession();
+  const [rolesVigentes, setRolesVigentes] = useState<string[]>([]);
+  const [proyectos, setProyectos] = useState<
+    Awaited<ReturnType<typeof getProyectosDelUsuarioConRol>>['data']
+  >([]);
+  const [alertas, setAlertas] = useState<
+    Awaited<ReturnType<typeof getAlertasPortalUsuario>>['data']
+  >(null);
+  const [reuniones, setReuniones] = useState<
+    Awaited<ReturnType<typeof getProximasReunionesParaUsuario>>['data']
+  >([]);
+  const [compromisos, setCompromisos] = useState<
+    Awaited<ReturnType<typeof getCompromisosPendientesParaUsuario>>['data']
+  >([]);
+  const [historial, setHistorial] = useState<
+    Awaited<ReturnType<typeof getHistorialRecienteParaUsuario>>['data']
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingPortal, setLoadingPortal] = useState(true);
+
+  const activeRole = session?.user?.activeRole ?? null;
+
+  const loadRoles = useCallback(async () => {
+    const res = await getRolesConProyectosVigentes();
+    if (res.success && res.data) {
+      setRolesVigentes(res.data);
+    }
+  }, []);
+
+  const loadPortalData = useCallback(async () => {
+    setLoadingPortal(true);
+    const role = activeRole;
+    const [proyRes, alertasRes, reunionesRes, compromisosRes, historialRes] =
+      await Promise.all([
+        getProyectosDelUsuarioConRol(role),
+        getAlertasPortalUsuario(role),
+        getProximasReunionesParaUsuario(role, 10),
+        getCompromisosPendientesParaUsuario(role),
+        getHistorialRecienteParaUsuario(role, 10),
+      ]);
+    if (proyRes.success && proyRes.data) setProyectos(proyRes.data);
+    if (alertasRes.success) setAlertas(alertasRes.data);
+    if (reunionesRes.success && reunionesRes.data) setReuniones(reunionesRes.data);
+    if (compromisosRes.success && compromisosRes.data)
+      setCompromisos(compromisosRes.data);
+    if (historialRes.success && historialRes.data)
+      setHistorial(historialRes.data);
+    setLoadingPortal(false);
+  }, [activeRole]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    setLoading(false);
+    loadRoles();
+  }, [status, loadRoles]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    loadPortalData();
+  }, [status, activeRole, loadPortalData]);
+
+  const handleRoleChange = useCallback(() => {
+    loadPortalData();
+  }, [loadPortalData]);
+
+  if (status === 'loading' || loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (status !== 'authenticated' || !session?.user) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="space-y-8 w-full max-w-2xl mx-auto text-center py-12">
+          <h1 className="text-4xl font-bold tracking-tight">
+            Bienvenido a Bemindr
+          </h1>
+          <p className="text-muted-foreground">
+            Inicia sesión para acceder a tu portal de proyectos.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/auth/login">
+              <Button size="lg">Iniciar sesión</Button>
+            </Link>
+            <Link href="/auth/register">
+              <Button size="lg" variant="outline">
+                Registrarse
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Feature Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FolderKanban className="h-6 w-6 text-blue-600" />
-              </div>
-              <CardTitle>Gestión de Proyectos</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Administra todos tus proyectos con seguimiento detallado de
-              avances, presupuestos y entregables.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-green-600" />
-              </div>
-              <CardTitle>Indicadores</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Visualiza métricas clave y KPIs para tomar decisiones informadas
-              sobre tus proyectos.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <CardTitle>Colaboración</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Trabaja en equipo con roles definidos, seguimiento de actividades
-              y comunicación centralizada.
-            </p>
-          </CardContent>
-        </Card>
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Cabecera: mismo padding que proyectos; sin scroll */}
+      <div className="flex-shrink-0">
+        <PortalWelcomeHeader
+          rolesVigentes={rolesVigentes}
+          onRoleChange={handleRoleChange}
+        />
       </div>
 
-      {/* Quick Access Section */}
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>Acceso Rápido</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link href="/dashboard">
-                <Button
-                  variant="outline"
-                  className="w-full h-auto py-4 flex-col gap-2"
-                >
-                  <HomeIcon className="h-5 w-5" />
-                  <span>Dashboard</span>
-                </Button>
-              </Link>
-              <Link href="/proyectos">
-                <Button
-                  variant="outline"
-                  className="w-full h-auto py-4 flex-col gap-2"
-                >
-                  <FolderKanban className="h-5 w-5" />
-                  <span>Proyectos</span>
-                </Button>
-              </Link>
-              <Link href="/gantt">
-                <Button
-                  variant="outline"
-                  className="w-full h-auto py-4 flex-col gap-2"
-                >
-                  <BarChart3 className="h-5 w-5" />
-                  <span>Gantt</span>
-                </Button>
-              </Link>
-              <Link href="/indicadores">
-                <Button
-                  variant="outline"
-                  className="w-full h-auto py-4 flex-col gap-2"
-                >
-                  <BarChart3 className="h-5 w-5" />
-                  <span>Indicadores</span>
-                </Button>
-              </Link>
+      {/* Enlace rápido si no hay roles con proyectos */}
+      {rolesVigentes.length === 0 && (
+        <div className="flex-shrink-0 flex flex-wrap gap-4 mt-4">
+          <Link href="/dashboard">
+            <Button variant="default">Ir al Dashboard</Button>
+          </Link>
+          <Link href="/proyectos">
+            <Button variant="outline">Ver Proyectos</Button>
+          </Link>
+        </div>
+      )}
+
+      {/* Contenido: scroll solo dentro de los contenedores, no en la ventana */}
+      {rolesVigentes.length > 0 && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden mt-6">
+          {/* Mis proyectos: altura limitada, scroll interno si hay muchos */}
+          <div className="flex-shrink-0 max-h-[260px] min-h-0 overflow-auto">
+            <PortalMisProyectos
+              proyectos={proyectos}
+              loading={loadingPortal}
+            />
+          </div>
+
+          {/* Grid: columna izquierda y derecha, cada una con su propio scroll */}
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 overflow-hidden">
+            <div className="lg:col-span-2 min-h-0 overflow-auto">
+              <div className="space-y-6">
+                <PortalAlertasPendientes
+                  alertas={alertas}
+                  activeRole={activeRole}
+                  loading={loadingPortal}
+                />
+                <PortalProximasReuniones
+                  reuniones={reuniones}
+                  loading={loadingPortal}
+                />
+                <PortalCompromisosPendientes
+                  compromisos={compromisos}
+                  activeRole={activeRole}
+                  onSuccess={loadPortalData}
+                  loading={loadingPortal}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="min-h-0 overflow-auto">
+              <PortalHistorialReciente
+                historial={historial}
+                loading={loadingPortal}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

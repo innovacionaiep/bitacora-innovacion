@@ -115,6 +115,14 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       };
     }
 
+    const activityBefore = await prisma.activity.findUnique({
+      where: { id },
+      select: { name: true, projectId: true },
+    });
+    if (!activityBefore) {
+      return { success: false, error: 'Actividad no encontrada' };
+    }
+
     const activity = await prisma.activity.update({
       where: { id },
       data: {
@@ -132,6 +140,20 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
         tasks: true,
       },
     });
+
+    const hayCambios =
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.color !== undefined;
+    if (hayCambios) {
+      await createHistorialEntry({
+        proyectoId: activityBefore.projectId,
+        accion: 'Actualizar',
+        tabProyecto: 'Actividades',
+        elementoEspecifico: `Actividad "${activity.name}"`,
+        cambioGenerado: 'Información de la actividad editada',
+      });
+    }
 
     revalidatePath('/gantt');
     return { success: true, data: activity };
@@ -243,9 +265,24 @@ export async function toggleActivityValidation(activityId: string) {
  */
 export async function deleteActivity(id: string) {
   try {
+    const activity = await prisma.activity.findUnique({
+      where: { id },
+      select: { name: true, projectId: true },
+    });
+    if (!activity) {
+      return { success: false, error: 'Actividad no encontrada' };
+    }
     // Las tareas se eliminan automáticamente por el onDelete: Cascade
     await prisma.activity.delete({
       where: { id },
+    });
+
+    await createHistorialEntry({
+      proyectoId: activity.projectId,
+      accion: 'Eliminar',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Actividad "${activity.name}"`,
+      cambioGenerado: 'Actividad eliminada',
     });
 
     revalidatePath('/gantt');
@@ -330,6 +367,17 @@ export async function createTask(data: TaskData) {
         progress: 0,
         activityId: data.activityId,
       },
+      include: {
+        activity: { select: { name: true, projectId: true } },
+      },
+    });
+
+    await createHistorialEntry({
+      proyectoId: task.activity.projectId,
+      accion: 'Crear',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Tarea "${task.name}" en Actividad "${task.activity.name}"`,
+      cambioGenerado: 'Nueva tarea agregada',
     });
 
     // Recalcular progreso de la actividad
@@ -356,6 +404,16 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
       };
     }
 
+    const taskBefore = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        activity: { select: { name: true, projectId: true } },
+      },
+    });
+    if (!taskBefore) {
+      return { success: false, error: 'Tarea no encontrada' };
+    }
+
     const task = await prisma.task.update({
       where: { id },
       data: {
@@ -371,6 +429,21 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
         ...(data.progress !== undefined && { progress: data.progress }),
       },
     });
+
+    const hayEdicionInfo =
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.startDate !== undefined ||
+      data.endDate !== undefined;
+    if (hayEdicionInfo) {
+      await createHistorialEntry({
+        proyectoId: taskBefore.activity.projectId,
+        accion: 'Actualizar',
+        tabProyecto: 'Actividades',
+        elementoEspecifico: `Tarea "${task.name}" de Actividad "${taskBefore.activity.name}"`,
+        cambioGenerado: 'Información de la tarea editada',
+      });
+    }
 
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(task.activityId);
@@ -390,7 +463,9 @@ export async function deleteTask(id: string) {
   try {
     const task = await prisma.task.findUnique({
       where: { id },
-      select: { activityId: true },
+      include: {
+        activity: { select: { name: true, projectId: true } },
+      },
     });
 
     if (!task) {
@@ -399,6 +474,14 @@ export async function deleteTask(id: string) {
 
     await prisma.task.delete({
       where: { id },
+    });
+
+    await createHistorialEntry({
+      proyectoId: task.activity.projectId,
+      accion: 'Eliminar',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Tarea "${task.name}" de Actividad "${task.activity.name}"`,
+      cambioGenerado: 'Tarea eliminada',
     });
 
     // Recalcular progreso de la actividad
@@ -576,14 +659,22 @@ export async function updateActivityStatus(
       },
     });
 
-    // Registrar en historial solo si se marca como realizada (DONE)
-    if (status === 'DONE' && activityBefore.status !== 'DONE') {
+    // Registrar en historial cualquier cambio de estado en kanban
+    if (activityBefore.status !== status) {
+      const accion =
+        status === 'DONE'
+          ? 'Marcar realizada'
+          : 'Cambio de estado en kanban';
+      const cambioGenerado =
+        status === 'DONE'
+          ? `Actividad "${activity.name}" marcada como realizada`
+          : `Estado: ${activityBefore.status} → ${status}`;
       await createHistorialEntry({
         proyectoId: activityBefore.projectId,
-        accion: 'Marcar realizada',
+        accion,
         tabProyecto: 'Actividades',
         elementoEspecifico: `Actividad "${activity.name}"`,
-        cambioGenerado: `Actividad "${activity.name}" marcada como realizada`,
+        cambioGenerado,
       });
     }
 

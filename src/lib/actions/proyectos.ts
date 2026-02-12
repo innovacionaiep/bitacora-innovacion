@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
+import { createHistorialEntry } from './historial';
 import {
   Proyecto,
   Escuela,
@@ -29,6 +30,7 @@ export type GeneralTabUpdateData = {
   proyectoId: string;
   proyecto?: string;
   sede?: string;
+  youtubeUrl?: string | null;
   objetivoGeneral?: {
     id?: string;
     descripcion: string;
@@ -428,8 +430,70 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
 /**
  * Actualizar datos del tab General (objetivos, info básica, desarrollo técnico)
  */
+function strEq(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? '').trim() === (b ?? '').trim();
+}
+function idsEq(a: string[] | undefined, b: string[]): boolean {
+  if (!a) return b.length === 0;
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((id, i) => id === sb[i]);
+}
+
 export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
   try {
+    // Cargar estado previo para registrar en historial solo lo que realmente cambió
+    const estadoAnterior = await prisma.proyecto.findUnique({
+      where: { id: data.proyectoId },
+      select: {
+        proyecto: true,
+        sede: true,
+        escuelas: { select: { escuelaId: true } },
+        carreras: { select: { carreraId: true } },
+        comunas: { select: { comunaId: true } },
+        gruposInteres: { select: { grupoInteresId: true } },
+        sociosComunitarios: { select: { socioComunitarioId: true } },
+        objetivos_rel: { orderBy: { orden: 'asc' }, select: { id: true, descripcion: true, orden: true, tipo: true } },
+        desarrolloTecnico: true,
+      },
+    });
+
+    const [row] = await prisma.$queryRaw<{ youtube_url: string | null }[]>`
+      SELECT youtube_url FROM proyectos WHERE id = ${data.proyectoId}
+    `.catch(() => [{ youtube_url: null }]);
+    const estadoAnteriorYoutube = row?.youtube_url ?? null;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'proyectos.ts:updateProyectoGeneralTab:payload',
+        message: 'Payload keys and desarrolloTecnico keys',
+        data: {
+          keysPresent: {
+            proyecto: data.proyecto !== undefined,
+            sede: data.sede !== undefined,
+            objetivoGeneral: data.objetivoGeneral !== undefined,
+            objetivosEspecificos: data.objetivosEspecificos !== undefined,
+            escuelasIds: data.escuelasIds !== undefined,
+            carrerasIds: data.carrerasIds !== undefined,
+            comunasIds: data.comunasIds !== undefined,
+            gruposInteresIds: data.gruposInteresIds !== undefined,
+            sociosComunitariosIds: data.sociosComunitariosIds !== undefined,
+            desarrolloTecnico: data.desarrolloTecnico !== undefined,
+          },
+          desarrolloTecnicoKeysCount: data.desarrolloTecnico
+            ? Object.keys(data.desarrolloTecnico).length
+            : 0,
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'H1',
+      }),
+    }).catch(() => {});
+    // #endregion
+
     await prisma.$transaction(async (tx) => {
       if (data.proyecto !== undefined || data.sede !== undefined) {
         await tx.proyecto.update({
@@ -439,6 +503,11 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
             ...(data.sede !== undefined && { sede: data.sede }),
           },
         });
+      }
+      if (data.youtubeUrl !== undefined) {
+        await tx.$executeRaw`
+          UPDATE proyectos SET youtube_url = ${data.youtubeUrl || null} WHERE id = ${data.proyectoId}
+        `;
       }
 
       if (data.escuelasIds) {
@@ -614,6 +683,7 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       }
     });
 
+    // Cargar proyecto actualizado con relaciones para obtener nombres (para historial e respuesta)
     const proyectoActualizado = await prisma.proyecto.findUnique({
       where: { id: data.proyectoId },
       include: {
@@ -668,15 +738,193 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       },
     });
 
+    if (!proyectoActualizado) {
+      return { success: false, error: 'Proyecto no encontrado tras actualizar' };
+    }
+
+    // Registrar en historial solo los campos que realmente cambiaron (comparar con estado anterior)
+    const historialEntries: Array<{
+      elementoEspecifico: string;
+      cambioGenerado: string;
+    }> = [];
+
+    const prev = estadoAnterior;
+    const prevEscuelas = prev?.escuelas.map((e) => e.escuelaId) ?? [];
+    const prevCarreras = prev?.carreras.map((c) => c.carreraId) ?? [];
+    const prevComunas = prev?.comunas.map((c) => c.comunaId) ?? [];
+    const prevGrupos = prev?.gruposInteres.map((g) => g.grupoInteresId) ?? [];
+    const prevSocios = prev?.sociosComunitarios.map((s) => s.socioComunitarioId) ?? [];
+    const prevObjetivos = prev?.objetivos_rel ?? [];
+    const prevDt = prev?.desarrolloTecnico;
+
+    if (data.proyecto !== undefined && !strEq(data.proyecto, prev?.proyecto ?? null)) {
+      historialEntries.push({
+        elementoEspecifico: 'el nombre del proyecto',
+        cambioGenerado: data.proyecto,
+      });
+    }
+    if (data.sede !== undefined && !strEq(data.sede, prev?.sede ?? null)) {
+      historialEntries.push({
+        elementoEspecifico: 'las sedes del proyecto',
+        cambioGenerado: data.sede,
+      });
+    }
+    if (
+      data.youtubeUrl !== undefined &&
+      !strEq(data.youtubeUrl ?? null, estadoAnteriorYoutube)
+    ) {
+      historialEntries.push({
+        elementoEspecifico: 'el vídeo del proyecto',
+        cambioGenerado: data.youtubeUrl?.trim() ? data.youtubeUrl : 'Link del vídeo',
+      });
+    }
+    if (
+      data.objetivoGeneral !== undefined &&
+      data.objetivoGeneral.descripcion.trim() &&
+      !strEq(
+        data.objetivoGeneral.descripcion,
+        prevObjetivos.find((o) => o.tipo === 'General')?.descripcion ?? null
+      )
+    ) {
+      historialEntries.push({
+        elementoEspecifico: 'el Objetivo General del proyecto',
+        cambioGenerado: data.objetivoGeneral.descripcion,
+      });
+    }
+    if (data.objetivosEspecificos !== undefined) {
+      const especificos = prevObjetivos.filter((o) => o.tipo === 'Especifico');
+      data.objetivosEspecificos.forEach((obj, index) => {
+        const prevDesc = especificos[index]?.descripcion ?? null;
+        if (!strEq(obj.descripcion, prevDesc)) {
+          historialEntries.push({
+            elementoEspecifico: `el Objetivo Específico ${index + 1} del proyecto`,
+            cambioGenerado: obj.descripcion,
+          });
+        }
+      });
+    }
+    if (data.escuelasIds !== undefined && !idsEq(data.escuelasIds, prevEscuelas)) {
+      const nombres = proyectoActualizado.escuelas
+        .map((e) => e.escuela?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'las escuelas del proyecto',
+        cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin escuelas',
+      });
+    }
+    if (data.carrerasIds !== undefined && !idsEq(data.carrerasIds, prevCarreras)) {
+      const nombres = proyectoActualizado.carreras
+        .map((c) => c.carrera?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'las carreras del proyecto',
+        cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin carreras',
+      });
+    }
+    if (data.comunasIds !== undefined && !idsEq(data.comunasIds, prevComunas)) {
+      const nombres = proyectoActualizado.comunas
+        .map((c) => c.comuna?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'las comunas del proyecto',
+        cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin comunas',
+      });
+    }
+    if (data.gruposInteresIds !== undefined && !idsEq(data.gruposInteresIds, prevGrupos)) {
+      const nombres = proyectoActualizado.gruposInteres
+        .map((g) => g.grupoInteres?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'los grupos de interés del proyecto',
+        cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin grupos de interés',
+      });
+    }
+    if (data.sociosComunitariosIds !== undefined && !idsEq(data.sociosComunitariosIds, prevSocios)) {
+      const nombres = proyectoActualizado.sociosComunitarios
+        .map((s) => s.socioComunitario?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'los socios comunitarios del proyecto',
+        cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin socios comunitarios',
+      });
+    }
+
+    const ELEMENTO_DESARROLLO_TECNICO: Record<string, string> = {
+      continuidadFasesAnteriores: 'la Continuidad de Fases Anteriores del proyecto',
+      pertinenciaLocal: 'la Pertinencia Local del proyecto',
+      pertinenciaDisciplinar: 'la Pertinencia Disciplinar del proyecto',
+      necesidadProblema: 'la Necesidad, Problema u Oportunidad del proyecto',
+      publicoObjetivo: 'el Público Objetivo del proyecto',
+      solucionAvance: 'la Solución o Avance del proyecto',
+      perspectiveGenero: 'la Perspectiva de Género del proyecto',
+      resultadosContribucion: 'los Resultados y Contribución Esperada del proyecto',
+      metodologiaMedicion: 'la Metodología y Medición del proyecto',
+      ejesImpacto: 'los Ejes de Impacto del proyecto',
+      factorInnovador: 'el Factor Innovador del proyecto',
+      escalabilidad: 'la Escalabilidad del proyecto',
+    };
+
+    if (data.desarrolloTecnico !== undefined) {
+      const dt = data.desarrolloTecnico;
+      for (const [key, elementoEspecifico] of Object.entries(ELEMENTO_DESARROLLO_TECNICO)) {
+        const rawNew = dt[key as keyof typeof dt];
+        const rawPrev = prevDt?.[key as keyof typeof prevDt];
+        const valorNuevo = typeof rawNew === 'string' ? rawNew.trim() : String(rawNew ?? '');
+        const valorPrev = typeof rawPrev === 'string' ? rawPrev.trim() : String(rawPrev ?? '');
+        if (valorNuevo !== valorPrev) {
+          historialEntries.push({
+            elementoEspecifico,
+            cambioGenerado: dt[key as keyof typeof dt] ?? '',
+          });
+        }
+      }
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'proyectos.ts:updateProyectoGeneralTab:entriesCount',
+        message: 'Historial entries to be written (post-fix: only real changes)',
+        data: { count: historialEntries.length, elements: historialEntries.map((e) => e.elementoEspecifico), runId: 'post-fix' },
+        timestamp: Date.now(),
+        hypothesisId: 'H4',
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    for (const entry of historialEntries) {
+      await createHistorialEntry({
+        proyectoId: data.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'General',
+        elementoEspecifico: entry.elementoEspecifico,
+        cambioGenerado: entry.cambioGenerado,
+      });
+    }
+
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+
+    const [ytRow] = await prisma.$queryRaw<{ youtube_url: string | null }[]>`
+      SELECT youtube_url FROM proyectos WHERE id = ${data.proyectoId}
+    `.catch(() => [{ youtube_url: null }]);
+    const out = {
+      ...proyectoActualizado,
+      youtubeUrl: ytRow?.youtube_url ?? null,
+    };
     return {
       success: true,
-      data: proyectoActualizado as ProyectoWithRelations,
+      data: out as ProyectoWithRelations,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error updating general tab:', error);
-    return { success: false, error: 'Error al actualizar el proyecto' };
+    return {
+      success: false,
+      error: `Error al actualizar el proyecto: ${message}`,
+    };
   }
 }
 
@@ -750,6 +998,13 @@ export async function addParticipanteProyecto(
         escuelaId: data.escuelaId ?? null,
       },
     });
+    await createHistorialEntry({
+      proyectoId,
+      accion: 'Agregar participante',
+      tabProyecto: 'Participantes',
+      elementoEspecifico: `a un nuevo ${data.rol}`,
+      cambioGenerado: data.nombre ?? '',
+    });
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
       include: proyectoIncludeForParticipante,
@@ -805,6 +1060,14 @@ export async function updateParticipanteProyecto(
         }),
       },
     });
+    const nombreParticipante = existing.nombre || existing.rol || 'Participante';
+    await createHistorialEntry({
+      proyectoId: existing.proyectoId,
+      accion: 'Actualizar',
+      tabProyecto: 'Participantes',
+      elementoEspecifico: `los datos del ${existing.rol}`,
+      cambioGenerado: nombreParticipante,
+    });
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: existing.proyectoId },
       include: proyectoIncludeForParticipante,
@@ -829,8 +1092,16 @@ export async function deleteParticipanteProyecto(participanteId: string) {
     if (!existing) {
       return { success: false, error: 'Participante no encontrado' };
     }
+    const nombreParticipante = existing.nombre || existing.rol || 'Participante';
     await prisma.proyectoParticipante.delete({
       where: { id: participanteId },
+    });
+    await createHistorialEntry({
+      proyectoId: existing.proyectoId,
+      accion: 'Eliminar participante',
+      tabProyecto: 'Participantes',
+      elementoEspecifico: `al ${existing.rol}`,
+      cambioGenerado: nombreParticipante,
     });
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: existing.proyectoId },

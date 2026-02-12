@@ -16,10 +16,10 @@ export function useProyectos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar proyectos
-  const fetchProyectos = async () => {
+  // Cargar proyectos. Con { silent: true } no se muestra el estado de carga (evita "refresh" al guardar).
+  const fetchProyectos = async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       const result = await getProyectos();
 
       if (!result.success) {

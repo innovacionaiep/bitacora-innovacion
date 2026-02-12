@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
+import { createHistorialEntry } from './historial';
 
 export interface EvidenciaActividadData {
   id: string;
@@ -41,7 +42,7 @@ export async function createEvidenciaActividad(
   try {
     const activity = await prisma.activity.findUnique({
       where: { id: actividadId },
-      select: { projectId: true },
+      select: { projectId: true, name: true },
     });
     if (!activity) {
       return { success: false, error: 'Actividad no encontrada' };
@@ -56,6 +57,17 @@ export async function createEvidenciaActividad(
         nombreArchivo: data.nombreArchivo ?? null,
       },
     });
+
+    await createHistorialEntry({
+      proyectoId: activity.projectId,
+      accion: 'Subir evidencia',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Actividad "${activity.name}"`,
+      cambioGenerado: data.nombreArchivo
+        ? `Evidencia subida: ${data.nombreArchivo}`
+        : 'Nueva evidencia subida',
+    });
+
     revalidatePath('/proyectos');
     return { success: true, data: evidencia as EvidenciaActividadData };
   } catch (error) {
@@ -111,7 +123,12 @@ export async function deleteEvidenciaActividad(id: string) {
   try {
     const evidencia = await prisma.evidenciaActividad.findUnique({
       where: { id },
-      select: { publicId: true, tipo: true },
+      select: {
+        publicId: true,
+        tipo: true,
+        actividad: { select: { projectId: true, name: true } },
+        nombreArchivo: true,
+      },
     });
     if (!evidencia) {
       return { success: false, error: 'Evidencia no encontrada' };
@@ -121,6 +138,17 @@ export async function deleteEvidenciaActividad(id: string) {
     await prisma.evidenciaActividad.delete({
       where: { id },
     });
+
+    await createHistorialEntry({
+      proyectoId: evidencia.actividad.projectId,
+      accion: 'Eliminar evidencia',
+      tabProyecto: 'Actividades',
+      elementoEspecifico: `Actividad "${evidencia.actividad.name}"`,
+      cambioGenerado: evidencia.nombreArchivo
+        ? `Evidencia eliminada: ${evidencia.nombreArchivo}`
+        : 'Evidencia eliminada',
+    });
+
     revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {

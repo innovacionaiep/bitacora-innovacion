@@ -114,6 +114,7 @@ model Proyecto {
   proyecto         String
   fondo            String
   sede             String
+  youtubeUrl       String?  @map("youtube_url") @db.Text
   focalizacion     String? // Social|Productiva|Ambiental|null
   avanceGantt      Int      @default(0) @map("avance_gantt")
   objetivos        Int      @default(0)
