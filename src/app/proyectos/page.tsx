@@ -85,10 +85,11 @@ import {
   Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
-import { useProyectos } from '@/hooks/useProyectos';
+import { useProyectosParaUsuario } from '@/hooks/useProyectosParaUsuario';
 import {
   type CarreraItem,
   type ComunaItem,
@@ -97,6 +98,7 @@ import {
   type SocioComunitarioItem,
   ProyectoWithRelations,
 } from '@/types/proyecto';
+import type { ProyectoListadoItem } from '@/lib/actions/proyectos';
 import { ProgressCard } from '@/components/proyectos/ProgressCard';
 import { ProjectInfoCard } from '@/components/proyectos/ProjectInfoCard';
 import GanttChart from '@/components/proyectos/GanttChart';
@@ -114,6 +116,7 @@ import {
   getEscuelas,
   getGruposInteres,
   getSociosComunitarios,
+  getProyecto,
   updateProyectoGeneralTab,
   addParticipanteProyecto,
   updateParticipanteProyecto,
@@ -123,6 +126,14 @@ import {
   getSedes,
   getEscuelas as getEscuelasConfig,
 } from '@/lib/actions/configuracion';
+import { getRolesConProyectosVigentes } from '@/lib/actions/portal-inicio';
+import { updateUserProfile } from '@/lib/auth-actions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Valor sentinela para Select (Radix no permite value="" en SelectItem)
 const SELECT_NONE_VALUE = '__none__';
@@ -300,8 +311,51 @@ function GeneralTabTextarea({
   );
 }
 
+function getRoleColors(role: string): string {
+  switch (role.toLowerCase()) {
+    case 'admin':
+      return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200';
+    case 'coordinador':
+      return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200';
+    case 'colaborador':
+      return 'bg-violet-100 text-violet-700 border-violet-300 hover:bg-violet-200';
+    case 'encargado':
+      return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200';
+    case 'docente':
+      return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200';
+    case 'estudiante':
+      return 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200';
+    case 'beneficiario':
+      return 'bg-cyan-100 text-cyan-700 border-cyan-300 hover:bg-cyan-200';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200';
+  }
+}
+
+function getRoleCircleColor(role: string): string {
+  switch (role.toLowerCase()) {
+    case 'admin':
+      return 'bg-yellow-500';
+    case 'coordinador':
+      return 'bg-blue-500';
+    case 'colaborador':
+      return 'bg-violet-500';
+    case 'encargado':
+      return 'bg-orange-500';
+    case 'docente':
+      return 'bg-green-500';
+    case 'estudiante':
+      return 'bg-red-500';
+    case 'beneficiario':
+      return 'bg-cyan-500';
+    default:
+      return 'bg-gray-500';
+  }
+}
+
 export default function ProyectosPage() {
-  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const { data: session, status, update: updateSession } = useSession();
   const {
     proyectos: proyectosIniciales,
     loading,
@@ -310,11 +364,16 @@ export default function ProyectosPage() {
     createProyecto,
     updateProyecto,
     deleteProyecto,
-  } = useProyectos();
+  } = useProyectosParaUsuario();
+  const hasAppliedIdFromUrlRef = useRef(false);
 
+  const [rolesVigentes, setRolesVigentes] = useState<string[]>([]);
+  const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
+  const skipRoleChangeRefetchRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] =
     useState<ProyectoWithRelations | null>(null);
+  const [selectingProjectId, setSelectingProjectId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -435,17 +494,37 @@ export default function ProyectosPage() {
       false
   );
 
-  if (
-    proyectosIniciales.length > 0 &&
-    !selectedProject &&
-    !showAddForm &&
-    !showEditForm
-  ) {
-    const firstProject = proyectosIniciales[0];
-    setSelectedProject(firstProject);
-    const videoUrl = (firstProject as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[firstProject.id] ?? '';
-    setTempVideoUrl(videoUrl);
-  }
+  // Si el proyecto seleccionado ya no está en la lista (ej. cambió de rol), limpiar selección
+  useEffect(() => {
+    if (selectedProject && proyectosIniciales.length > 0) {
+      const estaEnLista = proyectosIniciales.some((p) => p.id === selectedProject.id);
+      if (!estaEnLista) {
+        setSelectedProject(null);
+      }
+    }
+  }, [proyectosIniciales, selectedProject?.id]);
+
+  // Preseleccionar proyecto cuando se llega con ?id= (ej. desde Inicio "Ir")
+  useEffect(() => {
+    const idFromUrl = searchParams.get('id');
+    if (!idFromUrl || hasAppliedIdFromUrlRef.current || proyectosIniciales.length === 0) return;
+    const project = proyectosIniciales.find((p) => p.id === idFromUrl);
+    if (!project) return;
+    hasAppliedIdFromUrlRef.current = true;
+    (async () => {
+      setSelectingProjectId(project.id);
+      try {
+        const result = await getProyecto(project.id);
+        if (result.success && result.data) {
+          setSelectedProject(result.data);
+          const videoUrl = (result.data as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
+          setTempVideoUrl(videoUrl);
+        }
+      } finally {
+        setSelectingProjectId(null);
+      }
+    })();
+  }, [proyectosIniciales, searchParams]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
@@ -579,11 +658,19 @@ export default function ProyectosPage() {
     });
   };
 
-  const handleSelectProject = (project: ProyectoWithRelations) => {
-    setSelectedProject(project);
+  const handleSelectProject = async (project: ProyectoListadoItem) => {
     setIsSheetOpen(false);
-    const videoUrl = (project as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
-    setTempVideoUrl(videoUrl);
+    setSelectingProjectId(project.id);
+    try {
+      const result = await getProyecto(project.id);
+      if (result.success && result.data) {
+        setSelectedProject(result.data);
+        const videoUrl = (result.data as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
+        setTempVideoUrl(videoUrl);
+      }
+    } finally {
+      setSelectingProjectId(null);
+    }
   };
 
   const handleSaveNewParticipante = async () => {
@@ -1094,6 +1181,60 @@ export default function ProyectosPage() {
     return () => clearTimeout(t);
   }, [showGeneralSaveToast]);
 
+  // Recargar proyectos cuando cambie el rol activo (ej. desde el sidebar).
+  // Se omite si el cambio vino del selector (handleRoleChange ya recargó).
+  useEffect(() => {
+    if (status !== 'authenticated' || skipRoleChangeRefetchRef.current) return;
+    fetchProyectos({ silent: true });
+  }, [session?.user?.activeRole, status]);
+
+  const loadRoles = useCallback(async () => {
+    const res = await getRolesConProyectosVigentes();
+    if (res.success && res.data) {
+      setRolesVigentes(res.data);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRoles();
+  }, [loadRoles]);
+
+  const currentRole =
+    optimisticRole ?? session?.user?.activeRole ?? rolesVigentes[0] ?? 'Sin rol';
+
+  const handleRoleChange = async (newRole: string) => {
+    if (!session?.user?.id) return;
+    const t0 = performance.now();
+    const previousRole = session.user.activeRole ?? null;
+    setOptimisticRole(newRole);
+    skipRoleChangeRefetchRef.current = true;
+    try {
+      const result = await updateUserProfile(session.user.id, {
+        activeRole: newRole,
+      });
+      const t1 = performance.now();
+      if (typeof window !== 'undefined') console.log('[DEBUG-LISTADO] updateUserProfile ms:', Math.round(t1 - t0));
+      if (!result.success) throw new Error(result.error);
+      // Ejecutar actualización de sesión y carga de proyectos en paralelo.
+      const t2Start = performance.now();
+      await Promise.all([
+        updateSession({ activeRole: newRole }),
+        fetchProyectos({ silent: true, activeRole: newRole }),
+      ]);
+      const t2End = performance.now();
+      if (typeof window !== 'undefined') console.log('[DEBUG-LISTADO] Promise.all(updateSession,fetchProyectos) ms:', Math.round(t2End - t2Start));
+      setTimeout(() => updateSession(), 100);
+      if (typeof window !== 'undefined') console.log('[DEBUG-LISTADO] handleRoleChange total ms:', Math.round(performance.now() - t0));
+    } catch {
+      setOptimisticRole(null);
+      await updateSession({ activeRole: previousRole });
+    } finally {
+      setTimeout(() => {
+        skipRoleChangeRefetchRef.current = false;
+      }, 500);
+    }
+  };
+
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
       'AntofaSuena 2025. Música-Industria-Territorio':
@@ -1170,6 +1311,46 @@ export default function ProyectosPage() {
               </SheetTitle>
             </SheetHeader>
 
+            {/* Selector de rol activo - arriba del selector de proyectos */}
+            {session?.user && rolesVigentes.length > 0 && (
+              <div className="px-6 py-4 border-b">
+                <Label className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">
+                  Rol activo
+                </Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`w-full justify-between min-w-0 ${getRoleColors(currentRole)}`}
+                    >
+                      <span className="truncate">{currentRole}</span>
+                      <ChevronDown className="h-4 w-4 ml-1 opacity-70 shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[160px]">
+                    {rolesVigentes.map((role) => {
+                      const isActive = role === currentRole;
+                      return (
+                        <DropdownMenuItem
+                          key={role}
+                          className={`cursor-pointer flex items-center gap-2 ${
+                            isActive ? 'bg-accent font-semibold' : ''
+                          }`}
+                          onClick={() => handleRoleChange(role)}
+                        >
+                          <div
+                            className={`w-3 h-3 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
+                          />
+                          <span className="flex-1">{role}</span>
+                          {isActive && <Check className="h-4 w-4" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+
             {/* Search Input */}
             <div className="px-6 py-4 border-b">
               <div className="relative">
@@ -1190,7 +1371,7 @@ export default function ProyectosPage() {
                   <Card
                     key={index}
                     className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                      selectedProject?.proyecto === project.proyecto
+                      selectedProject?.id === project.id
                         ? 'ring-2 ring-blue-500 bg-blue-50'
                         : 'hover:bg-gray-50'
                     }`}
@@ -1568,8 +1749,15 @@ export default function ProyectosPage() {
               </form>
             </CardContent>
           </Card>
+        ) : selectingProjectId ? (
+          <div className="flex items-center justify-center h-full min-h-[300px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mx-auto mb-3" />
+              <p className="text-gray-500">Cargando proyecto...</p>
+            </div>
+          </div>
         ) : selectedProject ? (
-          <div className="flex flex-col h-full pl-12 pr-8 pt-6 pb-6">
+          <div className="flex flex-col h-full">
             {/* Header del proyecto - Fixed, no scroll */}
             <div className="flex-shrink-0">
               <div className="flex items-start justify-between gap-4">
@@ -3609,20 +3797,41 @@ export default function ProyectosPage() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <FolderKanban className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-500 mb-4">
-                Selecciona un proyecto para ver sus detalles
+          /* Pantalla principal / Landing - al entrar o cuando el proyecto seleccionado ya no aplica (ej. cambio de rol) */
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <div className="text-center max-w-md">
+              <FolderKanban className="h-20 w-20 mx-auto mb-6 text-gray-300" />
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                Gestión de Proyectos
+              </h2>
+              <p className="text-gray-500 mb-8">
+                Selecciona un proyecto para ver sus detalles o crea uno nuevo
               </p>
-              <Button
-                onClick={() => setIsSheetOpen(true)}
-                variant="outline"
-                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 mx-auto"
-              >
-                <Search className="h-4 w-4" />
-                <span>Buscar proyecto</span>
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  onClick={() => setIsSheetOpen(true)}
+                  className="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Seleccionar proyecto</span>
+                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Crear proyecto</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Próximamente</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </div>
         )}

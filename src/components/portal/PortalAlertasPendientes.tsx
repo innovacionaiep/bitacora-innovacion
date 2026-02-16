@@ -1,12 +1,11 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertCircle,
   ClipboardCheck,
-  FileCheck,
   ImagePlus,
   BarChart3,
   Loader2,
@@ -24,22 +23,21 @@ export function PortalAlertasPendientes({
   activeRole,
   loading = false,
 }: PortalAlertasPendientesProps) {
+  const [tab, setTab] = useState<'actividades' | 'indicadores'>('actividades');
+
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+        <div className="flex-shrink-0 px-4 py-3 border-b">
+          <h3 className="font-semibold flex items-center gap-2">
             <AlertCircle className="h-5 w-5" />
             Alertas pendientes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
-          </div>
-        </CardContent>
-      </Card>
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
     );
   }
 
@@ -48,19 +46,19 @@ export function PortalAlertasPendientes({
 
   if (!isCoordinador && !isEncargado) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+        <div className="flex-shrink-0 px-4 py-3 border-b">
+          <h3 className="font-semibold flex items-center gap-2">
             <AlertCircle className="h-5 w-5" />
             Alertas pendientes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center p-4">
           <p className="text-muted-foreground text-sm">
             Las alertas están disponibles para los roles Coordinador y Encargado.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -69,146 +67,62 @@ export function PortalAlertasPendientes({
   const encActividades = alertas?.encargado?.actividadesPorEvidenciar ?? [];
   const encIndicadores = alertas?.encargado?.indicadoresPorEvidenciar ?? [];
 
-  const hasAny =
-    coordActividades.length > 0 ||
-    coordIndicadores.length > 0 ||
-    encActividades.length > 0 ||
-    encIndicadores.length > 0;
+  const actividades = isCoordinador ? coordActividades : encActividades;
+  const indicadores = isCoordinador ? coordIndicadores : encIndicadores;
+  const labelActividades = isCoordinador ? 'Actividades por validar' : 'Actividades por evidenciar';
+  const labelIndicadores = isCoordinador ? 'Indicadores por validar' : 'Indicadores por evidenciar';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+      <div className="flex-shrink-0 px-4 py-3 border-b">
+        <h3 className="font-semibold flex items-center gap-2 mb-3">
           <AlertCircle className="h-5 w-5" />
           Alertas pendientes
-          {activeRole && (
-            <Badge variant="secondary" className="text-xs">
-              {activeRole}
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!hasAny && (
-          <p className="text-muted-foreground text-sm">
-            No hay alertas pendientes para el rol seleccionado.
-          </p>
+        </h3>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'actividades' | 'indicadores')}>
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="actividades" className="gap-1.5 text-xs">
+              {isCoordinador ? <ClipboardCheck className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
+              {labelActividades}
+            </TabsTrigger>
+            <TabsTrigger value="indicadores" className="gap-1.5 text-xs">
+              <BarChart3 className="h-3.5 w-3.5" />
+              {labelIndicadores}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto px-4 py-2">
+        {tab === 'actividades' ? (
+          <ul className="space-y-1.5">
+            {actividades.map((a) => (
+              <li key={a.id}>
+                <Link href="/proyectos" className="text-sm text-primary hover:underline">
+                  {a.name}
+                </Link>
+                <span className="text-xs text-muted-foreground ml-2">— {a.proyectoNombre}</span>
+              </li>
+            ))}
+            {actividades.length === 0 && (
+              <li className="text-sm text-muted-foreground">Ninguna</li>
+            )}
+          </ul>
+        ) : (
+          <ul className="space-y-1.5">
+            {indicadores.map((i) => (
+              <li key={i.id}>
+                <Link href="/proyectos" className="text-sm text-primary hover:underline">
+                  {i.nombre}
+                </Link>
+                <span className="text-xs text-muted-foreground ml-2">— {i.proyectoNombre}</span>
+              </li>
+            ))}
+            {indicadores.length === 0 && (
+              <li className="text-sm text-muted-foreground">Ninguno</li>
+            )}
+          </ul>
         )}
-
-        {isCoordinador && (
-          <>
-            <div>
-              <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
-                <ClipboardCheck className="h-4 w-4" />
-                Actividades por validar
-              </h4>
-              <ul className="space-y-1.5">
-                {coordActividades.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      href="/proyectos"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {a.name}
-                    </Link>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      — {a.proyectoNombre}
-                    </span>
-                  </li>
-                ))}
-                {coordActividades.length === 0 && (
-                  <li className="text-sm text-muted-foreground">
-                    Ninguna
-                  </li>
-                )}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
-                <BarChart3 className="h-4 w-4" />
-                Indicadores por validar
-              </h4>
-              <ul className="space-y-1.5">
-                {coordIndicadores.map((i) => (
-                  <li key={i.id}>
-                    <Link
-                      href="/proyectos"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {i.nombre}
-                    </Link>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      — {i.proyectoNombre}
-                    </span>
-                  </li>
-                ))}
-                {coordIndicadores.length === 0 && (
-                  <li className="text-sm text-muted-foreground">
-                    Ninguno
-                  </li>
-                )}
-              </ul>
-            </div>
-          </>
-        )}
-
-        {isEncargado && (
-          <>
-            <div>
-              <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
-                <ImagePlus className="h-4 w-4" />
-                Actividades por evidenciar
-              </h4>
-              <ul className="space-y-1.5">
-                {encActividades.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      href="/proyectos"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {a.name}
-                    </Link>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      — {a.proyectoNombre}
-                    </span>
-                  </li>
-                ))}
-                {encActividades.length === 0 && (
-                  <li className="text-sm text-muted-foreground">
-                    Ninguna
-                  </li>
-                )}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
-                <FileCheck className="h-4 w-4" />
-                Indicadores por evidenciar
-              </h4>
-              <ul className="space-y-1.5">
-                {encIndicadores.map((i) => (
-                  <li key={i.id}>
-                    <Link
-                      href="/proyectos"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {i.nombre}
-                    </Link>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      — {i.proyectoNombre}
-                    </span>
-                  </li>
-                ))}
-                {encIndicadores.length === 0 && (
-                  <li className="text-sm text-muted-foreground">
-                    Ninguno
-                  </li>
-                )}
-              </ul>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

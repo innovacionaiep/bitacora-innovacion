@@ -35,7 +35,7 @@ const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el t√
 const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
 
 const navItemsBase = [
-  { href: '/', label: 'Inicio', icon: Home },
+  { href: '/inicio', label: 'Inicio', icon: Home },
   { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },

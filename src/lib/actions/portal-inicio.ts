@@ -63,19 +63,48 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
       where: { userId: user.id, rol: activeRole },
       include: {
         proyecto: {
-          select: { id: true, proyecto: true, avanceGantt: true },
+          select: {
+            id: true,
+            proyecto: true,
+            fondo: true,
+            avanceGantt: true,
+            presupuestoUsado: true,
+            presupuestoTotal: true,
+            indicadores: { select: { porcentajeAvance: true } },
+          },
         },
       },
     });
 
     const data = participaciones
       .filter((p) => p.proyecto)
-      .map((p) => ({
-        id: p.proyecto!.id,
-        proyecto: p.proyecto!.proyecto,
-        avanceGantt: p.proyecto!.avanceGantt,
-        rol: p.rol,
-      }));
+      .map((p) => {
+        const proy = p.proyecto!;
+        const indicadores = proy.indicadores ?? [];
+        const avanceIndicadores =
+          indicadores.length > 0
+            ? Math.round(
+                (indicadores.reduce((s, i) => s + i.porcentajeAvance, 0) /
+                  indicadores.length) *
+                  100
+              ) / 100
+            : 0;
+        const avancePresupuesto =
+          proy.presupuestoTotal > 0
+            ? Math.round(
+                (proy.presupuestoUsado / proy.presupuestoTotal) * 100
+              )
+            : 0;
+        return {
+          id: proy.id,
+          proyecto: proy.proyecto,
+          fondo: proy.fondo,
+          avanceGantt: proy.avanceGantt,
+          avanceIndicadores,
+          avancePresupuesto,
+          rol: p.rol,
+        };
+      });
 
     return { success: true, data };
   } catch (error) {

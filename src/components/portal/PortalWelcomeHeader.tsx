@@ -94,9 +94,9 @@ export function PortalWelcomeHeader({
   const image = session.user.image;
 
   return (
-    <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
-      <div className="flex items-center gap-4">
-        <Avatar className="h-14 w-14 border-2 border-muted">
+    <header className="flex flex-wrap items-center gap-4 w-full">
+      <div className="flex items-center gap-4 min-w-0">
+        <Avatar className="h-16 w-16 border-2 border-muted shrink-0">
           <AvatarImage src={image ?? undefined} alt={name} />
           <AvatarFallback className="text-lg">
             {(name.charAt(0) || 'U').toUpperCase()}
@@ -106,22 +106,23 @@ export function PortalWelcomeHeader({
           <h1 className="text-2xl font-bold tracking-tight">
             Bienvenido, {name}
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm mt-0.5">
             Selecciona tu rol para ver el contenido asociado
           </p>
         </div>
       </div>
 
       {rolesVigentes.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground hidden sm:inline">
-            Rol activo:
-          </span>
+        <>
+          <div
+            className="hidden sm:block h-10 w-px bg-border shrink-0"
+            aria-hidden
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className={`min-w-[140px] justify-between ${getRoleColors(currentRole)}`}
+                className={`min-w-[140px] justify-between shrink-0 ${getRoleColors(currentRole)}`}
               >
                 {currentRole}
                 <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
@@ -146,7 +147,7 @@ export function PortalWelcomeHeader({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </>
       )}
     </header>
   );

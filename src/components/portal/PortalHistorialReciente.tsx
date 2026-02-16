@@ -1,6 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { History, Loader2 } from 'lucide-react';
 
 type HistorialEntry = Awaited<
@@ -37,34 +36,31 @@ export function PortalHistorialReciente({
 }: PortalHistorialRecienteProps) {
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+        <div className="flex-shrink-0 px-4 py-3 border-b">
+          <h3 className="font-semibold flex items-center gap-2">
             <History className="h-5 w-5" />
             Últimas actualizaciones
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
-          </div>
-        </CardContent>
-      </Card>
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
     );
   }
 
   const list = historial ?? [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+      <div className="flex-shrink-0 px-4 py-3 border-b">
+        <h3 className="font-semibold flex items-center gap-2">
           <History className="h-5 w-5" />
           Últimas actualizaciones
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </h3>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto px-4 py-2">
         {list.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No hay actualizaciones recientes.
@@ -130,7 +126,7 @@ export function PortalHistorialReciente({
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

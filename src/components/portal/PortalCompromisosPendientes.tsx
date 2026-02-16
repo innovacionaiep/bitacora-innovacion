@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toggleCompromiso, toggleValidacionCompromiso } from '@/lib/actions/seguimiento';
 import {
@@ -89,20 +88,17 @@ export function PortalCompromisosPendientes({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+        <div className="flex-shrink-0 px-4 py-3 border-b">
+          <h3 className="font-semibold flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
             Compromisos pendientes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
-          </div>
-        </CardContent>
-      </Card>
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
     );
   }
 
@@ -111,14 +107,14 @@ export function PortalCompromisosPendientes({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
+      <div className="flex-shrink-0 px-4 py-3 border-b">
+        <h3 className="font-semibold flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5" />
           Compromisos pendientes
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </h3>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto px-4 py-2">
         {list.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No hay compromisos pendientes.
@@ -190,7 +186,7 @@ export function PortalCompromisosPendientes({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

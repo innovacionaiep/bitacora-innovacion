@@ -24,13 +24,16 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Ruta de novedades que necesita fondo gris completo
   const isNovedadesRoute = pathname === '/novedades';
 
-  // Página de Inicio: mismo padding que proyectos pero sin scroll de ventana (scroll interno)
-  const isInicioRoute = pathname === '/';
+  // Página de Inicio (portal): sin scroll de ventana y márgenes cómodos
+  const isInicioRoute = pathname === '/inicio';
 
-  // Mismo padding que la página de proyectos: pt-2 pr-4 pb-4 pl-0 (no en novedades)
-  const contentPadding = isNovedadesRoute ? '' : 'pt-2 pr-4 pb-4 pl-0';
+  // Márgenes de página: p-8 en todas excepto novedades
+  const contentPadding = isNovedadesRoute ? '' : 'pt-8 pl-8 pr-8 pb-8';
   const contentOverflow =
-    isNovedadesRoute ? '' : isInicioRoute ? 'overflow-hidden' : 'overflow-y-auto';
+    isNovedadesRoute ? '' : isInicioRoute ? 'overflow-visible' : 'overflow-y-auto';
+  const contentBg = isInicioRoute ? 'bg-gray-100' : '';
+
+  const contentClassName = `flex flex-col flex-1 h-full overflow-x-hidden ${contentPadding} ${contentOverflow} ${contentBg}`.trim();
 
   // Si es una ruta de autenticación, mostrar solo el contenido
   if (isAuthRoute) {
@@ -43,10 +46,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       <div className="flex h-screen bg-background text-foreground overflow-hidden">
         <SidebarProvider defaultOpen={true}>
           <SidebarNav />
-          <ResponsiveMain>
-            <div
-              className={`flex flex-col flex-1 h-full overflow-x-hidden ${contentPadding} ${contentOverflow}`}
-            >
+          <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
+            <div className={contentClassName}>
               {children}
             </div>
           </ResponsiveMain>

@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { createHistorialEntry } from './historial';
+import { getCurrentUser } from '@/lib/auth-utils';
 import {
   Proyecto,
   Escuela,
@@ -62,14 +63,16 @@ export type GeneralTabUpdateData = {
 };
 
 /**
- * Función interna para obtener proyectos de la BD (sin caché)
+ * Función interna para obtener proyectos de la BD (sin caché).
+ * Si whereIds está definido, solo devuelve esos proyectos.
  */
-async function _getProyectosFromDB() {
+async function _getProyectosFromDB(whereIds?: string[]) {
   // Obtener información del mes anterior para calcular variaciones
   const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
 
   // NOTA: Incluimos activities con tasks completas para compatibilidad de tipos
   const proyectos = await prisma.proyecto.findMany({
+    ...(whereIds && whereIds.length > 0 && { where: { id: { in: whereIds } } }),
     include: {
       activities: {
         include: {
@@ -197,6 +200,139 @@ export async function getProyectos() {
 }
 
 /**
+ * Obtener proyectos filtrados por usuario y rol activo.
+ * - Admin: ven todos los proyectos.
+ * - Otros roles: solo proyectos donde participan con ese rol en ProyectoParticipante.
+ * @param activeRoleOverride - Rol a usar en lugar del de la sesión (evita esperar sync al cambiar rol)
+ */
+export async function getProyectosParaUsuarioPorRolActivo(
+  activeRoleOverride?: string | null
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: [] };
+    }
+
+    const activeRole =
+      activeRoleOverride ?? (user as { activeRole?: string | null }).activeRole ?? null;
+
+    // Solo Admin ve todos los proyectos. Coordinadores, Encargados y demás roles
+    // solo ven proyectos donde participan con ese rol en ProyectoParticipante.
+    if (activeRole === 'Admin') {
+      const result = await _getProyectosFromDB();
+      return { success: true, data: result };
+    }
+
+    // Sin rol activo: no hay proyectos para mostrar
+    if (!activeRole) {
+      return { success: true, data: [] };
+    }
+
+    const participaciones = await prisma.proyectoParticipante.findMany({
+      where: { userId: user.id, rol: activeRole },
+      select: { proyectoId: true },
+    });
+    const proyectoIds = participaciones.map((p) => p.proyectoId);
+
+    if (proyectoIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const proyectos = await _getProyectosFromDB(proyectoIds);
+    return { success: true, data: proyectos };
+  } catch (error) {
+    console.error('❌ [getProyectosParaUsuarioPorRolActivo] Error:', error);
+    return { success: false, error: 'Error al obtener proyectos', data: [] };
+  }
+}
+
+/** Tipo mínimo para el listado del selector (carga rápida) */
+export type ProyectoListadoItem = {
+  id: string;
+  proyecto: string;
+  sede: string;
+  escuelas: { escuela: { nombre: string } }[];
+};
+
+/**
+ * Listado ligero de proyectos para el selector (solo id, nombre, sede, escuelas).
+ * Carga instantánea; los detalles completos se cargan al seleccionar.
+ */
+export async function getProyectosListadoParaUsuario(
+  activeRoleOverride?: string | null
+) {
+  const t0 = Date.now();
+  try {
+    const user = await getCurrentUser();
+    const t1 = Date.now();
+    // #region agent log
+    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:getCurrentUser',ms:t1-t0,t0,t1,hasUser:!!user?.id})+'\n');}catch(_){}
+    // #endregion
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: [] };
+    }
+
+    const activeRole =
+      activeRoleOverride ?? (user as { activeRole?: string | null }).activeRole ?? null;
+
+    if (activeRole === 'Admin') {
+      const proyectos = await prisma.proyecto.findMany({
+        select: {
+          id: true,
+          proyecto: true,
+          sede: true,
+          escuelas: { include: { escuela: { select: { nombre: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      const t2 = Date.now();
+      // #region agent log
+      try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:Admin:findMany',ms:t2-t1,total:proyectos.length})+'\n');}catch(_){}
+      // #endregion
+      return { success: true, data: proyectos as ProyectoListadoItem[] };
+    }
+
+    if (!activeRole) {
+      return { success: true, data: [] };
+    }
+
+    const participaciones = await prisma.proyectoParticipante.findMany({
+      where: { userId: user.id, rol: activeRole },
+      select: { proyectoId: true },
+    });
+    const t2 = Date.now();
+    // #region agent log
+    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:participaciones',ms:t2-t1,total:participaciones.length})+'\n');}catch(_){}
+    // #endregion
+    const proyectoIds = participaciones.map((p) => p.proyectoId);
+
+    if (proyectoIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const proyectos = await prisma.proyecto.findMany({
+      where: { id: { in: proyectoIds } },
+      select: {
+        id: true,
+        proyecto: true,
+        sede: true,
+        escuelas: { include: { escuela: { select: { nombre: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const t3 = Date.now();
+    // #region agent log
+    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:proyectos:findMany',ms:t3-t2,total:proyectos.length,totalMs:t3-t0})+'\n');}catch(_){}
+    // #endregion
+    return { success: true, data: proyectos as ProyectoListadoItem[] };
+  } catch (error) {
+    console.error('❌ [getProyectosListadoParaUsuario] Error:', error);
+    return { success: false, error: 'Error al obtener listado', data: [] };
+  }
+}
+
+/**
  * Obtener un proyecto por ID con todas las relaciones
  */
 export async function getProyecto(id: string) {
@@ -216,6 +352,8 @@ export async function getProyecto(id: string) {
           include: {
             user: true,
             socioComunitario: true,
+            sede: true,
+            escuela: true,
           },
         },
         escuelas: {
