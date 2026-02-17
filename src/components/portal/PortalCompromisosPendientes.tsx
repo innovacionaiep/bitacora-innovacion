@@ -1,8 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toggleCompromiso, toggleValidacionCompromiso } from '@/lib/actions/seguimiento';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  toggleCompromiso,
+  toggleValidacionCompromiso,
+  updateCompromiso,
+} from '@/lib/actions/seguimiento';
 import {
   ClipboardCheck,
   CircleAlert,
@@ -62,6 +77,13 @@ export function PortalCompromisosPendientes({
   loading = false,
 }: PortalCompromisosPendientesProps) {
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [selectedCompromiso, setSelectedCompromiso] =
+    useState<CompromisoPortal | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [isEditingCompromiso, setIsEditingCompromiso] = useState(false);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isCoordinadorOrAdmin =
     activeRole === 'Coordinador' || activeRole === 'Admin';
@@ -75,7 +97,12 @@ export function PortalCompromisosPendientes({
     setTogglingId(id);
     const result = await toggleCompromiso(id);
     setTogglingId(null);
-    if (result.success) await onSuccess();
+    if (result.success) {
+      setSelectedCompromiso((prev) =>
+        prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+      );
+      await onSuccess();
+    }
   };
 
   const handleToggleValidacion = async (id: string) => {
@@ -83,15 +110,55 @@ export function PortalCompromisosPendientes({
     setTogglingId(id);
     const result = await toggleValidacionCompromiso(id);
     setTogglingId(null);
-    if (result.success) await onSuccess();
+    if (result.success) {
+      setSelectedCompromiso((prev) =>
+        prev?.id === id
+          ? { ...prev, validadoPorCoordinador: !prev.validadoPorCoordinador }
+          : prev
+      );
+      await onSuccess();
+    }
+  };
+
+  const handleOpenDetail = (compromiso: CompromisoPortal) => {
+    setSelectedCompromiso(compromiso);
+    setDetailModalOpen(true);
+    setIsEditingCompromiso(false);
+    setEditTitulo(compromiso.titulo ?? '');
+    setEditDescripcion(compromiso.descripcion);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedCompromiso) return;
+    setSavingEdit(true);
+    const result = await updateCompromiso(selectedCompromiso.id, {
+      titulo: editTitulo.trim() || null,
+      descripcion: editDescripcion.trim(),
+    });
+    setSavingEdit(false);
+    if (result.success && result.data) {
+      setSelectedCompromiso({
+        ...selectedCompromiso,
+        titulo: result.data.titulo ?? null,
+        descripcion: result.data.descripcion,
+      });
+      setIsEditingCompromiso(false);
+      await onSuccess();
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedCompromiso(null);
+    setIsEditingCompromiso(false);
+    setDetailModalOpen(false);
   };
 
   if (loading) {
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
         <div className="flex-shrink-0 px-4 py-3 border-b">
-          <h3 className="font-semibold flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5" />
+          <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+            <ClipboardCheck className="h-6 w-6 text-emerald-600" />
             Compromisos pendientes
           </h3>
         </div>
@@ -107,10 +174,11 @@ export function PortalCompromisosPendientes({
   );
 
   return (
+    <>
     <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
       <div className="flex-shrink-0 px-4 py-3 border-b">
-        <h3 className="font-semibold flex items-center gap-2">
-          <ClipboardCheck className="h-5 w-5" />
+        <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+          <ClipboardCheck className="h-6 w-6 text-emerald-600" />
           Compromisos pendientes
         </h3>
       </div>
@@ -131,7 +199,16 @@ export function PortalCompromisosPendientes({
               return (
                 <div
                   key={c.id}
-                  className={`rounded-lg border-2 shadow-md p-3 min-h-[120px] flex flex-col text-left ${getPostItClass(c)}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenDetail(c)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenDetail(c);
+                    }
+                  }}
+                  className={`rounded-lg border-2 shadow-md p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:shadow-lg transition-all duration-200 ${getPostItClass(c)}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p
@@ -188,5 +265,180 @@ export function PortalCompromisosPendientes({
         )}
       </div>
     </div>
+
+      {selectedCompromiso && detailModalOpen && (
+        <Dialog
+          open={true}
+          onOpenChange={(open) => !open && handleCloseDetail()}
+        >
+          <DialogContent
+            className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck
+                    className={
+                      selectedCompromiso.validadoPorCoordinador
+                        ? 'h-5 w-5 text-emerald-600'
+                        : selectedCompromiso.completado
+                          ? 'h-5 w-5 text-amber-600'
+                          : 'h-5 w-5 text-red-600'
+                    }
+                  />
+                  {isEditingCompromiso ? (
+                    <Input
+                      value={editTitulo}
+                      onChange={(e) => setEditTitulo(e.target.value)}
+                      placeholder="Título del compromiso"
+                      className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
+                        selectedCompromiso.validadoPorCoordinador
+                          ? 'bg-emerald-100 border-emerald-400'
+                          : selectedCompromiso.completado
+                            ? 'bg-amber-100 border-amber-300'
+                            : 'bg-red-100 border-red-300'
+                      }`}
+                    />
+                  ) : (
+                    selectedCompromiso.titulo?.trim() ||
+                    tituloDeDescripcion(selectedCompromiso.descripcion, 50)
+                  )}
+                </div>
+                <EstadoIcon compromiso={selectedCompromiso} />
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {(selectedCompromiso as CompromisoPortal & { proyecto?: { proyecto?: string } }).proyecto?.proyecto && (
+                <div className="space-y-1">
+                  <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                    Proyecto
+                  </Label>
+                  <p className="text-sm text-gray-700">
+                    {(selectedCompromiso as CompromisoPortal & { proyecto?: { proyecto?: string } }).proyecto?.proyecto}
+                  </p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                  Descripción
+                </Label>
+                {isEditingCompromiso ? (
+                  <Textarea
+                    value={editDescripcion}
+                    onChange={(e) => setEditDescripcion(e.target.value)}
+                    placeholder="Escriba el compromiso..."
+                    rows={4}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p
+                    className={`text-sm whitespace-pre-wrap break-words break-all ${
+                      selectedCompromiso.completado
+                        ? 'line-through text-gray-600'
+                        : 'text-gray-900'
+                    }`}
+                  >
+                    {selectedCompromiso.descripcion}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                  Fecha de creación
+                </Label>
+                <p className="text-sm text-gray-700">
+                  {formatFecha(selectedCompromiso.createdAt)}
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  {togglingId === selectedCompromiso.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                  ) : (
+                    <Checkbox
+                      checked={selectedCompromiso.completado}
+                      onCheckedChange={() =>
+                        canMarkRealizado &&
+                        handleToggleRealizado(selectedCompromiso.id)
+                      }
+                      disabled={!canMarkRealizado}
+                      className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black data-[state=checked]:border-amber-600"
+                    />
+                  )}
+                  <span className="font-medium text-gray-700">
+                    Realizado (Encargado)
+                  </span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  {togglingId === selectedCompromiso.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                  ) : (
+                    <Checkbox
+                      checked={selectedCompromiso.validadoPorCoordinador}
+                      onCheckedChange={() =>
+                        isCoordinadorOrAdmin &&
+                        handleToggleValidacion(selectedCompromiso.id)
+                      }
+                      disabled={!isCoordinadorOrAdmin}
+                      className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
+                    />
+                  )}
+                  <span className="font-medium text-gray-700">
+                    Validado (Coordinador)
+                  </span>
+                </label>
+              </div>
+            </div>
+            <DialogFooter>
+              {isEditingCompromiso ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditingCompromiso(false);
+                      setEditTitulo(selectedCompromiso.titulo ?? '');
+                      setEditDescripcion(selectedCompromiso.descripcion ?? '');
+                    }}
+                    disabled={savingEdit}
+                  >
+                    Cancelar edición
+                  </Button>
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={
+                      !editDescripcion.trim() ||
+                      savingEdit ||
+                      (editDescripcion.trim() ===
+                        selectedCompromiso.descripcion &&
+                        (editTitulo.trim() || null) ===
+                          (selectedCompromiso.titulo ?? null))
+                    }
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {savingEdit ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Guardar'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {isCoordinadorOrAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingCompromiso(true)}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  <Button onClick={handleCloseDetail}>Cerrar</Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

@@ -28,8 +28,8 @@ export function PortalMisProyectos({
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
         <div className="flex-shrink-0 px-4 py-3 border-b">
-          <h3 className="font-semibold flex items-center gap-2">
-            <FolderKanban className="h-5 w-5" />
+          <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+            <FolderKanban className="h-6 w-6 text-emerald-600" />
             Mis proyectos
           </h3>
         </div>
@@ -44,8 +44,8 @@ export function PortalMisProyectos({
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
         <div className="flex-shrink-0 px-4 py-3 border-b">
-          <h3 className="font-semibold flex items-center gap-2">
-            <FolderKanban className="h-5 w-5" />
+          <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+            <FolderKanban className="h-6 w-6 text-emerald-600" />
             Mis proyectos
           </h3>
         </div>
@@ -61,19 +61,19 @@ export function PortalMisProyectos({
   return (
     <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
       <div className="flex-shrink-0 px-4 py-3 border-b">
-        <h3 className="font-semibold flex items-center gap-2">
-          <FolderKanban className="h-5 w-5" />
+        <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+          <FolderKanban className="h-6 w-6 text-emerald-600" />
           Mis proyectos
         </h3>
       </div>
       <div className="flex-1 min-h-0 overflow-auto w-full">
         <div className="flex items-center gap-3 w-full px-4 py-2 border-b bg-muted/40 text-xs font-medium text-muted-foreground shrink-0">
           <span className="w-12 shrink-0" aria-hidden />
-          <span className="flex-1 min-w-0">Proyecto</span>
-          <span className="w-16 shrink-0">Fondo</span>
-          <span className="w-24 shrink-0">Gantt</span>
-          <span className="w-24 shrink-0">Ind.</span>
-          <span className="w-24 shrink-0">Presup.</span>
+          <span className="flex-1 min-w-0 text-center whitespace-nowrap overflow-visible">Proyecto</span>
+          <span className="shrink-0 min-w-24 text-center whitespace-nowrap overflow-visible">Fondo</span>
+          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Gantt</span>
+          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Indicadores</span>
+          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Presupuesto</span>
         </div>
         {proyectos.map((p, index) => (
           <div
@@ -91,18 +91,18 @@ export function PortalMisProyectos({
             <span className="font-medium text-foreground truncate min-w-0 flex-1" title={p.proyecto}>
               {p.proyecto}
             </span>
-            <span className="text-xs text-muted-foreground shrink-0 w-16">{p.fondo}</span>
-            <div className="flex items-center gap-2 shrink-0 w-24">
+            <span className="text-xs text-muted-foreground shrink-0 w-24 text-center">{p.fondo}</span>
+            <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avanceGantt} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums">{p.avanceGantt}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avanceGantt}%</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 w-24">
+            <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avanceIndicadores ?? 0} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums">{p.avanceIndicadores ?? 0}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avanceIndicadores ?? 0}%</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 w-24">
+            <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avancePresupuesto ?? 0} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums">{p.avancePresupuesto ?? 0}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avancePresupuesto ?? 0}%</span>
             </div>
           </div>
         ))}

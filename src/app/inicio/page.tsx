@@ -150,42 +150,40 @@ export default function InicioPage() {
         />
       </div>
 
-      {/* Contenido: mitad superior 50vh + mitad inferior 50vh */}
-      <div className="flex-1 min-h-0 flex flex-col gap-4 mt-4 overflow-visible">
-        {/* Mitad superior: Mis proyectos | Últimas actualizaciones (un poco más ancha) */}
-        <div className="h-[35vh] min-h-[180px] grid grid-cols-[2.5fr_1fr] gap-4 overflow-visible">
-          <div className="min-w-0 min-h-0 p-2 overflow-visible">
+      {/* Contenido: grid unificado para que Últimas, Reuniones y Compromisos tengan el mismo ancho */}
+      <div className="flex-1 min-h-0 grid grid-cols-[1.5fr_1fr] gap-4 mt-4 overflow-visible">
+        {/* Col 1: Mis proyectos (arriba) + Alertas (abajo) */}
+        <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
+          <div className="flex-1 min-h-0 p-2 overflow-visible">
             <PortalMisProyectos proyectos={proyectos} loading={loadingPortal} />
           </div>
-          <div className="min-w-0 min-h-0 p-2 overflow-visible">
-            <PortalHistorialReciente historial={historial} loading={loadingPortal} />
-          </div>
-        </div>
-
-        {/* Mitad inferior: Alertas (izq) | Próximas reuniones + Compromisos (der, dos tarjetas) */}
-        <div className="flex-1 min-h-[200px] flex gap-4 overflow-visible">
-          <div className="w-1/2 min-w-0 min-h-0 p-2 overflow-visible">
+          <div className="flex-1 min-h-0 p-2 overflow-visible">
             <PortalAlertasPendientes
               alertas={alertas}
               activeRole={activeRole}
               loading={loadingPortal}
+              onSuccess={loadPortalData}
             />
           </div>
-          <div className="w-1/2 min-w-0 flex flex-col gap-4 overflow-visible">
-            <div className="flex-1 min-h-0 p-2 overflow-visible">
-              <PortalProximasReuniones
-                reuniones={reuniones}
-                loading={loadingPortal}
-              />
-            </div>
-            <div className="flex-1 min-h-0 p-2 overflow-visible">
-              <PortalCompromisosPendientes
-                compromisos={compromisos}
-                activeRole={activeRole}
-                onSuccess={loadPortalData}
-                loading={loadingPortal}
-              />
-            </div>
+        </div>
+        {/* Col 2: Últimas actualizaciones | Próximas reuniones | Compromisos pendientes (mismo ancho) */}
+        <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
+          <div className="flex-[1.15] min-h-0 p-2 overflow-visible">
+            <PortalHistorialReciente historial={historial} loading={loadingPortal} />
+          </div>
+          <div className="flex-1 min-h-0 p-2 overflow-visible">
+            <PortalProximasReuniones
+              reuniones={reuniones}
+              loading={loadingPortal}
+            />
+          </div>
+          <div className="flex-1 min-h-0 p-2 overflow-visible">
+            <PortalCompromisosPendientes
+              compromisos={compromisos}
+              activeRole={activeRole}
+              onSuccess={loadPortalData}
+              loading={loadingPortal}
+            />
           </div>
         </div>
       </div>

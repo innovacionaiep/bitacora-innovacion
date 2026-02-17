@@ -23,6 +23,32 @@ export type ActivityWithTasks = Activity & {
 };
 
 /**
+ * Obtener una actividad por ID (con tareas y validación)
+ */
+export async function getActivityById(actividadId: string) {
+  try {
+    const activity = await prisma.activity.findUnique({
+      where: { id: actividadId },
+      include: {
+        tasks: {
+          orderBy: { createdAt: 'asc' },
+        },
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
+      },
+    });
+    if (!activity) {
+      return { success: false, error: 'Actividad no encontrada', data: null };
+    }
+    return { success: true, data: activity };
+  } catch (error) {
+    console.error('Error getting activity:', error);
+    return { success: false, error: 'Error al obtener actividad', data: null };
+  }
+}
+
+/**
  * Obtener actividades de un proyecto
  */
 export async function getActivities(projectId: string) {

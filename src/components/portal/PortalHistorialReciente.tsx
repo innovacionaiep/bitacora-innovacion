@@ -38,8 +38,8 @@ export function PortalHistorialReciente({
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
         <div className="flex-shrink-0 px-4 py-3 border-b">
-          <h3 className="font-semibold flex items-center gap-2">
-            <History className="h-5 w-5" />
+          <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+            <History className="h-6 w-6 text-emerald-600" />
             Últimas actualizaciones
           </h3>
         </div>
@@ -55,8 +55,8 @@ export function PortalHistorialReciente({
   return (
     <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
       <div className="flex-shrink-0 px-4 py-3 border-b">
-        <h3 className="font-semibold flex items-center gap-2">
-          <History className="h-5 w-5" />
+        <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
+          <History className="h-6 w-6 text-emerald-600" />
           Últimas actualizaciones
         </h3>
       </div>
