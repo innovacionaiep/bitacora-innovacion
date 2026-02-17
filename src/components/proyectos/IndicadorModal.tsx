@@ -64,6 +64,8 @@ interface IndicadorModalProps {
   onUpdate?: () => Promise<void>;
   projectId?: string;
   canValidateAsCoordinator?: boolean;
+  /** Oculta el botón Editar (ej. en el portal de inicio). El botón de cargar evidencias sigue visible. */
+  hideEditButton?: boolean;
 }
 
 export function IndicadorModal({
@@ -72,6 +74,7 @@ export function IndicadorModal({
   onUpdate,
   projectId,
   canValidateAsCoordinator = false,
+  hideEditButton = false,
 }: IndicadorModalProps) {
   const { data: session } = useSession();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -642,13 +645,15 @@ export function IndicadorModal({
                   <h1 className="text-2xl font-bold text-emerald-600">
                     {editValues.nombre}
                   </h1>
-                  <button
-                    onClick={toggleEditMode}
-                    className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
-                    title="Editar indicador"
-                  >
-                    <Edit className="h-5 w-5" />
-                  </button>
+                  {!hideEditButton && (
+                    <button
+                      onClick={toggleEditMode}
+                      className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
+                      title="Editar indicador"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1025,7 +1030,7 @@ export function IndicadorModal({
                     ))}
                   </div>
                 )}
-                {isEditMode && (
+                {(isEditMode || hideEditButton) && (
                   <div className="mt-3">
                     <input
                       ref={evidenciasFileInputRef}

@@ -247,6 +247,69 @@ export async function getPresupuestoByProyecto(projectId: string): Promise<{
   }
 }
 
+/** Obtiene un ítem de presupuesto por ID para el modal de detalle (portal, etc.) */
+export async function getItemPresupuestoById(itemId: string): Promise<{
+  success: boolean;
+  data?: {
+    id: string;
+    proyectoId: string;
+    cuenta: CuentaPresupuesto;
+    item: string;
+    detalle: string | null;
+    monto: number;
+    estado: EstadoGastoPresupuesto;
+    idSolicitud: string | null;
+    idPedido: string | null;
+    idRecepcion: string | null;
+    orden: number;
+    proyecciones: Array<{ id: string; mes: number; anio: number; monto: number }>;
+    comentariosCount: number;
+  };
+  error?: string;
+}> {
+  try {
+    const i = await prisma.itemPresupuesto.findUnique({
+      where: { id: itemId },
+      include: {
+        proyecciones: true,
+        _count: { select: { comentarios: true } },
+      },
+    });
+    if (!i) {
+      return { success: false, error: 'Ítem de presupuesto no encontrado' };
+    }
+    return {
+      success: true,
+      data: {
+        id: i.id,
+        proyectoId: i.proyectoId,
+        cuenta: i.cuenta,
+        item: i.item,
+        detalle: i.detalle,
+        monto: i.monto,
+        estado: i.estado,
+        idSolicitud: i.idSolicitud,
+        idPedido: i.idPedido,
+        idRecepcion: i.idRecepcion,
+        orden: i.orden,
+        proyecciones: i.proyecciones.map((p) => ({
+          id: p.id,
+          mes: p.mes,
+          anio: p.anio,
+          monto: p.monto,
+        })),
+        comentariosCount: i._count.comentarios,
+      },
+    };
+  } catch (error) {
+    console.error('Error getItemPresupuestoById:', error);
+    return {
+      success: false,
+      error: 'Error al obtener ítem de presupuesto',
+    };
+  }
+}
+
 export async function createItemPresupuesto(
   projectId: string,
   data: CreateItemPresupuestoData

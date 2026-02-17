@@ -253,6 +253,65 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
   }
 }
 
+/** Obtiene un indicador por ID para el modal de detalle (portal, etc.) */
+export async function getIndicadorById(indicadorId: string): Promise<{
+  success: boolean;
+  data?: {
+    id: string;
+    nombre: string;
+    descripcion: string;
+    formaCalculo: string;
+    resultadoEsperado: string;
+    resultadoAlcanzado: string;
+    formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
+    validadoPorCoordinador?: boolean;
+    validadoPorCoordinadorPor?: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    } | null;
+  };
+  error?: string;
+}> {
+  try {
+    const ind = await prisma.indicador.findUnique({
+      where: { id: indicadorId },
+      include: {
+        validadoPorCoordinadorPor: {
+          select: { id: true, name: true, image: true },
+        },
+      },
+    });
+    if (!ind) {
+      return { success: false, error: 'Indicador no encontrado' };
+    }
+    return {
+      success: true,
+      data: {
+        id: ind.id,
+        nombre: ind.nombre,
+        descripcion: ind.descripcion,
+        formaCalculo: ind.formaCalculo,
+        resultadoEsperado: ind.resultadoEsperado,
+        resultadoAlcanzado: ind.resultadoAlcanzado,
+        formatoNumero: ind.formatoNumero,
+        fechaInicio: ind.fechaInicio,
+        fechaFin: ind.fechaFin,
+        validadoPorCoordinador: ind.validadoPorCoordinador,
+        validadoPorCoordinadorPor: ind.validadoPorCoordinadorPor,
+      },
+    };
+  } catch (error) {
+    console.error('Error getIndicadorById:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
+    };
+  }
+}
+
 export async function updateIndicadorResultado(
   indicadorId: string,
   resultadoAlcanzado: string,

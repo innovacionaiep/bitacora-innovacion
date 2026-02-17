@@ -119,12 +119,14 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
 
 export interface AlertasPortal {
   coordinador?: {
-    actividadesPorValidar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string }>;
-    indicadoresPorValidar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string }>;
+    actividadesPorValidar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
+    indicadoresPorValidar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
+    presupuestoPorSolicitar: Array<{ id: string; item: string; proyectoId: string; proyectoNombre: string }>;
   };
   encargado?: {
-    actividadesPorEvidenciar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string }>;
-    indicadoresPorEvidenciar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string }>;
+    actividadesPorEvidenciar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
+    indicadoresPorEvidenciar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
+    presupuestoPorSolicitar: Array<{ id: string; item: string; proyectoId: string; proyectoNombre: string }>;
   };
 }
 
@@ -150,7 +152,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
     const result: AlertasPortal = {};
 
     if (activeRole === 'Coordinador') {
-      const [actividades, indicadores] = await Promise.all([
+      const [actividades, indicadores, presupuesto] = await Promise.all([
         prisma.activity.findMany({
           where: {
             projectId: { in: proyectoIds },
@@ -160,6 +162,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             id: true,
             name: true,
             projectId: true,
+            progress: true,
             project: { select: { proyecto: true } },
           },
         }),
@@ -171,6 +174,19 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
           select: {
             id: true,
             nombre: true,
+            proyectoId: true,
+            porcentajeAvance: true,
+            proyecto: { select: { proyecto: true } },
+          },
+        }),
+        prisma.itemPresupuesto.findMany({
+          where: {
+            proyectoId: { in: proyectoIds },
+            idSolicitud: null,
+          },
+          select: {
+            id: true,
+            item: true,
             proyectoId: true,
             proyecto: { select: { proyecto: true } },
           },
@@ -183,18 +199,26 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
           name: a.name,
           proyectoId: a.projectId,
           proyectoNombre: a.project?.proyecto ?? '',
+          porcentaje: a.progress ?? 0,
         })),
         indicadoresPorValidar: indicadores.map((i) => ({
           id: i.id,
           nombre: i.nombre,
           proyectoId: i.proyectoId,
           proyectoNombre: i.proyecto?.proyecto ?? '',
+          porcentaje: Number(i.porcentajeAvance ?? 0),
+        })),
+        presupuestoPorSolicitar: presupuesto.map((p) => ({
+          id: p.id,
+          item: p.item,
+          proyectoId: p.proyectoId,
+          proyectoNombre: p.proyecto?.proyecto ?? '',
         })),
       };
     }
 
     if (activeRole === 'Encargado') {
-      const [actividades, indicadores] = await Promise.all([
+      const [actividades, indicadores, presupuesto] = await Promise.all([
         prisma.activity.findMany({
           where: {
             projectId: { in: proyectoIds },
@@ -204,6 +228,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             id: true,
             name: true,
             projectId: true,
+            progress: true,
             project: { select: { proyecto: true } },
           },
         }),
@@ -216,23 +241,50 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             id: true,
             nombre: true,
             proyectoId: true,
+            porcentajeAvance: true,
+            porcentajeCumplimiento: true,
+            proyecto: { select: { proyecto: true } },
+          },
+        }),
+        prisma.itemPresupuesto.findMany({
+          where: {
+            proyectoId: { in: proyectoIds },
+            idSolicitud: null,
+          },
+          select: {
+            id: true,
+            item: true,
+            proyectoId: true,
             proyecto: { select: { proyecto: true } },
           },
         }),
       ]);
 
+      const MIN_AVANCE_POR_EVIDENCIAR = 60;
       result.encargado = {
-        actividadesPorEvidenciar: actividades.map((a) => ({
-          id: a.id,
-          name: a.name,
-          proyectoId: a.projectId,
-          proyectoNombre: a.project?.proyecto ?? '',
-        })),
-        indicadoresPorEvidenciar: indicadores.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          proyectoId: i.proyectoId,
-          proyectoNombre: i.proyecto?.proyecto ?? '',
+        actividadesPorEvidenciar: actividades
+          .filter((a) => (a.progress ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
+          .map((a) => ({
+            id: a.id,
+            name: a.name,
+            proyectoId: a.projectId,
+            proyectoNombre: a.project?.proyecto ?? '',
+            porcentaje: a.progress ?? 0,
+          })),
+        indicadoresPorEvidenciar: indicadores
+          .filter((i) => Number(i.porcentajeCumplimiento ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
+          .map((i) => ({
+            id: i.id,
+            nombre: i.nombre,
+            proyectoId: i.proyectoId,
+            proyectoNombre: i.proyecto?.proyecto ?? '',
+            porcentaje: Number(i.porcentajeAvance ?? 0),
+          })),
+        presupuestoPorSolicitar: presupuesto.map((p) => ({
+          id: p.id,
+          item: p.item,
+          proyectoId: p.proyectoId,
+          proyectoNombre: p.proyecto?.proyecto ?? '',
         })),
       };
     }

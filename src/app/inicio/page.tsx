@@ -154,7 +154,7 @@ export default function InicioPage() {
       <div className="flex-1 min-h-0 grid grid-cols-[1.5fr_1fr] gap-4 mt-4 overflow-visible">
         {/* Col 1: Mis proyectos (arriba) + Alertas (abajo) */}
         <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
-          <div className="flex-1 min-h-0 p-2 overflow-visible">
+          <div className="h-[262px] shrink-0 p-2 overflow-visible">
             <PortalMisProyectos proyectos={proyectos} loading={loadingPortal} />
           </div>
           <div className="flex-1 min-h-0 p-2 overflow-visible">
@@ -168,7 +168,7 @@ export default function InicioPage() {
         </div>
         {/* Col 2: Últimas actualizaciones | Próximas reuniones | Compromisos pendientes (mismo ancho) */}
         <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
-          <div className="flex-[1.15] min-h-0 p-2 overflow-visible">
+          <div className="h-[262px] shrink-0 p-2 overflow-visible">
             <PortalHistorialReciente historial={historial} loading={loadingPortal} />
           </div>
           <div className="flex-1 min-h-0 p-2 overflow-visible">

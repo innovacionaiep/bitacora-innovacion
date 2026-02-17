@@ -62,32 +62,31 @@ export function PortalProximasReuniones({
         ) : (
           <ul className="space-y-3">
             {list.map((reunion) => (
-              <li
-                key={reunion.id}
-                className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-start gap-2">
-                  <FolderKanban className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground">
-                      {reunion.proyecto?.proyecto ?? 'Proyecto'}
-                    </p>
-                    <Link
-                      href={`/seguimiento?proyectoId=${reunion.proyectoId}`}
-                      className="font-medium text-primary hover:underline block"
-                    >
-                      {formatFecha(reunion.fecha)}
-                    </Link>
-                    {reunion.duracionMinutos != null && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {reunion.duracionMinutos} min
-                        {reunion.coordinador?.name
-                          ? ` · ${reunion.coordinador.name}`
-                          : ''}
+              <li key={reunion.id}>
+                <Link
+                  href={`/proyectos?id=${reunion.proyectoId}&tab=Seguimiento`}
+                  className="block border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-start gap-2">
+                    <FolderKanban className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">
+                        {reunion.proyecto?.proyecto ?? 'Proyecto'}
                       </p>
-                    )}
+                      <p className="font-medium text-primary">
+                        {formatFecha(reunion.fecha)}
+                      </p>
+                      {reunion.duracionMinutos != null && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {reunion.duracionMinutos} min
+                          {reunion.coordinador?.name
+                            ? ` · ${reunion.coordinador.name}`
+                            : ''}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>

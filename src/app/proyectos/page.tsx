@@ -504,19 +504,22 @@ export default function ProyectosPage() {
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
-  // Preseleccionar proyecto cuando se llega con ?id= (ej. desde Inicio "Ir")
+  // Preseleccionar proyecto cuando se llega con ?id= (ej. desde Inicio "Ir"). Opcional: ?tab=Seguimiento para abrir ese tab.
   useEffect(() => {
     const idFromUrl = searchParams.get('id');
+    const tabFromUrl = searchParams.get('tab');
     if (!idFromUrl || hasAppliedIdFromUrlRef.current || proyectosIniciales.length === 0) return;
     const project = proyectosIniciales.find((p) => p.id === idFromUrl);
     if (!project) return;
     hasAppliedIdFromUrlRef.current = true;
+    const tabToSelect = tabFromUrl === 'Seguimiento' ? ('Seguimiento' as const) : null;
     (async () => {
       setSelectingProjectId(project.id);
       try {
         const result = await getProyecto(project.id);
         if (result.success && result.data) {
           setSelectedProject(result.data);
+          if (tabToSelect) setSelectedTab(tabToSelect);
           const videoUrl = (result.data as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
           setTempVideoUrl(videoUrl);
         }
