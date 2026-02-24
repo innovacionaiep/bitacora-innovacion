@@ -92,7 +92,7 @@ import {
   Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -362,7 +362,7 @@ function getRoleCircleColor(role: string): string {
   }
 }
 
-export default function ProyectosPage() {
+function ProyectosContent() {
   const searchParams = useSearchParams();
   const { data: session, status, update: updateSession } = useSession();
   const {
@@ -4060,5 +4060,13 @@ export default function ProyectosPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+export default function ProyectosPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><span className="text-muted-foreground">Cargando...</span></div>}>
+      <ProyectosContent />
+    </Suspense>
   );
 }

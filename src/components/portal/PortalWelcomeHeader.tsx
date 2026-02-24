@@ -85,7 +85,10 @@ export function PortalWelcomeHeader({
     } catch {
       setOptimisticRole(previousRole);
       await update({ activeRole: previousRole });
-      if (previousRole !== null) onRoleChange?.(previousRole);
+      const roleToNotify: string | null = previousRole;
+      if (typeof roleToNotify === 'string') {
+        onRoleChange?.(roleToNotify);
+      }
     }
   };
 

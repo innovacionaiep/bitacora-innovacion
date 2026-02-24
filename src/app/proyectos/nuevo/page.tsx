@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -77,7 +77,7 @@ function canCreateProject(p: ProyectoFormPayload): boolean {
   return nombreOk && objetivoOk && sedesOk && escuelasOk && encargadosOk && coordinadoresOk;
 }
 
-export default function NuevoProyectoPage() {
+function NuevoProyectoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
@@ -465,5 +465,13 @@ export default function NuevoProyectoPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function NuevoProyectoPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><span className="text-muted-foreground">Cargando...</span></div>}>
+      <NuevoProyectoContent />
+    </Suspense>
   );
 }

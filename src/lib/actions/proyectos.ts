@@ -537,7 +537,7 @@ export async function createProyectoCompleto(
       if (email) {
         const user = await prisma.user.findUnique({ where: { email } });
         if (user) {
-          participantesRel[i] = { ...p, userId: user.id, nombre: p.nombre?.trim() || user.name ?? undefined, email: user.email };
+          participantesRel[i] = { ...p, userId: user.id, nombre: (p.nombre?.trim() || user.name) ?? undefined, email: user.email };
         }
       }
     }
@@ -624,6 +624,9 @@ export async function createProyectoCompleto(
           description: act.description ?? '',
           color: act.color ?? 'bg-gray-700',
           orderIndex: act.orderIndex ?? i,
+          progress: 0,
+          kanbanOrderIndex: act.orderIndex ?? i,
+          status: 'TODO',
         });
         if (!actResult.success || !actResult.data) continue;
         const activityId = actResult.data.id;

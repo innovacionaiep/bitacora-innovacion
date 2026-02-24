@@ -50,10 +50,12 @@ export default function SidebarNav() {
 
   const navItems = navItemsBase
     .filter((item) => {
-      const rolesRequeridos =
-        'rolesRequeridos' in item ? item.rolesRequeridos : null;
+      const rolesRequeridos: string[] | null =
+        'rolesRequeridos' in item && Array.isArray((item as { rolesRequeridos?: unknown }).rolesRequeridos)
+          ? ((item as { rolesRequeridos: string[] }).rolesRequeridos)
+          : null;
       if (!rolesRequeridos) return true;
-      return activeRole && rolesRequeridos.includes(activeRole);
+      return activeRole !== null && rolesRequeridos.includes(activeRole);
     })
     .filter((item) => {
       // Encargado, Estudiante y Docente solo ven Inicio y Proyectos
