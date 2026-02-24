@@ -1030,14 +1030,13 @@ export function IndicadorModal({
                     ))}
                   </div>
                 )}
-                {(isEditMode || hideEditButton) && (
-                  <div className="mt-3">
-                    <input
-                      ref={evidenciasFileInputRef}
-                      type="file"
-                      accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
-                      className="hidden"
-                      onChange={async (e) => {
+                <div className="mt-3">
+                  <input
+                    ref={evidenciasFileInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         setIsUploadingEvidencia(true);
@@ -1095,8 +1094,7 @@ export function IndicadorModal({
                       Imágenes máx. 250 KB (se comprimen automáticamente). PDF
                       máx. 2 MB.
                     </p>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>

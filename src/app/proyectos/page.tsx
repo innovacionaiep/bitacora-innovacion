@@ -26,6 +26,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   MultiSelectNombres,
   MULTI_VALUE_SEP,
 } from '@/components/ui/multi-select-nombres';
@@ -86,6 +93,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
@@ -128,6 +136,8 @@ import {
 } from '@/lib/actions/configuracion';
 import { getRolesConProyectosVigentes } from '@/lib/actions/portal-inicio';
 import { updateUserProfile } from '@/lib/auth-actions';
+import { getProyectoBorradores } from '@/lib/actions/borradores';
+import type { BorradorListItem } from '@/lib/actions/borradores';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -378,6 +388,7 @@ export default function ProyectosPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
   const [selectedTab, setSelectedTab] = useState<
     | 'Resumen'
     | 'General'
@@ -436,6 +447,14 @@ export default function ProyectosPage() {
     { id: string; nombre: string }[]
   >([]);
   const [participanteSubmitting, setParticipanteSubmitting] = useState(false);
+
+  // Popup Editar socios comunitarios (tab Participantes)
+  const [isEditarSociosOpen, setIsEditarSociosOpen] = useState(false);
+  const [editarSociosIds, setEditarSociosIds] = useState<string[]>([]);
+  const [editarSociosCatalog, setEditarSociosCatalog] = useState<
+    { id: string; nombre: string; descripcion?: string | null }[]
+  >([]);
+  const [editarSociosSaving, setEditarSociosSaving] = useState(false);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -1154,6 +1173,18 @@ export default function ProyectosPage() {
       loadCatalogosGeneral();
     }
   }, [showAddForm]);
+
+  // Cargar borradores cuando se muestra la landing (sin proyecto seleccionado)
+  useEffect(() => {
+    if (!selectedProject && !showAddForm && !showEditForm) {
+      getProyectoBorradores().then((res) => {
+        if (res.success && res.data) setBorradores(res.data);
+        else setBorradores([]);
+      });
+    } else {
+      setBorradores([]);
+    }
+  }, [selectedProject, showAddForm, showEditForm]);
 
   // Cargar sedes y escuelas para dropdowns de Participantes (configuración - validación de datos)
   useEffect(() => {
@@ -2089,26 +2120,59 @@ export default function ProyectosPage() {
                                   </div>
                                 )}
 
-                                {/* Objetivos Específicos */}
-                                {objetivosEspecificos.length > 0 && (
+                                {/* Objetivos Específicos: mostrar si hay alguno o si estamos en modo edición (para poder agregar) */}
+                                {(objetivosEspecificos.length > 0 || isGeneralEditMode) && (
                                   <div className="space-y-6">
-                                    <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center space-x-2.5">
-                                      <ListChecks className="h-5 w-5 text-emerald-600" />
-                                      <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
-                                        Objetivos Específicos
-                                      </h4>
+                                    <div className="sticky top-0 z-10 bg-gradient-to-r from-gray-200 to-white px-3 py-2 rounded-lg flex items-center justify-between">
+                                      <div className="flex items-center space-x-2.5">
+                                        <ListChecks className="h-5 w-5 text-emerald-600" />
+                                        <h4 className="font-semibold text-gray-600 text-base uppercase tracking-wide">
+                                          Objetivos Específicos
+                                        </h4>
+                                      </div>
+                                      {isGeneralEditMode && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                          onClick={() =>
+                                            setGeneralDraft((prev) => {
+                                              if (!prev) return prev;
+                                              const nextOrden = prev.objetivosEspecificos.length;
+                                              return {
+                                                ...prev,
+                                                objetivosEspecificos: [
+                                                  ...prev.objetivosEspecificos,
+                                                  {
+                                                    id: `temp-${Date.now()}-${nextOrden}`,
+                                                    descripcion: '',
+                                                    orden: nextOrden,
+                                                  },
+                                                ],
+                                              };
+                                            })
+                                          }
+                                        >
+                                          <Plus className="h-4 w-4 mr-1.5" />
+                                          Agregar objetivo específico
+                                        </Button>
+                                      )}
                                     </div>
                                     <div className="ml-8 space-y-6">
-                                      {objetivosEspecificos.map(
-                                        (objetivo, index) => (
-                                          <div
-                                            key={objetivo.id}
-                                            className="flex items-start space-x-4"
-                                          >
-                                            <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
-                                              {index + 1}
-                                            </div>
-                                            {isGeneralEditMode ? (
+                                      {(isGeneralEditMode
+                                        ? generalDraft?.objetivosEspecificos ?? []
+                                        : objetivosEspecificos
+                                      ).map((objetivo, index) => (
+                                        <div
+                                          key={objetivo.id}
+                                          className="flex items-start space-x-4 gap-2"
+                                        >
+                                          <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
+                                            {index + 1}
+                                          </div>
+                                          {isGeneralEditMode ? (
+                                            <>
                                               <GeneralTabTextarea
                                                 value={
                                                   generalDraft
@@ -2137,16 +2201,41 @@ export default function ProyectosPage() {
                                                       : prev
                                                   )
                                                 }
-                                                className="text-[15px] border-2 border-emerald-200 focus:border-emerald-400 bg-white flex-1"
+                                                className="text-[15px] border-2 border-emerald-200 focus:border-emerald-400 bg-white flex-1 min-w-0"
                                               />
-                                            ) : (
-                                              <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
-                                                {objetivo.descripcion}
-                                              </p>
-                                            )}
-                                          </div>
-                                        )
-                                      )}
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="shrink-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                                                onClick={() =>
+                                                  setGeneralDraft((prev) => {
+                                                    if (!prev) return prev;
+                                                    const next = prev.objetivosEspecificos.filter(
+                                                      (_, i) => i !== index
+                                                    );
+                                                    return {
+                                                      ...prev,
+                                                      objetivosEspecificos: next.map(
+                                                        (o, i) => ({
+                                                          ...o,
+                                                          orden: i,
+                                                        })
+                                                      ),
+                                                    };
+                                                  })
+                                                }
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <p className="text-gray-800 leading-relaxed flex-1 text-[15px] pt-0.5">
+                                              {objetivo.descripcion}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 )}
@@ -3123,6 +3212,38 @@ export default function ProyectosPage() {
                                 <Button
                                   type="button"
                                   onClick={() => {
+                                    if (selectedProject) {
+                                      setEditarSociosIds(
+                                        selectedProject.sociosComunitarios?.map(
+                                          (sc) => sc.socioComunitarioId
+                                        ) ?? []
+                                      );
+                                      getSociosComunitarios().then((r) => {
+                                        if (r.success && r.data)
+                                          setEditarSociosCatalog(r.data);
+                                      });
+                                      setIsEditarSociosOpen(true);
+                                    }
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-10 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ml-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 gap-1.5 px-3"
+                                >
+                                  <Handshake className="h-4 w-4" />
+                                  <span className="text-sm font-medium">
+                                    Editar socios
+                                  </span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Agregar o editar socios comunitarios del proyecto</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
                                     const headers = [
                                       'Rol',
                                       'Nombre',
@@ -3818,23 +3939,30 @@ export default function ProyectosPage() {
                   <Search className="h-4 w-4" />
                   <span>Seleccionar proyecto</span>
                 </Button>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Crear proyecto</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Próximamente</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Button variant="outline" asChild className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2">
+                  <Link href="/proyectos/nuevo" className="inline-flex items-center justify-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Crear proyecto</span>
+                  </Link>
+                </Button>
               </div>
+              {borradores.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Borradores</h3>
+                  <ul className="space-y-2">
+                    {borradores.map((b) => (
+                      <li key={b.id}>
+                        <Link
+                          href={`/proyectos/nuevo?borrador=${b.id}`}
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          Continuar editando &quot;{b.nombre}&quot;
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3846,6 +3974,122 @@ export default function ProyectosPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
       />
+
+      {/* Dialog Editar socios comunitarios (tab Participantes) */}
+      <Dialog open={isEditarSociosOpen} onOpenChange={setIsEditarSociosOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar socios comunitarios</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Socios del proyecto
+              </Label>
+              <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto rounded-md border bg-gray-50/50 p-2">
+                {editarSociosIds.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-2">
+                    No hay socios agregados. Agrega uno desde el catálogo abajo.
+                  </p>
+                ) : (
+                  editarSociosIds.map((id) => {
+                    const socio = editarSociosCatalog.find((s) => s.id === id);
+                    return (
+                      <div
+                        key={id}
+                        className="flex items-center justify-between gap-2 rounded border bg-white px-3 py-2 text-sm"
+                      >
+                        <span className="font-medium text-gray-900">
+                          {socio?.nombre ?? id}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() =>
+                            setEditarSociosIds((prev) => prev.filter((x) => x !== id))
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Agregar socio desde el catálogo
+              </Label>
+              <Select
+                key={`socio-add-${editarSociosIds.length}`}
+                value={SELECT_NONE_VALUE}
+                onValueChange={(value) => {
+                  if (value && value !== SELECT_NONE_VALUE && !editarSociosIds.includes(value)) {
+                    setEditarSociosIds((prev) => [...prev, value]);
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleccionar socio comunitario..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE_VALUE} disabled>
+                    — Seleccionar —
+                  </SelectItem>
+                  {editarSociosCatalog
+                    .filter((s) => !editarSociosIds.includes(s.id))
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}
+                      </SelectItem>
+                    ))}
+                  {editarSociosCatalog.filter(
+                    (s) => !editarSociosIds.includes(s.id)
+                  ).length === 0 && (
+                    <span className="text-sm text-gray-500 px-2 py-1.5 block">
+                      Todos los socios ya están agregados
+                    </span>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditarSociosOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={editarSociosSaving}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={async () => {
+                if (!selectedProject) return;
+                setEditarSociosSaving(true);
+                const result = await updateProyectoGeneralTab({
+                  proyectoId: selectedProject.id,
+                  sociosComunitariosIds: editarSociosIds,
+                });
+                setEditarSociosSaving(false);
+                if (result.success && result.data) {
+                  setSelectedProject(result.data);
+                  setIsEditarSociosOpen(false);
+                } else {
+                  alert(result.error ?? 'Error al guardar socios comunitarios');
+                }
+              }}
+            >
+              {editarSociosSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -18,7 +18,6 @@ import {
   ClipboardCheck,
   ChevronsLeft,
   ChevronsRight,
-  Newspaper,
   AtSign,
   Settings,
 } from 'lucide-react';
@@ -34,9 +33,12 @@ const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el t�
 
 const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
 
+// Rutas permitidas para el rol Encargado (solo Inicio y Proyectos)
+const RUTAS_PERMITIDAS_ENCARGADO = ['/inicio', '/proyectos'];
+
+// Novedades está oculto para todos los perfiles; solo Admin puede acceder por URL con contraseña
 const navItemsBase = [
   { href: '/inicio', label: 'Inicio', icon: Home },
-  { href: '/novedades', label: 'Novedades', icon: Newspaper },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
   {
@@ -54,12 +56,20 @@ export default function SidebarNav() {
   const { data: session } = useSession();
   const activeRole = session?.user?.activeRole ?? null;
 
-  const navItems = navItemsBase.filter((item) => {
-    const rolesRequeridos =
-      'rolesRequeridos' in item ? item.rolesRequeridos : null;
-    if (!rolesRequeridos) return true;
-    return activeRole && rolesRequeridos.includes(activeRole);
-  });
+  const navItems = navItemsBase
+    .filter((item) => {
+      const rolesRequeridos =
+        'rolesRequeridos' in item ? item.rolesRequeridos : null;
+      if (!rolesRequeridos) return true;
+      return activeRole && rolesRequeridos.includes(activeRole);
+    })
+    .filter((item) => {
+      // Encargado solo ve Inicio y Proyectos
+      if (activeRole === 'Encargado') {
+        return RUTAS_PERMITIDAS_ENCARGADO.includes(item.href);
+      }
+      return true;
+    });
 
   const showConfig = activeRole === 'Admin';
 

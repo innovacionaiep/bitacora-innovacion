@@ -151,6 +151,8 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
 
     const result: AlertasPortal = {};
 
+    const LIMITE_ALERTAS_PORTAL = 100;
+
     if (activeRole === 'Coordinador') {
       const [actividades, indicadores, presupuesto] = await Promise.all([
         prisma.activity.findMany({
@@ -165,6 +167,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             progress: true,
             project: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
         prisma.indicador.findMany({
           where: {
@@ -178,6 +181,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             porcentajeAvance: true,
             proyecto: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
         prisma.itemPresupuesto.findMany({
           where: {
@@ -190,6 +194,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             proyectoId: true,
             proyecto: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
       ]);
 
@@ -231,6 +236,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             progress: true,
             project: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
         prisma.indicador.findMany({
           where: {
@@ -245,6 +251,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             porcentajeCumplimiento: true,
             proyecto: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
         prisma.itemPresupuesto.findMany({
           where: {
@@ -257,6 +264,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             proyectoId: true,
             proyecto: { select: { proyecto: true } },
           },
+          take: LIMITE_ALERTAS_PORTAL,
         }),
       ]);
 

@@ -117,8 +117,8 @@ export async function createActivity(data: CreateActivityInput) {
       proyectoId: data.projectId,
       accion: 'Crear',
       tabProyecto: 'Actividades',
-      elementoEspecifico: `Actividad "${activity.name}"`,
-      cambioGenerado: `Nueva actividad creada: ${activity.name}`,
+      elementoEspecifico: 'la actividad',
+      cambioGenerado: activity.name,
     });
 
     revalidatePath('/gantt');
@@ -172,12 +172,27 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       data.description !== undefined ||
       data.color !== undefined;
     if (hayCambios) {
+      const partes: string[] = [];
+      if (data.name !== undefined) partes.push('el nombre');
+      if (data.description !== undefined) partes.push('la descripción');
+      if (data.color !== undefined) partes.push('el color');
+      const campoTexto =
+        partes.length === 1
+          ? partes[0]
+          : partes.length === 2
+            ? `${partes[0]} y ${partes[1]}`
+            : `${partes[0]}, ${partes[1]} y ${partes[2]}`;
+      const cambioValores: string[] = [];
+      if (data.name !== undefined) cambioValores.push(activity.name);
+      if (data.description !== undefined)
+        cambioValores.push(activity.description ?? '');
+      if (data.color !== undefined) cambioValores.push(activity.color);
       await createHistorialEntry({
         proyectoId: activityBefore.projectId,
         accion: 'Actualizar',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `Actividad "${activity.name}"`,
-        cambioGenerado: 'Información de la actividad editada',
+        elementoEspecifico: `${campoTexto} de la actividad "${activity.name}"`,
+        cambioGenerado: cambioValores.join('; '),
       });
     }
 
@@ -272,8 +287,8 @@ export async function toggleActivityValidation(activityId: string) {
         proyectoId: activity.projectId,
         accion: 'Validar',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `Actividad "${activity.name}"`,
-        cambioGenerado: 'Validada por coordinador',
+        elementoEspecifico: `la finalización de la actividad "${activity.name}"`,
+        cambioGenerado: '',
       });
     }
 
@@ -308,7 +323,7 @@ export async function deleteActivity(id: string) {
       accion: 'Eliminar',
       tabProyecto: 'Actividades',
       elementoEspecifico: `Actividad "${activity.name}"`,
-      cambioGenerado: 'Actividad eliminada',
+      cambioGenerado: '',
     });
 
     revalidatePath('/gantt');
@@ -402,8 +417,8 @@ export async function createTask(data: TaskData) {
       proyectoId: task.activity.projectId,
       accion: 'Crear',
       tabProyecto: 'Actividades',
-      elementoEspecifico: `Tarea "${task.name}" en Actividad "${task.activity.name}"`,
-      cambioGenerado: 'Nueva tarea agregada',
+      elementoEspecifico: 'la tarea',
+      cambioGenerado: task.name,
     });
 
     // Recalcular progreso de la actividad
@@ -462,12 +477,36 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
       data.startDate !== undefined ||
       data.endDate !== undefined;
     if (hayEdicionInfo) {
+      const partes: string[] = [];
+      if (data.name !== undefined) partes.push('el nombre');
+      if (data.description !== undefined) partes.push('la descripción');
+      if (data.startDate !== undefined || data.endDate !== undefined)
+        partes.push('las fechas');
+      const campoTexto =
+        partes.length === 1
+          ? partes[0]
+          : partes.length === 2
+            ? `${partes[0]} y ${partes[1]}`
+            : `${partes[0]}, ${partes[1]} y ${partes[2]}`;
+      const cambioValores: string[] = [];
+      if (data.name !== undefined) cambioValores.push(task.name);
+      if (data.description !== undefined)
+        cambioValores.push(task.description ?? '');
+      if (data.startDate !== undefined || data.endDate !== undefined) {
+        const start = task.startDate
+          ? new Date(task.startDate).toLocaleDateString('es-CL')
+          : '';
+        const end = task.endDate
+          ? new Date(task.endDate).toLocaleDateString('es-CL')
+          : '';
+        cambioValores.push(start && end ? `${start} - ${end}` : start || end);
+      }
       await createHistorialEntry({
         proyectoId: taskBefore.activity.projectId,
         accion: 'Actualizar',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `Tarea "${task.name}" de Actividad "${taskBefore.activity.name}"`,
-        cambioGenerado: 'Información de la tarea editada',
+        elementoEspecifico: `${campoTexto} de la tarea "${task.name}"`,
+        cambioGenerado: cambioValores.join('; '),
       });
     }
 
@@ -506,8 +545,8 @@ export async function deleteTask(id: string) {
       proyectoId: task.activity.projectId,
       accion: 'Eliminar',
       tabProyecto: 'Actividades',
-      elementoEspecifico: `Tarea "${task.name}" de Actividad "${task.activity.name}"`,
-      cambioGenerado: 'Tarea eliminada',
+      elementoEspecifico: `Tarea "${task.name}"`,
+      cambioGenerado: '',
     });
 
     // Recalcular progreso de la actividad
@@ -559,8 +598,8 @@ export async function toggleTaskCompletion(id: string) {
         proyectoId: task.activity.projectId,
         accion: 'Marcar realizada',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `Tarea "${task.name}" de Actividad "${task.activity.name}"`,
-        cambioGenerado: '', // No mostrar cambioGenerado para tareas completadas
+        elementoEspecifico: `la tarea: "${task.name}"`,
+        cambioGenerado: '',
       });
     }
 
@@ -685,22 +724,20 @@ export async function updateActivityStatus(
       },
     });
 
-    // Registrar en historial cualquier cambio de estado en kanban
-    if (activityBefore.status !== status) {
-      const accion =
-        status === 'DONE'
-          ? 'Marcar realizada'
-          : 'Cambio de estado en kanban';
-      const cambioGenerado =
-        status === 'DONE'
-          ? `Actividad "${activity.name}" marcada como realizada`
-          : `Estado: ${activityBefore.status} → ${status}`;
+    // Registrar en historial cambio de estado en kanban (excepto Marcar realizada)
+    const STATUS_LABELS: Record<ActivityStatus, string> = {
+      TODO: 'Por hacer',
+      WAITING: 'En espera',
+      IN_PROGRESS: 'En proceso',
+      DONE: 'Finalizada',
+    };
+    if (activityBefore.status !== status && status !== 'DONE') {
       await createHistorialEntry({
         proyectoId: activityBefore.projectId,
-        accion,
+        accion: 'Cambio de estado en kanban',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `Actividad "${activity.name}"`,
-        cambioGenerado,
+        elementoEspecifico: `el estado de la actividad "${activity.name}"`,
+        cambioGenerado: STATUS_LABELS[status],
       });
     }
 

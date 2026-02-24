@@ -152,6 +152,11 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
       'Marcar realizada': 'marcado realizada',
       'Agregar participante': 'Registrado',
       'Eliminar participante': 'Eliminado',
+      Validar: 'validado',
+      Eliminar: 'eliminado',
+      'Subir evidencia': 'subido nuevas evidencias',
+      'Eliminar evidencia': 'eliminado evidencias',
+      'Cambio de estado en kanban': 'cambiado',
     };
     const accionConjugada =
       conjugaciones[entry.accion] || entry.accion.toLowerCase();

@@ -1,7 +1,7 @@
 'use server';
 
 import type { Prisma } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
 
@@ -395,57 +395,12 @@ async function _executeGetPosts(
         message?: string;
         stack?: string;
       };
-      // #region agent log (solo en desarrollo)
-      if (process.env.NODE_ENV === 'development') {
-        fetch(
-          'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'posts.ts:getPosts',
-              message: 'EventoAsistente.groupBy failed',
-              data: {
-                name: err?.name,
-                code: err?.code,
-                message: String(err?.message ?? e),
-                stack: String(err?.stack ?? '').slice(0, 400),
-              },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              runId: 'run1',
-              hypothesisId: 'B',
-            }),
-          }
-        ).catch(() => {});
-      }
-      // #endregion
       // Si la tabla aún no existe (migración no aplicada), degradar con gracia (mostrar 0 asistentes)
       if (
         err?.code === 'P2021' &&
         String(err?.message ?? '').includes('evento_asistentes')
       ) {
         asistenciasFeatureAvailable = false;
-        // #region agent log (solo en desarrollo)
-        if (process.env.NODE_ENV === 'development') {
-          fetch(
-            'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'posts.ts:getPosts',
-                message: 'Asistencias deshabilitadas: tabla no existe',
-                data: { code: err?.code },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'C',
-              }),
-            }
-          ).catch(() => {});
-        }
-        // #endregion
       } else {
         throw e;
       }

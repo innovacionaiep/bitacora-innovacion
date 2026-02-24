@@ -57,7 +57,7 @@ function getRoleCircleColor(role: string): string {
 
 export interface PortalWelcomeHeaderProps {
   rolesVigentes: string[];
-  onRoleChange?: () => void;
+  onRoleChange?: (newRole: string) => void;
 }
 
 export function PortalWelcomeHeader({
@@ -74,6 +74,7 @@ export function PortalWelcomeHeader({
     if (!session?.user?.id) return;
     const previousRole = session.user.activeRole ?? null;
     setOptimisticRole(newRole);
+    onRoleChange?.(newRole);
     try {
       const result = await updateUserProfile(session.user.id, {
         activeRole: newRole,
@@ -81,10 +82,10 @@ export function PortalWelcomeHeader({
       if (!result.success) throw new Error(result.error);
       await update({ activeRole: newRole });
       setTimeout(() => update(), 100);
-      onRoleChange?.();
     } catch {
-      setOptimisticRole(null);
+      setOptimisticRole(previousRole);
       await update({ activeRole: previousRole });
+      onRoleChange?.(previousRole);
     }
   };
 

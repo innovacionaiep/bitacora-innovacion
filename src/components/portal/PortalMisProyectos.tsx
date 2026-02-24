@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { FolderKanban, ExternalLink, Loader2 } from 'lucide-react';
+import { FolderKanban, ExternalLink, Loader2, Plus } from 'lucide-react';
 
 export interface ProyectoConRol {
   id: string;
@@ -27,11 +27,17 @@ export function PortalMisProyectos({
   if (loading) {
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
-        <div className="flex-shrink-0 px-4 py-3 border-b">
+        <div className="flex-shrink-0 px-4 py-3 border-b flex items-center justify-between gap-3">
           <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
             <FolderKanban className="h-6 w-6 text-emerald-600" />
             Mis proyectos
           </h3>
+          <Button variant="outline" size="sm" asChild className="shrink-0 border-2 border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Link href="/proyectos/nuevo" className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" />
+              <span>Crear proyecto</span>
+            </Link>
+          </Button>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -43,11 +49,17 @@ export function PortalMisProyectos({
   if (proyectos.length === 0) {
     return (
       <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
-        <div className="flex-shrink-0 px-4 py-3 border-b">
+        <div className="flex-shrink-0 px-4 py-3 border-b flex items-center justify-between gap-3">
           <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
             <FolderKanban className="h-6 w-6 text-emerald-600" />
             Mis proyectos
           </h3>
+          <Button variant="outline" size="sm" asChild className="shrink-0 border-2 border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Link href="/proyectos/nuevo" className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" />
+              <span>Crear proyecto</span>
+            </Link>
+          </Button>
         </div>
         <div className="flex-1 flex items-center p-4">
           <p className="text-muted-foreground text-sm">
@@ -60,11 +72,17 @@ export function PortalMisProyectos({
 
   return (
     <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
-      <div className="flex-shrink-0 px-4 py-3 border-b">
+      <div className="flex-shrink-0 px-4 py-3 border-b flex items-center justify-between gap-3">
         <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
           <FolderKanban className="h-6 w-6 text-emerald-600" />
           Mis proyectos
         </h3>
+        <Button variant="outline" size="sm" asChild className="shrink-0 border-2 border-gray-300 text-gray-600 hover:bg-gray-50">
+          <Link href="/proyectos/nuevo" className="inline-flex items-center gap-1.5">
+            <Plus className="h-4 w-4" />
+            <span>Crear proyecto</span>
+          </Link>
+        </Button>
       </div>
       <div className="flex-1 min-h-0 overflow-auto w-full">
         <div className="flex items-center gap-3 w-full px-4 py-2 border-b bg-muted/40 text-xs font-medium text-muted-foreground shrink-0">

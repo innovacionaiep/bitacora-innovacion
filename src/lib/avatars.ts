@@ -6,11 +6,15 @@ export interface PredefinedAvatar {
 
 export const PREDEFINED_AVATARS: PredefinedAvatar[] = Array.from(
   { length: 20 },
-  (_, i) => ({
-    id: `avatar-${i + 1}`,
-    url: `/avatars/avatar-${i + 1}.png`,
-    name: `Avatar ${i + 1}`,
-  })
+  (_, i) => {
+    const num = i + 1;
+    const ext = num === 1 ? 'png' : 'jpg';
+    return {
+      id: `avatar-${num}`,
+      url: `/avatars/avatar-${num}.${ext}`,
+      name: `Avatar ${num}`,
+    };
+  }
 );
 
 // Función helper para obtener avatar por ID

@@ -18,6 +18,11 @@ const CONJUGACIONES: Record<string, string> = {
   'Marcar realizada': 'marcado realizada',
   'Agregar participante': 'Registrado',
   'Eliminar participante': 'Eliminado',
+  Validar: 'validado',
+  Eliminar: 'eliminado',
+  'Subir evidencia': 'subido nuevas evidencias',
+  'Eliminar evidencia': 'eliminado evidencias',
+  'Cambio de estado en kanban': 'cambiado',
 };
 
 function formatFecha(fecha: Date | string): string {

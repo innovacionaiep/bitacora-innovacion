@@ -2918,12 +2918,18 @@ export default function GanttChart({
                             e.target.value
                           )
                         }
-                        placeholder="Nombre de la actividad"
+                        placeholder="Nombre de la actividad (obligatorio)"
                         className="text-2xl font-bold text-emerald-600 h-auto py-1 px-2 border-emerald-300 w-full min-w-[42rem] max-w-full"
                         maxLength={50}
                       />
                       <span className="text-xs text-gray-400">
                         {unifiedActivityForm.name.length}/50 caracteres
+                        {(activityPopupMode === 'create' ||
+                          activityPopupMode === 'edit') && (
+                          <span className="text-amber-600 ml-1">
+                            · obligatorio
+                          </span>
+                        )}
                       </span>
                     </div>
                   )}
@@ -2952,7 +2958,11 @@ export default function GanttChart({
                     <Button
                       size="sm"
                       onClick={handleUnifiedActivityAction}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      disabled={
+                        activityPopupMode === 'create' &&
+                        tempTasks.length === 0
+                      }
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {activityPopupMode === 'create'
                         ? 'Crear Actividad'
@@ -3165,8 +3175,7 @@ export default function GanttChart({
                         ))}
                       </div>
                     )}
-                    {activityPopupMode === 'edit' &&
-                      selectedActivityForPopup?.id &&
+                    {selectedActivityForPopup?.id &&
                       !selectedActivityForPopup.id.startsWith('temp-') && (
                         <div className="mt-3">
                           <input
@@ -3253,6 +3262,11 @@ export default function GanttChart({
                     {activityPopupMode === 'view'
                       ? `(${selectedActivityForPopup?.tasks?.length ?? 0})`
                       : `(${(selectedActivityForPopup?.tasks?.length ?? 0) + tempTasks.length})`}
+                    {activityPopupMode === 'create' && (
+                      <span className="font-normal text-amber-600 text-sm ml-1">
+                        (obligatorio al menos una)
+                      </span>
+                    )}
                   </h3>
                   {activityPopupMode !== 'view' && (
                     <button
@@ -3379,7 +3393,7 @@ export default function GanttChart({
                       return (
                         <p className="text-sm text-gray-500 italic text-center py-8">
                           {activityPopupMode === 'create'
-                            ? 'Haz clic en + para agregar una tarea'
+                            ? 'Debes agregar al menos una tarea para crear la actividad. Haz clic en + para agregar.'
                             : 'No hay tareas definidas'}
                         </p>
                       );

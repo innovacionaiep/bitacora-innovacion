@@ -117,50 +117,6 @@ export default function ConfiguracionUsuariosPage() {
     load();
   }, []);
 
-  // #region agent log
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const vh = window.innerHeight;
-      const root = pageRootRef.current;
-      const scrollEl = scrollAreaRef.current;
-      const thead = tableHeaderRef.current;
-      const rootH = root?.offsetHeight ?? 0;
-      const scrollH = scrollEl?.offsetHeight ?? 0;
-      const scrollScrollH = scrollEl?.scrollHeight ?? 0;
-      const theadPosition = thead ? getComputedStyle(thead).position : 'no-ref';
-      const parent = root?.parentElement;
-      const parentH = parent?.offsetHeight ?? 0;
-      // Solo en localhost (debug); en producción evita el aviso de "acceso a red local"
-      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        fetch(
-          'http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'configuracion/usuarios/page.tsx:layout',
-              message: 'layout heights and thead position',
-              data: {
-                viewportHeight: vh,
-                pageRootHeight: rootH,
-                scrollAreaHeight: scrollH,
-                scrollAreaScrollHeight: scrollScrollH,
-                parentHeight: parentH,
-                theadPosition,
-                loading,
-              },
-              timestamp: Date.now(),
-              hypothesisId: 'H1-H5',
-              runId: 'post-fix',
-            }),
-          }
-        ).catch(() => {});
-      }
-    }, 500);
-    return () => clearTimeout(t);
-  }, [loading]);
-  // #endregion
-
   const handleUnlock = async () => {
     setUnlockError(null);
     const res = await listUsersAdminWithPasswords(unlockPassword);

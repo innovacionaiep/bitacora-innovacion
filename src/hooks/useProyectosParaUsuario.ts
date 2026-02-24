@@ -22,14 +22,9 @@ export function useProyectosParaUsuario() {
     silent?: boolean;
     activeRole?: string | null;
   }) => {
-    const tStart = performance.now();
     try {
       if (!opts?.silent) setLoading(true);
       const result = await getProyectosListadoParaUsuario(opts?.activeRole);
-      const tEnd = performance.now();
-      // #region agent log
-      try{fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-adc3-738ac96c30ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProyectosParaUsuario:fetchProyectos',ms:Math.round(tEnd-tStart),dataLength:result.data?.length??0,timestamp:Date.now()})}).catch(()=>{});}catch(_){}
-      // #endregion
 
       if (!result.success) {
         throw new Error(result.error);

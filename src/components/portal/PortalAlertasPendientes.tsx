@@ -118,35 +118,24 @@ export function PortalAlertasPendientes({
       <div className="flex-1 min-h-0 overflow-auto px-4 py-2">
         {tab === 'actividades' ? (
           <div className="space-y-2">
-            {actividades.map((a) => {
-              const isPorEvidenciar = isEncargado;
-              const cardClasses = isPorEvidenciar
-                ? 'w-full flex items-center gap-2 p-3 rounded-lg border-2 border-emerald-200/80 bg-emerald-50/80 hover:bg-emerald-100/80 hover:border-emerald-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto'
-                : 'w-full flex items-center gap-2 p-3 rounded-lg border-2 border-amber-200/80 bg-amber-50/80 hover:bg-amber-100/80 hover:border-amber-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto';
-              const iconWrapperClasses = isPorEvidenciar
-                ? 'shrink-0 p-1.5 rounded-lg bg-emerald-200/60 group-hover:bg-emerald-300/60'
-                : 'shrink-0 p-1.5 rounded-lg bg-amber-200/60 group-hover:bg-amber-300/60';
-              const iconClasses = isPorEvidenciar
-                ? 'h-5 w-5 text-emerald-700'
-                : 'h-5 w-5 text-amber-700';
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => setActividadModal({ actividadId: a.id, proyectoId: a.proyectoId })}
-                  className={cardClasses}
-                >
-                  <div className={iconWrapperClasses}>
-                    {isCoordinador ? (
-                      <ClipboardCheck className={iconClasses} />
-                    ) : (
-                      <ImagePlus className={iconClasses} />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 flex items-center gap-2">
-                    <span className={`text-sm font-bold shrink-0 ${isPorEvidenciar ? 'text-emerald-700' : 'text-amber-700'}`}>
-                      Actividad
-                    </span>
+            {actividades.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActividadModal({ actividadId: a.id, proyectoId: a.proyectoId })}
+                className="w-full flex items-center gap-2 p-3 rounded-lg border-2 border-emerald-200/80 bg-emerald-50/80 hover:bg-emerald-100/80 hover:border-emerald-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto"
+              >
+                <div className="shrink-0 p-1.5 rounded-lg bg-emerald-200/60 group-hover:bg-emerald-300/60">
+                  {isCoordinador ? (
+                    <ClipboardCheck className="h-5 w-5 text-emerald-700" />
+                  ) : (
+                    <ImagePlus className="h-5 w-5 text-emerald-700" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <span className="text-sm font-bold shrink-0 text-emerald-700">
+                    Actividad
+                  </span>
                     <div className="text-sm text-foreground min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
                       <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">{a.name}</span>
                       <span className="border-l border-gray-300 self-stretch min-h-[1em] shrink-0" aria-hidden />
@@ -156,50 +145,37 @@ export function PortalAlertasPendientes({
                     <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{a.proyectoNombre}</span>
                   </div>
                 </button>
-              );
-            })}
+            ))}
             {actividades.length === 0 && (
               <p className="text-sm text-muted-foreground py-2">Ninguna</p>
             )}
           </div>
         ) : tab === 'indicadores' ? (
           <div className="space-y-2">
-            {indicadores.map((i) => {
-              const isPorEvidenciar = isEncargado;
-              const cardClasses = isPorEvidenciar
-                ? 'w-full flex items-center gap-2 p-3 rounded-lg border-2 border-blue-200/80 bg-blue-50/80 hover:bg-blue-100/80 hover:border-blue-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto'
-                : 'w-full flex items-center gap-2 p-3 rounded-lg border-2 border-amber-200/80 bg-amber-50/80 hover:bg-amber-100/80 hover:border-amber-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto';
-              const iconWrapperClasses = isPorEvidenciar
-                ? 'shrink-0 p-1.5 rounded-lg bg-blue-200/60 group-hover:bg-blue-300/60'
-                : 'shrink-0 p-1.5 rounded-lg bg-amber-200/60 group-hover:bg-amber-300/60';
-              const iconClasses = isPorEvidenciar
-                ? 'h-5 w-5 text-blue-700'
-                : 'h-5 w-5 text-amber-700';
-              return (
-                <button
-                  key={i.id}
-                  type="button"
-                  onClick={() => setIndicadorModal({ indicadorId: i.id, proyectoId: i.proyectoId })}
-                  className={cardClasses}
-                >
-                  <div className={iconWrapperClasses}>
-                    <BarChart3 className={iconClasses} />
+            {indicadores.map((i) => (
+              <button
+                key={i.id}
+                type="button"
+                onClick={() => setIndicadorModal({ indicadorId: i.id, proyectoId: i.proyectoId })}
+                className="w-full flex items-center gap-2 p-3 rounded-lg border-2 border-blue-200/80 bg-blue-50/80 hover:bg-blue-100/80 hover:border-blue-300 hover:shadow-md transition-all duration-200 group cursor-pointer text-left overflow-x-auto"
+              >
+                <div className="shrink-0 p-1.5 rounded-lg bg-blue-200/60 group-hover:bg-blue-300/60">
+                  <BarChart3 className="h-5 w-5 text-blue-700" />
+                </div>
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <span className="text-sm font-bold shrink-0 text-blue-700">
+                    Indicador
+                  </span>
+                  <div className="text-sm text-foreground min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
+                    <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">{i.nombre}</span>
+                    <span className="border-l border-gray-300 self-stretch min-h-[1em] shrink-0" aria-hidden />
+                    <span className="text-sm font-bold shrink-0 text-blue-600">{i.porcentaje}%</span>
+                    <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">Evidencias pendientes</span>
                   </div>
-                  <div className="min-w-0 flex-1 flex items-center gap-2">
-                    <span className={`text-sm font-bold shrink-0 ${isPorEvidenciar ? 'text-blue-700' : 'text-amber-700'}`}>
-                      Indicador
-                    </span>
-                    <div className="text-sm text-foreground min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
-                      <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">{i.nombre}</span>
-                      <span className="border-l border-gray-300 self-stretch min-h-[1em] shrink-0" aria-hidden />
-                      <span className={`text-sm font-bold shrink-0 ${isPorEvidenciar ? 'text-blue-600' : 'text-amber-700'}`}>{i.porcentaje}%</span>
-                      <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">Evidencias pendientes</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{i.proyectoNombre}</span>
-                  </div>
-                </button>
-              );
-            })}
+                  <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{i.proyectoNombre}</span>
+                </div>
+              </button>
+            ))}
             {indicadores.length === 0 && (
               <p className="text-sm text-muted-foreground py-2">Ninguno</p>
             )}

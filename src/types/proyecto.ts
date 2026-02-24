@@ -64,6 +64,8 @@ export type ProyectoFormData = {
   proyecto: string;
   fondo: string;
   sede: string;
+  /** Si se envía, se usa para construir sede (varias sedes unidas por coma) */
+  sedesIds?: string[];
   focalizacion?: 'Social' | 'Productiva' | 'Ambiental' | null;
   objetivoGeneral: string;
   objetivosEspecificos: string[];
@@ -94,6 +96,61 @@ export type ProyectoFormData = {
     email?: string;
     cargo?: string;
   }>;
+};
+
+// Payload completo del formulario "Crear proyecto" (borrador + createProyectoCompleto)
+export type ProyectoFormPayload = ProyectoFormData & {
+  youtubeUrl?: string | null;
+  desarrolloTecnico?: {
+    continuidadFasesAnteriores?: string | null;
+    pertinenciaLocal?: string | null;
+    pertinenciaDisciplinar?: string | null;
+    necesidadProblema?: string | null;
+    publicoObjetivo?: string | null;
+    solucionAvance?: string | null;
+    perspectiveGenero?: string | null;
+    resultadosContribucion?: string | null;
+    metodologiaMedicion?: string | null;
+    ejesImpacto?: string | null;
+    factorInnovador?: string | null;
+    escalabilidad?: string | null;
+  };
+  actividades?: Array<{
+    name: string;
+    description?: string;
+    color?: string;
+    orderIndex?: number;
+    tasks: Array<{
+      name: string;
+      description?: string;
+      startDate: string;
+      endDate: string;
+    }>;
+  }>;
+  indicadores?: Array<{
+    objetivoEspecificoIndex: number; // índice en objetivosEspecificos
+    nombre: string;
+    descripcion: string;
+    formaCalculo: string;
+    resultadoEsperado: string;
+    formatoNumero?: string | null;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
+  }>;
+  itemsPresupuesto?: Array<{
+    cuenta: 'RRHH' | 'OPERACION' | 'INVERSION';
+    item: string;
+    detalle?: string | null;
+    monto: number;
+    orden?: number;
+  }>;
+};
+
+// Sección del índice sticky (completitud)
+export type SeccionCompletitud = {
+  id: string;
+  label: string;
+  completado: boolean;
 };
 
 // Tipos para catálogos

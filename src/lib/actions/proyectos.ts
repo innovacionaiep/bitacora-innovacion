@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { createHistorialEntry } from './historial';
-import { getCurrentUser } from '@/lib/auth-utils';
+import { getCurrentUser, getSession } from '@/lib/auth-utils';
 import {
   Proyecto,
   Escuela,
@@ -14,9 +14,13 @@ import {
 } from '@prisma/client';
 import {
   ProyectoFormData,
+  ProyectoFormPayload,
   ProyectoWithRelations,
   CatalogoResponse,
 } from '@/types/proyecto';
+import { createActivity, createTask } from '@/lib/actions/gantt';
+import { createIndicador } from '@/lib/actions/indicadores';
+import { createItemPresupuesto } from '@/lib/actions/presupuesto';
 import { getMesAnteriorInfo } from '@/lib/utils/fecha';
 
 export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
@@ -262,13 +266,8 @@ export type ProyectoListadoItem = {
 export async function getProyectosListadoParaUsuario(
   activeRoleOverride?: string | null
 ) {
-  const t0 = Date.now();
   try {
     const user = await getCurrentUser();
-    const t1 = Date.now();
-    // #region agent log
-    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:getCurrentUser',ms:t1-t0,t0,t1,hasUser:!!user?.id})+'\n');}catch(_){}
-    // #endregion
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
@@ -286,10 +285,6 @@ export async function getProyectosListadoParaUsuario(
         },
         orderBy: { createdAt: 'desc' },
       });
-      const t2 = Date.now();
-      // #region agent log
-      try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:Admin:findMany',ms:t2-t1,total:proyectos.length})+'\n');}catch(_){}
-      // #endregion
       return { success: true, data: proyectos as ProyectoListadoItem[] };
     }
 
@@ -301,10 +296,6 @@ export async function getProyectosListadoParaUsuario(
       where: { userId: user.id, rol: activeRole },
       select: { proyectoId: true },
     });
-    const t2 = Date.now();
-    // #region agent log
-    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:participaciones',ms:t2-t1,total:participaciones.length})+'\n');}catch(_){}
-    // #endregion
     const proyectoIds = participaciones.map((p) => p.proyectoId);
 
     if (proyectoIds.length === 0) {
@@ -321,10 +312,6 @@ export async function getProyectosListadoParaUsuario(
       },
       orderBy: { createdAt: 'desc' },
     });
-    const t3 = Date.now();
-    // #region agent log
-    try{const fs=await import('fs');const p=await import('path');fs.appendFileSync(p.join(process.cwd(),'.cursor','debug.log'),JSON.stringify({location:'getProyectosListado:proyectos:findMany',ms:t3-t2,total:proyectos.length,totalMs:t3-t0})+'\n');}catch(_){}
-    // #endregion
     return { success: true, data: proyectos as ProyectoListadoItem[] };
   } catch (error) {
     console.error('❌ [getProyectosListadoParaUsuario] Error:', error);
@@ -404,16 +391,27 @@ export async function getProyecto(id: string) {
   }
 }
 
+export type CreateProyectoInput = ProyectoFormData & {
+  youtubeUrl?: string | null;
+};
+
 /**
  * Crear un nuevo proyecto con todas las relaciones
  */
-export async function createProyecto(data: ProyectoFormData) {
+export async function createProyecto(data: CreateProyectoInput) {
   try {
+    const sedeStr =
+      data.sede?.trim()
+        ? data.sede.trim()
+        : data.sedesIds && data.sedesIds.length > 0
+          ? data.sedesIds.join(', ')
+          : '';
     const proyecto = await prisma.proyecto.create({
       data: {
         proyecto: data.proyecto,
-        fondo: data.fondo,
-        sede: data.sede,
+        fondo: data.fondo ?? '',
+        sede: sedeStr,
+        youtubeUrl: data.youtubeUrl ?? null,
         focalizacion: data.focalizacion,
         avanceGantt: data.avanceGantt || 0,
         objetivos: data.objetivos || 0,
@@ -451,8 +449,10 @@ export async function createProyecto(data: ProyectoFormData) {
         },
         participantes_rel: {
           create: data.participantes_rel.map((participante) => ({
-            userId: participante.userId,
+            userId: participante.userId ?? null,
             rol: participante.rol,
+            nombre: participante.nombre ?? null,
+            email: participante.email ?? null,
           })),
         },
         objetivos_rel: {
@@ -516,6 +516,165 @@ export async function createProyecto(data: ProyectoFormData) {
   } catch (error) {
     console.error('Error creating proyecto:', error);
     return { success: false, error: 'Error al crear proyecto' };
+  }
+}
+
+/**
+ * Crear proyecto completo desde el formulario (incluye DT, actividades/tareas, indicadores, presupuesto)
+ */
+export async function createProyectoCompleto(
+  payload: ProyectoFormPayload
+): Promise<{ success: boolean; data?: ProyectoWithRelations; error?: string }> {
+  try {
+    const session = await getSession();
+    const currentUser = session?.user as { id?: string; email?: string; name?: string; activeRole?: string } | null;
+
+    // Resolver userId por email para encargados/participantes que tengan cuenta
+    const participantesRel = [...(payload.participantes_rel ?? [])];
+    for (let i = 0; i < participantesRel.length; i++) {
+      const p = participantesRel[i];
+      const email = p.email?.trim();
+      if (email) {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+          participantesRel[i] = { ...p, userId: user.id, nombre: p.nombre?.trim() || user.name ?? undefined, email: user.email };
+        }
+      }
+    }
+
+    // Si quien crea tiene rol activo "Encargado", agregarlo como encargado inicial si no está ya
+    if (currentUser?.id && currentUser?.activeRole === 'Encargado') {
+      const yaEsta = participantesRel.some(
+        (p) => p.rol === 'Encargado' && (p.userId === currentUser.id || (p.email?.trim() && p.email.trim().toLowerCase() === (currentUser.email ?? '').toLowerCase()))
+      );
+      if (!yaEsta) {
+        participantesRel.unshift({
+          userId: currentUser.id,
+          rol: 'Encargado',
+          nombre: (currentUser.name as string) ?? undefined,
+          email: (currentUser.email as string) ?? undefined,
+        });
+      }
+    }
+
+    const sedeStr =
+      payload.sede?.trim()
+        ? payload.sede.trim()
+        : payload.sedesIds && payload.sedesIds.length > 0
+          ? payload.sedesIds.join(', ')
+          : '';
+    const base: CreateProyectoInput = {
+      proyecto: payload.proyecto,
+      fondo: payload.fondo ?? '',
+      sede: sedeStr,
+      ...(payload.sedesIds && { sedesIds: payload.sedesIds }),
+      youtubeUrl: payload.youtubeUrl ?? null,
+      focalizacion: payload.focalizacion ?? null,
+      objetivoGeneral: payload.objetivoGeneral,
+      objetivosEspecificos: payload.objetivosEspecificos ?? [],
+      avanceGantt: payload.avanceGantt ?? 0,
+      objetivos: payload.objetivos ?? 0,
+      presupuestoUsado: payload.presupuestoUsado ?? 0,
+      presupuestoTotal: payload.presupuestoTotal ?? 0,
+      reunionesHechas: payload.reunionesHechas ?? 0,
+      reunionesTotales: payload.reunionesTotales ?? 0,
+      participantes: payload.participantes ?? 0,
+      escuelasIds: payload.escuelasIds ?? [],
+      carrerasIds: payload.carrerasIds ?? [],
+      comunasIds: payload.comunasIds ?? [],
+      gruposInteresIds: payload.gruposInteresIds ?? [],
+      sociosComunitariosIds: payload.sociosComunitariosIds ?? [],
+      participantes_rel: participantesRel,
+    };
+    const result = await createProyecto(base);
+    if (!result.success || !result.data) {
+      return { success: false, error: result.error ?? 'Error al crear proyecto' };
+    }
+    const proyecto = result.data as ProyectoWithRelations & { objetivos_rel: { id: string; tipo: string; orden: number }[] };
+    const proyectoId = proyecto.id;
+
+    if (payload.desarrolloTecnico && Object.keys(payload.desarrolloTecnico).length > 0) {
+      await updateProyectoGeneralTab({
+        proyectoId,
+        desarrolloTecnico: payload.desarrolloTecnico,
+      });
+    }
+
+    if (payload.actividades && payload.actividades.length > 0) {
+      for (let i = 0; i < payload.actividades.length; i++) {
+        const act = payload.actividades[i];
+        const actResult = await createActivity({
+          projectId: proyectoId,
+          name: act.name,
+          description: act.description ?? '',
+          color: act.color ?? 'bg-gray-700',
+          orderIndex: act.orderIndex ?? i,
+        });
+        if (!actResult.success || !actResult.data) continue;
+        const activityId = actResult.data.id;
+        if (act.tasks && act.tasks.length > 0) {
+          for (const t of act.tasks) {
+            await createTask({
+              activityId,
+              name: t.name,
+              description: t.description ?? '',
+              startDate: t.startDate,
+              endDate: t.endDate,
+              progress: 0,
+              completed: false,
+            });
+          }
+        }
+      }
+    }
+
+    const objetivosRel = proyecto.objetivos_rel ?? [];
+    const objetivosEspecificosIds = objetivosRel
+      .filter((o) => o.tipo === 'Especifico')
+      .sort((a, b) => a.orden - b.orden)
+      .map((o) => o.id);
+
+    if (payload.indicadores && payload.indicadores.length > 0 && objetivosEspecificosIds.length > 0) {
+      for (const ind of payload.indicadores) {
+        const objId = objetivosEspecificosIds[ind.objetivoEspecificoIndex];
+        if (!objId) continue;
+        await createIndicador(proyectoId, objId, {
+          nombre: ind.nombre,
+          descripcion: ind.descripcion,
+          formaCalculo: ind.formaCalculo,
+          resultadoEsperado: ind.resultadoEsperado,
+          formatoNumero: ind.formatoNumero ?? null,
+          fechaInicio: ind.fechaInicio ?? null,
+          fechaFin: ind.fechaFin ?? null,
+        });
+      }
+    }
+
+    if (payload.itemsPresupuesto && payload.itemsPresupuesto.length > 0) {
+      for (let i = 0; i < payload.itemsPresupuesto.length; i++) {
+        const item = payload.itemsPresupuesto[i];
+        await createItemPresupuesto(proyectoId, {
+          cuenta: item.cuenta,
+          item: item.item,
+          detalle: item.detalle ?? null,
+          monto: item.monto,
+          orden: item.orden ?? i,
+        });
+      }
+    }
+
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    const full = await getProyecto(proyectoId);
+    return full.success && full.data
+      ? { success: true, data: full.data as ProyectoWithRelations }
+      : { success: true, data: proyecto as ProyectoWithRelations };
+  } catch (error) {
+    console.error('Error createProyectoCompleto:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error al crear proyecto completo',
+    };
   }
 }
 
@@ -601,36 +760,6 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       SELECT youtube_url FROM proyectos WHERE id = ${data.proyectoId}
     `.catch(() => [{ youtube_url: null }]);
     const estadoAnteriorYoutube = row?.youtube_url ?? null;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'proyectos.ts:updateProyectoGeneralTab:payload',
-        message: 'Payload keys and desarrolloTecnico keys',
-        data: {
-          keysPresent: {
-            proyecto: data.proyecto !== undefined,
-            sede: data.sede !== undefined,
-            objetivoGeneral: data.objetivoGeneral !== undefined,
-            objetivosEspecificos: data.objetivosEspecificos !== undefined,
-            escuelasIds: data.escuelasIds !== undefined,
-            carrerasIds: data.carrerasIds !== undefined,
-            comunasIds: data.comunasIds !== undefined,
-            gruposInteresIds: data.gruposInteresIds !== undefined,
-            sociosComunitariosIds: data.sociosComunitariosIds !== undefined,
-            desarrolloTecnico: data.desarrolloTecnico !== undefined,
-          },
-          desarrolloTecnicoKeysCount: data.desarrolloTecnico
-            ? Object.keys(data.desarrolloTecnico).length
-            : 0,
-        },
-        timestamp: Date.now(),
-        hypothesisId: 'H1',
-      }),
-    }).catch(() => {});
-    // #endregion
 
     await prisma.$transaction(async (tx) => {
       if (data.proyecto !== undefined || data.sede !== undefined) {
@@ -737,14 +866,33 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       }
 
       if (data.objetivosEspecificos) {
+        const existingEspecificoIds = (estadoAnterior?.objetivos_rel ?? [])
+          .filter((o) => o.tipo === 'Especifico')
+          .map((o) => o.id);
+        const payloadIds = data.objetivosEspecificos.map((o) => o.id);
+        const toDelete = existingEspecificoIds.filter((id) => !payloadIds.includes(id));
+        for (const id of toDelete) {
+          await tx.objetivoProyecto.delete({ where: { id } });
+        }
         for (const objetivo of data.objetivosEspecificos) {
-          await tx.objetivoProyecto.update({
-            where: { id: objetivo.id },
-            data: {
-              descripcion: objetivo.descripcion,
-              orden: objetivo.orden,
-            },
-          });
+          if (existingEspecificoIds.includes(objetivo.id)) {
+            await tx.objetivoProyecto.update({
+              where: { id: objetivo.id },
+              data: {
+                descripcion: objetivo.descripcion,
+                orden: objetivo.orden,
+              },
+            });
+          } else {
+            await tx.objetivoProyecto.create({
+              data: {
+                proyectoId: data.proyectoId,
+                tipo: 'Especifico',
+                descripcion: objetivo.descripcion,
+                orden: objetivo.orden,
+              },
+            });
+          }
         }
       }
 
@@ -1017,20 +1165,6 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
         }
       }
     }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/aab8fdcd-8a37-4785-bc99-6e88f2d38fbe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'proyectos.ts:updateProyectoGeneralTab:entriesCount',
-        message: 'Historial entries to be written (post-fix: only real changes)',
-        data: { count: historialEntries.length, elements: historialEntries.map((e) => e.elementoEspecifico), runId: 'post-fix' },
-        timestamp: Date.now(),
-        hypothesisId: 'H4',
-      }),
-    }).catch(() => {});
-    // #endregion
 
     for (const entry of historialEntries) {
       await createHistorialEntry({

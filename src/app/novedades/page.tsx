@@ -1,59 +1,21 @@
-import { NovedadesPageWrapper } from '@/components/novedades/NovedadesPageWrapper';
-import {
-  getPosts,
-  getUpcomingEvents,
-  getProyectosParaPost,
-} from '@/lib/actions/posts';
-import { getRandomProjects, getMonthlyTrends } from '@/lib/actions/discovery';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth-utils';
+import { NovedadesPasswordGate } from '@/components/novedades/NovedadesPasswordGate';
 
+/**
+ * Novedades: solo Admin puede acceder por URL.
+ * La contraseña se pide cada vez que se entra a la página (no se guarda).
+ */
 export default async function NovedadesPage() {
-  // Cargar TODOS los datos en paralelo en el servidor
-  const [
-    postsResult,
-    eventosResult,
-    projectsResult,
-    trendsResult,
-    proyectosParaFiltroResult,
-  ] = await Promise.all([
-    getPosts(),
-    getUpcomingEvents(10),
-    getRandomProjects(6),
-    getMonthlyTrends(),
-    getProyectosParaPost(), // Proyectos para el filtro
-  ]);
+  const session = await getSession();
 
-  const initialPosts =
-    postsResult.success && postsResult.data ? postsResult.data.posts : [];
-  const initialHasMore =
-    postsResult.success && postsResult.data ? postsResult.data.hasMore : false;
-  const initialCursor =
-    postsResult.success && postsResult.data
-      ? postsResult.data.nextCursor
-      : undefined;
+  if (!session?.user) {
+    redirect('/inicio');
+  }
 
-  // Datos del sidebar
-  const initialEventos =
-    eventosResult.success && eventosResult.data ? eventosResult.data.posts : [];
-  const initialProjects =
-    projectsResult.success && projectsResult.data ? projectsResult.data : [];
-  const initialTrends =
-    trendsResult.success && trendsResult.data ? trendsResult.data : null;
+  if (session.user.activeRole !== 'Admin') {
+    redirect('/inicio');
+  }
 
-  // Proyectos para el filtro
-  const initialProyectosParaFiltro =
-    proyectosParaFiltroResult.success && proyectosParaFiltroResult.data
-      ? proyectosParaFiltroResult.data
-      : [];
-
-  return (
-    <NovedadesPageWrapper
-      initialPosts={initialPosts}
-      initialHasMore={initialHasMore}
-      initialCursor={initialCursor}
-      initialEventos={initialEventos}
-      initialProjects={initialProjects}
-      initialTrends={initialTrends}
-      initialProyectosParaFiltro={initialProyectosParaFiltro}
-    />
-  );
+  return <NovedadesPasswordGate />;
 }

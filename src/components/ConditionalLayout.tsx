@@ -1,6 +1,8 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
@@ -16,10 +18,26 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
 
   // Rutas que NO deben mostrar sidebar
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+
+  // Encargado solo puede acceder a Inicio y Proyectos; el resto se redirige a /inicio
+  const activeRole = session?.user?.activeRole ?? null;
+  const isEncargado = activeRole === 'Encargado';
+  const rutaPermitidaEncargado =
+    pathname === '/inicio' || pathname.startsWith('/proyectos');
+  const encargadoEnRutaBloqueada = isEncargado && !rutaPermitidaEncargado;
+
+  useEffect(() => {
+    if (status === 'loading' || isAuthRoute) return;
+    if (encargadoEnRutaBloqueada) {
+      router.replace('/inicio');
+    }
+  }, [status, isAuthRoute, encargadoEnRutaBloqueada, router]);
 
   // Ruta de novedades que necesita fondo gris completo
   const isNovedadesRoute = pathname === '/novedades';
@@ -38,6 +56,15 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Si es una ruta de autenticación, mostrar solo el contenido
   if (isAuthRoute) {
     return <>{children}</>;
+  }
+
+  // Encargado en ruta no permitida: no mostrar contenido hasta que redirija
+  if (encargadoEnRutaBloqueada) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   // Para todas las demás rutas, mostrar el layout completo con sidebar + widget reunión en vivo

@@ -84,6 +84,9 @@ model User {
   // Indicadores validados por este coordinador
   indicadoresValidadosPor Indicador[] @relation("IndicadorValidadoPor")
 
+  // Borradores de proyectos (formulario crear proyecto)
+  proyectoBorradores ProyectoBorrador[]
+
   @@map("users")
 }
 
@@ -107,6 +110,20 @@ model UserRole {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_roles")
+}
+
+model ProyectoBorrador {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  nombre    String   // Nombre del proyecto para mostrar en la lista (ej. "Sin nombre" si está vacío)
+  payload   Json     // Estado completo del formulario
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("proyecto_borradores")
 }
 
 model Proyecto {
