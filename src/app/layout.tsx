@@ -1,5 +1,5 @@
+import type { Viewport } from 'next';
 import '@/app/globals.css';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { SessionProvider } from '@/components/SessionProvider';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 
@@ -9,6 +9,11 @@ export const metadata = {
   description: 'App SaaS con Next.js + Shadcn + NextAuth + Prisma',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -16,8 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="bg-background text-foreground">
-        {/* Provider de autenticación */}
+      <body className="bg-background text-foreground min-h-screen">
         <SessionProvider>
           <ConditionalLayout>{children}</ConditionalLayout>
         </SessionProvider>
