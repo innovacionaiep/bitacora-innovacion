@@ -112,15 +112,15 @@ export function PortalMisProyectos({
             <span className="text-xs text-muted-foreground shrink-0 w-24 text-center">{p.fondo}</span>
             <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avanceGantt} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avanceGantt}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{Math.round(p.avanceGantt)}%</span>
             </div>
             <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avanceIndicadores ?? 0} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avanceIndicadores ?? 0}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{Math.round(p.avanceIndicadores ?? 0)}%</span>
             </div>
             <div className="flex items-center gap-2 shrink-0 w-36">
               <Progress value={p.avancePresupuesto ?? 0} className="h-2.5 flex-1" />
-              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{p.avancePresupuesto ?? 0}%</span>
+              <span className="text-sm text-muted-foreground w-8 tabular-nums shrink-0">{Math.round(p.avancePresupuesto ?? 0)}%</span>
             </div>
           </div>
         ))}

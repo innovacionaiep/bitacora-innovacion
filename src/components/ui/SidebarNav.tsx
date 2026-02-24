@@ -15,7 +15,6 @@ import {
   Home,
   LayoutDashboard,
   FolderKanban,
-  ClipboardCheck,
   ChevronsLeft,
   ChevronsRight,
   AtSign,
@@ -31,22 +30,15 @@ import { SidebarUserInfo } from '@/components/SidebarUserInfo';
 
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
-const ROLES_CON_ACCESO_SEGUIMIENTO = ['Admin', 'Coordinador'];
-
-// Rutas permitidas para el rol Encargado (solo Inicio y Proyectos)
-const RUTAS_PERMITIDAS_ENCARGADO = ['/inicio', '/proyectos'];
+// Roles que solo ven Inicio y Proyectos en el sidebar (Encargado, Estudiante, Docente)
+const ROLES_SOLO_INICIO_PROYECTOS = ['Encargado', 'Estudiante', 'Docente'];
+const RUTAS_PERMITIDAS_LIMITADAS = ['/inicio', '/proyectos'];
 
 // Novedades está oculto para todos los perfiles; solo Admin puede acceder por URL con contraseña
 const navItemsBase = [
   { href: '/inicio', label: 'Inicio', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  {
-    href: '/seguimiento',
-    label: 'Meetings',
-    icon: ClipboardCheck,
-    rolesRequeridos: ROLES_CON_ACCESO_SEGUIMIENTO,
-  },
   { href: '/reportes', label: 'Reportes', icon: AtSign },
 ];
 
@@ -64,9 +56,9 @@ export default function SidebarNav() {
       return activeRole && rolesRequeridos.includes(activeRole);
     })
     .filter((item) => {
-      // Encargado solo ve Inicio y Proyectos
-      if (activeRole === 'Encargado') {
-        return RUTAS_PERMITIDAS_ENCARGADO.includes(item.href);
+      // Encargado, Estudiante y Docente solo ven Inicio y Proyectos
+      if (activeRole && ROLES_SOLO_INICIO_PROYECTOS.includes(activeRole)) {
+        return RUTAS_PERMITIDAS_LIMITADAS.includes(item.href);
       }
       return true;
     });

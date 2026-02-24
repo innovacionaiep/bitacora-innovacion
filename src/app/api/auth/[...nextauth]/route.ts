@@ -117,6 +117,13 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      // Actualizar "última actividad" cuando el usuario usa la plataforma (throttle: máx. 1 vez cada 5 min por usuario)
+      if (token.id) {
+        prisma
+          .$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${token.id} AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '5 minutes')`
+          .catch(() => {});
+      }
+
       if (session.user) {
         session.user.id = token.id as string;
         session.user.activeRole = token.activeRole as string | null;

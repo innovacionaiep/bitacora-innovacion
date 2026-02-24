@@ -197,7 +197,7 @@ export async function createReunion(data: ReunionSeguimientoData) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: reunion };
   } catch (error) {
     console.error('Error al crear reunión:', error);
@@ -257,7 +257,7 @@ export async function updateReunion(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar reunión:', error);
@@ -306,7 +306,7 @@ export async function deleteReunion(reunionId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error al eliminar reunión:', error);
@@ -355,7 +355,7 @@ export async function iniciarReunionEnVivo(reunionId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al iniciar reunión en vivo:', error);
@@ -425,7 +425,7 @@ export async function finalizarReunionEnVivo(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al finalizar reunión en vivo:', error);
@@ -478,7 +478,7 @@ export async function addPuntoReunion(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: punto };
   } catch (error) {
     console.error('Error al agregar punto:', error);
@@ -547,7 +547,7 @@ export async function addCompromiso(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: compromiso };
   } catch (error) {
     console.error('Error al agregar compromiso:', error);
@@ -624,7 +624,7 @@ export async function updateCompromiso(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar compromiso:', error);
@@ -666,7 +666,7 @@ export async function toggleCompromiso(compromisoId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar compromiso:', error);
@@ -730,7 +730,7 @@ export async function toggleValidacionCompromiso(compromisoId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al validar compromiso:', error);
@@ -790,7 +790,7 @@ export async function marcarTareaEnReunion(reunionId: string, taskId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error al marcar tarea en reunión:', error);
@@ -871,7 +871,7 @@ export async function actualizarIndicadorEnReunion(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error al actualizar indicador en reunión:', error);
@@ -910,7 +910,7 @@ export async function addPuntoFODA(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: punto };
   } catch (error) {
     console.error('Error al agregar punto FODA:', error);
@@ -955,7 +955,7 @@ export async function addTemaPresupuesto(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: temaPresupuesto };
   } catch (error) {
     console.error('Error al agregar tema presupuesto:', error);
@@ -1030,7 +1030,7 @@ export async function createOportunidadAmenaza(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: item };
   } catch (error) {
     console.error('Error al crear oportunidad/amenaza:', error);
@@ -1089,7 +1089,7 @@ export async function updatePlanDeAccionOportunidadAmenaza(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar plan de acción:', error);
@@ -1148,7 +1148,7 @@ export async function toggleOkCoordinadorOportunidadAmenaza(id: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/seguimiento');
+    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al marcar Ok coordinador:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { updateUserProfile } from '@/lib/auth-actions';
 import { PREDEFINED_AVATARS, type PredefinedAvatar } from '@/lib/avatars';
@@ -64,6 +64,16 @@ export function ProfileSidebar({ open, onOpenChange }: ProfileSidebarProps) {
       setOptimisticRole(null);
     }
   }, [session?.user?.activeRole, optimisticRole]);
+
+  // Al abrir Mi Cuenta, refrescar la sesión para cargar los roles actualizados desde la BD
+  // (los roles solo se actualizan en el JWT cuando trigger === 'update'; hay que pasar payload para que session sea truthy)
+  const prevOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !prevOpenRef.current && session?.user?.id) {
+      update({ activeRole: session.user.activeRole ?? undefined });
+    }
+    prevOpenRef.current = open;
+  }, [open, session?.user?.id, session?.user?.activeRole, update]);
 
   // Get the current role (optimistic or from session)
   const currentRole = optimisticRole || session?.user?.activeRole || 'Sin rol';

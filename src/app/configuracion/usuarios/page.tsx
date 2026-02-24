@@ -39,11 +39,16 @@ import {
   listUsersAdminWithPasswords,
   createUserAdmin,
   updateUserAdmin,
+  updateUserRolesAdmin,
   updateUserPasswordAdmin,
   type UserListRow,
   type UserListRowWithPassword,
 } from '@/lib/actions/configuracion-usuarios';
 import { AVAILABLE_ROLES, type Role } from '@/lib/auth-utils';
+import {
+  MultiSelectOptions,
+  MULTI_SELECT_SEP,
+} from '@/components/ui/multi-select-options';
 import { Lock, Unlock, Pencil, UserPlus } from 'lucide-react';
 
 function formatDate(d: Date | null): string {
@@ -91,6 +96,7 @@ export default function ConfiguracionUsuariosPage() {
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editRoles, setEditRoles] = useState<Role[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
@@ -136,6 +142,9 @@ export default function ConfiguracionUsuariosPage() {
     setEditName(u.name ?? '');
     setEditEmail(u.email);
     setEditPassword('');
+    setEditRoles(
+      u.roles.filter((r): r is Role => AVAILABLE_ROLES.includes(r as Role))
+    );
   };
 
   const handleSaveEdit = async () => {
@@ -145,6 +154,14 @@ export default function ConfiguracionUsuariosPage() {
       name: editName || undefined,
       email: editEmail || undefined,
     });
+    if (res.success) {
+      const resRoles = await updateUserRolesAdmin(editUser.id, editRoles);
+      if (!resRoles.success) {
+        setError(resRoles.error ?? 'Error al actualizar roles');
+        setEditSaving(false);
+        return;
+      }
+    }
     if (res.success && editPassword.trim() && unlocked) {
       const resPw = await updateUserPasswordAdmin(editUser.id, editPassword);
       if (!resPw.success) {
@@ -287,7 +304,7 @@ export default function ConfiguracionUsuariosPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Correo</TableHead>
                     <TableHead>Contraseña</TableHead>
-                    <TableHead>Última sesión</TableHead>
+                    <TableHead>Última actividad</TableHead>
                     <TableHead>Roles</TableHead>
                     <TableHead>Proyectos (rol)</TableHead>
                     <TableHead>Editar</TableHead>
@@ -359,9 +376,29 @@ export default function ConfiguracionUsuariosPage() {
                           {formatDate(u.lastSessionExpires)}
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">
-                            {u.roles.length ? u.roles.join(', ') : '—'}
-                          </span>
+                          {isEditing ? (
+                            <MultiSelectOptions
+                              options={AVAILABLE_ROLES.map((r) => ({
+                                value: r,
+                                label: r,
+                              }))}
+                              value={editRoles.join(` ${MULTI_SELECT_SEP} `)}
+                              onChange={(value) =>
+                                setEditRoles(
+                                  value
+                                    .split(MULTI_SELECT_SEP)
+                                    .map((s) => s.trim())
+                                    .filter(Boolean) as Role[]
+                                )
+                              }
+                              placeholder="Seleccionar roles..."
+                              triggerClassName="h-8 text-sm min-h-8"
+                            />
+                          ) : (
+                            <span className="text-sm">
+                              {u.roles.length ? u.roles.join(', ') : '—'}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="min-w-0">
                           <div className="text-sm text-muted-foreground">
@@ -395,6 +432,7 @@ export default function ConfiguracionUsuariosPage() {
                                 onClick={() => {
                                   setEditUser(null);
                                   setEditPassword('');
+                                  setEditRoles([]);
                                 }}
                                 disabled={editSaving}
                                 className="h-8 px-2"

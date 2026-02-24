@@ -52,7 +52,7 @@ model User {
   passwordEncrypted String?   @db.Text // Encrypted for admin display (reversible)
   image             String?
   activeRole    String?   @map("active_role") // Current active role
-  lastActiveAt  DateTime? @map("last_active_at") // Última vez que inició sesión (JWT no escribe en Session)
+  lastActiveAt  DateTime? @map("last_active_at") // Última vez que el usuario estuvo activo en la plataforma
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

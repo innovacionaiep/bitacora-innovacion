@@ -262,6 +262,44 @@ export async function updateUserAdmin(
 }
 
 /**
+ * Actualizar roles habilitados de un usuario (Admin).
+ * Reemplaza todos los roles actuales por la lista indicada.
+ * Si activeRole ya no está en la nueva lista, se asigna el primer rol o null.
+ */
+export async function updateUserRolesAdmin(
+  userId: string,
+  roles: Role[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.userRole.deleteMany({ where: { userId } });
+      if (roles.length > 0) {
+        await tx.userRole.createMany({
+          data: roles.map((role) => ({ userId, role })),
+        });
+      }
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { activeRole: true },
+      });
+      const newRoleSet = new Set(roles);
+      const activeStillValid = user?.activeRole && newRoleSet.has(user.activeRole as Role);
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          activeRole: activeStillValid ? user!.activeRole : (roles[0] ?? null),
+        },
+      });
+    });
+    revalidatePath('/configuracion/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: 'Error al actualizar roles' };
+  }
+}
+
+/**
  * Actualizar contraseña de un usuario (Admin, requiere desbloqueo previo en UI).
  */
 export async function updateUserPasswordAdmin(

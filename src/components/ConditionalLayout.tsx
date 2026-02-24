@@ -25,19 +25,22 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
-  // Encargado solo puede acceder a Inicio y Proyectos; el resto se redirige a /inicio
+  // Encargado, Estudiante y Docente solo pueden acceder a Inicio y Proyectos; el resto se redirige a /inicio
   const activeRole = session?.user?.activeRole ?? null;
-  const isEncargado = activeRole === 'Encargado';
-  const rutaPermitidaEncargado =
+  const ROLES_SOLO_INICIO_PROYECTOS = ['Encargado', 'Estudiante', 'Docente'];
+  const isRolAccesoLimitado =
+    activeRole != null && ROLES_SOLO_INICIO_PROYECTOS.includes(activeRole);
+  const rutaPermitidaLimitada =
     pathname === '/inicio' || pathname.startsWith('/proyectos');
-  const encargadoEnRutaBloqueada = isEncargado && !rutaPermitidaEncargado;
+  const rolLimitadoEnRutaBloqueada =
+    isRolAccesoLimitado && !rutaPermitidaLimitada;
 
   useEffect(() => {
     if (status === 'loading' || isAuthRoute) return;
-    if (encargadoEnRutaBloqueada) {
+    if (rolLimitadoEnRutaBloqueada) {
       router.replace('/inicio');
     }
-  }, [status, isAuthRoute, encargadoEnRutaBloqueada, router]);
+  }, [status, isAuthRoute, rolLimitadoEnRutaBloqueada, router]);
 
   // Ruta de novedades que necesita fondo gris completo
   const isNovedadesRoute = pathname === '/novedades';
@@ -58,8 +61,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return <>{children}</>;
   }
 
-  // Encargado en ruta no permitida: no mostrar contenido hasta que redirija
-  if (encargadoEnRutaBloqueada) {
+  // Rol con acceso limitado en ruta no permitida: no mostrar contenido hasta que redirija
+  if (rolLimitadoEnRutaBloqueada) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
