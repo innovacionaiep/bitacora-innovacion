@@ -25,7 +25,7 @@ export function SimpleBarChart({
     );
   }
 
-  const maxValue = Math.max(...data.map((d) => d.value));
+  /** Valores son porcentajes 0-100: la barra usa el valor directo, no normalizado al máximo */
   const colors = [
     '#10b981',
     '#3b82f6',
@@ -42,7 +42,7 @@ export function SimpleBarChart({
       )}
       <div className="space-y-3" style={{ minHeight: `${height}px` }}>
         {data.map((item, index) => {
-          const percentage = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
+          const barWidth = Math.min(100, Math.max(0, item.value));
           const color = item.color || colors[index % colors.length];
 
           return (
@@ -55,13 +55,13 @@ export function SimpleBarChart({
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${percentage}%`,
+                      width: `${barWidth}%`,
                       backgroundColor: color,
                     }}
                   />
                 </div>
-                <span className="text-gray-900 font-bold text-sm min-w-[2rem] text-right">
-                  {item.value}
+                <span className="text-gray-900 font-bold text-sm min-w-[2.5rem] text-right">
+                  {item.value}%
                 </span>
               </div>
             </div>

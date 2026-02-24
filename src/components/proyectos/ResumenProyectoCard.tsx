@@ -57,6 +57,25 @@ const ACTIVITY_STATUS_LABEL: Record<ActivityStatus, string> = {
   DONE: 'Finalizada',
 };
 
+/** Clases de Badge por estado de actividad (tag de color) */
+const ACTIVITY_STATUS_BADGE: Record<
+  ActivityStatus,
+  { className: string }
+> = {
+  DONE: {
+    className: 'text-xs bg-emerald-100 text-emerald-800 border-emerald-200',
+  },
+  TODO: {
+    className: 'text-xs bg-gray-100 text-gray-700 border-gray-200',
+  },
+  IN_PROGRESS: {
+    className: 'text-xs bg-blue-100 text-blue-800 border-blue-200',
+  },
+  WAITING: {
+    className: 'text-xs bg-amber-100 text-amber-800 border-amber-200',
+  },
+};
+
 interface ResumenProyectoCardProps {
   projectId: string;
   project: ProyectoWithRelations;
@@ -188,17 +207,28 @@ export function ResumenProyectoCard({
     });
   };
 
-  const formatHistorialEntry = (entry: {
-    fecha: Date | string;
-    accion: string;
-    tabProyecto: string;
-    cambioGenerado: string;
-    elementoEspecifico: string;
-  }) => {
-    const f = formatFechaCorta(entry.fecha);
-    const desc =
-      entry.cambioGenerado?.trim() || entry.elementoEspecifico || entry.accion;
-    return `${f}: ${entry.accion} (${entry.tabProyecto}) — ${desc}`;
+  /** Mismo formato que en Inicio (PortalHistorialReciente) */
+  const CONJUGACIONES_HISTORIAL: Record<string, string> = {
+    Crear: 'creado',
+    Comentar: 'comentado',
+    Actualizar: 'actualizado',
+    'Marcar realizada': 'marcado realizada',
+    'Agregar participante': 'Registrado',
+    'Eliminar participante': 'Eliminado',
+    Validar: 'validado',
+    Eliminar: 'eliminado',
+    'Subir evidencia': 'subido nuevas evidencias',
+    'Eliminar evidencia': 'eliminado evidencias',
+    'Cambio de estado en kanban': 'cambiado',
+  };
+  const formatFechaHistorial = (fecha: Date | string) => {
+    const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
+    return d.toLocaleDateString('es-CL', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const handleReunionDetails = (reunionId: string) => {
@@ -547,6 +577,12 @@ export function ResumenProyectoCard({
                       const statusLabel =
                         ACTIVITY_STATUS_LABEL[act.status as ActivityStatus] ??
                         act.status;
+                      const statusBadge =
+                        ACTIVITY_STATUS_BADGE[act.status as ActivityStatus] ??
+                        ACTIVITY_STATUS_BADGE.TODO;
+                      const validada = !!act.validadoPorCoordinador;
+                      const numEvidencias = act._count?.evidencias ?? 0;
+                      const tieneEvidencias = numEvidencias > 0;
                       return (
                         <li
                           key={act.id}
@@ -555,10 +591,10 @@ export function ResumenProyectoCard({
                           <span className="text-sm text-gray-900 truncate flex-1 min-w-0">
                             {act.name}
                           </span>
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
                             <Badge
                               variant="secondary"
-                              className="text-xs font-normal"
+                              className={`font-normal border ${statusBadge.className}`}
                             >
                               {statusLabel}
                             </Badge>
@@ -570,6 +606,28 @@ export function ResumenProyectoCard({
                                 Fuera de plazo
                               </Badge>
                             )}
+                            <Badge
+                              variant="secondary"
+                              className={
+                                validada
+                                  ? 'text-xs font-normal border bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  : 'text-xs font-normal border bg-gray-100 text-gray-600 border-gray-200'
+                              }
+                            >
+                              {validada ? 'Validada' : 'Sin validar'}
+                            </Badge>
+                            <Badge
+                              variant="secondary"
+                              className={
+                                tieneEvidencias
+                                  ? 'text-xs font-normal border bg-sky-100 text-sky-800 border-sky-200'
+                                  : 'text-xs font-normal border bg-slate-100 text-slate-600 border-slate-200'
+                              }
+                            >
+                              {tieneEvidencias
+                                ? `Evidencias (${numEvidencias})`
+                                : 'Sin evidencias'}
+                            </Badge>
                           </div>
                         </li>
                       );
@@ -734,19 +792,61 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4">
                 {historial.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-2">
-                    No hay registros en el historial
+                  <p className="text-sm text-muted-foreground">
+                    No hay actualizaciones recientes.
                   </p>
                 ) : (
-                  <ul className="space-y-1.5">
-                    {historial.map((entry) => (
-                      <li
-                        key={entry.id}
-                        className="text-sm text-gray-700 py-1.5 px-2 rounded bg-gray-50 border border-gray-100"
-                      >
-                        {formatHistorialEntry(entry)}
-                      </li>
-                    ))}
+                  <ul className="space-y-4">
+                    {historial.map((entry) => {
+                      const persona =
+                        entry.user?.name || entry.user?.email || 'Usuario';
+                      const avatar = entry.user?.image;
+                      const accionConjugada =
+                        CONJUGACIONES_HISTORIAL[entry.accion] ||
+                        entry.accion.toLowerCase();
+                      return (
+                        <li
+                          key={entry.id}
+                          className="flex items-start gap-3 text-sm border-b border-border/50 pb-3 last:border-0 last:pb-0"
+                        >
+                          {avatar ? (
+                            <img
+                              src={avatar}
+                              alt={persona}
+                              className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 ring-2 ring-gray-200">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {(persona.charAt(0) || 'U').toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-muted-foreground text-xs mb-0.5">
+                              {formatFechaHistorial(entry.fecha)}
+                            </p>
+                            <p>
+                              <strong>{persona}</strong> ha{' '}
+                              <span className="text-primary font-medium">
+                                {accionConjugada}
+                              </span>{' '}
+                              en {entry.tabProyecto}:{' '}
+                              <strong className="line-clamp-2">
+                                {entry.elementoEspecifico}
+                              </strong>
+                              {entry.cambioGenerado &&
+                                entry.accion !== 'Marcar realizada' && (
+                                  <span className="text-muted-foreground">
+                                    {' '}
+                                    — {entry.cambioGenerado}
+                                  </span>
+                                )}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </CardContent>

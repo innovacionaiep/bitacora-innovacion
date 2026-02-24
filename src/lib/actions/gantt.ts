@@ -20,6 +20,7 @@ export type ActivityWithTasks = Activity & {
     name: string | null;
     image: string | null;
   } | null;
+  _count?: { evidencias: number };
 };
 
 /**
@@ -64,6 +65,7 @@ export async function getActivities(projectId: string) {
         validadoPorCoordinadorPor: {
           select: { id: true, name: true, image: true },
         },
+        _count: { select: { evidencias: true } },
       },
       orderBy: {
         orderIndex: 'asc',

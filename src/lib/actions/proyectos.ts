@@ -557,6 +557,21 @@ export async function createProyectoCompleto(
       }
     }
 
+    // Si quien crea tiene rol activo "Coordinador", agregarlo como coordinador del proyecto si no está ya
+    if (currentUser?.id && currentUser?.activeRole === 'Coordinador') {
+      const yaEsta = participantesRel.some(
+        (p) => p.rol === 'Coordinador' && (p.userId === currentUser.id || (p.email?.trim() && p.email.trim().toLowerCase() === (currentUser.email ?? '').toLowerCase()))
+      );
+      if (!yaEsta) {
+        participantesRel.push({
+          userId: currentUser.id,
+          rol: 'Coordinador',
+          nombre: (currentUser.name as string) ?? undefined,
+          email: (currentUser.email as string) ?? undefined,
+        });
+      }
+    }
+
     const sedeStr =
       payload.sede?.trim()
         ? payload.sede.trim()
