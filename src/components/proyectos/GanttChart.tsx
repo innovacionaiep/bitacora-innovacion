@@ -3410,11 +3410,13 @@ export default function GanttChart({
                               Editar tarea
                             </span>
                             <Button
-                              size="sm"
-                              variant="ghost"
+                              size="icon"
+                              variant="outline"
                               onClick={() => setEditingTaskId(null)}
+                              className="h-8 w-8 shrink-0 rounded-full border-amber-300 bg-white text-gray-700 hover:bg-amber-100 hover:text-gray-900 hover:border-amber-400"
+                              title="Cerrar edición"
                             >
-                              ×
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                           <Input

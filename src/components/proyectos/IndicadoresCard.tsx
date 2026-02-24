@@ -15,6 +15,7 @@ import { IndicadorModal } from './IndicadorModal';
 import { AgregarIndicadorModal } from './AgregarIndicadorModal';
 import { deleteIndicador } from '@/lib/actions/indicadores';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
+import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
 
 interface IndicadoresCardProps {
   projectId: string;
@@ -63,6 +64,15 @@ export function IndicadoresCard({
       await fetchIndicadores(false);
     } else {
       alert(result.error || 'Error al eliminar');
+    }
+  };
+
+  const handleAddObjetivoEspecifico = async (descripcion: string) => {
+    const result = await createObjetivoEspecifico(projectId, descripcion);
+    if (result.success) {
+      await fetchIndicadores(false);
+    } else {
+      alert(result.error || 'Error al agregar objetivo específico');
     }
   };
 
@@ -181,6 +191,11 @@ export function IndicadoresCard({
                 progresoGeneral={progresoGeneral}
                 canValidateAsCoordinator={canValidateAsCoordinator}
                 onIndicadorValidationToggle={handleIndicadorUpdated}
+                onAddObjetivoEspecifico={
+                  objetivoGeneral.objetivosEspecificos.length === 0
+                    ? handleAddObjetivoEspecifico
+                    : undefined
+                }
                 onIndicadorClick={(indicador) => {
                   setSelectedIndicador({
                     id: indicador.id,

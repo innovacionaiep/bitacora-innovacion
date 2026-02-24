@@ -1201,6 +1201,53 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
 }
 
 /**
+ * Crear un objetivo específico para un proyecto (desde la sección Indicadores).
+ */
+export async function createObjetivoEspecifico(
+  proyectoId: string,
+  descripcion: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const trimmed = descripcion?.trim();
+    if (!trimmed) {
+      return { success: false, error: 'La descripción no puede estar vacía' };
+    }
+    const especificos = await prisma.objetivoProyecto.findMany({
+      where: { proyectoId, tipo: 'Especifico' },
+      select: { orden: true },
+      orderBy: { orden: 'desc' },
+      take: 1,
+    });
+    const nextOrden = especificos.length > 0 ? especificos[0].orden + 1 : 1;
+    await prisma.objetivoProyecto.create({
+      data: {
+        proyectoId,
+        tipo: 'Especifico',
+        descripcion: trimmed,
+        orden: nextOrden,
+      },
+    });
+    await createHistorialEntry({
+      proyectoId,
+      accion: 'Actualizar',
+      tabProyecto: 'Indicadores',
+      elementoEspecifico: 'Objetivos Específicos del proyecto',
+      cambioGenerado: `Objetivo específico agregado: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? '…' : ''}`,
+    });
+    revalidatePath('/proyectos');
+    revalidateTag('proyectos');
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error creating objetivo específico:', error);
+    return {
+      success: false,
+      error: `Error al crear el objetivo específico: ${message}`,
+    };
+  }
+}
+
+/**
  * Eliminar un proyecto
  */
 export async function deleteProyecto(id: string) {

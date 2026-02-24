@@ -115,7 +115,6 @@ import { HistorialCard } from '@/components/proyectos/HistorialCard';
 import { PresupuestoCard } from '@/components/proyectos/PresupuestoCard';
 import { ResumenProyectoCard } from '@/components/proyectos/ResumenProyectoCard';
 import { SeguimientoCard } from '@/components/seguimiento/SeguimientoCard';
-import { ModalParticipante } from '@/components/proyectos/ModalParticipante';
 import { ProyectoParticipante } from '@prisma/client';
 import { User as UserType } from '@prisma/client';
 import {
@@ -399,12 +398,6 @@ export default function ProyectosPage() {
     | 'Historial'
     | 'Seguimiento'
   >('General');
-
-  // Estado para el modal de participante
-  const [selectedParticipante, setSelectedParticipante] = useState<
-    (ProyectoParticipante & { user?: UserType | null }) | null
-  >(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filtros de la pestaña Participantes
   const [filterParticipantesNombre, setFilterParticipantesNombre] =
@@ -2853,15 +2846,16 @@ export default function ProyectosPage() {
                     { value: 'Estudiante', label: 'Estudiante' },
                     { value: 'Beneficiario', label: 'Beneficiario' },
                   ];
+                  // Colores por rol según docs/SISTEMA-ROLES.md (mismo criterio que Mi Cuenta y Configuración)
                   const ROLE_COLORS: Record<string, string> = {
                     Encargado:
-                      'bg-emerald-100 text-emerald-800 border-emerald-200',
+                      'bg-orange-100 text-orange-800 border-orange-200',
                     Coordinador: 'bg-blue-100 text-blue-800 border-blue-200',
                     Colaborador:
                       'bg-violet-100 text-violet-800 border-violet-200',
-                    Docente: 'bg-amber-100 text-amber-800 border-amber-200',
-                    Estudiante: 'bg-sky-100 text-sky-800 border-sky-200',
-                    Beneficiario: 'bg-rose-100 text-rose-800 border-rose-200',
+                    Docente: 'bg-green-100 text-green-800 border-green-200',
+                    Estudiante: 'bg-red-100 text-red-800 border-red-200',
+                    Beneficiario: 'bg-cyan-100 text-cyan-800 border-cyan-200',
                   };
                   const list = selectedProject.participantes_rel ?? [];
                   const rolesSelected = filterParticipantesRol
@@ -2995,81 +2989,81 @@ export default function ProyectosPage() {
                     isAddingParticipante;
                   return (
                     <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
-                      {/* Tarjetas de cantidades */}
+                      {/* Tarjetas de cantidades - colores por rol según SISTEMA-ROLES.md */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4 flex-shrink-0">
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <Crown className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <Crown className="h-8 w-8 shrink-0 text-orange-600" />
+                            <span className="text-[25px] font-bold text-orange-600">
                               {counts.encargados}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-orange-600">
                               Encargados
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <UserCog className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <UserCog className="h-8 w-8 shrink-0 text-blue-600" />
+                            <span className="text-[25px] font-bold text-blue-600">
                               {counts.coordinadores}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-blue-600">
                               Coordinadores
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <Users className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <Users className="h-8 w-8 shrink-0 text-violet-600" />
+                            <span className="text-[25px] font-bold text-violet-600">
                               {counts.colaboradores}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-violet-600">
                               Colaboradores
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <GraduationCap className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <GraduationCap className="h-8 w-8 shrink-0 text-green-600" />
+                            <span className="text-[25px] font-bold text-green-600">
                               {counts.docentes}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-green-600">
                               Docentes
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <BookOpen className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <BookOpen className="h-8 w-8 shrink-0 text-red-600" />
+                            <span className="text-[25px] font-bold text-red-600">
                               {counts.estudiantes}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-red-600">
                               Estudiantes
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <Heart className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <Heart className="h-8 w-8 shrink-0 text-cyan-600" />
+                            <span className="text-[25px] font-bold text-cyan-600">
                               {counts.beneficiarios}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-cyan-600">
                               Beneficiarios
                             </span>
                           </CardContent>
                         </Card>
                         <Card className="py-2 px-3">
                           <CardContent className="p-0 flex items-center justify-center gap-2">
-                            <Handshake className="h-8 w-8 shrink-0 text-emerald-600" />
-                            <span className="text-[25px] font-bold text-emerald-600">
+                            <Handshake className="h-8 w-8 shrink-0 text-gray-600" />
+                            <span className="text-[25px] font-bold text-gray-600">
                               {counts.sociosComunitarios}
                             </span>
-                            <span className="text-sm font-bold text-emerald-600">
+                            <span className="text-sm font-bold text-gray-600">
                               Socios comunitarios
                             </span>
                           </CardContent>
@@ -3561,28 +3555,10 @@ export default function ProyectosPage() {
                                     'bg-gray-100 text-gray-800 border-gray-200';
                                   const isEditing =
                                     editingParticipanteId === p.id;
-                                  const onRowClick = () => {
-                                    if (
-                                      !isEditModeParticipante &&
-                                      !isDeleteModeParticipante
-                                    ) {
-                                      setSelectedParticipante(
-                                        p as ProyectoParticipante & {
-                                          user?: UserType | null;
-                                        }
-                                      );
-                                      setIsModalOpen(true);
-                                    }
-                                  };
                                   return (
                                     <TableRow
                                       key={p.id}
-                                      className={`hover:bg-muted/50 ${isEditing ? 'bg-blue-50/80' : ''} ${
-                                        !showActionsColumn
-                                          ? 'cursor-pointer'
-                                          : ''
-                                      }`}
-                                      onClick={onRowClick}
+                                      className={`hover:bg-muted/50 ${isEditing ? 'bg-blue-50/80' : ''}`}
                                     >
                                       <TableCell className="align-middle text-center">
                                         {isEditing ? (
@@ -3967,13 +3943,6 @@ export default function ProyectosPage() {
           </div>
         )}
       </div>
-
-      {/* Modal de Información del Participante */}
-      <ModalParticipante
-        participante={selectedParticipante}
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-      />
 
       {/* Dialog Editar socios comunitarios (tab Participantes) */}
       <Dialog open={isEditarSociosOpen} onOpenChange={setIsEditarSociosOpen}>
