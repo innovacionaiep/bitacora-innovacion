@@ -85,7 +85,7 @@ export function PortalWelcomeHeader({
     } catch {
       setOptimisticRole(previousRole);
       await update({ activeRole: previousRole });
-      onRoleChange?.(previousRole);
+      if (previousRole !== null) onRoleChange?.(previousRole);
     }
   };
 
