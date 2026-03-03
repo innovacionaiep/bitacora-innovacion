@@ -65,7 +65,6 @@ import {
   RefreshCw,
   ArrowLeftRight,
   Users,
-  Calendar,
   HandCoins,
   Target,
   Video,
@@ -128,6 +127,7 @@ import {
   addParticipanteProyecto,
   updateParticipanteProyecto,
   deleteParticipanteProyecto,
+  createSocioComunitario,
 } from '@/lib/actions/proyectos';
 import {
   getSedes,
@@ -448,6 +448,9 @@ function ProyectosContent() {
     { id: string; nombre: string; descripcion?: string | null }[]
   >([]);
   const [editarSociosSaving, setEditarSociosSaving] = useState(false);
+  const [nuevoSocioNombre, setNuevoSocioNombre] = useState('');
+  const [nuevoSocioDescripcion, setNuevoSocioDescripcion] = useState('');
+  const [nuevoSocioSaving, setNuevoSocioSaving] = useState(false);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -1909,13 +1912,6 @@ function ProyectosContent() {
                       <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
                         {selectedProject.participantes_rel?.length || 0}{' '}
                         participantes
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                      <Calendar className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        {selectedProject.reunionesHechas}/
-                        {selectedProject.reunionesTotales} reuniones
                       </span>
                     </div>
                     {selectedProject.sociosComunitarios &&
@@ -3540,8 +3536,13 @@ function ProyectosContent() {
                               ) : (
                                 filteredParticipants.map((p) => {
                                   const nombre =
-                                    p.user?.name ?? p.nombre ?? 'Sin nombre';
+                                    p.displayName ??
+                                    p.user?.name ??
+                                    p.nombre ??
+                                    'Sin nombre';
                                   const email = p.user?.email ?? p.email ?? '';
+                                  const avatarImage =
+                                    p.displayImage ?? p.user?.image;
                                   const cargo = p.cargo ?? '';
                                   const sedeNombre = p.sede?.nombre ?? '—';
                                   const escuelaNombre =
@@ -3620,9 +3621,9 @@ function ProyectosContent() {
                                         ) : (
                                           <div className="flex items-center gap-3">
                                             <Avatar className="h-9 w-9 rounded-full ring-2 ring-gray-200">
-                                              {p.user?.image ? (
+                                              {avatarImage ? (
                                                 <AvatarImage
-                                                  src={p.user.image}
+                                                  src={avatarImage}
                                                   alt={nombre}
                                                 />
                                               ) : null}
@@ -4024,6 +4025,57 @@ function ProyectosContent() {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="pt-2 border-t">
+              <Label className="text-sm font-medium text-gray-700">
+                Crear nuevo socio comunitario
+              </Label>
+              <div className="mt-2 space-y-2">
+                <Input
+                  placeholder="Nombre del socio comunitario"
+                  value={nuevoSocioNombre}
+                  onChange={(e) => setNuevoSocioNombre(e.target.value)}
+                />
+                <Textarea
+                  placeholder="Descripción (opcional)"
+                  value={nuevoSocioDescripcion}
+                  onChange={(e) => setNuevoSocioDescripcion(e.target.value)}
+                  className="min-h-[72px]"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={nuevoSocioSaving || !nuevoSocioNombre.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={async () => {
+                    const nombre = nuevoSocioNombre.trim();
+                    const descripcion = nuevoSocioDescripcion.trim();
+                    if (!nombre) return;
+                    setNuevoSocioSaving(true);
+                    const result = await createSocioComunitario(
+                      nombre,
+                      descripcion || undefined
+                    );
+                    setNuevoSocioSaving(false);
+                    if (result.success && result.data) {
+                      const socio = result.data;
+                      setEditarSociosCatalog((prev) => {
+                        if (prev.find((s) => s.id === socio.id)) return prev;
+                        return [...prev, socio];
+                      });
+                      setEditarSociosIds((prev) =>
+                        prev.includes(socio.id) ? prev : [...prev, socio.id]
+                      );
+                      setNuevoSocioNombre('');
+                      setNuevoSocioDescripcion('');
+                    } else {
+                      alert(result.error ?? 'Error al crear socio comunitario');
+                    }
+                  }}
+                >
+                  {nuevoSocioSaving ? 'Creando socio...' : 'Crear y agregar al catálogo'}
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

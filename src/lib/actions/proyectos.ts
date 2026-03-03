@@ -292,8 +292,22 @@ export async function getProyectosListadoParaUsuario(
       return { success: true, data: [] };
     }
 
+    const userEmail = (user as { email?: string | null }).email ?? null;
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id, rol: activeRole },
+      where: {
+        rol: activeRole,
+        OR: [
+          { userId: user.id },
+          ...(userEmail
+            ? [
+                {
+                  userId: null,
+                  email: { equals: userEmail, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       select: { proyectoId: true },
     });
     const proyectoIds = participaciones.map((p) => p.proyectoId);
@@ -384,7 +398,52 @@ export async function getProyecto(id: string) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
-    return { success: true, data: proyecto as ProyectoWithRelations };
+    // Resolver nombre y avatar por email (prioridad cuenta registrada): participantes sin userId pero con email
+    const emailsSinUser = [
+      ...new Set(
+        proyecto.participantes_rel
+          .filter((p) => !p.userId && p.email?.trim())
+          .map((p) => p.email!.trim())
+      ),
+    ];
+    let userByEmailLower: Map<string, { name: string | null; image: string | null }> = new Map();
+    if (emailsSinUser.length > 0) {
+      const users = await prisma.user.findMany({
+        where: {
+          OR: emailsSinUser.map((e) => ({
+            email: { equals: e, mode: 'insensitive' as const },
+          })),
+        },
+        select: { email: true, name: true, image: true },
+      });
+      users.forEach((u) => {
+        if (u.email)
+          userByEmailLower.set(u.email.toLowerCase(), {
+            name: u.name ?? null,
+            image: u.image ?? null,
+          });
+      });
+    }
+    const participantesEnriquecidos = proyecto.participantes_rel.map((p) => {
+      const display =
+        !p.user && p.email?.trim()
+          ? userByEmailLower.get(p.email.trim().toLowerCase())
+          : undefined;
+      return {
+        ...p,
+        displayName:
+          p.user?.name ?? display?.name ?? p.nombre ?? 'Sin nombre',
+        displayImage: p.user?.image ?? display?.image ?? null,
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        ...proyecto,
+        participantes_rel: participantesEnriquecidos,
+      } as ProyectoWithRelations,
+    };
   } catch (error) {
     console.error('Error getting proyecto:', error);
     return { success: false, error: 'Error al obtener proyecto' };
@@ -535,7 +594,9 @@ export async function createProyectoCompleto(
       const p = participantesRel[i];
       const email = p.email?.trim();
       if (email) {
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
+        });
         if (user) {
           participantesRel[i] = { ...p, userId: user.id, nombre: (p.nombre?.trim() || user.name) ?? undefined, email: user.email };
         }
@@ -1319,13 +1380,29 @@ export async function addParticipanteProyecto(
   data: AddParticipanteData
 ) {
   try {
+    let userId: string | null = null;
+    let nombre = data.nombre ?? null;
+    let email = data.email ?? null;
+    if (data.email?.trim()) {
+      const user = await prisma.user.findFirst({
+        where: {
+          email: { equals: data.email.trim(), mode: 'insensitive' },
+        },
+        select: { id: true, name: true, email: true },
+      });
+      if (user) {
+        userId = user.id;
+        nombre = user.name ?? nombre;
+        email = user.email;
+      }
+    }
     const participante = await prisma.proyectoParticipante.create({
       data: {
         proyectoId,
-        userId: null,
+        userId,
         rol: data.rol,
-        nombre: data.nombre ?? null,
-        email: data.email ?? null,
+        nombre,
+        email,
         cargo: data.cargo ?? null,
         socioComunitarioId:
           data.rol === 'Beneficiario'
@@ -1380,22 +1457,46 @@ export async function updateParticipanteProyecto(
       return { success: false, error: 'Participante no encontrado' };
     }
     const finalRol = data.rol ?? existing.rol;
+    let resolvedUserId: string | null = existing.userId;
+    let resolvedNombre: string | null = data.nombre !== undefined ? data.nombre : existing.nombre;
+    let resolvedEmail: string | null = data.email !== undefined ? data.email : existing.email;
+    if (data.email !== undefined && data.email?.trim()) {
+      const user = await prisma.user.findFirst({
+        where: {
+          email: { equals: data.email.trim(), mode: 'insensitive' },
+        },
+        select: { id: true, name: true, email: true },
+      });
+      if (user) {
+        resolvedUserId = user.id;
+        resolvedNombre = user.name ?? resolvedNombre;
+        resolvedEmail = user.email;
+      } else {
+        resolvedUserId = null;
+        resolvedEmail = data.email.trim();
+      }
+    }
+    const updateData = {
+      ...(data.rol !== undefined && { rol: data.rol }),
+      ...(data.nombre !== undefined && { nombre: data.nombre }),
+      ...(data.email !== undefined && {
+        nombre: resolvedNombre,
+        email: resolvedEmail,
+        userId: resolvedUserId,
+      }),
+      ...(data.cargo !== undefined && { cargo: data.cargo }),
+      ...(data.socioComunitarioId !== undefined && {
+        socioComunitarioId:
+          finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
+      }),
+      ...(data.sedeId !== undefined && { sedeId: data.sedeId || null }),
+      ...(data.escuelaId !== undefined && {
+        escuelaId: data.escuelaId || null,
+      }),
+    };
     await prisma.proyectoParticipante.update({
       where: { id: participanteId },
-      data: {
-        ...(data.rol !== undefined && { rol: data.rol }),
-        ...(data.nombre !== undefined && { nombre: data.nombre }),
-        ...(data.email !== undefined && { email: data.email }),
-        ...(data.cargo !== undefined && { cargo: data.cargo }),
-        ...(data.socioComunitarioId !== undefined && {
-          socioComunitarioId:
-            finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
-        }),
-        ...(data.sedeId !== undefined && { sedeId: data.sedeId || null }),
-        ...(data.escuelaId !== undefined && {
-          escuelaId: data.escuelaId || null,
-        }),
-      },
+      data: updateData,
     });
     const nombreParticipante = existing.nombre || existing.rol || 'Participante';
     await createHistorialEntry({

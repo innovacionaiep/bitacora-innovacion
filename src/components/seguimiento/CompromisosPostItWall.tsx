@@ -230,13 +230,15 @@ export function CompromisosPostItWall({
             <ClipboardCheck className="h-3.5 w-3.5 text-emerald-600" />
             Compromisos pendientes
           </h4>
-          <Button
-            size="icon"
-            className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
-            onClick={() => setShowAddModal(true)}
-          >
-            <Plus className="h-3.5 w-3.5 text-white" />
-          </Button>
+          {isCoordinadorOrAdmin && (
+            <Button
+              size="icon"
+              className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Plus className="h-3.5 w-3.5 text-white" />
+            </Button>
+          )}
         </header>
         <div className="flex-1 overflow-auto min-h-0 p-4">
           {compromisos.length === 0 ? (

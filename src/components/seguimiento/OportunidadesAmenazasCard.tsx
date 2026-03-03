@@ -111,10 +111,7 @@ export function OportunidadesAmenazasCard({
 
   const isCoordinadorOrAdmin =
     rolEnProyecto === 'Coordinador' || activeRole === 'Admin';
-  const canEditPlan =
-    rolEnProyecto === 'Coordinador' ||
-    rolEnProyecto === 'Encargado' ||
-    activeRole === 'Admin';
+  const canEditPlan = rolEnProyecto === 'Encargado' || activeRole === 'Admin';
 
   const handleAdd = async () => {
     if (!addDescripcion.trim()) return;
@@ -184,22 +181,24 @@ export function OportunidadesAmenazasCard({
             <Lightbulb className="h-3.5 w-3.5 text-emerald-600" />
             Oportunidades y Amenazas
           </h4>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 text-white" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Agregar oportunidad o amenaza</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {isCoordinadorOrAdmin && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    className="h-7 w-7 rounded-full bg-emerald-600 hover:bg-emerald-700 flex-shrink-0"
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 text-white" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Agregar oportunidad o amenaza</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </header>
         <div className="flex-1 overflow-auto min-h-0 p-4">
           <Table>

@@ -61,7 +61,7 @@ type Catalogos = {
   escuelas: { id: string; nombre: string; codigo?: string }[];
 };
 
-function canCreateProject(p: ProyectoFormPayload): boolean {
+function canCreateProject(p: ProyectoFormPayload, activeRole: string | null | undefined): boolean {
   const nombreOk = Boolean(p.proyecto?.trim());
   const objetivoOk = Boolean(p.objetivoGeneral?.trim());
   const sedesOk = Array.isArray(p.sedesIds) && p.sedesIds.length > 0;
@@ -71,9 +71,15 @@ function canCreateProject(p: ProyectoFormPayload): boolean {
     encargados.length > 0 &&
     encargados.every((e) => Boolean(e.nombre?.trim()) && Boolean(e.email?.trim()));
   const coordinadores = p.participantes_rel?.filter((r) => r.rol === 'Coordinador') ?? [];
-  const coordinadoresOk =
+  const coordinadoresOkCore =
     coordinadores.length > 0 &&
     coordinadores.every((c) => Boolean(c.nombre?.trim()) && Boolean(c.email?.trim()));
+
+  const coordinadoresOk =
+    activeRole === 'Encargado'
+      ? true
+      : coordinadoresOkCore;
+
   return nombreOk && objetivoOk && sedesOk && escuelasOk && encargadosOk && coordinadoresOk;
 }
 
@@ -82,6 +88,7 @@ function NuevoProyectoContent() {
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
   const draftId = searchParams.get('borrador');
+  const activeRole = (session?.user as { activeRole?: string } | undefined)?.activeRole ?? null;
 
   const [payload, setPayload] = useState<ProyectoFormPayload>(defaultPayload);
   const [loadingDraft, setLoadingDraft] = useState(!!draftId);
@@ -96,7 +103,7 @@ function NuevoProyectoContent() {
   const hasPrefilledEncargadoRef = useRef(false);
   const hasPrefilledCoordinatorRef = useRef(false);
 
-  const canCreate = canCreateProject(payload);
+  const canCreate = canCreateProject(payload, activeRole);
 
   useEffect(() => {
     if (!draftId) {
@@ -404,7 +411,10 @@ function NuevoProyectoContent() {
               </div>
             </div>
             <div>
-              <Label>Coordinadores * (al menos uno)</Label>
+              <Label>
+                Coordinadores
+                {activeRole === 'Encargado' ? '' : ' * (al menos uno)'}
+              </Label>
               <p className="text-sm text-gray-500 mb-2">
                 Indica nombre y correo de cada coordinador del proyecto. Si creas el proyecto con rol de coordinador, aparecerás asignado por defecto.
               </p>

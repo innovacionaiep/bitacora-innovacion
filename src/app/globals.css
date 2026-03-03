@@ -118,8 +118,21 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Evitar scroll en ventana: altura fija y overflow en raíz */
+  html {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    width: 100%;
   }
 
   /* Solución robusta para cursores nítidos */

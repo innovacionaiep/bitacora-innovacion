@@ -54,26 +54,26 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     isNovedadesRoute ? '' : isInicioRoute ? 'overflow-visible' : 'overflow-y-auto';
   const contentBg = isInicioRoute ? 'bg-gray-100' : '';
 
-  const contentClassName = `flex flex-col flex-1 h-full overflow-x-hidden ${contentPadding} ${contentOverflow} ${contentBg}`.trim();
+  const contentClassName = `flex flex-col flex-1 h-full min-h-0 overflow-x-hidden ${contentPadding} ${contentOverflow} ${contentBg}`.trim();
 
-  // Si es una ruta de autenticación, mostrar solo el contenido
+  // Si es una ruta de autenticación, wrapper con h-full para llenar el contenedor escalado
   if (isAuthRoute) {
-    return <>{children}</>;
+    return <div className="h-full min-h-screen">{children}</div>;
   }
 
   // Rol con acceso limitado en ruta no permitida: no mostrar contenido hasta que redirija
   if (rolLimitadoEnRutaBloqueada) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-full min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
-  // Para todas las demás rutas, mostrar el layout completo con sidebar + widget reunión en vivo
+  // Para todas las demás rutas: h-full para llenar DesktopScaleCompensate cuando DPR > 1
   return (
     <MeetingLiveProvider>
-      <div className="flex h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
         <SidebarProvider defaultOpen={true}>
           <SidebarNav />
           <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>

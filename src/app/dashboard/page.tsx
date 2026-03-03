@@ -2306,7 +2306,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 w-full px-8 pt-6 pb-6">
+    <div className="min-h-0 min-w-0 space-y-6 w-full px-8 pt-6 pb-6">
       {/* Header con título y botones de vistas */}
       <div className="flex items-center justify-between w-full">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>

@@ -5,6 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useScalePortalContainer } from '@/contexts/ScalePortalContext';
 
 const Dialog = DialogPrimitive.Root;
 
@@ -32,8 +33,10 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
+>(({ className, children, ...props }, ref) => {
+  const portalContainer = useScalePortalContainer();
+  return (
+  <DialogPrimitive.Portal container={portalContainer ?? undefined}>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
@@ -49,8 +52,9 @@ const DialogContent = React.forwardRef<
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
-  </DialogPortal>
-));
+  </DialogPrimitive.Portal>
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({

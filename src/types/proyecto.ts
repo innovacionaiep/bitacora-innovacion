@@ -30,6 +30,10 @@ export type ProyectoWithRelations = Proyecto & {
     socioComunitario?: SocioComunitario | null;
     sede?: { id: string; nombre: string } | null;
     escuela?: { id: string; nombre: string } | null;
+    /** Nombre a mostrar: prioridad cuenta registrada (user) por email, luego participante.nombre */
+    displayName?: string | null;
+    /** Avatar a mostrar: prioridad cuenta registrada (user) por email */
+    displayImage?: string | null;
   })[];
   escuelas: (ProyectoEscuela & {
     escuela: Escuela;

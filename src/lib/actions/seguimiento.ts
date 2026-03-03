@@ -1062,13 +1062,11 @@ export async function updatePlanDeAccionOportunidadAmenaza(
 
     const rol = await getRolUsuarioEnProyecto(user.id, item.proyectoId);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeEditar =
-      rol === 'Coordinador' || rol === 'Encargado' || activeRole === 'Admin';
+    const puedeEditar = rol === 'Encargado' || activeRole === 'Admin';
     if (!puedeEditar) {
       return {
         success: false,
-        error:
-          'Solo coordinador, encargado o admin pueden editar el plan de acción',
+        error: 'Solo encargados o admin pueden editar el plan de acción',
         data: null,
       };
     }

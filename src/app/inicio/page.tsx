@@ -8,7 +8,6 @@ import {
   PortalWelcomeHeader,
   PortalMisProyectos,
   PortalAlertasPendientes,
-  PortalProximasReuniones,
   PortalCompromisosPendientes,
   PortalHistorialReciente,
 } from '@/components/portal';
@@ -17,7 +16,7 @@ import {
   getProyectosDelUsuarioConRol,
   getAlertasPortalUsuario,
 } from '@/lib/actions/portal-inicio';
-import { getCompromisosPendientesParaUsuario, getProximasReunionesParaUsuario } from '@/lib/actions/seguimiento';
+import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
 import { Loader2 } from 'lucide-react';
 
@@ -30,9 +29,6 @@ export default function InicioPage() {
   const [alertas, setAlertas] = useState<
     Awaited<ReturnType<typeof getAlertasPortalUsuario>>['data']
   >(null);
-  const [reuniones, setReuniones] = useState<
-    Awaited<ReturnType<typeof getProximasReunionesParaUsuario>>['data']
-  >([]);
   const [compromisos, setCompromisos] = useState<
     Awaited<ReturnType<typeof getCompromisosPendientesParaUsuario>>['data']
   >([]);
@@ -42,7 +38,6 @@ export default function InicioPage() {
   const [loadingPortal, setLoadingPortal] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [loadingAlertas, setLoadingAlertas] = useState(true);
-  const [loadingReuniones, setLoadingReuniones] = useState(true);
   const [loadingCompromisos, setLoadingCompromisos] = useState(true);
   const [loadingHistorial, setLoadingHistorial] = useState(true);
   const [displayRole, setDisplayRole] = useState<string | null>(null);
@@ -68,7 +63,6 @@ export default function InicioPage() {
         // Solo spinners dentro de cada tarjeta; la página no se recarga
         setLoadingProyectos(true);
         setLoadingAlertas(true);
-        setLoadingReuniones(true);
         setLoadingCompromisos(true);
         setLoadingHistorial(true);
       } else {
@@ -76,7 +70,6 @@ export default function InicioPage() {
         setLoadingPortal(true);
         setLoadingProyectos(true);
         setLoadingAlertas(true);
-        setLoadingReuniones(true);
         setLoadingCompromisos(true);
         setLoadingHistorial(true);
       }
@@ -89,11 +82,6 @@ export default function InicioPage() {
       const alertasPromise = getAlertasPortalUsuario(role).then((r) => {
         if (r.success) setAlertas(r.data);
         setLoadingAlertas(false);
-        return r;
-      });
-      const reunionesPromise = getProximasReunionesParaUsuario(role, 10).then((r) => {
-        if (r.success && r.data) setReuniones(r.data);
-        setLoadingReuniones(false);
         return r;
       });
       const compromisosPromise = getCompromisosPendientesParaUsuario(role).then((r) => {
@@ -111,7 +99,6 @@ export default function InicioPage() {
         await Promise.all([
           proyPromise,
           alertasPromise,
-          reunionesPromise,
           compromisosPromise,
           historialPromise,
         ]);
@@ -238,16 +225,10 @@ export default function InicioPage() {
             />
           </div>
         </div>
-        {/* Col 2: Últimas actualizaciones | Próximas reuniones | Compromisos pendientes (mismo ancho) */}
+        {/* Col 2: Últimas actualizaciones | Compromisos pendientes */}
         <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
           <div className="h-[262px] shrink-0 p-2 overflow-visible">
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
-          </div>
-          <div className="flex-1 min-h-0 p-2 overflow-visible">
-            <PortalProximasReuniones
-              reuniones={reuniones}
-              loading={loadingReuniones}
-            />
           </div>
           <div className="flex-1 min-h-0 p-2 overflow-visible">
             <PortalCompromisosPendientes

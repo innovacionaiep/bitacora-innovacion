@@ -13,6 +13,10 @@ import { User as UserType } from '@prisma/client';
 
 interface ParticipanteWithUser extends ProyectoParticipante {
   user?: UserType | null;
+  /** Prioridad: cuenta registrada (por userId o email), luego participante.nombre */
+  displayName?: string | null;
+  /** Prioridad: cuenta registrada (por userId o email) */
+  displayImage?: string | null;
 }
 
 interface ModalParticipanteProps {
@@ -57,11 +61,16 @@ export function ModalParticipante({
 }: ModalParticipanteProps) {
   if (!participante) return null;
 
-  const nombre = participante.user?.name || participante.nombre || 'Sin nombre';
+  const nombre =
+    participante.displayName ??
+    participante.user?.name ??
+    participante.nombre ??
+    'Sin nombre';
   const email =
-    participante.user?.email || participante.email || 'No disponible';
+    participante.user?.email ?? participante.email ?? 'No disponible';
   const cargo = participante.cargo || 'No especificado';
-  const imagen = participante.user?.image;
+  const imagen =
+    participante.displayImage ?? participante.user?.image ?? null;
   const rol = participante.rol;
 
   return (

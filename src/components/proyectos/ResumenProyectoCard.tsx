@@ -33,13 +33,11 @@ import { useGantt } from '@/hooks/useGantt';
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { usePresupuesto } from '@/hooks/usePresupuesto';
 import {
-  getReunionesProyecto,
   getOportunidadesAmenazasProyecto,
   getCompromisosProyecto,
 } from '@/lib/actions/seguimiento';
 import { getHistorialProyecto } from '@/lib/actions/historial';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
-import { ReunionModal } from '@/components/seguimiento/ReunionModal';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { CuentaPresupuesto } from '@/types/presupuesto';
 import { ActivityStatus } from '@prisma/client';
@@ -80,14 +78,12 @@ interface ResumenProyectoCardProps {
   projectId: string;
   project: ProyectoWithRelations;
   presupuestoTotal?: number;
-  onReunionUpdated?: () => void | Promise<void>;
 }
 
 export function ResumenProyectoCard({
   projectId,
   project,
   presupuestoTotal = 0,
-  onReunionUpdated,
 }: ResumenProyectoCardProps) {
   const { activities, loading: loadingGantt } = useGantt(projectId);
   const { data: dataIndicadores, calculateOverallProgress } =
@@ -97,9 +93,6 @@ export function ResumenProyectoCard({
     presupuestoTotal
   );
 
-  const [reuniones, setReuniones] = useState<
-    Awaited<ReturnType<typeof getReunionesProyecto>>['data']
-  >([]);
   const [oportunidadesAmenazas, setOportunidadesAmenazas] = useState<
     Awaited<ReturnType<typeof getOportunidadesAmenazasProyecto>>['data']
   >([]);
@@ -110,24 +103,18 @@ export function ResumenProyectoCard({
     Awaited<ReturnType<typeof getHistorialProyecto>>['data']
   >([]);
   const [loadingSeguimiento, setLoadingSeguimiento] = useState(true);
-  const [selectedReunionId, setSelectedReunionId] = useState<string | null>(
-    null
-  );
-  const [reunionModalOpen, setReunionModalOpen] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
     let cancelled = false;
     setLoadingSeguimiento(true);
     void Promise.all([
-      getReunionesProyecto(projectId),
       getOportunidadesAmenazasProyecto(projectId),
       getCompromisosProyecto(projectId),
       getHistorialProyecto(projectId, undefined, 10),
     ])
-      .then(([rRes, oaRes, cRes, hRes]) => {
+      .then(([oaRes, cRes, hRes]) => {
         if (cancelled) return;
-        if (rRes.success && rRes.data) setReuniones(rRes.data);
         if (oaRes.success && oaRes.data) setOportunidadesAmenazas(oaRes.data);
         if (cRes.success && cRes.data) setCompromisos(cRes.data);
         if (hRes.success && hRes.data) setHistorial(hRes.data);
@@ -229,17 +216,6 @@ export function ResumenProyectoCard({
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const handleReunionDetails = (reunionId: string) => {
-    setSelectedReunionId(reunionId);
-    setReunionModalOpen(true);
-  };
-
-  const handleReunionModalClose = (open: boolean) => {
-    setReunionModalOpen(open);
-    if (!open) setSelectedReunionId(null);
-    onReunionUpdated?.();
   };
 
   return (
@@ -637,7 +613,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-            {/* 6. Seguimiento (Reuniones, Oportunidades y amenazas, Compromisos) */}
+            {/* 6. Seguimiento (Oportunidades y amenazas, Compromisos) */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <Calendar className="h-5 w-5 text-emerald-600" />
@@ -652,38 +628,6 @@ export function ResumenProyectoCard({
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-emerald-600" />
-                        Reuniones
-                      </h4>
-                      {reuniones.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">
-                          No hay reuniones registradas
-                        </p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {reuniones.map((r) => (
-                            <li
-                              key={r.id}
-                              className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
-                            >
-                              <span className="text-sm text-gray-900">
-                                {formatFechaCorta(r.fecha)}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs"
-                                onClick={() => handleReunionDetails(r.id)}
-                              >
-                                Detalles
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
                     <div>
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Lightbulb className="h-4 w-4 text-emerald-600" />
@@ -855,13 +799,6 @@ export function ResumenProyectoCard({
         </div>
       </div>
 
-      <ReunionModal
-        reunionId={selectedReunionId}
-        projectId={projectId}
-        open={reunionModalOpen}
-        onOpenChange={handleReunionModalClose}
-        onUpdated={onReunionUpdated ?? (() => {})}
-      />
     </div>
   );
 }

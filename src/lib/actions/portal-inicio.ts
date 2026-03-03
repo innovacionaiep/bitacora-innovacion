@@ -15,7 +15,19 @@ export async function getRolesConProyectosVigentes() {
     }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id },
+      where: {
+        OR: [
+          { userId: user.id },
+          ...(user.email
+            ? [
+                {
+                  userId: null,
+                  email: { equals: user.email, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       select: { rol: true },
       distinct: ['rol'],
     });
@@ -36,10 +48,26 @@ export async function getRolesConProyectosVigentes() {
  * Obtener proyectoIds donde el usuario participa con el rol activo.
  * Función interna para reutilizar en otras actions del portal.
  */
-async function getProyectoIdsPorRol(userId: string, activeRole: string | null) {
+async function getProyectoIdsPorRol(
+  user: { id: string; email?: string | null },
+  activeRole: string | null
+) {
   if (!activeRole) return [];
   const list = await prisma.proyectoParticipante.findMany({
-    where: { userId, rol: activeRole },
+    where: {
+      rol: activeRole,
+      OR: [
+        { userId: user.id },
+        ...(user.email
+          ? [
+              {
+                userId: null,
+                email: { equals: user.email, mode: 'insensitive' as const },
+              },
+            ]
+          : []),
+      ],
+    },
     select: { proyectoId: true },
   });
   return list.map((p) => p.proyectoId);
@@ -60,7 +88,20 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
     }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id, rol: activeRole },
+      where: {
+        rol: activeRole,
+        OR: [
+          { userId: user.id },
+          ...(user.email
+            ? [
+                {
+                  userId: null,
+                  email: { equals: user.email, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       include: {
         proyecto: {
           select: {
@@ -141,7 +182,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
       return { success: false, error: 'Usuario no autenticado', data: null };
     }
 
-    const proyectoIds = await getProyectoIdsPorRol(user.id, activeRole);
+    const proyectoIds = await getProyectoIdsPorRol(user, activeRole);
     if (proyectoIds.length === 0) {
       return {
         success: true,
