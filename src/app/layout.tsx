@@ -6,8 +6,12 @@ import { DesktopScaleCompensate } from '@/components/DesktopScaleCompensate';
 
 // 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
 export const metadata = {
-  title: 'Gestor de Proyectos',
-  description: 'App SaaS con Next.js + Shadcn + NextAuth + Prisma',
+  title: 'Bemindr - Gestión de Proyectos',
+  description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+  openGraph: {
+    title: 'Bemindr - Gestión de Proyectos',
+    description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+  },
 };
 
 export const viewport: Viewport = {
