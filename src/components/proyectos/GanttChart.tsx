@@ -747,11 +747,26 @@ export default function GanttChart({
   // Timer para ocultar el tooltip con delay
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Estado para controlar el offset del timeline (meses desde enero 2025)
-  const [timelineOffset, setTimelineOffset] = useState(0);
-
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
+
+  // Offset que centra la vista en "hoy" (meses desde enero 2025, centrado en el rango visible)
+  const getTodayCenteredOffset = (range: number) => {
+    const t = new Date();
+    const todayOffset = (t.getFullYear() - 2025) * 12 + t.getMonth();
+    const centered = todayOffset - Math.floor(range / 2);
+    return Math.max(-24, Math.min(24, centered));
+  };
+
+  // Estado para controlar el offset del timeline (meses desde enero 2025); inicializa centrado en hoy
+  const [timelineOffset, setTimelineOffset] = useState(() =>
+    (() => {
+      const t = new Date();
+      const todayOffset = (t.getFullYear() - 2025) * 12 + t.getMonth();
+      const centered = todayOffset - 6; // 6 = floor(12/2) para rango por defecto 12 meses
+      return Math.max(-24, Math.min(24, centered));
+    })()
+  );
 
   // Refs y estado para manejar el ancho del scrollbar
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -2464,7 +2479,9 @@ export default function GanttChart({
                     className="flex-1"
                   />
                   <Button
-                    onClick={() => setTimelineOffset(0)}
+                    onClick={() =>
+                      setTimelineOffset(getTodayCenteredOffset(visibleMonthsRange))
+                    }
                     variant="outline"
                     size="sm"
                     className="h-8 px-3"
