@@ -63,14 +63,39 @@ export function Calendar({
     });
   };
 
-  // Parsear fecha desde string
+  // Parsear fecha: acepta ISO (YYYY-MM-DD) o formato Chile DD-MM-YYYY / DD/MM/YYYY.
+  // new Date("DD-MM-YYYY") en JS se interpreta como MM-DD-YYYY, por eso parseamos a mano.
   const parseDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
+    const s = dateString.trim();
+    // ISO (YYYY-MM-DD): usar nativo
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // DD/MM/YYYY
+    const slashParts = s.split('/');
+    if (slashParts.length === 3) {
+      const [day, month, year] = slashParts.map((p) => parseInt(p, 10));
+      if (year >= 1000 && year <= 9999 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const d = new Date(year, month - 1, day);
+        return isNaN(d.getTime()) ? null : d;
+      }
+    }
+    // DD-MM-YYYY (no confundir con ISO: aquí day/month tienen ≤2 dígitos)
+    const dashParts = s.split('-');
+    if (dashParts.length === 3) {
+      const [day, month, year] = dashParts.map((p) => parseInt(p, 10));
+      if (year >= 1000 && year <= 9999 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const d = new Date(year, month - 1, day);
+        return isNaN(d.getTime()) ? null : d;
+      }
+    }
     const date = new Date(dateString);
     return isNaN(date.getTime()) ? null : date;
   };
 
-  // Sincronizar con el valor prop - MEJORADO
+  // Sincronizar con el valor prop
   useEffect(() => {
     if (value) {
       const parsedDate = parseDate(value);
@@ -163,27 +188,24 @@ export function Calendar({
       return;
     }
 
-    // Verificar restricciones básicas
+    // Verificar restricciones básicas (usar parseDate para DD-MM-YYYY/ISO)
     if (minDate) {
-      const minDateObj = new Date(minDate);
-      if (date < minDateObj) {
+      const minDateObj = parseDate(minDate);
+      if (minDateObj && date < minDateObj) {
         console.log('Fecha antes de minDate, ignorando');
         return;
       }
     }
     if (maxDate) {
-      const maxDateObj = new Date(maxDate);
-      if (date > maxDateObj) {
+      const maxDateObj = parseDate(maxDate);
+      if (maxDateObj && date > maxDateObj) {
         console.log('Fecha después de maxDate, ignorando');
         return;
       }
     }
 
-    console.log('Seleccionando fecha:', date);
-
     // Formatear la fecha ANTES de actualizar el estado
     const formattedDate = formatDate(date);
-    console.log('Fecha formateada:', formattedDate);
 
     // Notificar cambio PRIMERO
     if (onChange) {
