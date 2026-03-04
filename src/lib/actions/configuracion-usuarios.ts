@@ -200,8 +200,9 @@ export async function createUserAdmin(data: {
   initialRole: Role;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const email = data.email.trim().toLowerCase();
     const existing = await prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email },
     });
     if (existing) {
       return { success: false, error: 'Este email ya está registrado' };
@@ -212,7 +213,7 @@ export async function createUserAdmin(data: {
       const user = await tx.user.create({
         data: {
           name: data.name,
-          email: data.email,
+          email,
           password: hashed,
           passwordEncrypted: encrypted,
           activeRole: data.initialRole,
@@ -239,18 +240,24 @@ export async function updateUserAdmin(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (data.email !== undefined) {
+      const email = data.email.trim().toLowerCase();
       const other = await prisma.user.findFirst({
-        where: { email: data.email, NOT: { id: userId } },
+        where: { email, NOT: { id: userId } },
       });
       if (other) {
         return { success: false, error: 'Este email ya está en uso' };
       }
+      await prisma.user.update({
+        where: { id: userId },
+        data: { ...(data.name !== undefined && { name: data.name }), email },
+      });
+      revalidatePath('/configuracion/usuarios');
+      return { success: true };
     }
     await prisma.user.update({
       where: { id: userId },
       data: {
         ...(data.name !== undefined && { name: data.name }),
-        ...(data.email !== undefined && { email: data.email }),
       },
     });
     revalidatePath('/configuracion/usuarios');

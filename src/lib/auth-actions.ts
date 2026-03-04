@@ -17,9 +17,10 @@ export async function signUp(data: {
   initialRole: Role;
 }) {
   try {
+    const email = data.email.trim().toLowerCase();
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email },
     });
 
     if (existingUser) {
@@ -34,7 +35,7 @@ export async function signUp(data: {
       // Crear usuario
       const newUser = await tx.user.create({
         data: {
-          email: data.email,
+          email,
           password: hashedPassword,
           name: data.name,
           activeRole: data.initialRole,

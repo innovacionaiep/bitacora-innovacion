@@ -8,7 +8,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "resumen:cuentas": "tsx prisma/resumen-cuentas.ts"
+    "resumen:cuentas": "tsx prisma/resumen-cuentas.ts",
+    "normalize:emails": "tsx prisma/normalize-emails.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed-full.ts"
