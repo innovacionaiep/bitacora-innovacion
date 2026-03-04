@@ -78,6 +78,15 @@ type MatrixRow = {
   sociosNombres: string[];
 };
 
+/** Parsea el string de sede (puede contener varias separadas por coma, punto o pipe) en un array de sedes individuales. */
+function parseSedeString(sede: string): string[] {
+  if (!sede?.trim()) return [];
+  return sede
+    .split(/[,.|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function metricsFromProjects(
   projects: Project[]
 ): Omit<MatrixRow, 'dimension'> {
@@ -155,9 +164,17 @@ function computeMatrixRows(
   if (dimension === 'sede') {
     const groups = new Map<string, Project[]>();
     proyectos.forEach((p) => {
-      const k = p.sede;
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k)!.push(p);
+      const sedes = parseSedeString(p.sede);
+      if (sedes.length === 0) {
+        const k = p.sede?.trim() || 'Sin sede';
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(p);
+      } else {
+        sedes.forEach((sedeNombre) => {
+          if (!groups.has(sedeNombre)) groups.set(sedeNombre, []);
+          groups.get(sedeNombre)!.push(p);
+        });
+      }
     });
     return Array.from(groups.entries())
       .map(([sede, projs]) => ({
@@ -465,7 +482,9 @@ export default function DashboardPage() {
     if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') return p.presupuestoUsado;
     if (col === 'escuela') {
-      return p.escuelas?.[0]?.escuela.nombre || 'N/A';
+      const nombres =
+        p.escuelas?.map((e) => e.escuela.nombre).filter(Boolean) ?? [];
+      return nombres.length > 0 ? nombres.join(', ') : 'N/A';
     }
     if (col === 'carrera') {
       return p.carreras?.[0]?.carrera.nombre || 'N/A';
@@ -620,6 +639,22 @@ export default function DashboardPage() {
       Object.entries(filters).every(([col, selected]) => {
         if (!selected || selected.length === 0) return true;
 
+        // Para sede, verificar si alguna de las sedes del proyecto coincide (proyecto puede tener varias)
+        if (col === 'sede') {
+          const sedesProyecto = parseSedeString(p.sede);
+          const k =
+            sedesProyecto.length === 0 ? (p.sede?.trim() || 'Sin sede') : null;
+          if (k) return selected.includes(k);
+          return selected.some((s) => sedesProyecto.includes(s));
+        }
+
+        // Para escuela, verificar si alguna de las escuelas del proyecto coincide
+        if (col === 'escuela') {
+          const escuelasProyecto =
+            p.escuelas?.map((e) => e.escuela.nombre) || [];
+          return selected.some((val) => escuelasProyecto.includes(val));
+        }
+
         // Para carrera, verificar si alguna de las carreras del proyecto coincide
         if (col === 'carrera') {
           const carrerasProyecto =
@@ -674,7 +709,7 @@ export default function DashboardPage() {
         'Fecha Fin': formatearFecha(fechas.fechaFin),
         Fondo: project.fondo,
         Sede: project.sede,
-        'Escuela Líder': project.escuelas?.[0]?.escuela.nombre || 'N/A',
+        'Escuela(s)': (project.escuelas?.map((e) => e.escuela.nombre) ?? []).join(', ') || 'N/A',
         Foco: project.focalizacion || 'N/A',
         'Avance Gantt (%)': project.avanceGantt,
         'Var. Gantt (%)': project.variacionGantt,
@@ -846,7 +881,15 @@ export default function DashboardPage() {
   const proyectosPorSede = useMemo(() => {
     const grouped: Record<string, number> = {};
     proyectosIniciales.forEach((p) => {
-      grouped[p.sede] = (grouped[p.sede] || 0) + 1;
+      const sedes = parseSedeString(p.sede);
+      if (sedes.length === 0) {
+        const k = p.sede?.trim() || 'Sin sede';
+        grouped[k] = (grouped[k] || 0) + 1;
+      } else {
+        sedes.forEach((sedeNombre) => {
+          grouped[sedeNombre] = (grouped[sedeNombre] || 0) + 1;
+        });
+      }
     });
     return Object.entries(grouped)
       .map(([label, value]) => ({ label, value }))
@@ -925,7 +968,10 @@ export default function DashboardPage() {
           return selected.includes(p.fondo);
         }
         if (col === 'sede') {
-          return selected.includes(p.sede);
+          const sedesProyecto = parseSedeString(p.sede);
+          const k = sedesProyecto.length === 0 ? (p.sede?.trim() || 'Sin sede') : null;
+          if (k) return selected.includes(k);
+          return selected.some((s) => sedesProyecto.includes(s));
         }
 
         return true;
@@ -1138,7 +1184,7 @@ export default function DashboardPage() {
                           variant="outline"
                           className="text-gray-600 whitespace-nowrap"
                         >
-                          {p.escuelas?.[0]?.escuela.nombre || 'N/A'}
+                          {(p.escuelas?.map((e) => e.escuela.nombre) ?? []).join(', ') || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell
@@ -1281,7 +1327,11 @@ export default function DashboardPage() {
 
   const sedesUnicas = useMemo(() => {
     if (loading) return [];
-    return Array.from(new Set(proyectosIniciales.map((p) => p.sede))).sort();
+    const todas = proyectosIniciales.flatMap((p) => {
+      const parts = parseSedeString(p.sede);
+      return parts.length > 0 ? parts : [p.sede?.trim() || 'Sin sede'];
+    });
+    return Array.from(new Set(todas)).filter(Boolean).sort();
   }, [proyectosIniciales, loading]);
 
   const escuelasUnicas = useMemo(() => {
@@ -1806,7 +1856,9 @@ export default function DashboardPage() {
           proyecto: p.proyecto,
           fondo: p.fondo,
           sede: p.sede,
-          escuela: p.escuelas?.[0]?.escuela.nombre || 'N/A',
+          escuela:
+            (p.escuelas?.map((e) => e.escuela.nombre) ?? []).join(', ') ||
+            'N/A',
           ...conteoPorRol,
         };
       });

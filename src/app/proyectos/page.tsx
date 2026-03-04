@@ -3877,11 +3877,24 @@ function ProyectosContent() {
                   <SeguimientoCard
                     projectId={selectedProject.id}
                     projectName={selectedProject.proyecto}
-                    rolEnProyecto={
-                      selectedProject.participantes_rel?.find(
-                        (p) => p.userId === session?.user?.id
-                      )?.rol ?? null
-                    }
+                    rolEnProyecto={(() => {
+                      const participantes =
+                        selectedProject.participantes_rel ?? [];
+                      const userId = session?.user?.id;
+                      const userEmail = session?.user?.email?.trim().toLowerCase();
+                      const isMe = (p: { userId?: string | null; email?: string | null }) =>
+                        p.userId === userId ||
+                        (userEmail &&
+                          p.email?.trim().toLowerCase() === userEmail);
+                      const isCoord = participantes.some(
+                        (p) =>
+                          isMe(p) &&
+                          (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
+                      );
+                      if (isCoord) return 'Coordinador';
+                      const first = participantes.find(isMe);
+                      return first?.rol ?? null;
+                    })()}
                     activeRole={session?.user?.activeRole ?? null}
                     currentUser={
                       session?.user

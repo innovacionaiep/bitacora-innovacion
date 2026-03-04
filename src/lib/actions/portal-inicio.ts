@@ -239,21 +239,27 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
         }),
       ]);
 
+      // Solo mostrar actividades e indicadores con 100% de completitud para validar
+      const ACTIVIDADES_INDICADORES_100 = 100;
       result.coordinador = {
-        actividadesPorValidar: actividades.map((a) => ({
-          id: a.id,
-          name: a.name,
-          proyectoId: a.projectId,
-          proyectoNombre: a.project?.proyecto ?? '',
-          porcentaje: a.progress ?? 0,
-        })),
-        indicadoresPorValidar: indicadores.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          proyectoId: i.proyectoId,
-          proyectoNombre: i.proyecto?.proyecto ?? '',
-          porcentaje: Number(i.porcentajeAvance ?? 0),
-        })),
+        actividadesPorValidar: actividades
+          .filter((a) => (a.progress ?? 0) >= ACTIVIDADES_INDICADORES_100)
+          .map((a) => ({
+            id: a.id,
+            name: a.name,
+            proyectoId: a.projectId,
+            proyectoNombre: a.project?.proyecto ?? '',
+            porcentaje: a.progress ?? 0,
+          })),
+        indicadoresPorValidar: indicadores
+          .filter((i) => Number(i.porcentajeAvance ?? 0) >= ACTIVIDADES_INDICADORES_100)
+          .map((i) => ({
+            id: i.id,
+            nombre: i.nombre,
+            proyectoId: i.proyectoId,
+            proyectoNombre: i.proyecto?.proyecto ?? '',
+            porcentaje: Number(i.porcentajeAvance ?? 0),
+          })),
         presupuestoPorSolicitar: presupuesto.map((p) => ({
           id: p.id,
           item: p.item,
