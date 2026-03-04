@@ -3828,31 +3828,88 @@ function ProyectosContent() {
 
               {selectedTab === 'Gantt' && (
                 <div className="h-full pt-4">
-                  <GanttChart
-                    projectId={selectedProject.id}
-                    projectName={selectedProject.proyecto}
-                    onProjectChange={() => setIsSheetOpen(true)}
-                    coordinadorIds={
+                  {(() => {
+                    const coordinadorIdsFromParticipantes =
                       selectedProject.participantes_rel
                         ?.filter((p) => p.rol === 'Coordinador' && p.userId)
-                        .map((p) => p.userId as string) ?? []
-                    }
-                    currentUserId={session?.user?.id ?? undefined}
-                  />
+                        .map((p) => p.userId as string) ?? [];
+                    const currentUserIdSession = session?.user?.id ?? undefined;
+                    const participantes =
+                      selectedProject.participantes_rel ?? [];
+                    const userEmail =
+                      session?.user?.email?.trim().toLowerCase() ?? '';
+                    const isMe = (
+                      p: { userId?: string | null; email?: string | null }
+                    ) =>
+                      p.userId === currentUserIdSession ||
+                      (!!userEmail &&
+                        (p.email?.trim().toLowerCase() ?? '') === userEmail);
+                    const isCoordinatorByEmail = participantes.some(
+                      (p) =>
+                        isMe(p) &&
+                        (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
+                    );
+                    const coordinadorIdsForGantt =
+                      isCoordinatorByEmail &&
+                      currentUserIdSession &&
+                      !coordinadorIdsFromParticipantes.includes(
+                        currentUserIdSession
+                      )
+                        ? [
+                            ...coordinadorIdsFromParticipantes,
+                            currentUserIdSession,
+                          ]
+                        : coordinadorIdsFromParticipantes;
+                    return (
+                      <GanttChart
+                        projectId={selectedProject.id}
+                        projectName={selectedProject.proyecto}
+                        onProjectChange={() => setIsSheetOpen(true)}
+                        coordinadorIds={coordinadorIdsForGantt}
+                        currentUserId={currentUserIdSession}
+                      />
+                    );
+                  })()}
                 </div>
               )}
 
               {selectedTab === 'Indicadores' && (
                 <div className="h-full pt-2 overflow-x-hidden">
-                  <IndicadoresCard
-                    projectId={selectedProject.id}
-                    coordinadorIds={
-                      selectedProject.participantes_rel
-                        ?.filter((p) => p.rol === 'Coordinador' && p.userId)
-                        .map((p) => p.userId as string) ?? []
-                    }
-                    currentUserId={session?.user?.id ?? undefined}
-                  />
+                  {(() => {
+                    const participantesInd =
+                      selectedProject.participantes_rel ?? [];
+                    const coordIdsInd =
+                      participantesInd
+                        .filter((p) => p.rol === 'Coordinador' && p.userId)
+                        .map((p) => p.userId as string) ?? [];
+                    const uidInd = session?.user?.id ?? undefined;
+                    const emailInd =
+                      session?.user?.email?.trim().toLowerCase() ?? '';
+                    const isMeInd = (
+                      p: { userId?: string | null; email?: string | null }
+                    ) =>
+                      p.userId === uidInd ||
+                      (!!emailInd &&
+                        (p.email?.trim().toLowerCase() ?? '') === emailInd);
+                    const isCoordByEmailInd = participantesInd.some(
+                      (p) =>
+                        isMeInd(p) &&
+                        (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
+                    );
+                    const coordinadorIdsIndicadores =
+                      isCoordByEmailInd &&
+                      uidInd &&
+                      !coordIdsInd.includes(uidInd)
+                        ? [...coordIdsInd, uidInd]
+                        : coordIdsInd;
+                    return (
+                      <IndicadoresCard
+                        projectId={selectedProject.id}
+                        coordinadorIds={coordinadorIdsIndicadores}
+                        currentUserId={uidInd}
+                      />
+                    );
+                  })()}
                 </div>
               )}
 

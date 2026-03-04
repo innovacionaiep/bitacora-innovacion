@@ -140,7 +140,9 @@ export function PortalAlertasPendientes({
                       <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">{a.name}</span>
                       <span className="border-l border-gray-300 self-stretch min-h-[1em] shrink-0" aria-hidden />
                       <span className="text-sm font-bold text-emerald-600 shrink-0">{a.porcentaje}%</span>
-                      <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">Evidencias pendientes</span>
+                      <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">
+                        {isCoordinador ? 'Validación pendiente' : 'Evidencias pendientes'}
+                      </span>
                     </div>
                     <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{a.proyectoNombre}</span>
                   </div>
@@ -170,7 +172,9 @@ export function PortalAlertasPendientes({
                     <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">{i.nombre}</span>
                     <span className="border-l border-gray-300 self-stretch min-h-[1em] shrink-0" aria-hidden />
                     <span className="text-sm font-bold shrink-0 text-blue-600">{i.porcentaje}%</span>
-                    <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">Evidencias pendientes</span>
+                    <span className="text-sm text-red-600 shrink-0 whitespace-nowrap">
+                      {isCoordinador ? 'Validación pendiente' : 'Evidencias pendientes'}
+                    </span>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{i.proyectoNombre}</span>
                 </div>

@@ -11,6 +11,7 @@ import {
   MeetingLiveFloatingWidget,
   MeetingLiveTranscriptionRunner,
 } from '@/components/meeting-live/MeetingLiveFloatingWidget';
+import { ChatSoporteFloatingWidget } from '@/components/support-chat/ChatSoporteFloatingWidget';
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -85,6 +86,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       </div>
       <MeetingLiveTranscriptionRunner />
       <MeetingLiveFloatingWidget />
+      {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
     </MeetingLiveProvider>
   );
 }

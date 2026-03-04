@@ -207,6 +207,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
             projectId: true,
             progress: true,
             project: { select: { proyecto: true } },
+            tasks: { select: { completed: true } },
           },
           take: LIMITE_ALERTAS_PORTAL,
         }),
@@ -239,17 +240,26 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
         }),
       ]);
 
-      // Solo mostrar actividades e indicadores con 100% de completitud para validar
+      // Solo mostrar actividades e indicadores con 100% de completitud para validar.
+      // Usar progreso calculado por tareas (como en el Gantt) para no depender solo del campo progress de la BD.
       const ACTIVIDADES_INDICADORES_100 = 100;
+      const progressFromTasks = (a: { tasks: { completed: boolean }[] }) => {
+        const tasks = a.tasks ?? [];
+        if (tasks.length === 0) return 0;
+        const completed = tasks.filter((t) => t.completed).length;
+        return Math.round((completed / tasks.length) * 100);
+      };
+      const actividades100 = actividades.filter((a) => {
+        const computed = progressFromTasks(a);
+        return computed >= ACTIVIDADES_INDICADORES_100;
+      });
       result.coordinador = {
-        actividadesPorValidar: actividades
-          .filter((a) => (a.progress ?? 0) >= ACTIVIDADES_INDICADORES_100)
-          .map((a) => ({
+        actividadesPorValidar: actividades100.map((a) => ({
             id: a.id,
             name: a.name,
             proyectoId: a.projectId,
             proyectoNombre: a.project?.proyecto ?? '',
-            porcentaje: a.progress ?? 0,
+            porcentaje: progressFromTasks(a),
           })),
         indicadoresPorValidar: indicadores
           .filter((i) => Number(i.porcentajeAvance ?? 0) >= ACTIVIDADES_INDICADORES_100)
