@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-utils';
 import Link from 'next/link';
-import { Users, ListChecks, FileCode } from 'lucide-react';
+import { Users, FolderKanban, ListChecks, FileCode } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
 
 export default async function ConfiguracionLayout({
@@ -19,6 +19,7 @@ export default async function ConfiguracionLayout({
 
   const navItems = [
     { href: '/configuracion/usuarios', label: 'Usuarios', icon: Users },
+    { href: '/configuracion/proyectos', label: 'Proyectos', icon: FolderKanban },
     {
       href: '/configuracion/validacion',
       label: 'Validación de datos',

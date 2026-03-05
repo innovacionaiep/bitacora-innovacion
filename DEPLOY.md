@@ -26,7 +26,7 @@ En el proyecto → **Settings** → **Environment Variables**, añade al menos:
 
 | Variable           | Descripción |
 |--------------------|-------------|
-| `DATABASE_URL`     | URL de PostgreSQL (Supabase: Project Settings → Database → Connection string, modo **URI**) |
+| `DATABASE_URL`     | URL de PostgreSQL. **Supabase:** usa el connection string del pooler en modo **Transaction** (no Session), para evitar `MaxClientsInSessionMode: max clients reached`. En Project Settings → Database → Connection string, elige la pestaña **Transaction** y copia la URI. Opcional: añade `?connection_limit=1` al final para limitar conexiones por función. |
 | `NEXTAUTH_SECRET`  | Genera con: `openssl rand -base64 32` |
 | `NEXTAUTH_URL`     | Tras el primer deploy será `https://tu-proyecto.vercel.app` (actualízala después si hace falta) |
 

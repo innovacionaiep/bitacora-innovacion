@@ -64,6 +64,7 @@ async function getLastActiveByUserId(): Promise<Map<string, Date | null>> {
 
 /**
  * Listar usuarios para el panel de administración (solo Admin).
+ * Incluye participaciones por userId y por email (userId null), para que aparezcan todos los roles por proyecto.
  */
 export async function listUsersAdmin(): Promise<{
   success: boolean;
@@ -71,7 +72,7 @@ export async function listUsersAdmin(): Promise<{
   error?: string;
 }> {
   try {
-    const [users, lastActiveById] = await Promise.all([
+    const [users, lastActiveById, participacionesPorEmail] = await Promise.all([
       prisma.user.findMany({
         orderBy: { email: 'asc' },
         select: {
@@ -80,6 +81,10 @@ export async function listUsersAdmin(): Promise<{
           email: true,
           roles: { select: { role: true } },
           proyectos: {
+            orderBy: [
+              { proyecto: { proyecto: 'asc' } },
+              { rol: 'asc' },
+            ],
             select: {
               rol: true,
               proyecto: { select: { proyecto: true } },
@@ -93,20 +98,55 @@ export async function listUsersAdmin(): Promise<{
         },
       }),
       getLastActiveByUserId(),
+      prisma.proyectoParticipante.findMany({
+        where: { userId: null, email: { not: null } },
+        select: {
+          email: true,
+          rol: true,
+          proyecto: { select: { proyecto: true } },
+        },
+      }),
     ]);
 
-    const rows: UserListRow[] = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      lastSessionExpires:
-        lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
-      roles: u.roles.map((r) => r.role),
-      proyectos: u.proyectos.map((p) => ({
+    const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
+    for (const p of participacionesPorEmail) {
+      if (!p.email) continue;
+      const key = p.email.trim().toLowerCase();
+      if (!emailLowerToParticipaciones.has(key)) emailLowerToParticipaciones.set(key, []);
+      emailLowerToParticipaciones.get(key)!.push({
         proyectoNombre: p.proyecto.proyecto,
         rol: p.rol,
-      })),
-    }));
+      });
+    }
+
+    const rows: UserListRow[] = users.map((u) => {
+      const porUserId = u.proyectos.map((p) => ({
+        proyectoNombre: p.proyecto.proyecto,
+        rol: p.rol,
+      }));
+      const porEmail = emailLowerToParticipaciones.get(u.email.trim().toLowerCase()) ?? [];
+      const merged = [...porUserId];
+      const seen = new Set(porUserId.map((x) => `${x.proyectoNombre}\t${x.rol}`));
+      for (const x of porEmail) {
+        const key = `${x.proyectoNombre}\t${x.rol}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(x);
+        }
+      }
+      merged.sort((a, b) =>
+        a.proyectoNombre.localeCompare(b.proyectoNombre) || a.rol.localeCompare(b.rol)
+      );
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        lastSessionExpires:
+          lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+        roles: u.roles.map((r) => r.role),
+        proyectos: merged,
+      };
+    });
 
     return { success: true, data: rows };
   } catch (e) {
@@ -142,7 +182,7 @@ export async function listUsersAdminWithPasswords(
     return { success: false, error: 'Contraseña incorrecta' };
   }
   try {
-    const [users, lastActiveById] = await Promise.all([
+    const [users, lastActiveById, participacionesPorEmail] = await Promise.all([
       prisma.user.findMany({
         orderBy: { email: 'asc' },
         select: {
@@ -152,6 +192,10 @@ export async function listUsersAdminWithPasswords(
           passwordEncrypted: true,
           roles: { select: { role: true } },
           proyectos: {
+            orderBy: [
+              { proyecto: { proyecto: 'asc' } },
+              { rol: 'asc' },
+            ],
             select: {
               rol: true,
               proyecto: { select: { proyecto: true } },
@@ -165,23 +209,58 @@ export async function listUsersAdminWithPasswords(
         },
       }),
       getLastActiveByUserId(),
+      prisma.proyectoParticipante.findMany({
+        where: { userId: null, email: { not: null } },
+        select: {
+          email: true,
+          rol: true,
+          proyecto: { select: { proyecto: true } },
+        },
+      }),
     ]);
 
-    const rows: UserListRowWithPassword[] = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      lastSessionExpires:
-        lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
-      roles: u.roles.map((r) => r.role),
-      proyectos: u.proyectos.map((p) => ({
+    const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
+    for (const p of participacionesPorEmail) {
+      if (!p.email) continue;
+      const key = p.email.trim().toLowerCase();
+      if (!emailLowerToParticipaciones.has(key)) emailLowerToParticipaciones.set(key, []);
+      emailLowerToParticipaciones.get(key)!.push({
         proyectoNombre: p.proyecto.proyecto,
         rol: p.rol,
-      })),
-      passwordPlain: u.passwordEncrypted
-        ? decryptPassword(u.passwordEncrypted)
-        : null,
-    }));
+      });
+    }
+
+    const rows: UserListRowWithPassword[] = users.map((u) => {
+      const porUserId = u.proyectos.map((p) => ({
+        proyectoNombre: p.proyecto.proyecto,
+        rol: p.rol,
+      }));
+      const porEmail = emailLowerToParticipaciones.get(u.email.trim().toLowerCase()) ?? [];
+      const merged = [...porUserId];
+      const seen = new Set(porUserId.map((x) => `${x.proyectoNombre}\t${x.rol}`));
+      for (const x of porEmail) {
+        const key = `${x.proyectoNombre}\t${x.rol}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(x);
+        }
+      }
+      merged.sort((a, b) =>
+        a.proyectoNombre.localeCompare(b.proyectoNombre) || a.rol.localeCompare(b.rol)
+      );
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        lastSessionExpires:
+          lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+        roles: u.roles.map((r) => r.role),
+        proyectos: merged,
+        passwordPlain: u.passwordEncrypted
+          ? decryptPassword(u.passwordEncrypted)
+          : null,
+      };
+    });
 
     return { success: true, data: rows };
   } catch (e) {
@@ -325,5 +404,27 @@ export async function updateUserPasswordAdmin(
   } catch (err) {
     console.error(err);
     return { success: false, error: 'Error al actualizar contraseña' };
+  }
+}
+
+/**
+ * Eliminar un usuario y todo su contenido asociado (Admin). Requiere contraseña de desbloqueo.
+ */
+export async function deleteUserAdmin(
+  userId: string,
+  unlockPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  if (unlockPassword !== CONFIG_UNLOCK_PASSWORD) {
+    return { success: false, error: 'Contraseña incorrecta' };
+  }
+  try {
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+    revalidatePath('/configuracion/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: 'Error al eliminar usuario' };
   }
 }

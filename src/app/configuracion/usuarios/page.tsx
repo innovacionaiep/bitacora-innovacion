@@ -41,6 +41,7 @@ import {
   updateUserAdmin,
   updateUserRolesAdmin,
   updateUserPasswordAdmin,
+  deleteUserAdmin,
   type UserListRow,
   type UserListRowWithPassword,
 } from '@/lib/actions/configuracion-usuarios';
@@ -49,7 +50,7 @@ import {
   MultiSelectOptions,
   MULTI_SELECT_SEP,
 } from '@/components/ui/multi-select-options';
-import { Lock, Unlock, Pencil, UserPlus } from 'lucide-react';
+import { Lock, Unlock, Pencil, UserPlus, Trash2 } from 'lucide-react';
 
 function formatDate(d: Date | null): string {
   if (!d) return '—';
@@ -104,6 +105,10 @@ export default function ConfiguracionUsuariosPage() {
   const [addPassword, setAddPassword] = useState('');
   const [addRole, setAddRole] = useState<Role>('Colaborador');
   const [addSaving, setAddSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserListRowWithPassword | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const unlockPasswordRef = useRef<string | null>(null);
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -221,6 +226,30 @@ export default function ConfiguracionUsuariosPage() {
     setAddSaving(false);
   };
 
+  const openDeleteConfirm = (u: UserListRowWithPassword) => {
+    setDeleteTarget(u);
+    setDeletePassword(unlockPasswordRef.current ?? '');
+    setDeleteError(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await deleteUserAdmin(deleteTarget.id, deletePassword);
+    if (res.success) {
+      setUsers((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setDeletePassword('');
+      if (editUser?.id === deleteTarget.id) {
+        setEditUser(null);
+      }
+    } else {
+      setDeleteError(res.error ?? 'Error al eliminar');
+    }
+    setDeleting(false);
+  };
+
   return (
     <div ref={pageRootRef} className="h-full flex flex-col min-h-0 gap-6">
       <div className="sticky top-0 bg-white z-10 px-6 pt-6 pb-0">
@@ -296,8 +325,9 @@ export default function ConfiguracionUsuariosPage() {
                   <col style={{ width: '6%' }} />
                   <col style={{ width: '9%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '43%' }} />
+                  <col style={{ width: unlocked ? '38%' : '43%' }} />
                   <col style={{ width: '8%' }} />
+                  {unlocked && <col style={{ width: '7%' }} />}
                 </colgroup>
                 <TableHeader ref={tableHeaderRef}>
                   <TableRow className="[&_th]:bg-muted/50 [&_th]:border-b [&_th]:font-medium [&_th]:text-muted-foreground [&_th]:h-10 [&_th]:px-2 [&_th]:text-left [&_th]:align-middle">
@@ -308,6 +338,7 @@ export default function ConfiguracionUsuariosPage() {
                     <TableHead>Roles</TableHead>
                     <TableHead>Proyectos (rol)</TableHead>
                     <TableHead>Editar</TableHead>
+                    {unlocked && <TableHead>Eliminar</TableHead>}
                   </TableRow>
                 </TableHeader>
               </Table>
@@ -321,8 +352,9 @@ export default function ConfiguracionUsuariosPage() {
                   <col style={{ width: '6%' }} />
                   <col style={{ width: '9%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '43%' }} />
+                  <col style={{ width: unlocked ? '38%' : '43%' }} />
                   <col style={{ width: '8%' }} />
+                  {unlocked && <col style={{ width: '7%' }} />}
                 </colgroup>
                 <TableBody>
                   {users.map((u) => {
@@ -460,6 +492,19 @@ export default function ConfiguracionUsuariosPage() {
                             </Button>
                           )}
                         </TableCell>
+                        {unlocked && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteConfirm(u)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -564,6 +609,48 @@ export default function ConfiguracionUsuariosPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Dialog Confirmar eliminar usuario */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar este usuario?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se eliminará el usuario &quot;{deleteTarget?.name ?? deleteTarget?.email}&quot; y toda su
+            información asociada (sesiones, roles, participación en proyectos,
+            etc.). Esta acción no se puede deshacer. Vuelve a ingresar la
+            contraseña de administración para confirmar.
+          </p>
+          <div className="space-y-2 py-2">
+            <Label>Contraseña</Label>
+            <Input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="Contraseña (bitacora)"
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600">{deleteError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deleting}
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar usuario'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
