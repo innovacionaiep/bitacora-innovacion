@@ -127,9 +127,7 @@ export function CompromisosPostItWall({
   const isCoordinadorOrAdmin =
     rolEnProyecto === 'Coordinador' || activeRole === 'Admin';
   const canMarkRealizado =
-    rolEnProyecto === 'Coordinador' ||
-    rolEnProyecto === 'Encargado' ||
-    activeRole === 'Admin';
+    rolEnProyecto === 'Encargado' || activeRole === 'Admin';
 
   const handleAdd = async () => {
     if (!addDescripcion.trim()) return;

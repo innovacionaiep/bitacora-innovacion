@@ -29,17 +29,38 @@ function parseValue(value: string | null | undefined): number {
 }
 
 /**
- * Obtener el rol del usuario en un proyecto (ProyectoParticipante)
+ * Obtener el rol del usuario en un proyecto (ProyectoParticipante).
+ * Busca por userId; si no hay coincidencia y se pasa userEmail, busca por email (alineado con la lógica del cliente).
+ * Si el usuario tiene varios roles, devuelve 'Coordinador' si tiene ese rol (para permisos de validación).
  */
 export async function getRolUsuarioEnProyecto(
   userId: string,
-  proyectoId: string
+  proyectoId: string,
+  userEmail?: string | null
 ): Promise<string | null> {
-  const p = await prisma.proyectoParticipante.findFirst({
+  const byUserId = await prisma.proyectoParticipante.findMany({
     where: { proyectoId, userId },
     select: { rol: true },
   });
-  return p?.rol ?? null;
+  const hasCoord = byUserId.some(
+    (x) => x.rol?.trim().toLowerCase() === 'coordinador'
+  );
+  if (hasCoord) return 'Coordinador';
+  if (byUserId.length > 0) return byUserId[0].rol ?? null;
+  if (!userEmail?.trim()) return null;
+  const normalized = userEmail.trim().toLowerCase();
+  const byEmail = await prisma.proyectoParticipante.findMany({
+    where: { proyectoId, email: { not: null } },
+    select: { rol: true, email: true },
+  });
+  const matches = byEmail.filter(
+    (x) => x.email?.trim().toLowerCase() === normalized
+  );
+  const hasCoordByEmail = matches.some(
+    (x) => x.rol?.trim().toLowerCase() === 'coordinador'
+  );
+  if (hasCoordByEmail) return 'Coordinador';
+  return matches[0]?.rol ?? null;
 }
 
 /**
@@ -505,7 +526,8 @@ export async function addCompromiso(
       return { success: false, error: 'Usuario no autenticado', data: null };
     }
 
-    const rol = await getRolUsuarioEnProyecto(user.id, proyectoId);
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const rol = await getRolUsuarioEnProyecto(user.id, proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
     const puedeCrear = rol === 'Coordinador' || activeRole === 'Admin';
     if (!puedeCrear) {
@@ -581,7 +603,8 @@ export async function updateCompromiso(
       return { success: false, error: 'Compromiso no encontrado', data: null };
     }
 
-    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId);
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
     const puedeEditar = rol === 'Coordinador' || activeRole === 'Admin';
     if (!puedeEditar) {
@@ -637,10 +660,15 @@ export async function updateCompromiso(
 }
 
 /**
- * Marcar o desmarcar compromiso como completado (encargado/coordinador)
+ * Marcar o desmarcar compromiso como completado (solo encargado o admin)
  */
 export async function toggleCompromiso(compromisoId: string) {
   try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
     const compromiso = await prisma.compromisoProyecto.findUnique({
       where: { id: compromisoId },
       select: { proyectoId: true, completado: true, descripcion: true },
@@ -648,6 +676,18 @@ export async function toggleCompromiso(compromisoId: string) {
 
     if (!compromiso) {
       return { success: false, error: 'Compromiso no encontrado', data: null };
+    }
+
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId, userEmail);
+    const activeRole = (user as { activeRole?: string | null }).activeRole;
+    const puedeMarcarRealizado = rol === 'Encargado' || activeRole === 'Admin';
+    if (!puedeMarcarRealizado) {
+      return {
+        success: false,
+        error: 'Solo el encargado o un admin pueden marcar "Realizado (Encargado)"',
+        data: null,
+      };
     }
 
     const updated = await prisma.compromisoProyecto.update({
@@ -701,7 +741,8 @@ export async function toggleValidacionCompromiso(compromisoId: string) {
       return { success: false, error: 'Compromiso no encontrado', data: null };
     }
 
-    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId);
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
     const puedeValidar = rol === 'Coordinador' || activeRole === 'Admin';
     if (!puedeValidar) {
@@ -1114,7 +1155,11 @@ export async function toggleOkCoordinadorOportunidadAmenaza(id: string) {
       return { success: false, error: 'No encontrado', data: null };
     }
 
-    const rol = await getRolUsuarioEnProyecto(user.id, item.proyectoId);
+    const rol = await getRolUsuarioEnProyecto(
+      user.id,
+      item.proyectoId,
+      (user as { email?: string | null }).email
+    );
     const activeRole = (user as { activeRole?: string | null }).activeRole;
     const puedeMarcarOk = rol === 'Coordinador' || activeRole === 'Admin';
     if (!puedeMarcarOk) {
@@ -1366,7 +1411,20 @@ export async function getCompromisosPendientesParaUsuario(activeRole: string | n
     }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id, rol: activeRole },
+      where: {
+        rol: activeRole,
+        OR: [
+          { userId: user.id },
+          ...(user.email
+            ? [
+                {
+                  userId: null,
+                  email: { equals: user.email, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       select: { proyectoId: true },
     });
     const proyectoIds = participaciones.map((p) => p.proyectoId);

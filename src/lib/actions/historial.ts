@@ -242,7 +242,20 @@ export async function getHistorialRecienteParaUsuario(
     }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id, rol: activeRole },
+      where: {
+        rol: activeRole,
+        OR: [
+          { userId: user.id },
+          ...(user.email
+            ? [
+                {
+                  userId: null,
+                  email: { equals: user.email, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       select: { proyectoId: true },
     });
     const proyectoIds = participaciones.map((p) => p.proyectoId);

@@ -88,9 +88,7 @@ export function PortalCompromisosPendientes({
   const isCoordinadorOrAdmin =
     activeRole === 'Coordinador' || activeRole === 'Admin';
   const canMarkRealizado =
-    activeRole === 'Coordinador' ||
-    activeRole === 'Encargado' ||
-    activeRole === 'Admin';
+    activeRole === 'Encargado' || activeRole === 'Admin';
 
   const handleToggleRealizado = async (id: string) => {
     if (!canMarkRealizado) return;
