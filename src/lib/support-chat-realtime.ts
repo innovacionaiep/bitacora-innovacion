@@ -21,11 +21,13 @@ function rowFromColumnsRecord(
 /**
  * Supabase Realtime payload: payload.new can have non-enumerable props (JSON.stringify => "{}").
  * Supports: object with snake/camel keys, or columns[] + record[] array format.
+ * Normalizes nested payload (e.g. callback receives { payload: { new, ... } }).
  */
 export function parseRealtimeSupportMessage(payload: {
   new?: unknown;
   record?: unknown;
   data?: { new?: unknown };
+  payload?: unknown;
   columns?: { name: string }[];
 }): {
   id: string;
@@ -34,7 +36,10 @@ export function parseRealtimeSupportMessage(payload: {
   is_from_admin: boolean;
   created_at: string;
 } | null {
-  const pl = payload as Record<string, unknown>;
+  let pl = payload as Record<string, unknown>;
+  if (pl?.payload != null && typeof pl.payload === 'object' && !Array.isArray(pl.payload)) {
+    pl = pl.payload as Record<string, unknown>;
+  }
   let o: Record<string, unknown> | null = null;
   const columns = pl?.columns as { name: string }[] | undefined;
   const recordArr = pl?.record as unknown[] | undefined;
@@ -42,7 +47,7 @@ export function parseRealtimeSupportMessage(payload: {
     o = rowFromColumnsRecord(columns, recordArr);
   }
   if (!o) {
-    const raw = payload?.new ?? payload?.record ?? (pl?.data as Record<string, unknown>)?.new;
+    const raw = pl?.new ?? pl?.record ?? (pl?.data as Record<string, unknown>)?.new;
     if (!raw || typeof raw !== 'object') return null;
     o = raw as Record<string, unknown>;
   }

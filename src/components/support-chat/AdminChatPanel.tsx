@@ -76,28 +76,6 @@ export function AdminChatPanel() {
     }
   }, [selectedUserId, loadMessages]);
 
-  // Polling fallback: actualizar mensajes cada 4s para ver respuestas del usuario sin depender de Realtime
-  useEffect(() => {
-    if (!selectedUserId) return;
-    const interval = setInterval(async () => {
-      const result = await getSupportMessages(selectedUserId);
-      if (result.success && result.data && result.data.length > 0) {
-        setMessages((prev) => {
-          const byId = new Map(prev.map((m) => [m.id, m]));
-          result.data!.forEach((m) => byId.set(m.id, m));
-          const merged = Array.from(byId.values()).sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-          return merged.length === prev.length && merged.every((m, i) => m.id === prev[i]?.id)
-            ? prev
-            : merged;
-        });
-        loadConversations();
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [selectedUserId, loadConversations]);
-
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);

@@ -55,27 +55,6 @@ export function ChatSoporteFloatingWidget() {
     }
   }, [open, userId, loadMessages]);
 
-  // Polling fallback: mientras Realtime no entregue bien el payload, actualizar cada 4s con el servidor
-  useEffect(() => {
-    if (!open || !userId) return;
-    const interval = setInterval(async () => {
-      const result = await getSupportMessages(userId);
-      if (result.success && result.data && result.data.length > 0) {
-        setMessages((prev) => {
-          const byId = new Map(prev.map((m) => [m.id, m]));
-          result.data!.forEach((m) => byId.set(m.id, m));
-          const merged = Array.from(byId.values()).sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-          return merged.length === prev.length && merged.every((m, i) => m.id === prev[i]?.id)
-            ? prev
-            : merged;
-        });
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [open, userId]);
-
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
