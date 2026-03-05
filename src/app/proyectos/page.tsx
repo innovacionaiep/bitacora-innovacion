@@ -492,8 +492,6 @@ function ProyectosContent() {
     objetivos: 0,
     presupuestoUsado: 0,
     presupuestoTotal: 0,
-    reunionesHechas: 0,
-    reunionesTotales: 0,
     participantes: 0,
   });
 
@@ -576,8 +574,6 @@ function ProyectosContent() {
           objetivos: formData.objetivos,
           presupuestoUsado: formData.presupuestoUsado,
           presupuestoTotal: formData.presupuestoTotal,
-          reunionesHechas: formData.reunionesHechas,
-          reunionesTotales: formData.reunionesTotales,
           participantes: formData.participantes,
           escuelasIds: formData.escuela ? [formData.escuela] : [],
           carrerasIds: [],
@@ -598,8 +594,6 @@ function ProyectosContent() {
             objetivos: 0,
             presupuestoUsado: 0,
             presupuestoTotal: 0,
-            reunionesHechas: 0,
-            reunionesTotales: 0,
             participantes: 0,
           });
           setShowAddForm(false);
@@ -652,8 +646,6 @@ function ProyectosContent() {
       objetivos: selectedProject.objetivos,
       presupuestoUsado: selectedProject.presupuestoUsado,
       presupuestoTotal: selectedProject.presupuestoTotal,
-      reunionesHechas: selectedProject.reunionesHechas,
-      reunionesTotales: selectedProject.reunionesTotales,
       participantes: selectedProject.participantes,
     });
   };
@@ -670,8 +662,6 @@ function ProyectosContent() {
       objetivos: 0,
       presupuestoUsado: 0,
       presupuestoTotal: 0,
-      reunionesHechas: 0,
-      reunionesTotales: 0,
       participantes: 0,
     });
   };
@@ -1640,51 +1630,6 @@ function ProyectosContent() {
                       />
                     </div>
 
-                    <div>
-                      <Label
-                        htmlFor="reunionesTotales"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Reuniones Totales
-                      </Label>
-                      <Input
-                        id="reunionesTotales"
-                        type="number"
-                        value={formData.reunionesTotales}
-                        onChange={(e) =>
-                          handleInputChange(
-                            'reunionesTotales',
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        placeholder="0"
-                        className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <Label
-                        htmlFor="reunionesHechas"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Reuniones Realizadas
-                      </Label>
-                      <Input
-                        id="reunionesHechas"
-                        type="number"
-                        value={formData.reunionesHechas}
-                        onChange={(e) =>
-                          handleInputChange(
-                            'reunionesHechas',
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        placeholder="0"
-                        className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                        min="0"
-                      />
-                    </div>
                   </div>
                 </div>
 

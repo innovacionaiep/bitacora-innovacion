@@ -477,8 +477,6 @@ export default function DashboardPage() {
 
   // ====== Accesores de columna (mostrar / filtrar / ordenar) ======
   const getDisplayValue = (col: string, p: Project): string | number => {
-    if (col === 'reuniones')
-      return `${p.reunionesHechas}/${p.reunionesTotales}`;
     if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') return p.presupuestoUsado;
     if (col === 'escuela') {
@@ -501,9 +499,6 @@ export default function DashboardPage() {
   };
 
   const getSortValue = (col: string, p: Project): number | string => {
-    if (col === 'reuniones') {
-      return p.reunionesTotales ? p.reunionesHechas / p.reunionesTotales : 0;
-    }
     if (col === 'avanceGantt') return p.avanceGantt;
     if (col === 'presupuestoUsado') {
       // Ordenar por porcentaje de presupuesto usado (lo que se muestra en la tabla)
@@ -725,8 +720,6 @@ export default function DashboardPage() {
           : 0,
         'Presupuesto Usado': project.presupuestoUsado,
         'Presupuesto Total': project.presupuestoTotal,
-        'Reuniones Realizadas': project.reunionesHechas,
-        'Reuniones Totales': project.reunionesTotales,
         Participantes: project.participantes_rel?.length || 0,
       };
     });
@@ -752,8 +745,6 @@ export default function DashboardPage() {
       { wch: 15 }, // Presupuesto (%)
       { wch: 18 }, // Presupuesto Usado
       { wch: 18 }, // Presupuesto Total
-      { wch: 20 }, // Reuniones Realizadas
-      { wch: 18 }, // Reuniones Totales
       { wch: 15 }, // Participantes
     ];
     ws['!cols'] = colWidths;
@@ -827,10 +818,6 @@ export default function DashboardPage() {
   );
   const presupuestoPromedio =
     totalProyectos > 0 ? presupuestoUsado / totalProyectos : 0;
-  const reunionesRealizadas = proyectosIniciales.reduce(
-    (sum, p) => sum + p.reunionesHechas,
-    0
-  );
   const totalParticipantes = proyectosIniciales.reduce(
     (sum, p) => sum + (p.participantes_rel?.length || 0),
     0
@@ -1098,11 +1085,6 @@ export default function DashboardPage() {
                     'text-center w-[180px] px-4'
                   )}
                   {renderHeadWithButton(
-                    'Reuniones',
-                    'reuniones',
-                    'text-center w-[110px] px-4'
-                  )}
-                  {renderHeadWithButton(
                     'Participantes',
                     'participantes',
                     'text-center w-[120px] px-4'
@@ -1294,12 +1276,6 @@ export default function DashboardPage() {
                               : '0%'}
                           </span>
                         </div>
-                      </TableCell>
-                      <TableCell
-                        className="text-center px-4 whitespace-nowrap"
-                        style={{ width: '110px', minWidth: '110px' }}
-                      >
-                        {p.reunionesHechas}/{p.reunionesTotales}
                       </TableCell>
                       <TableCell
                         className="text-center px-4 whitespace-nowrap"

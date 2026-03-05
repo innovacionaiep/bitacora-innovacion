@@ -77,8 +77,6 @@ export type ProyectoFormData = {
   objetivos: number; // ahora "indicadores"
   presupuestoUsado: number;
   presupuestoTotal: number;
-  reunionesHechas: number;
-  reunionesTotales: number;
   participantes: number;
   // Relaciones (arrays de IDs)
   escuelasIds: string[];

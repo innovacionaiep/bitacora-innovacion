@@ -41,8 +41,6 @@ function defaultPayload(): ProyectoFormPayload {
     objetivos: 0,
     presupuestoUsado: 0,
     presupuestoTotal: 0,
-    reunionesHechas: 0,
-    reunionesTotales: 0,
     participantes: 0,
     escuelasIds: [],
     carrerasIds: [],

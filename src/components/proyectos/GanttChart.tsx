@@ -547,8 +547,10 @@ function SortableActivity({
                         }}
                       ></div>
 
-                      {/* Porcentaje al final de la barra */}
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-white z-30">
+                      {/* Porcentaje al final de la barra: negro si avance < 90%, blanco si >= 90% */}
+                      <div
+                        className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium z-30 ${activityProgress >= 90 ? 'text-white' : 'text-black'}`}
+                      >
                         {activityProgress}%
                       </div>
                     </div>
@@ -877,6 +879,8 @@ export default function GanttChart({
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
   const [isTogglingValidation, setIsTogglingValidation] = useState(false);
+  const [isSubmittingActivityAction, setIsSubmittingActivityAction] =
+    useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   // Usar el hook de Gantt con el projectId recibido como prop
@@ -1656,33 +1660,40 @@ export default function GanttChart({
       }
 
       // Crear nueva actividad
-      const { error, data: newActivity } = await createActivity({
-        name: unifiedActivityForm.name,
-        description: unifiedActivityForm.description,
-      });
+      setIsSubmittingActivityAction(true);
+      try {
+        const { error, data: newActivity } = await createActivity({
+          name: unifiedActivityForm.name,
+          description: unifiedActivityForm.description,
+        });
 
-      if (error) {
-        alert('Error al crear la actividad: ' + error);
-      } else if (newActivity) {
-        // Crear las tareas asociadas
-        for (const task of tempTasks) {
-          await createTask(newActivity.id, {
-            name: task.name,
-            description: task.description || '',
-            startDate: task.startDate,
-            endDate: task.endDate,
-          });
+        if (error) {
+          alert('Error al crear la actividad: ' + error);
+        } else if (newActivity) {
+          // Crear las tareas asociadas
+          for (const task of tempTasks) {
+            await createTask(newActivity.id, {
+              name: task.name,
+              description: task.description || '',
+              startDate: task.startDate,
+              endDate: task.endDate,
+            });
+          }
+
+          setUnifiedActivityForm({ name: '', description: '' });
+          setTempTasks([]);
+          setShowActivityPopup(false);
+          setSelectedActivityForPopup(null);
+          showSuccessMessage('Actividad creada exitosamente con sus tareas');
         }
-
-        setUnifiedActivityForm({ name: '', description: '' });
-        setTempTasks([]);
-        setShowActivityPopup(false);
-        setSelectedActivityForPopup(null);
-        showSuccessMessage('Actividad creada exitosamente con sus tareas');
+      } finally {
+        setIsSubmittingActivityAction(false);
       }
     } else if (activityPopupMode === 'edit' && selectedActivityForPopup) {
       // Editar actividad existente
-      const { error } = await updateActivity(selectedActivityForPopup.id, {
+      setIsSubmittingActivityAction(true);
+      try {
+        const { error } = await updateActivity(selectedActivityForPopup.id, {
         name: unifiedActivityForm.name,
         description: unifiedActivityForm.description,
       });
@@ -1729,6 +1740,9 @@ export default function GanttChart({
           'Actividad actualizada exitosamente con sus nuevas tareas'
         );
       }
+    } finally {
+      setIsSubmittingActivityAction(false);
+    }
     }
   };
 
@@ -2976,14 +2990,19 @@ export default function GanttChart({
                       size="sm"
                       onClick={handleUnifiedActivityAction}
                       disabled={
-                        activityPopupMode === 'create' &&
-                        tempTasks.length === 0
+                        isSubmittingActivityAction ||
+                        (activityPopupMode === 'create' &&
+                          tempTasks.length === 0)
                       }
                       className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:pointer-events-none"
                     >
-                      {activityPopupMode === 'create'
-                        ? 'Crear Actividad'
-                        : 'Guardar cambios'}
+                      {isSubmittingActivityAction
+                        ? activityPopupMode === 'create'
+                          ? 'Creando...'
+                          : 'Guardando...'
+                        : activityPopupMode === 'create'
+                          ? 'Crear Actividad'
+                          : 'Guardar cambios'}
                     </Button>
                     <Button
                       size="sm"

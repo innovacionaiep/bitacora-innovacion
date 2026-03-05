@@ -164,8 +164,6 @@ async function seedComplete() {
         objetivos: 60,
         presupuestoUsado: 3500000,
         presupuestoTotal: 7000000,
-        reunionesHechas: 5,
-        reunionesTotales: 10,
         participantes: 25,
       },
     });
@@ -271,8 +269,6 @@ async function seedComplete() {
         objetivos: 40,
         presupuestoUsado: 2000000,
         presupuestoTotal: 5000000,
-        reunionesHechas: 3,
-        reunionesTotales: 8,
         participantes: 15,
       },
     });

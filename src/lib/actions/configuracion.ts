@@ -261,6 +261,48 @@ export async function deleteCarrera(id: string) {
   }
 }
 
+/** Importa carreras desde una lista de nombres (ej. leídos de un xlsx). Crea las que no existan. */
+export async function importCarrerasFromNames(
+  nombres: string[]
+): Promise<{
+  success: boolean;
+  created?: number;
+  skipped?: number;
+  error?: string;
+}> {
+  try {
+    const nombresUnicos = [
+      ...new Set(
+        nombres
+          .map((n) => (typeof n === 'string' ? n.trim() : String(n).trim()))
+          .filter(Boolean)
+      ),
+    ];
+    if (nombresUnicos.length === 0) {
+      return { success: true, created: 0, skipped: 0 };
+    }
+    const existentes = await prisma.carrera.findMany({
+      where: { nombre: { in: nombresUnicos } },
+      select: { nombre: true },
+    });
+    const setExistentes = new Set(existentes.map((e) => e.nombre));
+    const aCrear = nombresUnicos.filter((n) => !setExistentes.has(n));
+    for (const nombre of aCrear) {
+      await prisma.carrera.create({ data: { nombre } });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return {
+      success: true,
+      created: aCrear.length,
+      skipped: nombresUnicos.length - aCrear.length,
+    };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al importar carreras' };
+  }
+}
+
 // ----- Grupos de interés -----
 export async function getGruposInteres() {
   return prisma.grupoInteres.findMany({ orderBy: { nombre: 'asc' } });

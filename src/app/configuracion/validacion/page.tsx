@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import * as Config from '@/lib/actions/configuracion';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
 
 type CatalogKind = 'sede' | 'comuna' | 'escuela' | 'carrera' | 'grupo';
 
@@ -56,6 +57,9 @@ export default function ConfiguracionValidacionPage() {
   const [formEscuelaId, setFormEscuelaId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [backfillingSedes, setBackfillingSedes] = useState(false);
+  const [uploadingCarrerasXlsx, setUploadingCarrerasXlsx] = useState(false);
+  const [importCarrerasResult, setImportCarrerasResult] = useState<string | null>(null);
+  const fileInputCarrerasRef = useRef<HTMLInputElement>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -175,6 +179,62 @@ export default function ConfiguracionValidacionPage() {
       setError(res.error ?? 'Error');
     }
     setSaving(false);
+  };
+
+  const handleCarrerasXlsxChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportCarrerasResult(null);
+    setUploadingCarrerasXlsx(true);
+    setError(null);
+    try {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const wb = XLSX.read(data, { type: 'array' });
+      const firstSheet = wb.SheetNames[0];
+      if (!firstSheet) {
+        setError('El archivo no contiene hojas.');
+        return;
+      }
+      const ws = wb.Sheets[firstSheet];
+      const rows = XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        defval: '',
+      }) as unknown[][];
+      const isHeader =
+        rows.length > 1 &&
+        String((rows[0]?.[0] ?? '')).trim().toLowerCase() === 'nombre';
+      const dataRows = isHeader ? rows.slice(1) : rows;
+      const nombres = dataRows
+        .map((row) => String((row && row[0]) ?? '').trim())
+        .filter(Boolean);
+      if (nombres.length === 0) {
+        setError('No se encontraron nombres en la primera columna del archivo.');
+        return;
+      }
+      const res = await Config.importCarrerasFromNames(nombres);
+      if (res.success) {
+        const created = res.created ?? 0;
+        const skipped = res.skipped ?? 0;
+        if (created > 0 || skipped > 0) {
+          setImportCarrerasResult(
+            `Se cargaron ${created} carrera(s) nueva(s). ${skipped} ya existían.`
+          );
+        } else {
+          setImportCarrerasResult('No había carreras nuevas que agregar.');
+        }
+        loadAll();
+      } else {
+        setError(res.error ?? 'Error al importar');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al leer el archivo. Asegúrate de que sea un Excel (.xlsx) válido.');
+    } finally {
+      setUploadingCarrerasXlsx(false);
+      e.target.value = '';
+    }
   };
 
   const handleDelete = async (cat: CatalogKind, id: string) => {
@@ -381,11 +441,30 @@ export default function ConfiguracionValidacionPage() {
           </TabsContent>
 
           <TabsContent value="carrera" className="mt-4">
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end gap-2 mb-2 flex-wrap items-center">
+              <input
+                ref={fileInputCarrerasRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={handleCarrerasXlsxChange}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={uploadingCarrerasXlsx}
+                onClick={() => fileInputCarrerasRef.current?.click()}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                {uploadingCarrerasXlsx ? 'Cargando...' : 'Cargar xlsx'}
+              </Button>
               <Button size="sm" onClick={() => openAdd('carrera')}>
                 <Plus className="h-4 w-4 mr-1" /> Agregar
               </Button>
             </div>
+            {importCarrerasResult && (
+              <p className="text-sm text-green-600 mb-2">{importCarrerasResult}</p>
+            )}
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                 <TableRow>

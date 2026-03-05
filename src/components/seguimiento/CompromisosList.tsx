@@ -9,23 +9,16 @@ export interface CompromisoItem {
   id: string;
   descripcion: string;
   completado: boolean;
-  reunion?: {
-    id: string;
-    fecha: Date | string;
-    coordinador?: { name: string | null };
-  };
 }
 
 interface CompromisosListProps {
   compromisos: CompromisoItem[];
   onToggle?: () => void | Promise<void>;
-  showReunionInfo?: boolean;
 }
 
 export function CompromisosList({
   compromisos,
   onToggle,
-  showReunionInfo = false,
 }: CompromisosListProps) {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -79,11 +72,6 @@ export function CompromisosList({
             >
               {compromiso.descripcion}
             </p>
-            {showReunionInfo && compromiso.reunion?.coordinador?.name && (
-              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                <span>· {compromiso.reunion.coordinador.name}</span>
-              </div>
-            )}
           </div>
         </li>
       ))}

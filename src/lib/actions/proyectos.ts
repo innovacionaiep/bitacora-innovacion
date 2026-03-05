@@ -493,8 +493,6 @@ export async function createProyecto(data: CreateProyectoInput) {
         objetivos: data.objetivos || 0,
         presupuestoUsado: data.presupuestoUsado || 0,
         presupuestoTotal: data.presupuestoTotal,
-        reunionesHechas: data.reunionesHechas || 0,
-        reunionesTotales: data.reunionesTotales || 0,
         participantes: data.participantes,
 
         // Crear relaciones
@@ -669,8 +667,6 @@ export async function createProyectoCompleto(
       objetivos: payload.objetivos ?? 0,
       presupuestoUsado: payload.presupuestoUsado ?? 0,
       presupuestoTotal: payload.presupuestoTotal ?? 0,
-      reunionesHechas: payload.reunionesHechas ?? 0,
-      reunionesTotales: payload.reunionesTotales ?? 0,
       participantes: payload.participantes ?? 0,
       escuelasIds: payload.escuelasIds ?? [],
       carrerasIds: payload.carrerasIds ?? [],
@@ -797,12 +793,6 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
         }),
         ...(data.presupuestoTotal !== undefined && {
           presupuestoTotal: data.presupuestoTotal,
-        }),
-        ...(data.reunionesHechas !== undefined && {
-          reunionesHechas: data.reunionesHechas,
-        }),
-        ...(data.reunionesTotales !== undefined && {
-          reunionesTotales: data.reunionesTotales,
         }),
         ...(data.participantes !== undefined && {
           participantes: data.participantes,

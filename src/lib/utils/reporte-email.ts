@@ -54,7 +54,6 @@ export type DatosResumenProyecto = {
     }>;
   }>;
   resumenPresupuesto: ResumenPresupuesto;
-  reuniones: Array<{ id: string; fecha: Date }>;
   oportunidadesAmenazas: Array<{
     id: string;
     tipo: string;
@@ -496,7 +495,6 @@ export function buildHtmlReporteResumen(
     historial,
     activities,
     resumenPresupuesto,
-    reuniones,
     oportunidadesAmenazas,
     compromisos,
   } = datos;
@@ -730,17 +728,6 @@ export function buildHtmlReporteResumen(
   <div style="${cardStyle}">
     <div style="${cardHeaderStyle}"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-right: 8px; vertical-align: middle;">${iconImg('calendar', 20, baseUrl, useCid)}</td><td style="vertical-align: middle;">Seguimiento</td></tr></table></div>
     <div style="${cardContentStyle}">
-      <p style="${subsectionLabelStyle}">${iconImg('calendar', 16, baseUrl, useCid)} Reuniones</p>`;
-  if (reuniones.length === 0) {
-    html += `<p style="font-size: 13px; color: #6b7280; margin: 0 0 12px 0;">No hay reuniones registradas</p>`;
-  } else {
-    html += `<ul style="margin: 0 0 12px 0; padding-left: 18px; font-size: 13px;">`;
-    reuniones.forEach((r) => {
-      html += `<li style="margin-bottom: 4px;">${formatFechaCorta(r.fecha)}</li>`;
-    });
-    html += `</ul>`;
-  }
-  html += `
       <p style="${subsectionLabelStyle}">${iconImg('lightbulb', 16, baseUrl, useCid)} Oportunidades y amenazas</p>`;
   if (oportunidadesAmenazas.length === 0) {
     html += `<p style="font-size: 13px; color: #6b7280; margin: 0 0 12px 0;">No hay oportunidades ni amenazas</p>`;

@@ -6,7 +6,6 @@ import { getHistorialProyecto } from '@/lib/actions/historial';
 import { getActivities } from '@/lib/actions/gantt';
 import { getResumenPresupuestoProyecto } from '@/lib/actions/presupuesto';
 import {
-  getReunionesProyecto,
   getOportunidadesAmenazasProyecto,
   getCompromisosProyecto,
 } from '@/lib/actions/seguimiento';
@@ -33,7 +32,6 @@ export async function getDatosResumenProyecto(proyectoId: string): Promise<{
     historialResult,
     activitiesResult,
     resumenPresupuestoResult,
-    reunionesResult,
     oportunidadesResult,
     compromisosResult,
   ] = await Promise.all([
@@ -42,7 +40,6 @@ export async function getDatosResumenProyecto(proyectoId: string): Promise<{
     getHistorialProyecto(proyectoId, undefined, HISTORIAL_LIMIT),
     getActivities(proyectoId),
     getResumenPresupuestoProyecto(proyectoId),
-    getReunionesProyecto(proyectoId),
     getOportunidadesAmenazasProyecto(proyectoId),
     getCompromisosProyecto(proyectoId),
   ]);
@@ -79,8 +76,6 @@ export async function getDatosResumenProyecto(proyectoId: string): Promise<{
     };
   }
 
-  const reuniones =
-    reunionesResult.success && reunionesResult.data ? reunionesResult.data : [];
   const oportunidadesAmenazas =
     oportunidadesResult.success && oportunidadesResult.data
       ? oportunidadesResult.data
@@ -111,7 +106,6 @@ export async function getDatosResumenProyecto(proyectoId: string): Promise<{
       historial: historialResult.data,
       activities,
       resumenPresupuesto: resumenPresupuestoResult.data,
-      reuniones: reuniones.map((r) => ({ id: r.id, fecha: r.fecha })),
       oportunidadesAmenazas: oportunidadesAmenazas.map((oa) => ({
         id: oa.id,
         tipo: oa.tipo,

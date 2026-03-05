@@ -6,11 +6,6 @@ import { useSession } from 'next-auth/react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
-import { MeetingLiveProvider } from '@/contexts/MeetingLiveContext';
-import {
-  MeetingLiveFloatingWidget,
-  MeetingLiveTranscriptionRunner,
-} from '@/components/meeting-live/MeetingLiveFloatingWidget';
 import { ChatSoporteFloatingWidget } from '@/components/support-chat/ChatSoporteFloatingWidget';
 
 interface ConditionalLayoutProps {
@@ -73,7 +68,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // Para todas las demás rutas: h-full para llenar DesktopScaleCompensate cuando DPR > 1
   return (
-    <MeetingLiveProvider>
+    <>
       <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
         <SidebarProvider defaultOpen={true}>
           <SidebarNav />
@@ -84,9 +79,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           </ResponsiveMain>
         </SidebarProvider>
       </div>
-      <MeetingLiveTranscriptionRunner />
-      <MeetingLiveFloatingWidget />
       {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
-    </MeetingLiveProvider>
+    </>
   );
 }

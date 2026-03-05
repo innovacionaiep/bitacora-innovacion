@@ -349,8 +349,6 @@ async function seedFullDatabase() {
           objetivos: Math.floor(Math.random() * 100),
           presupuestoUsado: Math.floor(Math.random() * 3000000) + 1000000,
           presupuestoTotal: Math.floor(Math.random() * 5000000) + 3000000,
-          reunionesHechas: Math.floor(Math.random() * 8) + 1,
-          reunionesTotales: Math.floor(Math.random() * 12) + 8,
           participantes: Math.floor(Math.random() * 20) + 10,
         },
       });

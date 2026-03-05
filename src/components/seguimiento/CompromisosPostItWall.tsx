@@ -134,7 +134,6 @@ export function CompromisosPostItWall({
     setSubmitting(true);
     const result = await addCompromiso(projectId, addDescripcion.trim(), {
       titulo: addTitulo.trim() || null,
-      reunionId: null,
     });
     setSubmitting(false);
     if (result.success) {
