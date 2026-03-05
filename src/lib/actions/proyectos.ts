@@ -268,12 +268,14 @@ export async function getProyectosListadoParaUsuario(
 ) {
   try {
     const user = await getCurrentUser();
+    const activeRole =
+      activeRoleOverride ?? (user as { activeRole?: string | null })?.activeRole ?? null;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:getProyectosListadoParaUsuario',message:'user and role',data:{userId:user?.id??null,activeRole,hasUser:!!user?.id},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
-
-    const activeRole =
-      activeRoleOverride ?? (user as { activeRole?: string | null }).activeRole ?? null;
 
     if (activeRole === 'Admin') {
       const proyectos = await prisma.proyecto.findMany({
@@ -285,10 +287,16 @@ export async function getProyectosListadoParaUsuario(
         },
         orderBy: { createdAt: 'desc' },
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch admin',message:'returning admin list',data:{branch:'admin',dataLength:proyectos.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       return { success: true, data: proyectos as ProyectoListadoItem[] };
     }
 
     if (!activeRole) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch noRole',message:'returning empty no role',data:{branch:'noRole'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       return { success: true, data: [] };
     }
 
@@ -313,6 +321,9 @@ export async function getProyectosListadoParaUsuario(
     const proyectoIds = participaciones.map((p) => p.proyectoId);
 
     if (proyectoIds.length === 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch noParticipaciones',message:'returning empty no participaciones',data:{branch:'noParticipaciones',activeRole},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       return { success: true, data: [] };
     }
 
@@ -326,8 +337,14 @@ export async function getProyectosListadoParaUsuario(
       },
       orderBy: { createdAt: 'desc' },
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch byParticipaciones',message:'returning by participaciones',data:{branch:'byParticipaciones',dataLength:proyectos.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     return { success: true, data: proyectos as ProyectoListadoItem[] };
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:catch',message:'getProyectosListado error',data:{errMsg:error instanceof Error?error.message:String(error)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     console.error('❌ [getProyectosListadoParaUsuario] Error:', error);
     return { success: false, error: 'Error al obtener listado', data: [] };
   }

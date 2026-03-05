@@ -1,5 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { loadComunasFromCsv } from './data/load-comunas';
+
+// Protección: este seed BORRA casi todos los datos. Solo se ejecuta si se permite explícitamente.
+if (process.env.ALLOW_FULL_SEED !== '1') {
+  console.error('❌ Seed destructivo desactivado. Este script borra proyectos, usuarios (excepto admin), comunas, etc.');
+  console.error('   Para ejecutarlo de forma intencional (por tu cuenta y riesgo):');
+  console.error('   ALLOW_FULL_SEED=1 pnpm exec tsx prisma/seed-full.ts');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -190,15 +199,8 @@ async function seedFullDatabase() {
       carrerasData.map((data) => prisma.carrera.create({ data }))
     );
 
-    // Comunas
-    const comunasData = [
-      { nombre: 'San Bernardo', region: 'Metropolitana' },
-      { nombre: 'Antofagasta', region: 'Antofagasta' },
-      { nombre: 'La Serena', region: 'Coquimbo' },
-      { nombre: 'Los Ángeles', region: 'Biobío' },
-      { nombre: 'Santiago', region: 'Metropolitana' },
-    ];
-
+    // Comunas (desde CSV prisma/data/comunas_con_region.csv)
+    const comunasData = loadComunasFromCsv();
     await prisma.comuna.deleteMany();
     const comunas = await Promise.all(
       comunasData.map((data) => prisma.comuna.create({ data }))

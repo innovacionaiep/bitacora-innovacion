@@ -11,9 +11,6 @@
     "resumen:cuentas": "tsx prisma/resumen-cuentas.ts",
     "normalize:emails": "tsx prisma/normalize-emails.ts"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed-full.ts"
-  },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.0",
     "@dnd-kit/core": "^6.3.1",

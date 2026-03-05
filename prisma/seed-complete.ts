@@ -1,4 +1,12 @@
 import { PrismaClient } from '@prisma/client';
+import { loadComunasFromCsv } from './data/load-comunas';
+
+// Protección: este seed BORRA todos los datos. Solo se ejecuta si se permite explícitamente.
+if (process.env.ALLOW_FULL_SEED !== '1') {
+  console.error('❌ Seed destructivo desactivado. Este script borra todos los datos (incl. usuarios).');
+  console.error('   Para ejecutarlo de forma intencional: ALLOW_FULL_SEED=1 pnpm exec tsx prisma/seed-complete.ts');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -95,24 +103,11 @@ async function seedComplete() {
       }),
     ]);
 
-    // Comunas
-    const comunas = await Promise.all([
-      prisma.comuna.create({
-        data: { nombre: 'San Bernardo', region: 'Metropolitana' },
-      }),
-      prisma.comuna.create({
-        data: { nombre: 'Antofagasta', region: 'Antofagasta' },
-      }),
-      prisma.comuna.create({
-        data: { nombre: 'La Serena', region: 'Coquimbo' },
-      }),
-      prisma.comuna.create({
-        data: { nombre: 'Los Ángeles', region: 'Biobío' },
-      }),
-      prisma.comuna.create({
-        data: { nombre: 'Santiago', region: 'Metropolitana' },
-      }),
-    ]);
+    // Comunas (desde CSV prisma/data/comunas_con_region.csv)
+    const comunasData = loadComunasFromCsv();
+    const comunas = await Promise.all(
+      comunasData.map((data) => prisma.comuna.create({ data }))
+    );
 
     // Grupos de Interés
     const gruposInteres = await Promise.all([
@@ -201,7 +196,7 @@ async function seedComplete() {
     });
 
     await prisma.proyectoComuna.create({
-      data: { proyectoId: proyecto1.id, comunaId: comunas[0].id }, // San Bernardo
+      data: { proyectoId: proyecto1.id, comunaId: comunas[0].id },
     });
 
     await prisma.proyectoGrupoInteres.createMany({
@@ -296,7 +291,7 @@ async function seedComplete() {
     });
 
     await prisma.proyectoComuna.create({
-      data: { proyectoId: proyecto2.id, comunaId: comunas[1].id }, // Antofagasta
+      data: { proyectoId: proyecto2.id, comunaId: comunas[1].id },
     });
 
     await prisma.proyectoGrupoInteres.createMany({

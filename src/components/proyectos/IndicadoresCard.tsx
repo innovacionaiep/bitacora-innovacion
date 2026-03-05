@@ -87,6 +87,20 @@ export function IndicadoresCard({
     );
   }, [data]);
 
+  const tieneAlMenosUnObjetivoEspecifico = objetivosEspecificosForModal.length > 0;
+
+  const tieneAlMenosUnIndicador = useMemo(() => {
+    if (!data?.objetivosGenerales) return false;
+    return data.objetivosGenerales.some((og) =>
+      og.objetivosEspecificos.some((oe) => oe.indicadores.length > 0)
+    );
+  }, [data]);
+
+  // Salir del modo eliminar si ya no hay indicadores
+  useEffect(() => {
+    if (!tieneAlMenosUnIndicador && deleteMode) setDeleteMode(false);
+  }, [tieneAlMenosUnIndicador, deleteMode]);
+
   // Actualizar el indicador seleccionado cuando cambian los datos
   useEffect(() => {
     if (selectedIndicador && data) {
@@ -217,45 +231,61 @@ export function IndicadoresCard({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                              showAgregarModal
-                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                            }`}
-                            onClick={() => setShowAgregarModal(true)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
+                          <span className="inline-block">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={!tieneAlMenosUnObjetivoEspecifico}
+                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                                !tieneAlMenosUnObjetivoEspecifico
+                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                  : showAgregarModal
+                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                              }`}
+                              onClick={() => tieneAlMenosUnObjetivoEspecifico && setShowAgregarModal(true)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Agregar indicador</p>
+                          <p>
+                            {tieneAlMenosUnObjetivoEspecifico
+                              ? 'Agregar indicador'
+                              : 'Agregue al menos un objetivo específico para poder agregar indicadores'}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                              deleteMode
-                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                            }`}
-                            onClick={() => setDeleteMode((prev) => !prev)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <span className="inline-block">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={!tieneAlMenosUnIndicador}
+                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                                !tieneAlMenosUnIndicador
+                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                  : deleteMode
+                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                              }`}
+                              onClick={() => tieneAlMenosUnIndicador && setDeleteMode((prev) => !prev)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>
-                            {deleteMode
-                              ? 'Salir del modo eliminación'
-                              : 'Eliminar indicador'}
+                            {!tieneAlMenosUnIndicador
+                              ? 'No hay indicadores para eliminar'
+                              : deleteMode
+                                ? 'Salir del modo eliminación'
+                                : 'Eliminar indicador'}
                           </p>
                         </TooltipContent>
                       </Tooltip>
