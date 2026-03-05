@@ -822,12 +822,7 @@ function ProyectosContent() {
 
     setCatalogosGeneral({
       escuelas: escuelasResult.success ? (escuelasResult.data ?? []) : [],
-      carreras: carrerasResult.success
-        ? (carrerasResult.data ?? []).map((c) => ({
-            ...c,
-            escuelaId: c.escuelaId ?? undefined,
-          }))
-        : [],
+      carreras: carrerasResult.success ? (carrerasResult.data ?? []) : [],
       comunas: comunasResult.success ? (comunasResult.data ?? []) : [],
       gruposInteres: gruposResult.success
         ? (gruposResult.data ?? []).map((g) => ({

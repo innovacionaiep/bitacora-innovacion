@@ -82,11 +82,11 @@ export async function seedCatalogs() {
 
   // Seed Carreras (placeholder - se actualizará con la lista completa)
   const carreras = [
-    { nombre: 'Contabilidad', escuelaId: null },
-    { nombre: 'Administración de Empresas', escuelaId: null },
-    { nombre: 'Operaciones Logísticas', escuelaId: null },
-    { nombre: 'Desarrollo Social', escuelaId: null },
-    { nombre: 'Educación', escuelaId: null },
+    { nombre: 'Contabilidad' },
+    { nombre: 'Administración de Empresas' },
+    { nombre: 'Operaciones Logísticas' },
+    { nombre: 'Desarrollo Social' },
+    { nombre: 'Educación' },
   ];
 
   for (const carrera of carreras) {

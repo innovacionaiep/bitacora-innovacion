@@ -262,7 +262,6 @@ model Escuela {
   nombre                String
   codigo                String                 @unique
   proyectos             ProyectoEscuela[]
-  carreras              Carrera[]
   proyectoParticipantes ProyectoParticipante[]
 
   @@map("escuelas")
@@ -281,11 +280,8 @@ model ProyectoEscuela {
 
 // Carreras del Proyecto (many-to-many)
 model Carrera {
-  id        String  @id @default(cuid())
+  id        String             @id @default(cuid())
   nombre    String
-  escuelaId String? @map("escuela_id")
-
-  escuela   Escuela?          @relation(fields: [escuelaId], references: [id])
   proyectos ProyectoCarrera[]
 
   @@map("carreras")

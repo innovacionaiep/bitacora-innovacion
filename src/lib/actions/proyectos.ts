@@ -1597,9 +1597,6 @@ export async function getEscuelas(): Promise<CatalogoResponse<Escuela>> {
 export async function getCarreras(): Promise<CatalogoResponse<Carrera>> {
   try {
     const carreras = await prisma.carrera.findMany({
-      include: {
-        escuela: true,
-      },
       orderBy: { nombre: 'asc' },
     });
     return { success: true, data: carreras };

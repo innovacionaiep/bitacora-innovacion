@@ -83,24 +83,15 @@ async function seedComplete() {
 
     // Carreras
     const carreras = await Promise.all([
+      prisma.carrera.create({ data: { nombre: 'Contabilidad' } }),
       prisma.carrera.create({
-        data: { nombre: 'Contabilidad', escuelaId: escuelas[4].id },
+        data: { nombre: 'Administración de Empresas' },
       }),
       prisma.carrera.create({
-        data: {
-          nombre: 'Administración de Empresas',
-          escuelaId: escuelas[4].id,
-        },
+        data: { nombre: 'Operaciones Logísticas' },
       }),
-      prisma.carrera.create({
-        data: { nombre: 'Operaciones Logísticas', escuelaId: escuelas[4].id },
-      }),
-      prisma.carrera.create({
-        data: { nombre: 'Desarrollo Social', escuelaId: escuelas[0].id },
-      }),
-      prisma.carrera.create({
-        data: { nombre: 'Educación', escuelaId: escuelas[0].id },
-      }),
+      prisma.carrera.create({ data: { nombre: 'Desarrollo Social' } }),
+      prisma.carrera.create({ data: { nombre: 'Educación' } }),
     ]);
 
     // Comunas (desde CSV prisma/data/comunas_con_region.csv)

@@ -21,13 +21,6 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import * as Config from '@/lib/actions/configuracion';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
@@ -116,7 +109,7 @@ export default function ConfiguracionValidacionPage() {
     setFormRegion((row.region as string) ?? '');
     setFormCodigo((row.codigo as string) ?? '');
     setFormDescripcion((row.descripcion as string) ?? '');
-    setFormEscuelaId((row.escuelaId as string) ?? null);
+    setFormEscuelaId(cat === 'carrera' ? null : ((row.escuelaId as string) ?? null));
     setSheetOpen(true);
     setError(null);
   };
@@ -160,9 +153,9 @@ export default function ConfiguracionValidacionPage() {
         break;
       case 'carrera':
         if (sheetMode === 'add')
-          res = await Config.createCarrera(formNombre, formEscuelaId);
+          res = await Config.createCarrera(formNombre);
         else if (editId)
-          res = await Config.updateCarrera(editId, formNombre, formEscuelaId);
+          res = await Config.updateCarrera(editId, formNombre);
         break;
       case 'grupo':
         if (sheetMode === 'add')
@@ -397,7 +390,6 @@ export default function ConfiguracionValidacionPage() {
               <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Escuela</TableHead>
                   <TableHead className="w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -405,17 +397,11 @@ export default function ConfiguracionValidacionPage() {
                 {carreras.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.nombre}</TableCell>
-                    <TableCell>{c.escuela?.nombre ?? '—'}</TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          openEdit('carrera', c.id, {
-                            ...c,
-                            escuelaId: c.escuelaId,
-                          })
-                        }
+                        onClick={() => openEdit('carrera', c.id, c)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -536,29 +522,6 @@ export default function ConfiguracionValidacionPage() {
                   onChange={(e) => setFormCodigo(e.target.value)}
                   placeholder="Código (ej. TEC)"
                 />
-              </div>
-            )}
-            {catalog === 'carrera' && (
-              <div className="space-y-2">
-                <Label>Escuela</Label>
-                <Select
-                  value={formEscuelaId ?? 'none'}
-                  onValueChange={(v) =>
-                    setFormEscuelaId(v === 'none' ? null : v)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin escuela" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin escuela</SelectItem>
-                    {escuelas.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             )}
             {catalog === 'grupo' && (

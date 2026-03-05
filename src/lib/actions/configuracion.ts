@@ -189,14 +189,13 @@ export async function deleteEscuela(id: string) {
   try {
     const inUse =
       (await prisma.proyectoEscuela.count({ where: { escuelaId: id } })) > 0 ||
-      (await prisma.carrera.count({ where: { escuelaId: id } })) > 0 ||
       (await prisma.proyectoParticipante.count({ where: { escuelaId: id } })) >
         0;
     if (inUse) {
       return {
         success: false,
         error:
-          'No se puede eliminar: hay proyectos, carreras o participantes que usan esta escuela',
+          'No se puede eliminar: hay proyectos o participantes que usan esta escuela',
       };
     }
     await prisma.escuela.delete({ where: { id } });
@@ -212,14 +211,13 @@ export async function deleteEscuela(id: string) {
 export async function getCarreras() {
   return prisma.carrera.findMany({
     orderBy: { nombre: 'asc' },
-    include: { escuela: { select: { nombre: true } } },
   });
 }
 
-export async function createCarrera(nombre: string, escuelaId: string | null) {
+export async function createCarrera(nombre: string) {
   try {
     await prisma.carrera.create({
-      data: { nombre: nombre.trim(), escuelaId: escuelaId || undefined },
+      data: { nombre: nombre.trim() },
     });
     revalidatePath(CONFIG_PATH);
     return { success: true };
@@ -229,15 +227,11 @@ export async function createCarrera(nombre: string, escuelaId: string | null) {
   }
 }
 
-export async function updateCarrera(
-  id: string,
-  nombre: string,
-  escuelaId: string | null
-) {
+export async function updateCarrera(id: string, nombre: string) {
   try {
     await prisma.carrera.update({
       where: { id },
-      data: { nombre: nombre.trim(), escuelaId: escuelaId || undefined },
+      data: { nombre: nombre.trim() },
     });
     revalidatePath(CONFIG_PATH);
     return { success: true };

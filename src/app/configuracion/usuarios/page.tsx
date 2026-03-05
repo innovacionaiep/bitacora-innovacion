@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,7 @@ function getRolTagClasses(rol: string): string {
 }
 
 export default function ConfiguracionUsuariosPage() {
+  const { data: session, update: updateSession } = useSession();
   const [users, setUsers] = useState<UserListRowWithPassword[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +178,11 @@ export default function ConfiguracionUsuariosPage() {
       }
     }
     if (res.success) {
+      const currentUserId = session?.user?.id ?? null;
+      const editingSelf = Boolean(currentUserId && editUser.id === currentUserId);
+      if (editingSelf) {
+        await updateSession({ name: (editName?.trim() || session?.user?.name || '').trim() || undefined });
+      }
       setEditUser(null);
       if (unlocked && unlockPasswordRef.current) {
         const resList = await listUsersAdminWithPasswords(

@@ -168,10 +168,7 @@ export type EscuelaItem = CatalogoItem & {
   codigo: string;
 };
 
-export type CarreraItem = CatalogoItem & {
-  escuelaId?: string;
-  escuela?: Escuela;
-};
+export type CarreraItem = CatalogoItem;
 
 export type ComunaItem = CatalogoItem & {
   region: string;
