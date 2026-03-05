@@ -881,6 +881,7 @@ export default function GanttChart({
   const [isTogglingValidation, setIsTogglingValidation] = useState(false);
   const [isSubmittingActivityAction, setIsSubmittingActivityAction] =
     useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   // Usar el hook de Gantt con el projectId recibido como prop
@@ -1577,29 +1578,34 @@ export default function GanttChart({
       });
       return;
     }
-    const { data: newTask, error } = await createTask(act.id, {
-      name: inlineTaskForm.name,
-      description: inlineTaskForm.description,
-      startDate: convertDateToISO(inlineTaskForm.startDate),
-      endDate: convertDateToISO(inlineTaskForm.endDate),
-    });
-    if (error) {
-      alert('Error al crear tarea: ' + error);
-      return;
-    }
-    if (newTask && selectedActivityForPopup) {
-      setSelectedActivityForPopup({
-        ...selectedActivityForPopup,
-        tasks: [...(selectedActivityForPopup.tasks || []), newTask as Task],
+    setIsCreatingTask(true);
+    try {
+      const { data: newTask, error } = await createTask(act.id, {
+        name: inlineTaskForm.name,
+        description: inlineTaskForm.description,
+        startDate: convertDateToISO(inlineTaskForm.startDate),
+        endDate: convertDateToISO(inlineTaskForm.endDate),
       });
+      if (error) {
+        alert('Error al crear tarea: ' + error);
+        return;
+      }
+      if (newTask && selectedActivityForPopup) {
+        setSelectedActivityForPopup({
+          ...selectedActivityForPopup,
+          tasks: [...(selectedActivityForPopup.tasks || []), newTask as Task],
+        });
+      }
+      setShowInlineAddTask(false);
+      setInlineTaskForm({
+        name: '',
+        description: '',
+        startDate: '',
+        endDate: '',
+      });
+    } finally {
+      setIsCreatingTask(false);
     }
-    setShowInlineAddTask(false);
-    setInlineTaskForm({
-      name: '',
-      description: '',
-      startDate: '',
-      endDate: '',
-    });
   };
 
   const handleEnviarComentarioActividad = async () => {
@@ -3402,9 +3408,10 @@ export default function GanttChart({
                       <Button
                         size="sm"
                         onClick={handleInlineAddTask}
-                        className="bg-emerald-600 hover:bg-emerald-700"
+                        disabled={isCreatingTask}
+                        className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:pointer-events-none"
                       >
-                        Crear tarea
+                        {isCreatingTask ? 'Creando...' : 'Crear tarea'}
                       </Button>
                     </div>
                   )}
