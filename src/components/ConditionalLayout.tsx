@@ -70,7 +70,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   return (
     <>
       <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
-        <SidebarProvider defaultOpen={true}>
+        <SidebarProvider expandOnHover>
           <SidebarNav />
           <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
             <div className={contentClassName}>

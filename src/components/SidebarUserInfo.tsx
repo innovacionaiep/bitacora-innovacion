@@ -25,7 +25,7 @@ export function SidebarUserInfo() {
   // Only show loading skeleton on initial mount, not during session updates
   if (status === 'loading' && !hasInitialData) {
     return (
-      <div className="flex flex-col items-center gap-2 py-2">
+      <div className="flex flex-col items-center gap-2 py-2 -translate-y-2">
         <div className="h-10 w-10 rounded-full bg-gray-200 animate-pulse" />
         <div className="h-3 w-16 bg-gray-200 rounded animate-pulse group-data-[collapsible=icon]:hidden" />
         <div className="h-4 w-20 bg-gray-200 rounded animate-pulse group-data-[collapsible=icon]:hidden" />
@@ -60,7 +60,7 @@ export function SidebarUserInfo() {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1 py-0">
+      <div className="flex flex-col items-center gap-1 py-0 -translate-y-2">
         {/* Notification icon - temporalmente oculto en la UI */}
         {false && (
           <Button

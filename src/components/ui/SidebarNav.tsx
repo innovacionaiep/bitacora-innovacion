@@ -15,8 +15,6 @@ import {
   Home,
   LayoutDashboard,
   FolderKanban,
-  ChevronsLeft,
-  ChevronsRight,
   AtSign,
   Settings,
 } from 'lucide-react';
@@ -25,7 +23,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Inter } from 'next/font/google';
-import { Button } from '@/components/ui/button';
 import { SidebarUserInfo } from '@/components/SidebarUserInfo';
 
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
@@ -44,7 +41,7 @@ const navItemsBase = [
 
 export default function SidebarNav() {
   const pathname = usePathname();
-  const { state, toggleSidebar } = useSidebar();
+  const { state } = useSidebar();
   const { data: session } = useSession();
   const activeRole = session?.user?.activeRole ?? null;
 
@@ -153,24 +150,9 @@ export default function SidebarNav() {
         </SidebarMenu>
       </SidebarContent>
 
-      {/* Footer con información de usuario, botón de colapso y copyright */}
-      <SidebarFooter className="flex flex-col items-center justify-center py-4 space-y-1 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
-        {/* User info section */}
+      {/* Footer con información de usuario */}
+      <SidebarFooter className="flex flex-col items-center justify-center pt-2 pb-3 pl-4 pr-4 group-data-[collapsible=icon]:px-2">
         <SidebarUserInfo />
-
-        {/* Botón de colapso más intuitivo */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleSidebar}
-          className="group/collapse h-10 w-10 rounded-full p-0 relative transition-all duration-200 mb-3 bg-sidebar border border-white hover:!bg-white hover:!text-accent-foreground"
-        >
-          {state === 'collapsed' ? (
-            <ChevronsRight className="h-4 w-4 text-white group-hover/collapse:!text-black transition-colors duration-200" />
-          ) : (
-            <ChevronsLeft className="h-4 w-4 text-white group-hover/collapse:!text-black transition-colors duration-200" />
-          )}
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );

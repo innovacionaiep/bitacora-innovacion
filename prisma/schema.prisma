@@ -135,6 +135,7 @@ model Proyecto {
   objetivos        Int      @default(0)
   presupuestoUsado Int      @default(0) @map("presupuesto_usado")
   presupuestoTotal Int      @default(0) @map("presupuesto_total")
+  presupuestoAdjudicado Int @default(0) @map("presupuesto_adjudicado")
   participantes    Int      @default(0)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

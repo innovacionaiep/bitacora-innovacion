@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getPresupuestoByProyecto } from '@/lib/actions/presupuesto';
-import { computeResumenPresupuesto } from '@/lib/utils/presupuesto-calculos';
+import { computeResumenPresupuesto, isDeltaPresupuestoItem } from '@/lib/utils/presupuesto-calculos';
 import type { ItemPresupuestoItem, ResumenPresupuesto } from '@/types/presupuesto';
 
 export function usePresupuesto(
@@ -13,9 +13,14 @@ export function usePresupuesto(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resumenPorCuenta = useMemo<ResumenPresupuesto>(
-    () => computeResumenPresupuesto(items),
+  const itemsGasto = useMemo(
+    () => items.filter((i) => !isDeltaPresupuestoItem(i)),
     [items]
+  );
+
+  const resumenPorCuenta = useMemo<ResumenPresupuesto>(
+    () => computeResumenPresupuesto(itemsGasto),
+    [itemsGasto]
   );
 
   const refetch = async (showLoading = true) => {
@@ -44,7 +49,7 @@ export function usePresupuesto(
   }, [projectId]);
 
   return {
-    items,
+    items: itemsGasto,
     resumenPorCuenta,
     loading,
     error,

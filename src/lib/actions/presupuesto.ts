@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
 import { createHistorialEntry } from './historial';
-import { computeResumenPresupuesto } from '@/lib/utils/presupuesto-calculos';
+import { computeResumenPresupuesto, isDeltaPresupuestoItem } from '@/lib/utils/presupuesto-calculos';
 import type { ResumenPresupuesto } from '@/types/presupuesto';
 
 /**
@@ -25,11 +25,13 @@ export async function getResumenPresupuestoProyecto(
         error: presupuestoResult.error ?? 'Error al cargar presupuesto',
       };
     }
-    const items = presupuestoResult.data.items.map((i) => ({
-      cuenta: i.cuenta,
-      monto: i.monto,
-      estado: i.estado,
-    }));
+    const items = presupuestoResult.data.items
+      .filter((i) => !isDeltaPresupuestoItem(i))
+      .map((i) => ({
+        cuenta: i.cuenta,
+        monto: i.monto,
+        estado: i.estado,
+      }));
     const resumen = computeResumenPresupuesto(items);
     return { success: true, data: resumen };
   } catch (error) {
@@ -48,10 +50,11 @@ export async function getResumenPresupuestoProyecto(
 async function syncPresupuestoProyecto(projectId: string): Promise<void> {
   const items = await prisma.itemPresupuesto.findMany({
     where: { proyectoId: projectId },
-    select: { monto: true, estado: true },
+    select: { monto: true, estado: true, item: true },
   });
-  const presupuestoTotal = items.reduce((s, i) => s + i.monto, 0);
-  const presupuestoUsado = items
+  const itemsOperativos = items.filter((i) => !isDeltaPresupuestoItem(i));
+  const presupuestoTotal = itemsOperativos.reduce((s, i) => s + i.monto, 0);
+  const presupuestoUsado = itemsOperativos
     .filter((i) => i.estado === 'EJECUTADO_OK')
     .reduce((s, i) => s + i.monto, 0);
   await prisma.proyecto.update({
@@ -460,6 +463,32 @@ export async function setProyeccionMensualMultiple(
     return {
       success: false,
       error: 'Error al guardar proyecciones mensuales',
+    };
+  }
+}
+
+export async function updatePresupuestoAdjudicado(
+  projectId: string,
+  presupuestoAdjudicado: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!Number.isFinite(presupuestoAdjudicado) || presupuestoAdjudicado < 0) {
+      return {
+        success: false,
+        error: 'El presupuesto adjudicado debe ser un monto válido mayor o igual a 0',
+      };
+    }
+    await prisma.proyecto.update({
+      where: { id: projectId },
+      data: { presupuestoAdjudicado: Math.round(presupuestoAdjudicado) },
+    });
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updatePresupuestoAdjudicado:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar presupuesto adjudicado',
     };
   }
 }

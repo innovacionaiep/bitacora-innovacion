@@ -874,6 +874,9 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
         ...(data.presupuestoTotal !== undefined && {
           presupuestoTotal: data.presupuestoTotal,
         }),
+        ...(data.presupuestoAdjudicado !== undefined && {
+          presupuestoAdjudicado: data.presupuestoAdjudicado,
+        }),
         ...(data.participantes !== undefined && {
           participantes: data.participantes,
         }),

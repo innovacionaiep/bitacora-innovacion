@@ -141,6 +141,7 @@ export function PresupuestoTab({
       <PresupuestoCard
         projectId={project.id}
         presupuestoTotal={project.presupuestoTotal ?? 0}
+        presupuestoAdjudicado={project.presupuestoAdjudicado ?? 0}
         projectName={project.proyecto}
       />
     </div>

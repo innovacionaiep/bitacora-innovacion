@@ -41,6 +41,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  expandOnHover: boolean;
+  setHovered: (hovered: boolean) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
@@ -60,13 +62,15 @@ const SidebarProvider = React.forwardRef<
     defaultOpen?: boolean;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    expandOnHover?: boolean;
   }
 >(
   (
     {
-      defaultOpen = true,
+      defaultOpen,
       open: openProp,
       onOpenChange: setOpenProp,
+      expandOnHover = false,
       className,
       style,
       children,
@@ -76,10 +80,12 @@ const SidebarProvider = React.forwardRef<
   ) => {
     const isMobile = useIsMobile();
     const [openMobile, setOpenMobile] = React.useState(false);
+    const [hovered, setHovered] = React.useState(false);
+    const resolvedDefaultOpen = defaultOpen ?? !expandOnHover;
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen);
+    const [_open, _setOpen] = React.useState(resolvedDefaultOpen);
     const open = openProp ?? _open;
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -90,10 +96,12 @@ const SidebarProvider = React.forwardRef<
           _setOpen(openState);
         }
 
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+        if (!expandOnHover) {
+          // This sets the cookie to keep the sidebar state.
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+        }
       },
-      [setOpenProp, open]
+      [setOpenProp, open, expandOnHover]
     );
 
     // Helper to toggle the sidebar.
@@ -121,7 +129,8 @@ const SidebarProvider = React.forwardRef<
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
-    const state = open ? 'expanded' : 'collapsed';
+    const isExpanded = expandOnHover && !isMobile ? hovered : open;
+    const state = isExpanded ? 'expanded' : 'collapsed';
 
     const contextValue = React.useMemo<SidebarContextProps>(
       () => ({
@@ -132,8 +141,19 @@ const SidebarProvider = React.forwardRef<
         openMobile,
         setOpenMobile,
         toggleSidebar,
+        expandOnHover,
+        setHovered,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+      [
+        state,
+        open,
+        setOpen,
+        isMobile,
+        openMobile,
+        setOpenMobile,
+        toggleSidebar,
+        expandOnHover,
+      ]
     );
 
     return (
@@ -183,7 +203,8 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+    const { isMobile, state, openMobile, setOpenMobile, expandOnHover, setHovered } =
+      useSidebar();
 
     if (collapsible === 'none') {
       return (
@@ -234,6 +255,8 @@ const Sidebar = React.forwardRef<
         data-collapsible={state === 'collapsed' ? collapsible : ''}
         data-variant={variant}
         data-side={side}
+        onMouseEnter={expandOnHover ? () => setHovered(true) : undefined}
+        onMouseLeave={expandOnHover ? () => setHovered(false) : undefined}
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
