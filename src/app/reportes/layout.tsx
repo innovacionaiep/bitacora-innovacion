@@ -1,15 +1,16 @@
 import { redirect } from 'next/navigation';
-import { getProyectosDashboard } from '@/lib/actions/proyectos';
 import { getSession, ROLES_SIN_DASHBOARD_REPORTES, type Role } from '@/lib/auth-utils';
-import DashboardPage from './DashboardPage';
 
-export default async function DashboardRoute() {
+export default async function ReportesLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await getSession();
   const activeRole = session?.user?.activeRole;
   if (activeRole && ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role)) {
     redirect('/inicio');
   }
 
-  const result = await getProyectosDashboard();
-  return <DashboardPage initialProyectos={result.data ?? []} />;
+  return children;
 }

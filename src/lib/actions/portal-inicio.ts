@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
+import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 
 /**
  * Obtener los roles para los que el usuario tiene al menos un proyecto (roles con proyectos vigentes).
@@ -111,13 +112,46 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
             proyecto: true,
             fondo: true,
             avanceGantt: true,
-            presupuestoUsado: true,
-            presupuestoTotal: true,
+            presupuestoAdjudicado: true,
             indicadores: { select: { porcentajeAvance: true } },
           },
         },
       },
     });
+
+    const proyectoIds = participaciones
+      .map((p) => p.proyecto?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const itemsPresupuesto =
+      proyectoIds.length > 0
+        ? await prisma.itemPresupuesto.findMany({
+            where: { proyectoId: { in: proyectoIds } },
+            select: {
+              proyectoId: true,
+              cuenta: true,
+              monto: true,
+              estado: true,
+              item: true,
+            },
+          })
+        : [];
+
+    const itemsByProyecto = new Map<
+      string,
+      Array<{
+        proyectoId: string;
+        cuenta: (typeof itemsPresupuesto)[number]['cuenta'];
+        monto: number;
+        estado: (typeof itemsPresupuesto)[number]['estado'];
+        item: string;
+      }>
+    >();
+    for (const item of itemsPresupuesto) {
+      const list = itemsByProyecto.get(item.proyectoId) ?? [];
+      list.push(item);
+      itemsByProyecto.set(item.proyectoId, list);
+    }
 
     const data = participaciones
       .filter((p) => p.proyecto)
@@ -132,12 +166,10 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
                   100
               ) / 100
             : 0;
-        const avancePresupuesto =
-          proy.presupuestoTotal > 0
-            ? Math.round(
-                (proy.presupuestoUsado / proy.presupuestoTotal) * 100
-              )
-            : 0;
+        const avancePresupuesto = computeAvancePresupuestoPct(
+          itemsByProyecto.get(proy.id) ?? [],
+          proy.presupuestoAdjudicado ?? 0
+        );
         return {
           id: proy.id,
           proyecto: proy.proyecto,

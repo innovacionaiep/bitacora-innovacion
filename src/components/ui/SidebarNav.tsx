@@ -24,12 +24,14 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Inter } from 'next/font/google';
 import { SidebarUserInfo } from '@/components/SidebarUserInfo';
+import { ROLES_SIN_DASHBOARD_REPORTES, type Role } from '@/lib/auth-utils';
 
 const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
 
 // Roles que solo ven Inicio y Proyectos en el sidebar (Encargado, Estudiante, Docente)
 const ROLES_SOLO_INICIO_PROYECTOS = ['Encargado', 'Estudiante', 'Docente'];
 const RUTAS_PERMITIDAS_LIMITADAS = ['/inicio', '/proyectos'];
+const RUTAS_DASHBOARD_REPORTES = ['/dashboard', '/reportes'];
 
 // Novedades está oculto para todos los perfiles; solo Admin puede acceder por URL con contraseña
 const navItemsBase = [
@@ -58,6 +60,13 @@ export default function SidebarNav() {
       // Encargado, Estudiante y Docente solo ven Inicio y Proyectos
       if (activeRole && ROLES_SOLO_INICIO_PROYECTOS.includes(activeRole)) {
         return RUTAS_PERMITIDAS_LIMITADAS.includes(item.href);
+      }
+      // Docente y Colaborador no ven Dashboard ni Reportes
+      if (
+        activeRole &&
+        ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role)
+      ) {
+        return !RUTAS_DASHBOARD_REPORTES.includes(item.href);
       }
       return true;
     });

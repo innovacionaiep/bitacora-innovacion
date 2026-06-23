@@ -185,3 +185,14 @@ export function mergeDeltaEnResumen(
     ),
   };
 }
+
+/** Mismo % de progreso que la barra del tab Presupuesto (con delta y promedios solicitado/ejecutado). */
+export function computeAvancePresupuestoPct(
+  items: Array<ItemBase & { item: string }>,
+  presupuestoAdjudicado = 0
+): number {
+  const itemsGasto = items.filter((i) => !isDeltaPresupuestoItem(i));
+  const resumen = computeResumenPresupuesto(itemsGasto);
+  const delta = computeDeltaSaldo(presupuestoAdjudicado, itemsGasto);
+  return mergeDeltaEnResumen(resumen, delta).pctGlobalAvance;
+}

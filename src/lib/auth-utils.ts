@@ -23,6 +23,13 @@ export const AVAILABLE_ROLES: Role[] = [
   'Beneficiario',
 ];
 
+/** Roles cuyo rol activo no puede acceder a Dashboard ni Reportes */
+export const ROLES_SIN_DASHBOARD_REPORTES: Role[] = ['Docente', 'Colaborador'];
+
+export function isRutaDashboardReportes(pathname: string): boolean {
+  return pathname === '/dashboard' || pathname.startsWith('/reportes');
+}
+
 // Roles disponibles para registro (sin Admin)
 export const REGISTER_ROLES: Exclude<Role, 'Admin'>[] = [
   'Coordinador',

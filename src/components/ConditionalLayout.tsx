@@ -7,6 +7,11 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
 import { ChatSoporteFloatingWidget } from '@/components/support-chat/ChatSoporteFloatingWidget';
+import {
+  isRutaDashboardReportes,
+  ROLES_SIN_DASHBOARD_REPORTES,
+  type Role,
+} from '@/lib/auth-utils';
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -31,12 +36,19 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const rolLimitadoEnRutaBloqueada =
     isRolAccesoLimitado && !rutaPermitidaLimitada;
 
+  const bloqueoDashboardReportes =
+    activeRole != null &&
+    ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role) &&
+    isRutaDashboardReportes(pathname);
+
+  const debeRedirigir = rolLimitadoEnRutaBloqueada || bloqueoDashboardReportes;
+
   useEffect(() => {
     if (status === 'loading' || isAuthRoute) return;
-    if (rolLimitadoEnRutaBloqueada) {
+    if (debeRedirigir) {
       router.replace('/inicio');
     }
-  }, [status, isAuthRoute, rolLimitadoEnRutaBloqueada, router]);
+  }, [status, isAuthRoute, debeRedirigir, router]);
 
   // Ruta de novedades que necesita fondo gris completo
   const isNovedadesRoute = pathname === '/novedades';
@@ -58,7 +70,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   }
 
   // Rol con acceso limitado en ruta no permitida: no mostrar contenido hasta que redirija
-  if (rolLimitadoEnRutaBloqueada) {
+  if (debeRedirigir) {
     return (
       <div className="flex h-full min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
