@@ -39,7 +39,7 @@ export interface ResumenCuenta {
   pctSolicitado: number;
   pctEnPedido: number;
   pctEjecutado: number;
-  pctTotal: number;
+  saldo: number;
 }
 
 export interface ResumenPresupuesto {
@@ -47,6 +47,10 @@ export interface ResumenPresupuesto {
   totalSolicitado: number;
   totalEnPedido: number;
   totalEjecutado: number;
+  totalSaldo: number;
+  pctTotalSolicitado: number;
+  pctTotalEnPedido: number;
+  pctTotalEjecutado: number;
   pctGlobalAvance: number;
   porCuenta: ResumenCuenta[];
 }

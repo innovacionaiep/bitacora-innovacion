@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  getProyectos,
+  getProyectosDashboard,
   createProyecto,
   updateProyecto,
   deleteProyecto,
@@ -11,16 +11,18 @@ import {
   type ProyectoFormData,
 } from '@/types/proyecto';
 
-export function useProyectos() {
-  const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useProyectos(initialProyectos?: ProyectoConVariaciones[]) {
+  const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>(
+    initialProyectos ?? []
+  );
+  const [loading, setLoading] = useState(!initialProyectos?.length);
   const [error, setError] = useState<string | null>(null);
 
   // Cargar proyectos. Con { silent: true } no se muestra el estado de carga (evita "refresh" al guardar).
   const fetchProyectos = async (opts?: { silent?: boolean }) => {
     try {
       if (!opts?.silent) setLoading(true);
-      const result = await getProyectos();
+      const result = await getProyectosDashboard();
 
       if (!result.success) {
         throw new Error(result.error);
@@ -122,6 +124,11 @@ export function useProyectos() {
   };
 
   useEffect(() => {
+    if (initialProyectos?.length) {
+      setProyectos(initialProyectos);
+      setLoading(false);
+      return;
+    }
     fetchProyectos();
   }, []);
 

@@ -122,10 +122,9 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
         return isNaN(parsed) ? 0 : parsed;
       };
 
-      const objetivosEspecificosData = await Promise.all(
-        objetivosEspecificosRelacionados.map(async (obj) => {
-          const indicadores = await Promise.all(
-            obj.indicadores.map(async (ind) => {
+      const objetivosEspecificosData = objetivosEspecificosRelacionados.map(
+        (obj) => {
+          const indicadores = obj.indicadores.map((ind) => {
               // Recalcular porcentajes basándose en los valores actuales
               const resultadoEsperado = parseValue(ind.resultadoEsperado);
               const resultadoAlcanzado = parseValue(ind.resultadoAlcanzado);
@@ -155,21 +154,7 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                     )
                   : 0;
 
-              // Actualizar en la base de datos si los valores han cambiado
-              if (
-                Math.abs(ind.porcentajeCumplimiento - porcentajeCumplimiento) >
-                  0.01 ||
-                Math.abs(ind.porcentajeAvance - porcentajeAvance) > 0.01
-              ) {
-                await prisma.indicador.update({
-                  where: { id: ind.id },
-                  data: {
-                    porcentajeCumplimiento,
-                    porcentajeAvance,
-                  },
-                });
-              }
-
+              // Calcular porcentajes en memoria (persistir solo en mutaciones explícitas)
               return {
                 id: ind.id,
                 nombre: ind.nombre,
@@ -195,8 +180,7 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                   },
                 },
               };
-            })
-          );
+            });
 
           return {
             id: obj.id,
@@ -204,7 +188,7 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
             orden: obj.orden,
             indicadores,
           };
-        })
+        }
       );
 
       objetivosGeneralesData.push({

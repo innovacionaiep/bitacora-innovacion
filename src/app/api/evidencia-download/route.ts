@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 /**
  * Proxy para descargar PDFs de evidencias con Content-Disposition: attachment.
- * Así el navegador descarga el archivo en lugar de intentar mostrarlo.
+ * Requiere sesión autenticada.
  */
 export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
   const url = request.nextUrl.searchParams.get('url');
   const filename =
     request.nextUrl.searchParams.get('filename') || 'documento.pdf';

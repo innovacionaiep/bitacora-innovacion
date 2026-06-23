@@ -22,15 +22,9 @@ export function useProyectosParaUsuario() {
     silent?: boolean;
     activeRole?: string | null;
   }) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'useProyectosParaUsuario.ts:fetchProyectos',message:'fetchProyectos called',data:{silent:opts?.silent,hasActiveRole:opts?.activeRole!=null},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
     try {
       if (!opts?.silent) setLoading(true);
       const result = await getProyectosListadoParaUsuario(opts?.activeRole);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'useProyectosParaUsuario.ts:after fetch',message:'getProyectosListado result',data:{success:result.success,dataLength:result.data?.length??0,error:result.error??null},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -38,9 +32,6 @@ export function useProyectosParaUsuario() {
       setProyectos(result.data || []);
       setError(null);
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'useProyectosParaUsuario.ts:catch',message:'fetchProyectos error',data:{errMsg:err instanceof Error?err.message:String(err)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       console.error('❌ [useProyectosParaUsuario] Error:', err);
       setError(
         err instanceof Error ? err.message : 'Error al cargar proyectos'

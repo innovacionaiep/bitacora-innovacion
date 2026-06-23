@@ -54,12 +54,6 @@ export type DatosResumenProyecto = {
     }>;
   }>;
   resumenPresupuesto: ResumenPresupuesto;
-  oportunidadesAmenazas: Array<{
-    id: string;
-    tipo: string;
-    nombre: string;
-    planDeAccion: string | null;
-  }>;
   compromisos: Array<{
     id: string;
     titulo: string | null;
@@ -137,7 +131,6 @@ const REPORTE_ICON_NAMES = [
   'target',
   'list-checks',
   'calendar',
-  'lightbulb',
   'list-todo',
   'history',
   'map-pin',
@@ -192,8 +185,6 @@ const LUCIDE_ICONS: Record<string, string> = {
     '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>',
   calendar:
     '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
-  lightbulb:
-    '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
   'list-todo':
     '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><rect x="3" y="4" width="6" height="6" rx="1"/>',
   history:
@@ -495,7 +486,6 @@ export function buildHtmlReporteResumen(
     historial,
     activities,
     resumenPresupuesto,
-    oportunidadesAmenazas,
     compromisos,
   } = datos;
   const baseUrl = options?.baseUrl?.trim() ?? '';
@@ -728,29 +718,6 @@ export function buildHtmlReporteResumen(
   <div style="${cardStyle}">
     <div style="${cardHeaderStyle}"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-right: 8px; vertical-align: middle;">${iconImg('calendar', 20, baseUrl, useCid)}</td><td style="vertical-align: middle;">Seguimiento</td></tr></table></div>
     <div style="${cardContentStyle}">
-      <p style="${subsectionLabelStyle}">${iconImg('lightbulb', 16, baseUrl, useCid)} Oportunidades y amenazas</p>`;
-  if (oportunidadesAmenazas.length === 0) {
-    html += `<p style="font-size: 13px; color: #6b7280; margin: 0 0 12px 0;">No hay oportunidades ni amenazas</p>`;
-  } else {
-    html += `
-    <table style="${tableStyle}; margin-bottom: 12px;">
-      <thead><tr>
-        <th style="${thStyle}">Tipo - Nombre</th>
-        <th style="${thStyle}">Plan de acción</th>
-      </tr></thead>
-      <tbody>`;
-    oportunidadesAmenazas.forEach((oa, idx) => {
-      const abordado = Boolean(oa.planDeAccion?.trim());
-      const rowTd = idx % 2 === 1 ? tdStyleAlt : tdStyle;
-      html += `
-        <tr>
-          <td style="${rowTd}">${escapeHtml(oa.tipo)} - ${escapeHtml(oa.nombre)}</td>
-          <td style="${rowTd}"><span style="padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: ${abordado ? '#dcfce7' : '#fee2e2'}; color: ${abordado ? '#15803d' : '#b91c1c'};">${abordado ? 'Abordado' : 'Pendiente'}</span></td>
-        </tr>`;
-    });
-    html += `</tbody></table>`;
-  }
-  html += `
       <p style="${subsectionLabelStyle}">${iconImg('list-todo', 16, baseUrl, useCid)} Compromisos asignados</p>`;
   if (compromisos.length === 0) {
     html += `<p style="font-size: 13px; color: #6b7280; margin: 0;">No hay compromisos</p>`;

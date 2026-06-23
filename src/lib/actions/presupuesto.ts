@@ -4,86 +4,8 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
 import { createHistorialEntry } from './historial';
-import type { ResumenPresupuesto, ResumenCuenta } from '@/types/presupuesto';
-
-const CUENTAS: CuentaPresupuesto[] = ['RRHH', 'OPERACION', 'INVERSION'];
-
-function computeResumenFromItems(
-  items: Array<{
-    cuenta: CuentaPresupuesto;
-    monto: number;
-    estado: EstadoGastoPresupuesto;
-  }>,
-  presupuestoTotalProyecto: number
-): ResumenPresupuesto {
-  const totalMonto = items.reduce((s, i) => s + i.monto, 0);
-  const totalSolicitado = items
-    .filter(
-      (i) =>
-        i.estado === 'SOLICITADO' ||
-        i.estado === 'EN_PEDIDO' ||
-        i.estado === 'EJECUTADO_OK'
-    )
-    .reduce((s, i) => s + i.monto, 0);
-  const totalEnPedido = items
-    .filter((i) => i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK')
-    .reduce((s, i) => s + i.monto, 0);
-  const totalEjecutado = items
-    .filter((i) => i.estado === 'EJECUTADO_OK')
-    .reduce((s, i) => s + i.monto, 0);
-
-  const techo =
-    presupuestoTotalProyecto > 0 ? presupuestoTotalProyecto : totalMonto || 1;
-  const pctGlobalAvance =
-    techo > 0 ? Math.round((totalEjecutado / techo) * 100) : 0;
-
-  const porCuenta: ResumenCuenta[] = CUENTAS.map((cuenta) => {
-    const filtrados = items.filter((i) => i.cuenta === cuenta);
-    const monto = filtrados.reduce((s, i) => s + i.monto, 0);
-    const montoSolicitado = filtrados
-      .filter(
-        (i) =>
-          i.estado === 'SOLICITADO' ||
-          i.estado === 'EN_PEDIDO' ||
-          i.estado === 'EJECUTADO_OK'
-      )
-      .reduce((s, i) => s + i.monto, 0);
-    const montoEnPedido = filtrados
-      .filter((i) => i.estado === 'EN_PEDIDO' || i.estado === 'EJECUTADO_OK')
-      .reduce((s, i) => s + i.monto, 0);
-    const montoEjecutado = filtrados
-      .filter((i) => i.estado === 'EJECUTADO_OK')
-      .reduce((s, i) => s + i.monto, 0);
-
-    const porcentajePeso = totalMonto > 0 ? (monto / totalMonto) * 100 : 0;
-    const pctSolicitado = monto > 0 ? (montoSolicitado / monto) * 100 : 0;
-    const pctEnPedido = monto > 0 ? (montoEnPedido / monto) * 100 : 0;
-    const pctEjecutado = monto > 0 ? (montoEjecutado / monto) * 100 : 0;
-    const pctTotal = techo > 0 ? (montoEjecutado / techo) * 100 : 0;
-
-    return {
-      cuenta,
-      monto,
-      porcentajePeso,
-      montoSolicitado,
-      montoEnPedido,
-      montoEjecutado,
-      pctSolicitado,
-      pctEnPedido,
-      pctEjecutado,
-      pctTotal,
-    };
-  });
-
-  return {
-    totalMonto,
-    totalSolicitado,
-    totalEnPedido,
-    totalEjecutado,
-    pctGlobalAvance,
-    porCuenta,
-  };
-}
+import { computeResumenPresupuesto } from '@/lib/utils/presupuesto-calculos';
+import type { ResumenPresupuesto } from '@/types/presupuesto';
 
 /**
  * Obtiene el resumen de presupuesto por cuenta para un proyecto (mismo cálculo que el tab Resumen).
@@ -96,13 +18,7 @@ export async function getResumenPresupuestoProyecto(
   error?: string;
 }> {
   try {
-    const [proyecto, presupuestoResult] = await Promise.all([
-      prisma.proyecto.findUnique({
-        where: { id: projectId },
-        select: { presupuestoTotal: true },
-      }),
-      getPresupuestoByProyecto(projectId),
-    ]);
+    const presupuestoResult = await getPresupuestoByProyecto(projectId);
     if (!presupuestoResult.success || !presupuestoResult.data) {
       return {
         success: false,
@@ -114,8 +30,7 @@ export async function getResumenPresupuestoProyecto(
       monto: i.monto,
       estado: i.estado,
     }));
-    const presupuestoTotalProyecto = proyecto?.presupuestoTotal ?? 0;
-    const resumen = computeResumenFromItems(items, presupuestoTotalProyecto);
+    const resumen = computeResumenPresupuesto(items);
     return { success: true, data: resumen };
   } catch (error) {
     console.error('Error getResumenPresupuestoProyecto:', error);

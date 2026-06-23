@@ -53,7 +53,7 @@ import {
   type EvidenciaActividadData,
 } from '@/lib/actions/evidencias-actividad';
 import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
-import KanbanBoard from '@/components/proyectos/KanbanBoard';
+import dynamic from 'next/dynamic';
 import {
   Tooltip,
   TooltipContent,
@@ -63,9 +63,19 @@ import {
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
+import { GanttActivityVirtualList } from '@/components/proyectos/gantt/GanttActivityList';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import { ActivityStatus } from '@prisma/client';
+
+const KanbanBoard = dynamic(() => import('@/components/proyectos/KanbanBoard'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center py-12 text-muted-foreground">
+      Cargando kanban...
+    </div>
+  ),
+});
 import {
   reorderActivitiesKanban,
   toggleActivityValidation,
@@ -78,7 +88,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -115,6 +124,8 @@ interface GanttChartProps {
   coordinadorIds?: string[];
   /** ID del usuario actual (para saber si puede validar) */
   currentUserId?: string;
+  /** Actividades precargadas del proyecto (evita refetch al abrir tab Gantt) */
+  initialActivities?: Activity[];
 }
 
 // Componente para actividad arrastrable
@@ -143,7 +154,7 @@ interface SortableActivityProps {
   formatDateForTooltip: (dateString: string) => string;
 }
 
-function SortableActivity({
+const SortableActivity = memo(function SortableActivity({
   activity,
   expandedDescriptions,
   toggleDescription,
@@ -705,7 +716,7 @@ function SortableActivity({
       </div>
     </div>
   );
-}
+});
 
 export default function GanttChart({
   projectId,
@@ -714,6 +725,7 @@ export default function GanttChart({
   onProjectChange,
   coordinadorIds = [],
   currentUserId,
+  initialActivities,
 }: GanttChartProps) {
   const { data: session } = useSession();
   const canValidateAsCoordinator =
@@ -901,7 +913,7 @@ export default function GanttChart({
     updateActivityStatus,
     loadActivities,
     updateActivitiesState, // ← Agregar
-  } = useGantt(projectId);
+  } = useGantt(projectId, initialActivities);
 
   // Estado derivado para determinar si todas las actividades están expandidas
   const allExpanded =
@@ -1018,12 +1030,6 @@ export default function GanttChart({
           scrollContainerRef.current.offsetWidth -
           scrollContainerRef.current.clientWidth;
 
-        console.log('Scrollbar width calculation:', {
-          offsetWidth: scrollContainerRef.current.offsetWidth,
-          clientWidth: scrollContainerRef.current.clientWidth,
-          scrollbarWidth: scrollbarWidth,
-        });
-
         setScrollbarWidth(scrollbarWidth);
       }
     };
@@ -1043,46 +1049,35 @@ export default function GanttChart({
     };
   }, [activities, expandedDescriptions]);
 
-  // Cargar comentarios cuando se abre el popup de actividad en modo view/edit (actividad existente)
+  // Cargar comentarios y evidencias en paralelo al abrir popup
   useEffect(() => {
     const actividadId = selectedActivityForPopup?.id;
     if (!actividadId || actividadId.startsWith('temp-') || !showActivityPopup) {
       setComentariosActividad([]);
-      return;
-    }
-
-    let isCancelled = false;
-    const cargarComentarios = async () => {
-      setIsLoadingComentariosActividad(true);
-      const result = await getComentariosActividad(actividadId);
-      if (!isCancelled && result.success && result.data) {
-        setComentariosActividad(result.data);
-      }
-      setIsLoadingComentariosActividad(false);
-    };
-    cargarComentarios();
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedActivityForPopup?.id, showActivityPopup]);
-
-  // Cargar evidencias cuando se abre el popup de actividad (actividad existente)
-  useEffect(() => {
-    const actividadId = selectedActivityForPopup?.id;
-    if (!actividadId || actividadId.startsWith('temp-') || !showActivityPopup) {
       setEvidenciasActividad([]);
       return;
     }
+
     let isCancelled = false;
-    const cargarEvidencias = async () => {
+    const cargarDatosPopup = async () => {
+      setIsLoadingComentariosActividad(true);
       setIsLoadingEvidencias(true);
-      const result = await getEvidenciasActividad(actividadId);
-      if (!isCancelled && result.success && result.data) {
-        setEvidenciasActividad(result.data);
+      const [comentariosResult, evidenciasResult] = await Promise.all([
+        getComentariosActividad(actividadId),
+        getEvidenciasActividad(actividadId),
+      ]);
+      if (!isCancelled) {
+        if (comentariosResult.success && comentariosResult.data) {
+          setComentariosActividad(comentariosResult.data);
+        }
+        if (evidenciasResult.success && evidenciasResult.data) {
+          setEvidenciasActividad(evidenciasResult.data);
+        }
+        setIsLoadingComentariosActividad(false);
+        setIsLoadingEvidencias(false);
       }
-      setIsLoadingEvidencias(false);
     };
-    cargarEvidencias();
+    cargarDatosPopup();
     return () => {
       isCancelled = true;
     };
@@ -1132,50 +1127,34 @@ export default function GanttChart({
 
   // Función para convertir fecha del formato chileno (DD/MM/YYYY o DD-MM-YYYY) a ISO (YYYY-MM-DD)
   const convertDateToISO = (dateString: string): string => {
-    console.log('Convirtiendo fecha:', dateString);
-
     if (!dateString) {
-      console.log('Fecha vacía, devolviendo cadena vacía');
       return '';
     }
 
-    // Verificar si ya está en formato ISO (YYYY-MM-DD)
     const isoPattern = /^\d{4}-\d{2}-\d{2}$/;
     if (isoPattern.test(dateString)) {
-      console.log('Ya está en formato ISO:', dateString);
       return dateString;
     }
 
-    // Convertir desde formato DD/MM/YYYY a YYYY-MM-DD
     const slashParts = dateString.split('/');
     if (slashParts.length === 3) {
       const [day, month, year] = slashParts;
-      const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      console.log('Fecha convertida desde DD/MM/YYYY a ISO:', isoDate);
-      return isoDate;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
 
-    // Convertir desde formato DD-MM-YYYY a YYYY-MM-DD
     const dashParts = dateString.split('-');
     if (dashParts.length === 3) {
       const [day, month, year] = dashParts;
       if (day.length <= 2 && month.length <= 2 && year.length === 4) {
-        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        console.log('Fecha convertida desde DD-MM-YYYY a ISO:', isoDate);
-        return isoDate;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       }
     }
 
-    // Si no se puede convertir, intentar parsear como fecha y convertir
-    console.log('Intentando parsear como fecha nativa:', dateString);
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
-      const isoDate = date.toISOString().split('T')[0];
-      console.log('Fecha parseada y convertida a ISO:', isoDate);
-      return isoDate;
+      return date.toISOString().split('T')[0];
     }
 
-    console.error('No se pudo convertir la fecha:', dateString);
     return dateString;
   };
 
@@ -1199,20 +1178,8 @@ export default function GanttChart({
       return;
     }
 
-    console.log('Datos de la tarea antes de convertir:', {
-      name: taskForm.name,
-      startDate: taskForm.startDate,
-      endDate: taskForm.endDate,
-    });
-
     const convertedStartDate = convertDateToISO(taskForm.startDate);
     const convertedEndDate = convertDateToISO(taskForm.endDate);
-
-    console.log('Datos de la tarea después de convertir:', {
-      name: taskForm.name,
-      startDate: convertedStartDate,
-      endDate: convertedEndDate,
-    });
 
     // Si estamos en modo crear actividad o editando, agregar a la lista temporal
     if (activityPopupMode === 'create' || activityPopupMode === 'edit') {
@@ -1255,32 +1222,43 @@ export default function GanttChart({
     }
   };
 
+  const showSuccessMessage = useCallback((message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
   // Toggle completar tarea
-  const handleToggleTaskCompletion = async (taskId: string) => {
-    try {
-      await toggleTaskCompletion(taskId);
-      showSuccessMessage('Tarea actualizada exitosamente');
-    } catch (error) {
-      console.error('Error updating task:', error);
-      showSuccessMessage('Error al actualizar la tarea');
-    }
-  };
+  const handleToggleTaskCompletion = useCallback(
+    async (taskId: string) => {
+      try {
+        await toggleTaskCompletion(taskId);
+        showSuccessMessage('Tarea actualizada exitosamente');
+      } catch (error) {
+        console.error('Error updating task:', error);
+        showSuccessMessage('Error al actualizar la tarea');
+      }
+    },
+    [toggleTaskCompletion, showSuccessMessage]
+  );
 
   // Eliminar actividad
-  const handleDeleteActivity = async (activityId: string) => {
-    if (
-      confirm(
-        '¿Estás seguro de que quieres eliminar esta actividad y todas sus tareas?'
-      )
-    ) {
-      const { error } = await deleteActivity(activityId);
-      if (error) {
-        alert('Error al eliminar la actividad: ' + error);
-      } else {
-        showSuccessMessage('Actividad eliminada exitosamente');
+  const handleDeleteActivity = useCallback(
+    async (activityId: string) => {
+      if (
+        confirm(
+          '¿Estás seguro de que quieres eliminar esta actividad y todas sus tareas?'
+        )
+      ) {
+        const { error } = await deleteActivity(activityId);
+        if (error) {
+          alert('Error al eliminar la actividad: ' + error);
+        } else {
+          showSuccessMessage('Actividad eliminada exitosamente');
+        }
       }
-    }
-  };
+    },
+    [deleteActivity, showSuccessMessage]
+  );
 
   // Eliminar tarea
   const handleDeleteTask = async (taskId: string) => {
@@ -1292,12 +1270,6 @@ export default function GanttChart({
         showSuccessMessage('Tarea eliminada exitosamente');
       }
     }
-  };
-
-  // Mostrar mensaje de éxito
-  const showSuccessMessage = (message: string) => {
-    setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   // Handler para cambiar el status de una actividad en Kanban
@@ -1781,7 +1753,7 @@ export default function GanttChart({
   };
 
   // Toggle descripción de actividad
-  const toggleDescription = (activityId: string) => {
+  const toggleDescription = useCallback((activityId: string) => {
     setExpandedDescriptions((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(activityId)) {
@@ -1791,50 +1763,46 @@ export default function GanttChart({
       }
       return newSet;
     });
-  };
+  }, []);
 
   // Obtener posición de una fecha en el calendario para tareas
-  const getDatePosition = (date: string) => {
-    const dateObj = new Date(date);
-    const year = dateObj.getFullYear();
-    const month = dateObj.getMonth();
-    const day = dateObj.getDate();
+  const getDatePosition = useCallback(
+    (date: string) => {
+      const dateObj = new Date(date);
+      const year = dateObj.getFullYear();
+      const month = dateObj.getMonth();
+      const day = dateObj.getDate();
 
-    const dateOffset = (year - 2025) * 12 + month;
-    const visibleStartOffset = timelineOffset;
-    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
+      const dateOffset = (year - 2025) * 12 + month;
+      const visibleStartOffset = timelineOffset;
+      const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
 
-    if (dateOffset < visibleStartOffset) {
-      return { month: 0, day: 1, left: 0 };
-    } else if (dateOffset > visibleEndOffset) {
-      return { month: visibleMonthsRange - 1, day: 31, left: 100 };
-    }
+      if (dateOffset < visibleStartOffset) {
+        return { month: 0, day: 1, left: 0 };
+      }
+      if (dateOffset > visibleEndOffset) {
+        return { month: visibleMonthsRange - 1, day: 31, left: 100 };
+      }
 
-    const relativeMonth = dateOffset - visibleStartOffset;
-    const monthWidth = 100 / visibleMonthsRange;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dayWidth = monthWidth / daysInMonth;
-    const dayPosition = (day - 1) * dayWidth;
-    const leftPosition = relativeMonth * monthWidth + dayPosition;
-    const clampedLeft = Math.max(0, Math.min(100, leftPosition));
+      const relativeMonth = dateOffset - visibleStartOffset;
+      const monthWidth = 100 / visibleMonthsRange;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dayWidth = monthWidth / daysInMonth;
+      const dayPosition = (day - 1) * dayWidth;
+      const leftPosition = relativeMonth * monthWidth + dayPosition;
+      const clampedLeft = Math.max(0, Math.min(100, leftPosition));
 
-    return {
-      month: month,
-      day: day,
-      left: clampedLeft,
-    };
-  };
-
-  // Obtener duración en días
-  const getDuration = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  };
+      return {
+        month,
+        day,
+        left: clampedLeft,
+      };
+    },
+    [timelineOffset, visibleMonthsRange]
+  );
 
   // Formatear fecha para mostrar en tooltip
-  const formatDateForTooltip = (dateString: string) => {
+  const formatDateForTooltip = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, '0');
     const month = date
@@ -1842,75 +1810,78 @@ export default function GanttChart({
       .toLowerCase();
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
-  };
+  }, []);
 
   // Función para abrir el popup unificado en diferentes modos
-  const openActivityPopup = (
-    mode: 'create' | 'edit' | 'view',
-    activity?: Activity
-  ) => {
-    setActivityPopupMode(mode);
-    setSelectedActivityForPopup(activity || null);
+  const openActivityPopup = useCallback(
+    (mode: 'create' | 'edit' | 'view', activity?: Activity) => {
+      setActivityPopupMode(mode);
+      setSelectedActivityForPopup(activity || null);
 
-    if (mode === 'create') {
-      setUnifiedActivityForm({ name: '', description: '' });
-      setTempTasks([]);
-    } else if (activity) {
-      setUnifiedActivityForm({
-        name: activity.name,
-        description: activity.description || '',
-      });
-      setTempTasks(mode === 'edit' ? [] : activity.tasks || []);
-    }
+      if (mode === 'create') {
+        setUnifiedActivityForm({ name: '', description: '' });
+        setTempTasks([]);
+      } else if (activity) {
+        setUnifiedActivityForm({
+          name: activity.name,
+          description: activity.description || '',
+        });
+        setTempTasks(mode === 'edit' ? [] : activity.tasks || []);
+      }
 
-    setShowActivityPopup(true);
-  };
+      setShowActivityPopup(true);
+    },
+    []
+  );
 
-  // Manejar el clic en la barra de actividad para mostrar popup
-  const handleActivityBarClick = (activity: Activity) => {
-    openActivityPopup('view', activity);
-  };
+  const handleActivityBarClick = useCallback(
+    (activity: Activity) => {
+      openActivityPopup('view', activity);
+    },
+    [openActivityPopup]
+  );
 
-  // Función unificada para manejar tanto clicks como toques
-  const handleActivityInteraction = (
-    activity: Activity,
-    event: React.MouseEvent | React.TouchEvent | React.PointerEvent,
-    isDragging: boolean
-  ) => {
-    if (isDragging) {
-      return;
-    }
+  const handleActivityInteraction = useCallback(
+    (
+      activity: Activity,
+      event: React.MouseEvent | React.TouchEvent | React.PointerEvent,
+      isDragging: boolean
+    ) => {
+      if (isDragging) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openActivityPopup('view', activity);
+    },
+    [openActivityPopup]
+  );
 
-    event.preventDefault();
-    event.stopPropagation();
-    handleActivityBarClick(activity);
-  };
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
 
-  // Manejar el final del drag and drop
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
+      if (over && active.id !== over.id) {
+        const oldIndex = activities.findIndex(
+          (activity) => activity.id === active.id
+        );
+        const newIndex = activities.findIndex(
+          (activity) => activity.id === over.id
+        );
 
-    if (over && active.id !== over.id) {
-      const oldIndex = activities.findIndex(
-        (activity) => activity.id === active.id
-      );
-      const newIndex = activities.findIndex(
-        (activity) => activity.id === over.id
-      );
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const result = await reorderActivities(oldIndex, newIndex);
-        if (result?.success) {
-          showSuccessMessage('Actividades reordenadas exitosamente');
-        } else {
-          showSuccessMessage('Error al reordenar las actividades');
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const result = await reorderActivities(oldIndex, newIndex);
+          if (result?.success) {
+            showSuccessMessage('Actividades reordenadas exitosamente');
+          } else {
+            showSuccessMessage('Error al reordenar las actividades');
+          }
         }
       }
-    }
-  };
+    },
+    [activities, reorderActivities, showSuccessMessage]
+  );
 
   // Calcular el rango de fechas de una actividad basado en sus tareas
-  const getActivityDateRange = (activity: Activity) => {
+  const getActivityDateRange = useCallback((activity: Activity) => {
     if (!activity.tasks || activity.tasks.length === 0) {
       return null;
     }
@@ -1927,10 +1898,10 @@ export default function GanttChart({
       startDate: firstTask.startDate,
       endDate: lastTask.endDate,
     };
-  };
+  }, []);
 
   // Calcular el progreso de una actividad basado en tareas completadas
-  const getActivityProgress = (activity: Activity) => {
+  const getActivityProgress = useCallback((activity: Activity) => {
     if (!activity.tasks || activity.tasks.length === 0) {
       return 0;
     }
@@ -1941,10 +1912,11 @@ export default function GanttChart({
     const totalTasks = activity.tasks.length;
 
     return Math.round((completedTasks / totalTasks) * 100);
-  };
+  }, []);
 
   // Obtener ancho de la barra basado en la duración para tareas
-  const getBarWidth = (startDate: string, endDate: string) => {
+  const getBarWidth = useCallback(
+    (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -1969,7 +1941,9 @@ export default function GanttChart({
     }
 
     return Math.max(1, width);
-  };
+    },
+    [getDatePosition, timelineOffset, visibleMonthsRange]
+  );
 
   // Obtener posición del día de hoy
   const getTodayPosition = () => {
@@ -1988,14 +1962,6 @@ export default function GanttChart({
 
     const leftPosition = targetMonth * monthWidth + currentDay * dayWidth;
 
-    console.log('Today position calculation:', {
-      currentYear,
-      currentMonth,
-      currentDay,
-      targetMonth,
-      leftPosition: `${leftPosition}%`,
-    });
-
     return {
       month: targetMonth,
       day: currentDay,
@@ -2004,7 +1970,7 @@ export default function GanttChart({
   };
 
   // Obtener posición en porcentaje para la línea roja
-  const getTodayPositionPercent = () => {
+  const todayPositionPercent = useMemo(() => {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
@@ -2024,23 +1990,9 @@ export default function GanttChart({
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const dayWidth = monthWidth / daysInMonth;
     const dayPosition = (currentDay - 1) * dayWidth;
-    const leftPercent = monthStartPosition + dayPosition;
 
-    console.log('Cálculo directo por columna:', {
-      año: currentYear,
-      mes: currentMonth,
-      día: currentDay,
-      mesObjetivo: relativeMonth,
-      díasEnMes: daysInMonth,
-      posiciónMes: `${monthStartPosition.toFixed(2)}%`,
-      anchoDía: `${dayWidth.toFixed(2)}%`,
-      posiciónDía: `${dayPosition.toFixed(2)}%`,
-      posiciónFinal: `${leftPercent.toFixed(2)}%`,
-      columna: MONTHS[relativeMonth],
-    });
-
-    return leftPercent;
-  };
+    return monthStartPosition + dayPosition;
+  }, [timelineOffset, visibleMonthsRange]);
 
   if (ganttError) {
     return (
@@ -2330,11 +2282,11 @@ export default function GanttChart({
                           ))}
 
                           {/* Indicador de "Hoy" */}
-                          {getTodayPositionPercent() >= 0 && (
+                          {todayPositionPercent >= 0 && (
                             <div
                               className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
                               style={{
-                                left: `${getTodayPositionPercent()}%`,
+                                left: `${todayPositionPercent}%`,
                                 transform: 'translateX(-45%) translateY(50%)',
                                 width: '14px',
                                 height: '14px',
@@ -2344,11 +2296,11 @@ export default function GanttChart({
                           )}
 
                           {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
-                          {getTodayPositionPercent() >= 0 && (
+                          {todayPositionPercent >= 0 && (
                             <div
                               className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
                               style={{
-                                left: `${getTodayPositionPercent()}%`,
+                                left: `${todayPositionPercent}%`,
                                 top: '100%',
                                 height: isFullscreen
                                   ? 'calc(100vh - 230px + 5px)'
@@ -2415,11 +2367,6 @@ export default function GanttChart({
                             <DndContext
                               sensors={sensors}
                               collisionDetection={closestCenter}
-                              measuring={{
-                                droppable: {
-                                  strategy: MeasuringStrategy.Always,
-                                },
-                              }}
                               onDragEnd={handleDragEnd}
                             >
                               <SortableContext
@@ -2428,30 +2375,44 @@ export default function GanttChart({
                                 )}
                                 strategy={verticalListSortingStrategy}
                               >
-                                {activities.map((activity) => (
-                                  <SortableActivity
-                                    key={activity.id}
-                                    activity={activity}
-                                    expandedDescriptions={expandedDescriptions}
-                                    toggleDescription={toggleDescription}
-                                    handleActivityBarClick={
-                                      handleActivityBarClick
-                                    }
-                                    handleActivityInteraction={
-                                      handleActivityInteraction
-                                    }
-                                    handleDeleteActivity={handleDeleteActivity}
-                                    handleToggleTaskCompletion={
-                                      handleToggleTaskCompletion
-                                    }
-                                    getActivityDateRange={getActivityDateRange}
-                                    getActivityProgress={getActivityProgress}
-                                    getDatePosition={getDatePosition}
-                                    getBarWidth={getBarWidth}
-                                    formatDateForTooltip={formatDateForTooltip}
-                                    scrollbarWidth={scrollbarWidth}
-                                  />
-                                ))}
+                                <GanttActivityVirtualList
+                                  activities={activities}
+                                  expandedDescriptions={expandedDescriptions}
+                                  scrollContainerRef={scrollContainerRef}
+                                  renderActivityRow={(activity) => (
+                                    <SortableActivity
+                                      activity={activity}
+                                      expandedDescriptions={
+                                        expandedDescriptions
+                                      }
+                                      toggleDescription={toggleDescription}
+                                      handleActivityBarClick={
+                                        handleActivityBarClick
+                                      }
+                                      handleActivityInteraction={
+                                        handleActivityInteraction
+                                      }
+                                      handleDeleteActivity={
+                                        handleDeleteActivity
+                                      }
+                                      handleToggleTaskCompletion={
+                                        handleToggleTaskCompletion
+                                      }
+                                      getActivityDateRange={
+                                        getActivityDateRange
+                                      }
+                                      getActivityProgress={
+                                        getActivityProgress
+                                      }
+                                      getDatePosition={getDatePosition}
+                                      getBarWidth={getBarWidth}
+                                      formatDateForTooltip={
+                                        formatDateForTooltip
+                                      }
+                                      scrollbarWidth={scrollbarWidth}
+                                    />
+                                  )}
+                                />
                               </SortableContext>
 
                               {/* Footer para marcar el fin de las actividades */}

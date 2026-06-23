@@ -400,15 +400,6 @@ export function PresupuestoCard({
   const baseTotal = resumenPorCuenta.totalMonto || 1;
   const totalPesoPct =
     baseTotal > 0 ? (resumenPorCuenta.totalMonto / baseTotal) * 100 : 0;
-  const n = resumenPorCuenta.porCuenta.length || 1;
-  const avgPctSolicitado =
-    resumenPorCuenta.porCuenta.reduce((s, r) => s + r.pctSolicitado, 0) / n;
-  const avgPctEnPedido =
-    resumenPorCuenta.porCuenta.reduce((s, r) => s + r.pctEnPedido, 0) / n;
-  const avgPctEjecutado =
-    resumenPorCuenta.porCuenta.reduce((s, r) => s + r.pctEjecutado, 0) / n;
-  const avgPctAvanceCuenta =
-    resumenPorCuenta.porCuenta.reduce((s, r) => s + r.pctTotal, 0) / n;
 
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
@@ -591,24 +582,6 @@ export function PresupuestoCard({
                       color: TABLE_HEADER_TEXT,
                     }}
                   >
-                    % En Pedido
-                  </TableHead>
-                  <TableHead
-                    className="font-semibold border-r border-gray-200"
-                    style={{
-                      backgroundColor: TABLE_HEADER_BG,
-                      color: TABLE_HEADER_TEXT,
-                    }}
-                  >
-                    Monto En Pedido
-                  </TableHead>
-                  <TableHead
-                    className="font-semibold"
-                    style={{
-                      backgroundColor: TABLE_HEADER_BG,
-                      color: TABLE_HEADER_TEXT,
-                    }}
-                  >
                     % Ejecutado
                   </TableHead>
                   <TableHead
@@ -627,7 +600,7 @@ export function PresupuestoCard({
                       color: TABLE_HEADER_TEXT,
                     }}
                   >
-                    % Avance Cuenta
+                    Saldo
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -653,19 +626,13 @@ export function PresupuestoCard({
                       ${row.montoSolicitado.toLocaleString('es-CL')}
                     </TableCell>
                     <TableCell>
-                      <DataBar pct={row.pctEnPedido} />
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums border-r border-gray-200">
-                      ${row.montoEnPedido.toLocaleString('es-CL')}
-                    </TableCell>
-                    <TableCell>
                       <DataBar pct={row.pctEjecutado} />
                     </TableCell>
                     <TableCell className="text-center tabular-nums border-r border-gray-200">
                       ${row.montoEjecutado.toLocaleString('es-CL')}
                     </TableCell>
-                    <TableCell>
-                      <DataBar pct={row.pctTotal} />
+                    <TableCell className="text-center tabular-nums">
+                      ${row.saldo.toLocaleString('es-CL')}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -678,25 +645,25 @@ export function PresupuestoCard({
                     ${resumenPorCuenta.totalMonto.toLocaleString('es-CL')}
                   </TableCell>
                   <TableCell>
-                    <DataBar pct={avgPctSolicitado} darkTrack />
+                    <DataBar
+                      pct={resumenPorCuenta.pctTotalSolicitado}
+                      darkTrack
+                    />
                   </TableCell>
                   <TableCell className="text-center tabular-nums border-r border-white">
                     ${resumenPorCuenta.totalSolicitado.toLocaleString('es-CL')}
                   </TableCell>
                   <TableCell>
-                    <DataBar pct={avgPctEnPedido} darkTrack />
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums border-r border-white">
-                    ${resumenPorCuenta.totalEnPedido.toLocaleString('es-CL')}
-                  </TableCell>
-                  <TableCell>
-                    <DataBar pct={avgPctEjecutado} darkTrack />
+                    <DataBar
+                      pct={resumenPorCuenta.pctTotalEjecutado}
+                      darkTrack
+                    />
                   </TableCell>
                   <TableCell className="text-center tabular-nums border-r border-white">
                     ${resumenPorCuenta.totalEjecutado.toLocaleString('es-CL')}
                   </TableCell>
-                  <TableCell>
-                    <DataBar pct={avgPctAvanceCuenta} darkTrack />
+                  <TableCell className="text-center tabular-nums">
+                    ${resumenPorCuenta.totalSaldo.toLocaleString('es-CL')}
                   </TableCell>
                 </TableRow>
               </TableBody>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,6 +189,7 @@ export default function ConfiguracionValidacionPage() {
     setUploadingCarrerasXlsx(true);
     setError(null);
     try {
+      const XLSX = await import('xlsx');
       const data = new Uint8Array(await file.arrayBuffer());
       const wb = XLSX.read(data, { type: 'array' });
       const firstSheet = wb.SheetNames[0];

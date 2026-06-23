@@ -2,6 +2,8 @@
 
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
+import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
 
 /**
  * Obtener los roles para los que el usuario tiene al menos un proyecto (roles con proyectos vigentes).
@@ -363,4 +365,46 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
       data: null,
     };
   }
+}
+
+export type InicioInitialData = {
+  rolesVigentes: string[];
+  role: string | null;
+  proyectos: Awaited<ReturnType<typeof getProyectosDelUsuarioConRol>>['data'];
+  alertas: Awaited<ReturnType<typeof getAlertasPortalUsuario>>['data'];
+  compromisos: Awaited<
+    ReturnType<typeof getCompromisosPendientesParaUsuario>
+  >['data'];
+  historial: Awaited<ReturnType<typeof getHistorialRecienteParaUsuario>>['data'];
+};
+
+/**
+ * Carga inicial del portal de inicio en el servidor (SSR).
+ */
+export async function getInicioInitialData(
+  activeRole: string | null
+): Promise<InicioInitialData | null> {
+  const user = await getCurrentUser();
+  if (!user?.id) return null;
+
+  const rolesRes = await getRolesConProyectosVigentes();
+  const rolesVigentes = rolesRes.success && rolesRes.data ? rolesRes.data : [];
+  const role = activeRole ?? rolesVigentes[0] ?? null;
+
+  const [proyectosRes, alertasRes, compromisosRes, historialRes] =
+    await Promise.all([
+      getProyectosDelUsuarioConRol(role),
+      getAlertasPortalUsuario(role),
+      getCompromisosPendientesParaUsuario(role),
+      getHistorialRecienteParaUsuario(role, 10),
+    ]);
+
+  return {
+    rolesVigentes,
+    role,
+    proyectos: proyectosRes.success ? proyectosRes.data ?? [] : [],
+    alertas: alertasRes.success ? alertasRes.data : null,
+    compromisos: compromisosRes.success ? compromisosRes.data ?? [] : [],
+    historial: historialRes.success ? historialRes.data ?? [] : [],
+  };
 }

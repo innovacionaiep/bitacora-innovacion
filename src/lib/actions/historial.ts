@@ -4,7 +4,6 @@ import type { Prisma } from '@prisma/client';
 import { parse } from 'date-fns';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { revalidatePath } from 'next/cache';
 
 export interface HistorialEntryData {
   proyectoId: string;
@@ -47,7 +46,6 @@ export async function createHistorialEntry(data: HistorialEntryData) {
       },
     });
 
-    revalidatePath('/proyectos');
     return {
       success: true,
       data: historialEntry,
@@ -124,7 +122,7 @@ export async function getHistorialProyecto(
 
     const historial = await prisma.historialProyecto.findMany({
       where,
-      ...(limit != null && { take: limit }),
+      take: limit ?? 50,
       include: {
         user: {
           select: {

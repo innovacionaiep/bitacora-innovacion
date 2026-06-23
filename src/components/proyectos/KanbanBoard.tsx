@@ -12,7 +12,7 @@ import {
   Plus,
   Check,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Activity } from '@/hooks/useGantt';
 import {
   DndContext,
@@ -149,7 +149,7 @@ interface ActivityCardProps {
   onActivityTitleClick?: (activity: Activity) => void;
 }
 
-function DraggableActivityCard({
+const DraggableActivityCard = memo(function DraggableActivityCard({
   activity,
   isExpanded,
   onToggleExpand,
@@ -418,7 +418,7 @@ function DraggableActivityCard({
       </Card>
     </div>
   );
-}
+});
 
 // Componente principal del tablero Kanban
 export default function KanbanBoard({
@@ -453,12 +453,20 @@ export default function KanbanBoard({
     return optimisticActivities || activities;
   }, [optimisticActivities, activities]);
 
-  // Agrupar actividades por status y ordenar por kanbanOrderIndex
-  const getActivitiesByStatus = (status: KanbanStatus) => {
-    return currentActivities
-      .filter((activity) => (activity.status || ActivityStatus.TODO) === status)
-      .sort((a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0));
-  };
+  // Agrupar actividades por status (una sola pasada por render)
+  const activitiesByStatus = useMemo(() => {
+    const grouped = {} as Record<KanbanStatus, Activity[]>;
+    for (const column of KANBAN_COLUMNS) {
+      grouped[column.id] = currentActivities
+        .filter(
+          (activity) => (activity.status || ActivityStatus.TODO) === column.id
+        )
+        .sort(
+          (a, b) => (a.kanbanOrderIndex || 0) - (b.kanbanOrderIndex || 0)
+        );
+    }
+    return grouped;
+  }, [currentActivities]);
 
   // Toggle expandir/colapsar actividad
   const toggleExpand = (activityId: string) => {
@@ -667,7 +675,7 @@ export default function KanbanBoard({
           <KanbanColumn
             key={column.id}
             column={column}
-            activities={getActivitiesByStatus(column.id)}
+            activities={activitiesByStatus[column.id]}
             expandedActivities={expandedActivities}
             onToggleExpand={toggleExpand}
             onToggleTaskCompletion={onToggleTaskCompletion}

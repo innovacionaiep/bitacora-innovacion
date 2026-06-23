@@ -13,7 +13,6 @@ import {
   Target,
   DollarSign,
   Calendar,
-  Lightbulb,
   ListTodo,
   History,
   Loader2,
@@ -33,7 +32,6 @@ import { useGantt } from '@/hooks/useGantt';
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { usePresupuesto } from '@/hooks/usePresupuesto';
 import {
-  getOportunidadesAmenazasProyecto,
   getCompromisosProyecto,
 } from '@/lib/actions/seguimiento';
 import { getHistorialProyecto } from '@/lib/actions/historial';
@@ -78,14 +76,19 @@ interface ResumenProyectoCardProps {
   projectId: string;
   project: ProyectoWithRelations;
   presupuestoTotal?: number;
+  initialActivities?: ProyectoWithRelations['activities'];
 }
 
 export function ResumenProyectoCard({
   projectId,
   project,
   presupuestoTotal = 0,
+  initialActivities,
 }: ResumenProyectoCardProps) {
-  const { activities, loading: loadingGantt } = useGantt(projectId);
+  const { activities, loading: loadingGantt } = useGantt(
+    projectId,
+    initialActivities ?? null
+  );
   const { data: dataIndicadores, calculateOverallProgress } =
     useIndicadores(projectId);
   const { resumenPorCuenta, loading: loadingPresupuesto } = usePresupuesto(
@@ -93,9 +96,6 @@ export function ResumenProyectoCard({
     presupuestoTotal
   );
 
-  const [oportunidadesAmenazas, setOportunidadesAmenazas] = useState<
-    Awaited<ReturnType<typeof getOportunidadesAmenazasProyecto>>['data']
-  >([]);
   const [compromisos, setCompromisos] = useState<
     Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
   >([]);
@@ -109,13 +109,11 @@ export function ResumenProyectoCard({
     let cancelled = false;
     setLoadingSeguimiento(true);
     void Promise.all([
-      getOportunidadesAmenazasProyecto(projectId),
       getCompromisosProyecto(projectId),
       getHistorialProyecto(projectId, undefined, 10),
     ])
-      .then(([oaRes, cRes, hRes]) => {
+      .then(([cRes, hRes]) => {
         if (cancelled) return;
-        if (oaRes.success && oaRes.data) setOportunidadesAmenazas(oaRes.data);
         if (cRes.success && cRes.data) setCompromisos(cRes.data);
         if (hRes.success && hRes.data) setHistorial(hRes.data);
       })
@@ -613,7 +611,7 @@ export function ResumenProyectoCard({
               </CardContent>
             </Card>
 
-            {/* 6. Seguimiento (Oportunidades y amenazas, Compromisos) */}
+            {/* 6. Seguimiento (Compromisos) */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden w-full">
               <div className="bg-gradient-to-r from-gray-200 to-white px-3 py-2 flex items-center space-x-2.5 border-b border-gray-200">
                 <Calendar className="h-5 w-5 text-emerald-600" />
@@ -627,62 +625,11 @@ export function ResumenProyectoCard({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : (
-                  <>
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Lightbulb className="h-4 w-4 text-emerald-600" />
-                        Oportunidades y amenazas
-                      </h4>
-                      {oportunidadesAmenazas.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">
-                          No hay oportunidades ni amenazas
-                        </p>
-                      ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-gray-100">
-                                <TableHead className="font-semibold">
-                                  Tipo - Nombre
-                                </TableHead>
-                                <TableHead className="font-semibold">
-                                  Plan de acción
-                                </TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {oportunidadesAmenazas.map((oa) => {
-                                const abordado = Boolean(
-                                  oa.planDeAccion?.trim()
-                                );
-                                return (
-                                  <TableRow
-                                    key={oa.id}
-                                    className="odd:bg-gray-50/50"
-                                  >
-                                    <TableCell className="text-sm">
-                                      {oa.tipo} - {oa.nombre}
-                                    </TableCell>
-                                    <TableCell>
-                                      <span
-                                        className={`text-sm font-medium ${abordado ? 'text-green-600 bg-green-100 px-2 py-0.5 rounded' : 'text-red-600 bg-red-100 px-2 py-0.5 rounded'}`}
-                                      >
-                                        {abordado ? 'Abordado' : 'Pendiente'}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <ListTodo className="h-4 w-4 text-emerald-600" />
-                        Compromisos asignados
-                      </h4>
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <ListTodo className="h-4 w-4 text-emerald-600" />
+                      Compromisos asignados
+                    </h4>
                       {compromisos.length === 0 ? (
                         <p className="text-sm text-gray-500 py-2">
                           No hay compromisos
@@ -721,7 +668,6 @@ export function ResumenProyectoCard({
                         </ul>
                       )}
                     </div>
-                  </>
                 )}
               </CardContent>
             </Card>

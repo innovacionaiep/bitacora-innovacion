@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
 }
 
 // NextAuth.js Models
@@ -71,9 +72,6 @@ model User {
   postComments  PostComment[]   @relation("PostComments")
   commentLikes  CommentLike[]   @relation("CommentLikes")
   eventoAsistencias EventoAsistente[] @relation("EventoAsistencias")
-
-  // Oportunidades/amenazas donde dio OK coordinador
-  oportunidadesAmenazasOkPor OportunidadAmenaza[] @relation("OportunidadAmenazaOkPor")
 
   // Actividades validadas por este coordinador
   actividadesValidadasPor Activity[] @relation("ActivityValidadoPor")
@@ -161,7 +159,6 @@ model Proyecto {
 
   // Módulo de Seguimiento
   compromisos            CompromisoProyecto[]
-  oportunidadesAmenazas  OportunidadAmenaza[]
   itemsPresupuesto       ItemPresupuesto[]
 
   @@map("proyectos")
@@ -199,6 +196,7 @@ model ItemPresupuesto {
   proyecciones ProyeccionPresupuesto[]
   comentarios  ComentarioItemPresupuesto[]
 
+  @@index([proyectoId])
   @@map("items_presupuesto")
 }
 
@@ -237,6 +235,7 @@ model ProyectoParticipante {
   escuela          Escuela?         @relation(fields: [escuelaId], references: [id], onDelete: SetNull)
 
   @@unique([proyectoId, userId, rol])
+  @@index([userId, rol])
   @@map("proyecto_participantes")
 }
 
@@ -371,6 +370,7 @@ model ObjetivoProyecto {
   proyecto    Proyecto    @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
   indicadores Indicador[]
 
+  @@index([proyectoId])
   @@map("objetivos_proyecto")
 }
 
@@ -402,6 +402,7 @@ model Activity {
   evidencias             EvidenciaActividad[]
   validadoPorCoordinadorPor User?       @relation("ActivityValidadoPor", fields: [validadoPorCoordinadorId], references: [id], onDelete: SetNull)
 
+  @@index([projectId])
   @@map("activities")
 }
 
@@ -419,6 +420,7 @@ model Task {
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
+  @@index([activityId])
   @@map("tasks")
 }
 
@@ -509,6 +511,7 @@ model Indicador {
   evidencias        EvidenciaIndicador[]
   validadoPorCoordinadorPor User? @relation("IndicadorValidadoPor", fields: [validadoPorCoordinadorId], references: [id], onDelete: SetNull)
 
+  @@index([proyectoId])
   @@map("indicadores")
 }
 
@@ -608,6 +611,7 @@ model HistorialProyecto {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([proyectoId])
+  @@index([proyectoId, fecha(sort: Desc)])
   @@index([userId])
   @@map("historial_proyecto")
 }
@@ -632,27 +636,6 @@ model SnapshotMensualProyecto {
 // ========================
 // MÓDULO DE SEGUIMIENTO
 // ========================
-
-model OportunidadAmenaza {
-  id                      String   @id @default(cuid())
-  proyectoId              String   @map("proyecto_id")
-  tipo                    String   // 'Oportunidad' | 'Amenaza'
-  nombre                  String   @default("") // Nombre/título de la oportunidad o amenaza
-  descripcion             String   @db.Text
-  planDeAccion            String?  @db.Text @map("plan_de_accion")
-  okCoordinador           Boolean  @default(false) @map("ok_coordinador")
-  okCoordinadorPorId      String?  @map("ok_coordinador_por_id")
-  okCoordinadorPorRolActivo String? @map("ok_coordinador_por_rol_activo")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
-
-  proyecto         Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  okCoordinadorPor User?    @relation("OportunidadAmenazaOkPor", fields: [okCoordinadorPorId], references: [id], onDelete: SetNull)
-
-  @@index([proyectoId])
-  @@index([okCoordinadorPorId])
-  @@map("oportunidades_amenazas")
-}
 
 model CompromisoProyecto {
   id                     String    @id @default(cuid())

@@ -1,6 +1,7 @@
 import type { Viewport } from 'next';
 import '@/app/globals.css';
 import { SessionProvider } from '@/components/SessionProvider';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 import { DesktopScaleCompensate } from '@/components/DesktopScaleCompensate';
 
@@ -28,9 +29,11 @@ export default function RootLayout({
     <html lang="es" className="h-full overflow-hidden">
       <body className="bg-background text-foreground h-full min-h-0 overflow-hidden">
         <SessionProvider>
-          <DesktopScaleCompensate>
-            <ConditionalLayout>{children}</ConditionalLayout>
-          </DesktopScaleCompensate>
+          <QueryProvider>
+            <DesktopScaleCompensate>
+              <ConditionalLayout>{children}</ConditionalLayout>
+            </DesktopScaleCompensate>
+          </QueryProvider>
         </SessionProvider>
       </body>
     </html>

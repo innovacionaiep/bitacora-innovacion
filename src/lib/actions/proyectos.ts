@@ -171,6 +171,67 @@ async function _getProyectosFromDB(whereIds?: string[]) {
 }
 
 /**
+ * Consulta optimizada para dashboard: incluye activities/tasks y relaciones
+ * necesarias para gráficos, sin desarrollo técnico ni datos irrelevantes.
+ */
+async function _getProyectosDashboardFromDB(whereIds?: string[]) {
+  const { mesAnterior, anioMesAnterior } = getMesAnteriorInfo();
+
+  const proyectos = await prisma.proyecto.findMany({
+    ...(whereIds && whereIds.length > 0 && { where: { id: { in: whereIds } } }),
+    include: {
+      activities: {
+        include: {
+          tasks: {
+            select: {
+              id: true,
+              startDate: true,
+              endDate: true,
+              progress: true,
+              completed: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+        orderBy: { orderIndex: 'asc' },
+      },
+      participantes_rel: {
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+          sede: { select: { id: true, nombre: true } },
+          escuela: { select: { id: true, nombre: true } },
+        },
+      },
+      escuelas: { include: { escuela: true } },
+      carreras: { include: { carrera: true } },
+      comunas: { include: { comuna: true } },
+      gruposInteres: { include: { grupoInteres: true } },
+      snapshotsMensuales: {
+        where: { mes: mesAnterior, anio: anioMesAnterior },
+        take: 1,
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return proyectos.map((proyecto) => {
+    const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
+    const variacionGantt = snapshotMesAnterior
+      ? proyecto.avanceGantt - snapshotMesAnterior.avanceGantt
+      : 0;
+    const variacionObjetivos = snapshotMesAnterior
+      ? proyecto.objetivos - snapshotMesAnterior.objetivos
+      : 0;
+    const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
+    return {
+      ...proyectoSinSnapshots,
+      variacionGantt,
+      variacionObjetivos,
+    } as ProyectoConVariaciones;
+  });
+}
+
+/**
  * Obtener todos los proyectos con relaciones y variaciones mensuales
  * Con caché de 30 segundos para mejorar rendimiento
  */
@@ -178,7 +239,7 @@ export async function getProyectos() {
   try {
     console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
 
-    // Usar caché con revalidación cada 30 segundos
+    // Caché global solo para listado Admin (getProyectos). Dashboard usa getProyectosDashboard sin caché compartida.
     const cachedGetProyectos = unstable_cache(
       async () => {
         return await _getProyectosFromDB();
@@ -199,6 +260,28 @@ export async function getProyectos() {
     return { success: true, data: proyectosConVariaciones };
   } catch (error) {
     console.error('❌ [getProyectos] Error:', error);
+    return { success: false, error: 'Error al obtener proyectos' };
+  }
+}
+
+/**
+ * Proyectos optimizados para el dashboard (sin grafo completo innecesario).
+ */
+export async function getProyectosDashboard() {
+  try {
+    const cachedGetProyectosDashboard = unstable_cache(
+      async () => _getProyectosDashboardFromDB(),
+      ['proyectos-dashboard-list'],
+      {
+        revalidate: 45,
+        tags: ['proyectos-dashboard'],
+      }
+    );
+
+    const proyectosConVariaciones = await cachedGetProyectosDashboard();
+    return { success: true, data: proyectosConVariaciones };
+  } catch (error) {
+    console.error('❌ [getProyectosDashboard] Error:', error);
     return { success: false, error: 'Error al obtener proyectos' };
   }
 }
@@ -270,9 +353,6 @@ export async function getProyectosListadoParaUsuario(
     const user = await getCurrentUser();
     const activeRole =
       activeRoleOverride ?? (user as { activeRole?: string | null })?.activeRole ?? null;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:getProyectosListadoParaUsuario',message:'user and role',data:{userId:user?.id??null,activeRole,hasUser:!!user?.id},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
@@ -287,16 +367,10 @@ export async function getProyectosListadoParaUsuario(
         },
         orderBy: { createdAt: 'desc' },
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch admin',message:'returning admin list',data:{branch:'admin',dataLength:proyectos.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       return { success: true, data: proyectos as ProyectoListadoItem[] };
     }
 
     if (!activeRole) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch noRole',message:'returning empty no role',data:{branch:'noRole'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       return { success: true, data: [] };
     }
 
@@ -321,9 +395,6 @@ export async function getProyectosListadoParaUsuario(
     const proyectoIds = participaciones.map((p) => p.proyectoId);
 
     if (proyectoIds.length === 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch noParticipaciones',message:'returning empty no participaciones',data:{branch:'noParticipaciones',activeRole},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       return { success: true, data: [] };
     }
 
@@ -337,35 +408,42 @@ export async function getProyectosListadoParaUsuario(
       },
       orderBy: { createdAt: 'desc' },
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:branch byParticipaciones',message:'returning by participaciones',data:{branch:'byParticipaciones',dataLength:proyectos.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     return { success: true, data: proyectos as ProyectoListadoItem[] };
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a0611d6-0a52-4fa2-aee7-9788c3ae6e26',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f044e2'},body:JSON.stringify({sessionId:'f044e2',location:'proyectos.ts:catch',message:'getProyectosListado error',data:{errMsg:error instanceof Error?error.message:String(error)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     console.error('❌ [getProyectosListadoParaUsuario] Error:', error);
     return { success: false, error: 'Error al obtener listado', data: [] };
   }
 }
 
+export type GetProyectoOptions = {
+  /** Si false, omite activities/tasks (carga más rápida al seleccionar proyecto). */
+  includeActivities?: boolean;
+};
+
 /**
  * Obtener un proyecto por ID con todas las relaciones
  */
-export async function getProyecto(id: string) {
+export async function getProyecto(
+  id: string,
+  options: GetProyectoOptions = {}
+) {
+  const { includeActivities = true } = options;
   try {
     const proyecto = await prisma.proyecto.findUnique({
       where: { id },
       include: {
-        activities: {
-          include: {
-            tasks: true,
-          },
-          orderBy: {
-            orderIndex: 'asc',
-          },
-        },
+        ...(includeActivities
+          ? {
+              activities: {
+                include: {
+                  tasks: true,
+                },
+                orderBy: {
+                  orderIndex: 'asc',
+                },
+              },
+            }
+          : {}),
         participantes_rel: {
           include: {
             user: true,
@@ -586,6 +664,7 @@ export async function createProyecto(data: CreateProyectoInput) {
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error creating proyecto:', error);
@@ -757,6 +836,7 @@ export async function createProyectoCompleto(
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     const full = await getProyecto(proyectoId);
     return full.success && full.data
       ? { success: true, data: full.data as ProyectoWithRelations }
@@ -802,6 +882,7 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     revalidatePath(`/gantt`);
     return { success: true, data: proyecto };
   } catch (error) {
@@ -1264,6 +1345,7 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
 
     const [ytRow] = await prisma.$queryRaw<{ youtube_url: string | null }[]>`
       SELECT youtube_url FROM proyectos WHERE id = ${data.proyectoId}
@@ -1322,6 +1404,7 @@ export async function createObjetivoEspecifico(
     });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -1344,6 +1427,7 @@ export async function deleteProyecto(id: string) {
 
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true };
   } catch (error) {
     console.error('Error deleting proyecto:', error);
@@ -1432,6 +1516,7 @@ export async function addParticipanteProyecto(
     });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error adding participante:', error);
@@ -1519,6 +1604,7 @@ export async function updateParticipanteProyecto(
     });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error updating participante:', error);
@@ -1554,6 +1640,7 @@ export async function deleteParticipanteProyecto(participanteId: string) {
     });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true, data: proyecto as ProyectoWithRelations };
   } catch (error) {
     console.error('Error deleting participante:', error);

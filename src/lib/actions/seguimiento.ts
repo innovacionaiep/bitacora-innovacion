@@ -98,7 +98,6 @@ export async function addCompromiso(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
     return { success: true, data: compromiso };
   } catch (error) {
     console.error('Error al agregar compromiso:', error);
@@ -176,7 +175,6 @@ export async function updateCompromiso(
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar compromiso:', error);
@@ -234,7 +232,6 @@ export async function toggleCompromiso(compromisoId: string) {
         : 'Compromiso completado',
     });
 
-    revalidatePath('/proyectos');
     revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
@@ -300,208 +297,12 @@ export async function toggleValidacionCompromiso(compromisoId: string) {
     });
 
     revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al validar compromiso:', error);
     return {
       success: false,
       error: 'Error al validar compromiso',
-      data: null,
-    };
-  }
-}
-
-// ========================
-// Oportunidades y Amenazas (nivel proyecto)
-// ========================
-
-export async function getOportunidadesAmenazasProyecto(proyectoId: string) {
-  try {
-    const items = await prisma.oportunidadAmenaza.findMany({
-      where: { proyectoId },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        okCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-    return { success: true, data: items };
-  } catch (error) {
-    console.error('Error al obtener oportunidades/amenazas:', error);
-    return {
-      success: false,
-      error: 'Error al obtener oportunidades y amenazas',
-      data: [],
-    };
-  }
-}
-
-export async function createOportunidadAmenaza(
-  proyectoId: string,
-  tipo: 'Oportunidad' | 'Amenaza',
-  nombre: string,
-  descripcion: string
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'Usuario no autenticado', data: null };
-    }
-
-    const rol = await getRolUsuarioEnProyecto(user.id, proyectoId);
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeCrear = rol === 'Coordinador' || activeRole === 'Admin';
-    if (!puedeCrear) {
-      return {
-        success: false,
-        error:
-          'Solo el coordinador o un admin pueden agregar oportunidades o amenazas',
-        data: null,
-      };
-    }
-
-    const item = await prisma.oportunidadAmenaza.create({
-      data: { proyectoId, tipo, nombre: nombre.trim() || '', descripcion },
-    });
-
-    await createHistorialEntry({
-      proyectoId,
-      accion: 'Crear',
-      tabProyecto: 'Seguimiento',
-      elementoEspecifico: `${tipo}: ${(nombre || descripcion).substring(0, 50)}`,
-      cambioGenerado: descripcion,
-    });
-
-    revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
-    return { success: true, data: item };
-  } catch (error) {
-    console.error('Error al crear oportunidad/amenaza:', error);
-    return {
-      success: false,
-      error: 'Error al crear oportunidad o amenaza',
-      data: null,
-    };
-  }
-}
-
-export async function updatePlanDeAccionOportunidadAmenaza(
-  id: string,
-  planDeAccion: string | null
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'Usuario no autenticado', data: null };
-    }
-
-    const item = await prisma.oportunidadAmenaza.findUnique({
-      where: { id },
-      select: { proyectoId: true, descripcion: true, planDeAccion: true },
-    });
-    if (!item) {
-      return { success: false, error: 'No encontrado', data: null };
-    }
-
-    const rol = await getRolUsuarioEnProyecto(user.id, item.proyectoId);
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeEditar = rol === 'Encargado' || activeRole === 'Admin';
-    if (!puedeEditar) {
-      return {
-        success: false,
-        error: 'Solo encargados o admin pueden editar el plan de acción',
-        data: null,
-      };
-    }
-
-    const updated = await prisma.oportunidadAmenaza.update({
-      where: { id },
-      data: { planDeAccion: planDeAccion ?? null },
-    });
-
-    await createHistorialEntry({
-      proyectoId: item.proyectoId,
-      accion: 'Plan de acción',
-      tabProyecto: 'Seguimiento',
-      elementoEspecifico: item.descripcion?.substring(0, 50) ?? 'Oportunidad/Amenaza',
-      cambioGenerado: planDeAccion
-        ? (item.planDeAccion ? 'Plan de acción actualizado' : 'Plan de acción generado')
-        : 'Plan de acción eliminado',
-    });
-
-    revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error('Error al actualizar plan de acción:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar plan de acción',
-      data: null,
-    };
-  }
-}
-
-export async function toggleOkCoordinadorOportunidadAmenaza(id: string) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'Usuario no autenticado', data: null };
-    }
-
-    const item = await prisma.oportunidadAmenaza.findUnique({
-      where: { id },
-      select: { proyectoId: true, okCoordinador: true, descripcion: true },
-    });
-    if (!item) {
-      return { success: false, error: 'No encontrado', data: null };
-    }
-
-    const rol = await getRolUsuarioEnProyecto(
-      user.id,
-      item.proyectoId,
-      (user as { email?: string | null }).email
-    );
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeMarcarOk = rol === 'Coordinador' || activeRole === 'Admin';
-    if (!puedeMarcarOk) {
-      return {
-        success: false,
-        error: 'Solo el coordinador o un admin pueden marcar Ok',
-        data: null,
-      };
-    }
-
-    const nuevoOk = !item.okCoordinador;
-    const updated = await prisma.oportunidadAmenaza.update({
-      where: { id },
-      data: {
-        okCoordinador: nuevoOk,
-        okCoordinadorPorId: nuevoOk ? user.id : null,
-        okCoordinadorPorRolActivo: nuevoOk ? (activeRole ?? null) : null,
-      },
-    });
-
-    await createHistorialEntry({
-      proyectoId: item.proyectoId,
-      accion: nuevoOk ? 'Validar plan (Ok coordinador)' : 'Quitar validación plan',
-      tabProyecto: 'Seguimiento',
-      elementoEspecifico: item.descripcion?.substring(0, 50) ?? 'Oportunidad/Amenaza',
-      cambioGenerado: nuevoOk
-        ? 'Coordinador marcó Ok (plan de acción validado)'
-        : 'Validación Ok del coordinador quitada',
-    });
-
-    revalidatePath('/proyectos');
-    revalidatePath('/proyectos');
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error('Error al marcar Ok coordinador:', error);
-    return {
-      success: false,
-      error: 'Error al marcar Ok',
       data: null,
     };
   }

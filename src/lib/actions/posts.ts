@@ -632,6 +632,7 @@ export async function createPost(data: CreatePostData) {
 
     revalidatePath('/novedades');
     revalidateTag('posts');
+    revalidateTag('discovery');
 
     return {
       success: true,
@@ -686,6 +687,7 @@ export async function deletePost(postId: string) {
 
     revalidatePath('/novedades');
     revalidateTag('posts');
+    revalidateTag('discovery');
 
     return {
       success: true,
@@ -785,6 +787,7 @@ export async function toggleEventoAsistencia(postId: string) {
 
     revalidatePath('/novedades');
     revalidateTag('posts');
+    revalidateTag('discovery');
     return { success: true, data: { isAsistiendo, asistentesCount } };
   } catch (error) {
     console.error('Error toggling asistencia evento:', error);
@@ -1046,6 +1049,7 @@ export async function setPostReaction(
         await prisma.postLike.delete({ where: { id: existing.id } });
         revalidatePath('/novedades');
         revalidateTag('posts');
+    revalidateTag('discovery');
         return {
           success: true,
           reaction: null as 'Recomendar' | 'Celebrar' | 'Encantar' | null,
@@ -1064,6 +1068,7 @@ export async function setPostReaction(
 
     revalidatePath('/novedades');
     revalidateTag('posts');
+    revalidateTag('discovery');
     return {
       success: true,
       reaction: reactionType,

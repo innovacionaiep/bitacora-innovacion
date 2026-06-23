@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getActivities,
   createActivity,
@@ -11,8 +11,6 @@ import {
   reorderActivities,
   calculateProjectProgress,
   updateActivityStatus as updateActivityStatusAction,
-  type ActivityData,
-  type TaskData,
   type ActivityWithTasks,
 } from '@/lib/actions/gantt';
 import { ActivityStatus } from '@prisma/client';
@@ -32,42 +30,32 @@ export type Task = {
 
 export type Activity = ActivityWithTasks;
 
-export function useGantt(projectId: string | null) {
-  const [activities, setActivities] = useState<Activity[]>([]);
+function computeActivityProgress(tasks: Activity['tasks']): number {
+  if (tasks.length === 0) return 0;
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  return Math.round((completedTasks / tasks.length) * 100);
+}
+
+export function useGantt(
+  projectId: string | null,
+  initialActivities?: Activity[] | null
+) {
+  const [activities, setActivities] = useState<Activity[]>(
+    initialActivities ?? []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [togglingTasks, setTogglingTasks] = useState<Set<string>>(new Set());
   const loadingRef = useRef(false);
 
-  // Color para actividades
   const ACTIVITY_COLORS = ['bg-gray-700'];
 
-  // Helper function para calcular progreso localmente
-  const updateActivityProgressLocally = (
-    activityId: string,
-    activities: Activity[]
-  ) => {
-    return activities.map((activity) => {
-      if (activity.id === activityId) {
-        const completedTasks = activity.tasks.filter((t) => t.completed).length;
-        const progress =
-          activity.tasks.length > 0
-            ? Math.round((completedTasks / activity.tasks.length) * 100)
-            : 0;
-        return { ...activity, progress };
-      }
-      return activity;
-    });
-  };
-
-  // Cargar actividades del proyecto
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!projectId) {
       setActivities([]);
       return;
     }
 
-    // Prevenir múltiples cargas simultáneas
     if (loadingRef.current) return;
     loadingRef.current = true;
 
@@ -91,16 +79,14 @@ export function useGantt(projectId: string | null) {
       setLoading(false);
       loadingRef.current = false;
     }
-  };
+  }, [projectId]);
 
-  // Crear nueva actividad
   const createActivityHandler = async (activityData: {
     name: string;
     description: string;
   }) => {
     if (!projectId) throw new Error('No hay proyecto seleccionado');
 
-    setLoading(true);
     setError(null);
 
     try {
@@ -114,7 +100,7 @@ export function useGantt(projectId: string | null) {
         progress: 0,
         orderIndex,
         kanbanOrderIndex: orderIndex,
-        status: 'TODO', // Valor por defecto para el Kanban
+        status: 'TODO',
       });
 
       if (!result.success) {
@@ -132,17 +118,13 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al crear la actividad';
       setError(errorMessage);
       return { data: null, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Actualizar actividad
   const updateActivityHandler = async (
     activityId: string,
     updates: Partial<Activity>
   ) => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -166,14 +148,10 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al actualizar la actividad';
       setError(errorMessage);
       return { data: null, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Eliminar actividad
   const deleteActivityHandler = async (activityId: string) => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -192,12 +170,9 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al eliminar la actividad';
       setError(errorMessage);
       return { error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Crear nueva tarea
   const createTaskHandler = async (
     activityId: string,
     taskData: {
@@ -207,7 +182,6 @@ export function useGantt(projectId: string | null) {
       endDate: string;
     }
   ) => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -225,8 +199,19 @@ export function useGantt(projectId: string | null) {
         throw new Error(result.error);
       }
 
-      // Recargar actividades para obtener el progreso actualizado
-      await loadActivities();
+      if (result.data) {
+        setActivities((prev) =>
+          prev.map((activity) => {
+            if (activity.id !== activityId) return activity;
+            const tasks = [...activity.tasks, result.data!];
+            return {
+              ...activity,
+              tasks,
+              progress: computeActivityProgress(tasks),
+            };
+          })
+        );
+      }
 
       return { data: result.data, error: null };
     } catch (err) {
@@ -234,14 +219,10 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al crear la tarea';
       setError(errorMessage);
       return { data: null, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Actualizar tarea
   const updateTaskHandler = async (taskId: string, updates: Partial<Task>) => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -251,8 +232,22 @@ export function useGantt(projectId: string | null) {
         throw new Error(result.error);
       }
 
-      // Recargar actividades para obtener el progreso actualizado
-      await loadActivities();
+      if (result.data) {
+        setActivities((prev) =>
+          prev.map((activity) => {
+            const taskIndex = activity.tasks.findIndex((t) => t.id === taskId);
+            if (taskIndex === -1) return activity;
+            const tasks = activity.tasks.map((t) =>
+              t.id === taskId ? { ...t, ...result.data! } : t
+            );
+            return {
+              ...activity,
+              tasks,
+              progress: computeActivityProgress(tasks),
+            };
+          })
+        );
+      }
 
       return { data: result.data, error: null };
     } catch (err) {
@@ -260,14 +255,10 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al actualizar la tarea';
       setError(errorMessage);
       return { data: null, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Eliminar tarea
   const deleteTaskHandler = async (taskId: string) => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -277,8 +268,17 @@ export function useGantt(projectId: string | null) {
         throw new Error(result.error);
       }
 
-      // Recargar actividades para obtener el progreso actualizado
-      await loadActivities();
+      setActivities((prev) =>
+        prev.map((activity) => {
+          const tasks = activity.tasks.filter((t) => t.id !== taskId);
+          if (tasks.length === activity.tasks.length) return activity;
+          return {
+            ...activity,
+            tasks,
+            progress: computeActivityProgress(tasks),
+          };
+        })
+      );
 
       return { error: null };
     } catch (err) {
@@ -286,24 +286,17 @@ export function useGantt(projectId: string | null) {
         err instanceof Error ? err.message : 'Error al eliminar la tarea';
       setError(errorMessage);
       return { error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Toggle completar tarea (actualización optimista pura)
   const toggleTaskCompletionHandler = async (taskId: string) => {
-    // Prevenir doble toggles mientras hay una operación en progreso
     if (togglingTasks.has(taskId)) {
       return;
     }
 
-    // Marcar esta tarea como en proceso de toggle
     setTogglingTasks((prev) => new Set(prev).add(taskId));
 
-    // Actualización optimista del estado local con cálculo de progreso
     const prevActivities = activities;
-    let activityId: string | null = null;
 
     setActivities((prev) =>
       prev.map((activity) => {
@@ -311,7 +304,6 @@ export function useGantt(projectId: string | null) {
           ...activity,
           tasks: activity.tasks.map((task) => {
             if (task.id === taskId) {
-              activityId = activity.id;
               return {
                 ...task,
                 completed: !task.completed,
@@ -322,21 +314,13 @@ export function useGantt(projectId: string | null) {
           }),
         };
 
-        // Calcular progreso localmente si esta actividad fue modificada
-        if (activityId === activity.id) {
-          const completedTasks = updatedActivity.tasks.filter(
-            (t) => t.completed
-          ).length;
-          const progress =
-            updatedActivity.tasks.length > 0
-              ? Math.round(
-                  (completedTasks / updatedActivity.tasks.length) * 100
-                )
-              : 0;
-          return { ...updatedActivity, progress };
-        }
+        const hasTask = activity.tasks.some((t) => t.id === taskId);
+        if (!hasTask) return activity;
 
-        return updatedActivity;
+        return {
+          ...updatedActivity,
+          progress: computeActivityProgress(updatedActivity.tasks),
+        };
       })
     );
 
@@ -344,19 +328,15 @@ export function useGantt(projectId: string | null) {
       const result = await toggleTaskCompletionAction(taskId);
 
       if (!result.success) {
-        // Rollback en caso de error
         setActivities(prevActivities);
         setError(result.error || 'Error al actualizar la tarea');
       }
-      // NO recargar datos - confiar en la actualización optimista
     } catch (err) {
-      // Rollback en caso de error
       setActivities(prevActivities);
       setError(
         err instanceof Error ? err.message : 'Error al actualizar la tarea'
       );
     } finally {
-      // Limpiar el estado de toggle en progreso
       setTogglingTasks((prev) => {
         const newSet = new Set(prev);
         newSet.delete(taskId);
@@ -365,16 +345,10 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Calcular progreso de una actividad
   const calculateActivityProgress = (activity: Activity): number => {
-    if (activity.tasks.length === 0) return 0;
-    const completedTasks = activity.tasks.filter(
-      (task) => task.completed
-    ).length;
-    return Math.round((completedTasks / activity.tasks.length) * 100);
+    return computeActivityProgress(activity.tasks);
   };
 
-  // Actualizar progreso de una actividad
   const updateActivityProgress = async (activityId: string) => {
     const activity = activities.find((a) => a.id === activityId);
     if (!activity) return;
@@ -386,7 +360,6 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Calcular progreso general del proyecto
   const calculateProjectProgressHandler = (): number => {
     if (activities.length === 0) return 0;
     const totalProgress = activities.reduce(
@@ -396,19 +369,15 @@ export function useGantt(projectId: string | null) {
     return Math.round(totalProgress / activities.length);
   };
 
-  // Actualizar el avance del proyecto en la base de datos
-  const updateProjectProgress = async (projectId: string, progress: number) => {
-    // Esta función ya no es necesaria porque las server actions actualizan automáticamente
+  const updateProjectProgress = async (_projectId: string, progress: number) => {
     console.log(`Project progress: ${progress}%`);
   };
 
-  // Sincronizar progreso de todas las actividades
   const syncAllActivitiesProgress = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Recargar todas las actividades
       await loadActivities();
       return { success: true, error: null };
     } catch (err) {
@@ -421,26 +390,21 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Reordenar actividades
   const reorderActivitiesHandler = async (
     startIndex: number,
     endIndex: number
   ) => {
     if (startIndex === endIndex) return;
 
-    setLoading(true);
     setError(null);
 
     try {
-      // Actualización optimista del estado local
       const reorderedActivities = [...activities];
       const [movedActivity] = reorderedActivities.splice(startIndex, 1);
       reorderedActivities.splice(endIndex, 0, movedActivity);
 
-      // Actualizar el estado local inmediatamente para mejor UX
       setActivities(reorderedActivities);
 
-      // Preparar actualizaciones
       const updates = reorderedActivities.map((activity, index) => ({
         id: activity.id,
         orderIndex: index,
@@ -449,7 +413,6 @@ export function useGantt(projectId: string | null) {
       const result = await reorderActivities(updates);
 
       if (!result.success) {
-        // Recargar en caso de error
         await loadActivities();
         throw new Error(result.error);
       }
@@ -462,17 +425,13 @@ export function useGantt(projectId: string | null) {
           : 'Error al reordenar las actividades';
       setError(errorMessage);
       return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Actualizar status de una actividad
   const updateActivityStatusHandler = async (
     activityId: string,
     status: ActivityStatus
   ) => {
-    // Actualización optimista del estado local
     const prevActivities = activities;
     setActivities((prev) =>
       prev.map((activity) =>
@@ -484,7 +443,6 @@ export function useGantt(projectId: string | null) {
       const result = await updateActivityStatusAction(activityId, status);
 
       if (!result.success) {
-        // Rollback en caso de error
         setActivities(prevActivities);
         setError(result.error || 'Error al actualizar el status');
         return { success: false, error: result.error };
@@ -492,7 +450,6 @@ export function useGantt(projectId: string | null) {
 
       return { success: true, data: result.data };
     } catch (err) {
-      // Rollback en caso de error
       setActivities(prevActivities);
       const errorMessage =
         err instanceof Error ? err.message : 'Error al actualizar el status';
@@ -501,17 +458,33 @@ export function useGantt(projectId: string | null) {
     }
   };
 
-  // Función para actualizar el estado local de actividades
   const updateActivitiesState = (
     updater: (activities: Activity[]) => Activity[]
   ) => {
     setActivities(updater);
   };
 
-  // Cargar actividades cuando cambie el proyecto
+  const prevProjectIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    loadActivities();
-  }, [projectId]);
+    if (!projectId) {
+      setActivities([]);
+      prevProjectIdRef.current = null;
+      return;
+    }
+
+    const projectChanged = prevProjectIdRef.current !== projectId;
+    prevProjectIdRef.current = projectId;
+
+    if (initialActivities != null) {
+      setActivities(initialActivities);
+      return;
+    }
+
+    if (projectChanged) {
+      loadActivities();
+    }
+  }, [projectId, initialActivities, loadActivities]);
 
   return {
     activities,
@@ -530,6 +503,6 @@ export function useGantt(projectId: string | null) {
     loadActivities,
     reorderActivities: reorderActivitiesHandler,
     updateActivityStatus: updateActivityStatusHandler,
-    updateActivitiesState, // ← Nueva función
+    updateActivitiesState,
   };
 }
