@@ -4,7 +4,12 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
 import { createHistorialEntry } from './historial';
-import { computeResumenPresupuesto, isDeltaPresupuestoItem } from '@/lib/utils/presupuesto-calculos';
+import {
+  computeDeltaSaldo,
+  computeResumenPresupuesto,
+  isDeltaPresupuestoItem,
+  mergeDeltaEnResumen,
+} from '@/lib/utils/presupuesto-calculos';
 import type { ResumenPresupuesto } from '@/types/presupuesto';
 
 /**
@@ -25,14 +30,24 @@ export async function getResumenPresupuestoProyecto(
         error: presupuestoResult.error ?? 'Error al cargar presupuesto',
       };
     }
-    const items = presupuestoResult.data.items
-      .filter((i) => !isDeltaPresupuestoItem(i))
-      .map((i) => ({
-        cuenta: i.cuenta,
-        monto: i.monto,
-        estado: i.estado,
-      }));
-    const resumen = computeResumenPresupuesto(items);
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: projectId },
+      select: { presupuestoAdjudicado: true },
+    });
+    const presupuestoAdjudicado = proyecto?.presupuestoAdjudicado ?? 0;
+
+    const itemsGasto = presupuestoResult.data.items.filter(
+      (i) => !isDeltaPresupuestoItem(i)
+    );
+    const items = itemsGasto.map((i) => ({
+      cuenta: i.cuenta,
+      monto: i.monto,
+      estado: i.estado,
+      item: i.item,
+    }));
+    const resumenBase = computeResumenPresupuesto(items);
+    const delta = computeDeltaSaldo(presupuestoAdjudicado, itemsGasto);
+    const resumen = mergeDeltaEnResumen(resumenBase, delta);
     return { success: true, data: resumen };
   } catch (error) {
     console.error('Error getResumenPresupuestoProyecto:', error);

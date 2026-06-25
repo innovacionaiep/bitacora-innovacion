@@ -640,6 +640,17 @@ export function buildHtmlReporteResumen(
           <td style="${rowTd}; text-align: right;">$${row.montoEjecutado.toLocaleString('es-CL')}</td>
         </tr>`;
   });
+  const presupuestoAdjudicado = proyecto.presupuestoAdjudicado ?? 0;
+  if (presupuestoAdjudicado > 0) {
+    html += `
+        <tr style="background: #ecfdf5;">
+          <td style="${tdStyle}; font-weight: 600;">Presupuesto adjudicado</td>
+          <td style="${tdStyle}; text-align: right; font-weight: 600;">$${presupuestoAdjudicado.toLocaleString('es-CL')}</td>
+          <td style="${tdStyle}; text-align: right; color: #9ca3af;">—</td>
+          <td style="${tdStyle}; text-align: right; color: #9ca3af;">—</td>
+          <td style="${tdStyle}; text-align: right; color: #9ca3af;">—</td>
+        </tr>`;
+  }
   html += `
         <tr style="background: #f3f4f6;">
           <td style="${tdStyle}; font-weight: 600;">TOTALES</td>

@@ -32,6 +32,10 @@ import { useGantt } from '@/hooks/useGantt';
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { usePresupuesto } from '@/hooks/usePresupuesto';
 import {
+  computeDeltaSaldo,
+  mergeDeltaEnResumen,
+} from '@/lib/utils/presupuesto-calculos';
+import {
   getCompromisosProyecto,
 } from '@/lib/actions/seguimiento';
 import { getHistorialProyecto } from '@/lib/actions/historial';
@@ -76,6 +80,7 @@ interface ResumenProyectoCardProps {
   projectId: string;
   project: ProyectoWithRelations;
   presupuestoTotal?: number;
+  presupuestoAdjudicado?: number;
   initialActivities?: ProyectoWithRelations['activities'];
 }
 
@@ -83,6 +88,7 @@ export function ResumenProyectoCard({
   projectId,
   project,
   presupuestoTotal = 0,
+  presupuestoAdjudicado = 0,
   initialActivities,
 }: ResumenProyectoCardProps) {
   const { activities, loading: loadingGantt } = useGantt(
@@ -91,10 +97,14 @@ export function ResumenProyectoCard({
   );
   const { data: dataIndicadores, calculateOverallProgress } =
     useIndicadores(projectId);
-  const { resumenPorCuenta, loading: loadingPresupuesto } = usePresupuesto(
+  const { items, resumenPorCuenta, loading: loadingPresupuesto } = usePresupuesto(
     projectId,
     presupuestoTotal
   );
+  const resumenPresupuesto = useMemo(() => {
+    const delta = computeDeltaSaldo(presupuestoAdjudicado, items);
+    return mergeDeltaEnResumen(resumenPorCuenta, delta);
+  }, [presupuestoAdjudicado, items, resumenPorCuenta]);
 
   const [compromisos, setCompromisos] = useState<
     Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
@@ -135,7 +145,7 @@ export function ResumenProyectoCard({
     () => calculateOverallProgress(),
     [dataIndicadores, calculateOverallProgress]
   );
-  const pctPresupuesto = resumenPorCuenta.pctGlobalAvance ?? 0;
+  const pctPresupuesto = resumenPresupuesto.pctGlobalAvance ?? 0;
   const barChartData = useMemo(
     () => [
       { label: 'Actividades', value: pctActividades, color: '#10b981' },
@@ -399,7 +409,18 @@ export function ResumenProyectoCard({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : (
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="space-y-3">
+                    {presupuestoAdjudicado > 0 && (
+                      <div className="flex items-center justify-between gap-4 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <span className="text-sm font-medium text-emerald-800">
+                          Presupuesto adjudicado
+                        </span>
+                        <span className="text-sm font-bold text-emerald-900 tabular-nums">
+                          ${presupuestoAdjudicado.toLocaleString('es-CL')}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-100">
@@ -413,15 +434,12 @@ export function ResumenProyectoCard({
                             Solicitado
                           </TableHead>
                           <TableHead className="font-semibold text-right">
-                            En pedido
-                          </TableHead>
-                          <TableHead className="font-semibold text-right">
                             Ejecutado
                           </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {resumenPorCuenta.porCuenta?.map((row) => (
+                        {resumenPresupuesto.porCuenta?.map((row) => (
                           <TableRow
                             key={row.cuenta}
                             className="odd:bg-gray-50/50"
@@ -436,9 +454,6 @@ export function ResumenProyectoCard({
                               ${row.montoSolicitado.toLocaleString('es-CL')}
                             </TableCell>
                             <TableCell className="text-right text-sm tabular-nums">
-                              ${row.montoEnPedido.toLocaleString('es-CL')}
-                            </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums">
                               ${row.montoEjecutado.toLocaleString('es-CL')}
                             </TableCell>
                           </TableRow>
@@ -447,31 +462,26 @@ export function ResumenProyectoCard({
                           <TableCell className="text-sm">TOTALES</TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
-                            {(resumenPorCuenta.totalMonto ?? 0).toLocaleString(
+                            {(resumenPresupuesto.totalMonto ?? 0).toLocaleString(
                               'es-CL'
                             )}
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
                             {(
-                              resumenPorCuenta.totalSolicitado ?? 0
+                              resumenPresupuesto.totalSolicitado ?? 0
                             ).toLocaleString('es-CL')}
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
                             {(
-                              resumenPorCuenta.totalEnPedido ?? 0
-                            ).toLocaleString('es-CL')}
-                          </TableCell>
-                          <TableCell className="text-right text-sm tabular-nums">
-                            $
-                            {(
-                              resumenPorCuenta.totalEjecutado ?? 0
+                              resumenPresupuesto.totalEjecutado ?? 0
                             ).toLocaleString('es-CL')}
                           </TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
+                    </div>
                   </div>
                 )}
               </CardContent>

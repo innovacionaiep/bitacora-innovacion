@@ -80,6 +80,7 @@ export function ResumenTab({
         projectId={project.id}
         project={project}
         presupuestoTotal={project.presupuestoTotal ?? 0}
+        presupuestoAdjudicado={project.presupuestoAdjudicado ?? 0}
         initialActivities={project.activities}
       />
     </div>
