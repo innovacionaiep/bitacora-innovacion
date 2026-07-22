@@ -45,6 +45,7 @@ async function resolveRolesForUsers(
 
   const rolesByUser = new Map<string, string[]>();
   for (const p of participaciones) {
+    if (!p.userId) continue;
     const list = rolesByUser.get(p.userId) ?? [];
     list.push(p.rol);
     rolesByUser.set(p.userId, list);
