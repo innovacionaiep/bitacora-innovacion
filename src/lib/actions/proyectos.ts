@@ -4,8 +4,8 @@ import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { createHistorialEntry, createHistorialEntriesBatch } from './historial';
 import { getCurrentUser, getSession } from '@/lib/auth-utils';
+import { roleHasPermission } from '@/lib/permissions/check';
 import {
-  Proyecto,
   Escuela,
   Carrera,
   Asignatura,
@@ -18,21 +18,17 @@ import {
   ProyectoFormPayload,
   ProyectoWithRelations,
   CatalogoResponse,
+  type ProyectoConVariaciones,
+  type ProyectoData,
+  type ProyectoListadoItem,
 } from '@/types/proyecto';
 import { createActivity, createTask } from '@/lib/actions/gantt';
 import { createIndicador } from '@/lib/actions/indicadores';
 import { createItemPresupuesto } from '@/lib/actions/presupuesto';
 import { getMesAnteriorInfo } from '@/lib/utils/fecha';
+import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 
-export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
-
-// Tipo extendido para proyectos con variaciones
-export type ProyectoConVariaciones = ProyectoWithRelations & {
-  variacionGantt: number;
-  variacionObjetivos: number;
-};
-
-export type GeneralTabUpdateData = {
+type GeneralTabUpdateData = {
   proyectoId: string;
   proyecto?: string;
   fondo?: string;
@@ -179,6 +175,7 @@ async function _getProyectosFromDB(whereIds?: string[]) {
         ...proyectoSinSnapshots,
         variacionGantt,
         variacionObjetivos,
+        avancePresupuesto: 0,
       } as ProyectoConVariaciones;
     }
   );
@@ -214,6 +211,9 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
       participantes_rel: {
         include: {
           user: { select: { id: true, name: true, email: true, image: true } },
+          socioComunitario: {
+            select: { id: true, nombre: true, descripcion: true },
+          },
           sede: { select: { id: true, nombre: true } },
           escuela: { select: { id: true, nombre: true } },
           carrera: { select: { id: true, nombre: true } },
@@ -225,6 +225,13 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
       asignaturas: { include: { asignatura: true } },
       comunas: { include: { comuna: true } },
       gruposInteres: { include: { grupoInteres: true } },
+      sociosComunitarios: {
+        include: {
+          socioComunitario: {
+            select: { id: true, nombre: true, descripcion: true },
+          },
+        },
+      },
       snapshotsMensuales: {
         where: { mes: mesAnterior, anio: anioMesAnterior },
         take: 1,
@@ -232,6 +239,31 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
     },
     orderBy: { createdAt: 'desc' },
   });
+
+  const proyectoIds = proyectos.map((p) => p.id);
+  const itemsPresupuesto =
+    proyectoIds.length > 0
+      ? await prisma.itemPresupuesto.findMany({
+          where: { proyectoId: { in: proyectoIds } },
+          select: {
+            proyectoId: true,
+            cuenta: true,
+            monto: true,
+            estado: true,
+            item: true,
+          },
+        })
+      : [];
+
+  const itemsByProyecto = new Map<
+    string,
+    Array<(typeof itemsPresupuesto)[number]>
+  >();
+  for (const item of itemsPresupuesto) {
+    const list = itemsByProyecto.get(item.proyectoId) ?? [];
+    list.push(item);
+    itemsByProyecto.set(item.proyectoId, list);
+  }
 
   return proyectos.map((proyecto) => {
     const snapshotMesAnterior = proyecto.snapshotsMensuales[0];
@@ -241,11 +273,16 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
     const variacionObjetivos = snapshotMesAnterior
       ? proyecto.objetivos - snapshotMesAnterior.objetivos
       : 0;
+    const avancePresupuesto = computeAvancePresupuestoPct(
+      itemsByProyecto.get(proyecto.id) ?? [],
+      proyecto.presupuestoAdjudicado ?? 0
+    );
     const { snapshotsMensuales, ...proyectoSinSnapshots } = proyecto;
     return {
       ...proyectoSinSnapshots,
       variacionGantt,
       variacionObjetivos,
+      avancePresupuesto,
     } as ProyectoConVariaciones;
   });
 }
@@ -307,8 +344,8 @@ export async function getProyectosDashboard() {
 
 /**
  * Obtener proyectos filtrados por usuario y rol activo.
- * - Admin: ven todos los proyectos.
- * - Otros roles: solo proyectos donde participan con ese rol en ProyectoParticipante.
+ * - projects.view_all (Admin por defecto): ven todos los proyectos.
+ * - Otros: solo proyectos donde participan con ese rol (userId o email).
  * @param activeRoleOverride - Rol a usar en lugar del de la sesión (evita esperar sync al cambiar rol)
  */
 export async function getProyectosParaUsuarioPorRolActivo(
@@ -323,9 +360,8 @@ export async function getProyectosParaUsuarioPorRolActivo(
     const activeRole =
       activeRoleOverride ?? (user as { activeRole?: string | null }).activeRole ?? null;
 
-    // Solo Admin ve todos los proyectos. Coordinadores, Encargados y demás roles
-    // solo ven proyectos donde participan con ese rol en ProyectoParticipante.
-    if (activeRole === 'Admin') {
+    const canViewAll = await roleHasPermission(activeRole, 'projects.view_all');
+    if (canViewAll) {
       const result = await _getProyectosFromDB();
       return { success: true, data: result };
     }
@@ -335,11 +371,24 @@ export async function getProyectosParaUsuarioPorRolActivo(
       return { success: true, data: [] };
     }
 
+    const userEmail = (user as { email?: string | null }).email ?? null;
     const participaciones = await prisma.proyectoParticipante.findMany({
-      where: { userId: user.id, rol: activeRole },
+      where: {
+        rol: activeRole,
+        OR: [
+          { userId: user.id },
+          ...(userEmail
+            ? [
+                {
+                  email: { equals: userEmail, mode: 'insensitive' as const },
+                },
+              ]
+            : []),
+        ],
+      },
       select: { proyectoId: true },
     });
-    const proyectoIds = participaciones.map((p) => p.proyectoId);
+    const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
 
     if (proyectoIds.length === 0) {
       return { success: true, data: [] };
@@ -352,14 +401,6 @@ export async function getProyectosParaUsuarioPorRolActivo(
     return { success: false, error: 'Error al obtener proyectos', data: [] };
   }
 }
-
-/** Tipo mínimo para el listado del selector (carga rápida) */
-export type ProyectoListadoItem = {
-  id: string;
-  proyecto: string;
-  sede: string;
-  escuelas: { escuela: { nombre: string } }[];
-};
 
 /**
  * Listado ligero de proyectos para el selector (solo id, nombre, sede, escuelas).
@@ -376,7 +417,7 @@ export async function getProyectosListadoParaUsuario(
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
 
-    if (activeRole === 'Admin') {
+    if (await roleHasPermission(activeRole, 'projects.view_all')) {
       const proyectos = await prisma.proyecto.findMany({
         select: {
           id: true,
@@ -402,7 +443,6 @@ export async function getProyectosListadoParaUsuario(
           ...(userEmail
             ? [
                 {
-                  userId: null,
                   email: { equals: userEmail, mode: 'insensitive' as const },
                 },
               ]
@@ -411,7 +451,7 @@ export async function getProyectosListadoParaUsuario(
       },
       select: { proyectoId: true },
     });
-    const proyectoIds = participaciones.map((p) => p.proyectoId);
+    const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
 
     if (proyectoIds.length === 0) {
       return { success: true, data: [] };
@@ -434,7 +474,7 @@ export async function getProyectosListadoParaUsuario(
   }
 }
 
-export type GetProyectoOptions = {
+type GetProyectoOptions = {
   /** Si true, incluye activities/tasks. Default false (carga rápida al seleccionar). */
   includeActivities?: boolean;
 };
@@ -616,7 +656,7 @@ export async function getProyecto(
   }
 }
 
-export type CreateProyectoInput = ProyectoFormData & {
+type CreateProyectoInput = ProyectoFormData & {
   youtubeUrl?: string | null;
 };
 
@@ -763,6 +803,14 @@ export async function createProyectoCompleto(
   try {
     const session = await getSession();
     const currentUser = session?.user as { id?: string; email?: string; name?: string; activeRole?: string } | null;
+
+    const canCreate = await roleHasPermission(
+      currentUser?.activeRole,
+      'projects.create'
+    );
+    if (!canCreate) {
+      return { success: false, error: 'No tienes permiso para crear proyectos' };
+    }
 
     // Resolver userId por email para encargados/participantes que tengan cuenta
     const participantesRel = [...(payload.participantes_rel ?? [])];
@@ -1647,7 +1695,7 @@ const proyectoIncludeForParticipante = {
   sociosComunitarios: { include: { socioComunitario: true } },
 } as const;
 
-export type AddParticipanteData = {
+type AddParticipanteData = {
   rol: string;
   nombre?: string;
   rut?: string;
@@ -1751,7 +1799,7 @@ export async function addParticipanteProyecto(
   }
 }
 
-export type UpdateParticipanteData = {
+type UpdateParticipanteData = {
   rol?: string;
   nombre?: string;
   rut?: string;
@@ -2029,7 +2077,7 @@ export async function getSociosComunitarios(): Promise<
   }
 }
 
-export type CatalogosGeneralData = {
+type CatalogosGeneralData = {
   escuelas: Escuela[];
   carreras: Carrera[];
   asignaturas: Asignatura[];

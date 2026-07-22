@@ -68,6 +68,19 @@ export type ProyectoWithRelations = Proyecto & {
 export type ProyectoConVariaciones = ProyectoWithRelations & {
   variacionGantt: number;
   variacionObjetivos: number;
+  /** % avance presupuesto alineado con tab Presupuesto (pctGlobalAvance). */
+  avancePresupuesto: number;
+};
+
+/** Datos mutables de Proyecto (sin id ni timestamps). */
+export type ProyectoData = Omit<Proyecto, 'id' | 'createdAt' | 'updatedAt'>;
+
+/** Tipo mínimo para el listado del selector (carga rápida). */
+export type ProyectoListadoItem = {
+  id: string;
+  proyecto: string;
+  sede: string;
+  escuelas: { escuela: { nombre: string } }[];
 };
 
 // Tipos para formularios

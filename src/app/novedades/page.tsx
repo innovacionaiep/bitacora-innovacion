@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-utils';
+import { roleHasPermission } from '@/lib/permissions/check';
 import { NovedadesPasswordGate } from '@/components/novedades/NovedadesPasswordGate';
 
 /**
- * Novedades: solo Admin puede acceder por URL.
+ * Novedades: acceso según view.novedades del rol activo.
  * La contraseña se pide cada vez que se entra a la página (no se guarda).
  */
 export default async function NovedadesPage() {
@@ -13,7 +14,11 @@ export default async function NovedadesPage() {
     redirect('/inicio');
   }
 
-  if (session.user.activeRole !== 'Admin') {
+  const canView = await roleHasPermission(
+    session.user.activeRole,
+    'view.novedades'
+  );
+  if (!canView) {
     redirect('/inicio');
   }
 

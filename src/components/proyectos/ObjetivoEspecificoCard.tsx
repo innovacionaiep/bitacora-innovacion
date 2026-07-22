@@ -29,6 +29,8 @@ interface ObjetivoEspecificoCardProps {
       comentariosCount: number;
     }>;
   };
+  /** Número de visualización 1-based (Objetivo 1, 2, …) */
+  numero: number;
   onIndicadorClick: (indicador: {
     id: string;
     nombre: string;
@@ -46,6 +48,7 @@ interface ObjetivoEspecificoCardProps {
 
 export function ObjetivoEspecificoCard({
   objetivoEspecifico,
+  numero,
   onIndicadorClick,
   deleteMode,
   onDeleteIndicador,
@@ -107,7 +110,7 @@ export function ObjetivoEspecificoCard({
                   <ListChecks className="h-4 w-4 text-white" />
                 </div>
                 <div className="text-xs font-semibold text-gray-700 truncate">
-                  Objetivo {objetivoEspecifico.orden}
+                  Objetivo {numero}
                 </div>
               </div>
               {/* Barra de progreso y porcentaje a la derecha con ancho fijo para alineación */}

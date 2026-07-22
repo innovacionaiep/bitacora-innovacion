@@ -4,10 +4,10 @@ import {
   createProyecto,
   updateProyecto,
   deleteProyecto,
-  type ProyectoData,
 } from '@/lib/actions/proyectos';
 import {
   ProyectoConVariaciones,
+  type ProyectoData,
   type ProyectoFormData,
 } from '@/types/proyecto';
 
@@ -54,6 +54,7 @@ export function useProyectos(initialProyectos?: ProyectoConVariaciones[]) {
           ...result.data,
           variacionGantt: 0,
           variacionObjetivos: 0,
+          avancePresupuesto: 0,
         };
         setProyectos((prev) => [nuevoConVariaciones, ...prev]);
       }

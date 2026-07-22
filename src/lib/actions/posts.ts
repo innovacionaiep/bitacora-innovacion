@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { roleHasPermission } from '@/lib/permissions/check';
 
 // Tipos para las respuestas
 export interface PostWithRelations {
@@ -1099,8 +1100,7 @@ export async function getProyectosParaPost() {
     }
 
     // Ejecutar queries en paralelo para mejor rendimiento
-    const [participaciones, userRoles] = await Promise.all([
-      // Obtener proyectos donde el usuario es participante
+    const [participaciones] = await Promise.all([
       prisma.proyectoParticipante.findMany({
         where: { userId: user.id },
         select: {
@@ -1109,17 +1109,15 @@ export async function getProyectosParaPost() {
           },
         },
       }),
-      // Obtener roles del usuario
-      prisma.userRole.findMany({
-        where: { userId: user.id },
-        select: { role: true },
-      }),
     ]);
 
-    const isAdmin = userRoles.some((r) => r.role === 'Admin');
+    const canViewAll = await roleHasPermission(
+      (user as { activeRole?: string | null }).activeRole,
+      'projects.view_all'
+    );
 
-    // Si es Admin, obtener todos los proyectos
-    if (isAdmin) {
+    // Si tiene projects.view_all, obtener todos los proyectos
+    if (canViewAll) {
       const todosLosProyectos = await prisma.proyecto.findMany({
         select: { id: true, proyecto: true },
         orderBy: { proyecto: 'asc' },
@@ -1131,7 +1129,7 @@ export async function getProyectosParaPost() {
       };
     }
 
-    // Si no es Admin, devolver solo sus proyectos
+    // Si no, devolver solo sus proyectos
     const proyectos = participaciones.map((p) => p.proyecto);
 
     return {

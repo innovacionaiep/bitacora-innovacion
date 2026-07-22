@@ -158,8 +158,8 @@ export function InicioClient({
   // no volver al spinner cuando la sesión refetch (update()) para evitar parpadeos.
   if (status === 'loading' && displayRole == null) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="h-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -169,20 +169,30 @@ export function InicioClient({
       // Refetch de sesión: mantener portal visible, no mostrar login
     } else {
       return (
-        <div className="h-full overflow-auto">
-          <div className="space-y-8 w-full max-w-2xl mx-auto text-center py-12">
-            <h1 className="text-4xl font-bold tracking-tight">
+        <div className="h-full overflow-auto bg-background">
+          <div className="space-y-6 w-full max-w-2xl mx-auto text-center py-12">
+            <h1 className="text-4xl font-bold text-gray-900 leading-tight">
               Bienvenido a Bitácora
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-[13px] text-gray-500 tracking-wide">
               Inicia sesión para acceder a tu portal de proyectos.
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-3 justify-center">
               <Link href="/auth/login">
-                <Button size="lg">Iniciar sesión</Button>
+                <Button
+                  size="lg"
+                  className="h-9 rounded-md border border-gray-200 bg-white text-[13px] font-medium tracking-wide text-gray-600 hover:bg-gray-50 hover:text-emerald-700"
+                  variant="outline"
+                >
+                  Iniciar sesión
+                </Button>
               </Link>
               <Link href="/auth/register">
-                <Button size="lg" variant="outline">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-9 rounded-md border border-gray-200 bg-white text-[13px] font-medium tracking-wide text-gray-600 hover:bg-gray-50 hover:text-emerald-700"
+                >
                   Registrarse
                 </Button>
               </Link>
@@ -194,7 +204,7 @@ export function InicioClient({
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-100">
+    <div className="h-full flex flex-col overflow-hidden bg-background">
       <div className="flex-shrink-0">
         <PortalWelcomeHeader onRoleChange={handleRoleChange} />
       </div>

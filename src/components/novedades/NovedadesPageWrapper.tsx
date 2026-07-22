@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
 import { NovedadesContent } from './NovedadesContent';
 import { EventosWall } from './EventosWall';
 import { EventoDetallesModal } from './EventoDetallesModal';
@@ -21,6 +20,7 @@ import {
   getMonthlyTrends,
 } from '@/lib/actions/discovery';
 import { Separator } from '@/components/ui/separator';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 
 const CONVOCATORIAS_INITIAL: ConvocatoriaPlaceholder[] = [
   {
@@ -63,8 +63,9 @@ export function NovedadesPageWrapper({
   initialTrends = null,
   initialProyectosParaFiltro = [],
 }: NovedadesPageWrapperProps) {
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.activeRole === 'Admin';
+  const { can } = useActiveRolePermissions();
+  const canManageNovedades = can('novedades.manage');
+  const canManageConvocatorias = can('convocatorias.manage');
 
   const [eventosKey, setEventosKey] = useState(0);
   const [attendanceKey, setAttendanceKey] = useState(0);
@@ -187,7 +188,7 @@ export function NovedadesPageWrapper({
                 />
                 <ConvocatoriasWall
                   convocatorias={convocatorias}
-                  isAdmin={!!isAdmin}
+                  isAdmin={canManageConvocatorias}
                   onPostular={handlePostular}
                   onCreate={handleConvocatoriaCreate}
                 />
@@ -204,6 +205,7 @@ export function NovedadesPageWrapper({
               initialHasMore={initialHasMore}
               initialCursor={initialCursor}
               initialProyectosParaFiltro={initialProyectosParaFiltro}
+              canManagePosts={canManageNovedades}
               onPostCreated={handlePostCreated}
               onPostDeleted={handlePostDeleted}
               onOpenEvento={handleOpenEvento}
@@ -239,7 +241,7 @@ export function NovedadesPageWrapper({
         onOpenChange={handleConvocatoriaModalClose}
         convocatoriaId={selectedConvocatoriaId}
         convocatoria={selectedConvocatoria}
-        isAdmin={!!isAdmin}
+        isAdmin={canManageConvocatorias}
         onSaved={handleConvocatoriaSaved}
       />
     </div>

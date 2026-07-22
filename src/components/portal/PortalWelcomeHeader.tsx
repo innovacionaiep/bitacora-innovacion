@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,21 +18,21 @@ import { Check, ChevronDown, LogOut, Pencil, X } from 'lucide-react';
 function getRoleColors(role: string): string {
   switch (role.toLowerCase()) {
     case 'admin':
-      return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200';
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'coordinador':
-      return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200';
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'colaborador':
-      return 'bg-violet-100 text-violet-700 border-violet-300 hover:bg-violet-200';
+      return 'bg-violet-100 text-violet-800 border-violet-200';
     case 'encargado':
-      return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200';
+      return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'docente':
-      return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200';
+      return 'bg-green-100 text-green-800 border-green-200';
     case 'estudiante':
-      return 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200';
+      return 'bg-red-100 text-red-800 border-red-200';
     case 'beneficiario':
-      return 'bg-cyan-100 text-cyan-700 border-cyan-300 hover:bg-cyan-200';
+      return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     default:
-      return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200';
+      return 'bg-gray-100 text-gray-800 border-gray-200';
   }
 }
 
@@ -57,6 +57,9 @@ function getRoleCircleColor(role: string): string {
   }
 }
 
+/** Sobrevive a remounts del header; evita update() en bucle tras login. */
+const sessionSyncedUserIds = new Set<string>();
+
 export interface PortalWelcomeHeaderProps {
   onRoleChange?: (newRole: string) => void;
 }
@@ -68,7 +71,6 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
   const [tempFullName, setTempFullName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameError, setNameError] = useState('');
-  const sessionRefreshedRef = useRef(false);
 
   const availableRoles = session?.user?.availableRoles ?? [];
   const currentRole =
@@ -87,12 +89,13 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
     }
   }, [session?.user?.activeRole, optimisticRole]);
 
-  // Al montar Inicio, refrescar sesión para sincronizar availableRoles desde BD
+  // Una sola sync por usuario y sesión de pestaña (no por remount del componente)
   useEffect(() => {
-    if (!session?.user?.id || sessionRefreshedRef.current) return;
-    sessionRefreshedRef.current = true;
+    const userId = session?.user?.id;
+    if (!userId || sessionSyncedUserIds.has(userId)) return;
+    sessionSyncedUserIds.add(userId);
     update({ activeRole: session.user.activeRole ?? undefined });
-  }, [session?.user?.id, session?.user?.activeRole, update]);
+  }, [session?.user?.id, session?.user?.activeRole, session?.user, update]);
 
   const handleRoleChange = async (newRole: string) => {
     if (!session?.user?.id) return;
@@ -168,26 +171,26 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 w-full">
       <div className="flex items-center gap-4 min-w-0">
-        <Avatar className="h-16 w-16 border-2 border-muted shrink-0">
+        <Avatar className="h-16 w-16 border border-gray-200 shrink-0 shadow-none">
           <AvatarImage src={DEFAULT_AVATAR} alt={displayName} />
-          <AvatarFallback className="text-lg">
+          <AvatarFallback className="text-lg text-gray-700 bg-gray-50">
             {(displayName.charAt(0) || 'U').toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
           {!isEditingName ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight truncate">
+            <div className="group/title flex items-center gap-2 min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 truncate leading-tight">
                 Bienvenido, {displayName}
               </h1>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleNameEdit}
-                className="p-1 shrink-0"
+                className="h-7 w-7 p-0 shrink-0 rounded-sm opacity-0 group-hover/title:opacity-100 transition-opacity duration-150 text-gray-400 hover:text-gray-700 hover:bg-transparent"
                 aria-label="Editar nombre"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
               </Button>
             </div>
           ) : (
@@ -196,26 +199,36 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
                 value={tempFullName}
                 onChange={(e) => setTempFullName(e.target.value)}
                 placeholder="Tu nombre completo"
-                className="text-xl font-bold h-10 max-w-xs"
+                className="text-xl font-bold h-10 max-w-xs border-0 border-b border-gray-200 rounded-none shadow-none bg-transparent px-0 focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void handleNameSave();
                   if (e.key === 'Escape') handleNameCancel();
                 }}
                 autoFocus
               />
-              <Button onClick={() => void handleNameSave()} size="sm">
-                <Check className="h-4 w-4" />
+              <Button
+                onClick={() => void handleNameSave()}
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 text-gray-900 hover:text-emerald-700 hover:bg-transparent"
+              >
+                <Check className="h-3.5 w-3.5" strokeWidth={2} />
               </Button>
-              <Button onClick={handleNameCancel} variant="outline" size="sm">
-                <X className="h-4 w-4" />
+              <Button
+                onClick={handleNameCancel}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-gray-500 hover:text-gray-900 hover:bg-transparent"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
               </Button>
             </div>
           )}
-          <p className="text-muted-foreground text-sm mt-0.5 truncate">
+          <p className="text-[13px] text-gray-500 mt-0.5 truncate tracking-wide">
             {session.user.email}
           </p>
           {nameError && (
-            <p className="text-red-600 text-xs mt-1">{nameError}</p>
+            <p className="text-red-600 text-[11px] mt-1">{nameError}</p>
           )}
         </div>
       </div>
@@ -226,26 +239,26 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className={`min-w-[140px] justify-between shrink-0 ${getRoleColors(currentRole)}`}
+                className={`min-w-[140px] h-8 justify-between shrink-0 rounded border px-2 text-[10px] font-medium shadow-none bg-white border-gray-200 hover:bg-gray-50 ${getRoleColors(currentRole)}`}
               >
                 {currentRole}
-                <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+                <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" strokeWidth={1.75} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuContent align="end" className="min-w-[160px] border-gray-200 shadow-md">
               {availableRoles.map((role) => {
                 const isActive = role === currentRole;
                 return (
                   <DropdownMenuItem
                     key={role}
-                    className={`cursor-pointer flex items-center gap-2 ${isActive ? 'bg-accent font-semibold' : ''}`}
+                    className={`cursor-pointer flex items-center gap-2 text-[13px] ${isActive ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-700'}`}
                     onClick={() => void handleRoleChange(role)}
                   >
                     <div
-                      className={`w-3 h-3 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
                     />
                     <span className="flex-1">{role}</span>
-                    {isActive && <Check className="h-4 w-4" />}
+                    {isActive && <Check className="h-3.5 w-3.5 text-emerald-600" />}
                   </DropdownMenuItem>
                 );
               })}
@@ -256,9 +269,10 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
         <Button
           onClick={() => void handleSignOut()}
           size="sm"
-          className="bg-red-500 hover:bg-red-600 text-white"
+          variant="ghost"
+          className="h-7 px-2 gap-1.5 text-[13px] font-normal text-gray-500 hover:text-red-600 hover:bg-transparent"
         >
-          <LogOut className="h-3 w-3 mr-1" />
+          <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
           Cerrar Sesión
         </Button>
       </div>

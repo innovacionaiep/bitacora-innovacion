@@ -21,64 +21,53 @@ import {
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Inter } from 'next/font/google';
-import { ROLES_SIN_DASHBOARD_REPORTES, type Role } from '@/lib/auth-utils';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
+import type { PermissionKey } from '@/lib/permissions/catalog';
 
-const inter = Inter({ subsets: ['latin'], weight: ['700'] }); // Bold para el título
-
-// Roles que solo ven Inicio y Proyectos en el sidebar (Encargado, Estudiante, Docente)
-const ROLES_SOLO_INICIO_PROYECTOS = ['Encargado', 'Estudiante', 'Docente'];
-const RUTAS_PERMITIDAS_LIMITADAS = ['/inicio', '/proyectos'];
-const RUTAS_DASHBOARD_REPORTES = ['/dashboard', '/reportes'];
+const inter = Inter({ subsets: ['latin'], weight: ['700'] });
 
 const LOGO_EXPANDED_W = 112;
 const LOGO_COLLAPSED_PX = 40;
 
-// Novedades está oculto para todos los perfiles; solo Admin puede acceder por URL con contraseña
-const navItemsBase = [
-  { href: '/inicio', label: 'Inicio', icon: Home },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/proyectos', label: 'Proyectos', icon: FolderKanban },
-  { href: '/reportes', label: 'Reportes', icon: AtSign },
+const navItemsBase: {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  viewKey: PermissionKey;
+}[] = [
+  { href: '/inicio', label: 'Inicio', icon: Home, viewKey: 'view.inicio' },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    viewKey: 'view.dashboard',
+  },
+  {
+    href: '/proyectos',
+    label: 'Proyectos',
+    icon: FolderKanban,
+    viewKey: 'view.proyectos',
+  },
+  {
+    href: '/reportes',
+    label: 'Reportes',
+    icon: AtSign,
+    viewKey: 'view.reportes',
+  },
 ];
 
 export default function SidebarNav() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { data: session } = useSession();
-  const activeRole = session?.user?.activeRole ?? null;
+  const { can } = useActiveRolePermissions();
   const isCollapsed = state === 'collapsed';
 
-  const navItems = navItemsBase
-    .filter((item) => {
-      const rolesRequeridos: string[] | null =
-        'rolesRequeridos' in item && Array.isArray((item as { rolesRequeridos?: unknown }).rolesRequeridos)
-          ? ((item as { rolesRequeridos: string[] }).rolesRequeridos)
-          : null;
-      if (!rolesRequeridos) return true;
-      return activeRole !== null && rolesRequeridos.includes(activeRole);
-    })
-    .filter((item) => {
-      // Encargado, Estudiante y Docente solo ven Inicio y Proyectos
-      if (activeRole && ROLES_SOLO_INICIO_PROYECTOS.includes(activeRole)) {
-        return RUTAS_PERMITIDAS_LIMITADAS.includes(item.href);
-      }
-      // Docente y Colaborador no ven Dashboard ni Reportes
-      if (
-        activeRole &&
-        ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role)
-      ) {
-        return !RUTAS_DASHBOARD_REPORTES.includes(item.href);
-      }
-      return true;
-    });
-
-  const showConfig = activeRole === 'Admin';
+  const navItems = navItemsBase.filter((item) => can(item.viewKey));
+  const showConfig = can('view.ajustes');
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" className="flex flex-col overflow-x-hidden">
-      {/* Título centrado; cambia con data-state (al inicio de la animación de ancho) */}
       <SidebarHeader className="flex flex-col items-center justify-center py-6 px-4">
         <div className="flex h-9 w-full items-center justify-center">
           <h1
@@ -161,12 +150,6 @@ export default function SidebarNav() {
         </SidebarMenu>
       </SidebarContent>
 
-      {/*
-        Swap al INICIO de la transición (state inmediato).
-        Tamaños fijos en px + shrink-0 para que el flex/padding no los comprima.
-        Sin px horizontal en colapsado: pl/pr-4 en sidebar icon (4rem) dejaba ~16–32px
-        útiles y el logo “crecía” al expandir.
-      */}
       <SidebarFooter
         className={`flex min-w-0 flex-col items-center overflow-visible pt-2 pb-7 ${
           isCollapsed ? 'px-0' : 'px-4'

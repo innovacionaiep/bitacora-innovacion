@@ -4,6 +4,7 @@ import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -86,6 +87,8 @@ function NuevoProyectoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
+  const { can, loading: permsLoading } = useActiveRolePermissions();
+  const hasCreatePermission = can('projects.create');
   const draftId = searchParams.get('borrador');
   const activeRole = (session?.user as { activeRole?: string } | undefined)?.activeRole ?? null;
 
@@ -103,6 +106,13 @@ function NuevoProyectoContent() {
   const hasPrefilledCoordinatorRef = useRef(false);
 
   const canCreate = canCreateProject(payload, activeRole);
+
+  useEffect(() => {
+    if (sessionStatus === 'loading' || permsLoading) return;
+    if (sessionStatus === 'authenticated' && !hasCreatePermission) {
+      router.replace('/proyectos');
+    }
+  }, [sessionStatus, permsLoading, hasCreatePermission, router]);
 
   useEffect(() => {
     if (!draftId) {

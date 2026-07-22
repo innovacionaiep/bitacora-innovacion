@@ -1238,7 +1238,8 @@ export function GeneralTab({
                     onClick={() =>
                       setGeneralDraft((prev) => {
                         if (!prev) return prev;
-                        const nextOrden = prev.objetivosEspecificos.length;
+                        const nextOrden =
+                          prev.objetivosEspecificos.length + 1;
                         return {
                           ...prev,
                           objetivosEspecificos: [
@@ -1311,7 +1312,7 @@ export function GeneralTab({
                                 ...prev,
                                 objetivosEspecificos: next.map((o, i) => ({
                                   ...o,
-                                  orden: i,
+                                  orden: i + 1,
                                 })),
                               };
                             })

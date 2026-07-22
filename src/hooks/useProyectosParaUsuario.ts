@@ -8,10 +8,12 @@ import {
   createProyecto,
   updateProyecto,
   deleteProyecto,
-  type ProyectoData,
-  type ProyectoListadoItem,
 } from '@/lib/actions/proyectos';
-import type { ProyectoFormData } from '@/types/proyecto';
+import type {
+  ProyectoData,
+  ProyectoFormData,
+  ProyectoListadoItem,
+} from '@/types/proyecto';
 import { proyectosListadoKey } from '@/lib/query-keys';
 
 /**

@@ -12,6 +12,7 @@ import {
   Calculator,
   Hash,
   Edit,
+  Save,
   Check,
   Calendar,
   Info,
@@ -530,81 +531,100 @@ export function IndicadorModal({
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent
         ref={dialogContentRef}
-        className="w-[65vw] max-w-[65vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-4"
+        closeButtonPosition="outside-top-right"
+        className="w-[65vw] max-w-[65vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
       >
         {/* Header con título, nombre e indicador de cumplimiento */}
-        <div className="mb-4 flex-shrink-0">
-          <div className="flex items-center gap-3 mb-2">
-            <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-0 flex-shrink-0">
-              INDICADOR
-            </DialogTitle>
-          </div>
-          <div className="flex items-center justify-between gap-4 mb-3">
+        <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex-1 flex items-center gap-2 min-w-0">
               {isEditMode ? (
-                <input
-                  type="text"
-                  value={editValues.nombre}
-                  onChange={(e) =>
-                    setEditValues({ ...editValues, nombre: e.target.value })
-                  }
-                  className="text-2xl font-bold text-emerald-600 w-full px-3 py-2 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  autoFocus
-                />
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <input
+                    type="text"
+                    value={editValues.nombre}
+                    onChange={(e) =>
+                      setEditValues({ ...editValues, nombre: e.target.value })
+                    }
+                    className="h-auto border border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 rounded-md w-full min-w-0 px-3"
+                    autoFocus
+                  />
+                </div>
               ) : (
                 <>
-                  <h1 className="text-2xl font-bold text-emerald-600">
+                  <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
                     {editValues.nombre}
-                  </h1>
+                  </DialogTitle>
                   {!hideEditButton && (
                     <button
                       onClick={toggleEditMode}
-                      className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-gray-500 hover:text-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                       title="Editar indicador"
                     >
-                      <Edit className="h-5 w-5" />
+                      <Edit className="h-4 w-4" strokeWidth={2} />
                     </button>
                   )}
                 </>
               )}
             </div>
-            <div className="flex items-center space-x-4 flex-shrink-0">
-              <span className="text-base font-medium text-gray-700">
-                Cumplimiento
-              </span>
-              <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-500 ${
-                    porcentajeCumplimiento < 50
-                      ? 'bg-red-500'
-                      : porcentajeCumplimiento < 100
-                        ? 'bg-yellow-500'
-                        : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(porcentajeCumplimiento, 100)}%` }}
-                />
+            {isEditMode ? (
+              <div className="flex h-7 shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving || !hasChanges()}
+                  className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                >
+                  <Save className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                  {isSaving ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelAll}
+                  disabled={isSaving}
+                  className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                >
+                  <X className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                  Cancelar
+                </button>
               </div>
-              <span
-                className={`text-2xl font-bold ${colorEstado} min-w-[4rem]`}
-              >
-                {Math.round(porcentajeCumplimiento)}%
-              </span>
-            </div>
+            ) : (
+              <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
+                <span className="text-base font-medium text-gray-700">
+                  Cumplimiento
+                </span>
+                <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      porcentajeCumplimiento < 50
+                        ? 'bg-red-500'
+                        : porcentajeCumplimiento < 100
+                          ? 'bg-yellow-500'
+                          : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(porcentajeCumplimiento, 100)}%` }}
+                  />
+                </div>
+                <span
+                  className={`text-2xl font-bold min-w-[4rem] tabular-nums ${colorEstado}`}
+                >
+                  {Math.round(porcentajeCumplimiento)}%
+                </span>
+              </div>
+            )}
           </div>
-          {/* Línea separadora verde esmeralda */}
-          <div className="w-full h-px bg-emerald-600 mt-2"></div>
         </div>
 
         {/* Layout de dos columnas con separador */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-10 mt-0 flex-1 min-h-0">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-6 px-5 py-4 flex-1 min-h-0">
           {/* COLUMNA IZQUIERDA: Fechas primero, luego información sin tarjetas */}
           <div
-            className={`space-y-6 overflow-y-auto ${isEditMode ? 'max-h-[calc(100%-140px)]' : 'h-full'}`}
+            className="space-y-6 overflow-y-auto min-h-0 custom-scrollbar"
           >
             {/* FECHAS (Primero) - Horizontal */}
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
-                <span className="text-base font-medium text-gray-700">
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Inicio
                 </span>
                 {isEditMode ? (
@@ -617,10 +637,10 @@ export function IndicadorModal({
                         fechaInicio: e.target.value,
                       })
                     }
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
                   />
                 ) : (
-                  <span className="text-gray-700 text-base">
+                  <span className="text-[15px] leading-[1.75] text-gray-800">
                     {editValues.fechaInicio
                       ? (() => {
                           try {
@@ -642,7 +662,7 @@ export function IndicadorModal({
               </div>
 
               <div className="flex items-center space-x-3">
-                <span className="text-base font-medium text-gray-700">
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Finalización
                 </span>
                 {isEditMode ? (
@@ -652,10 +672,10 @@ export function IndicadorModal({
                     onChange={(e) =>
                       setEditValues({ ...editValues, fechaFin: e.target.value })
                     }
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    className="px-4 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
                   />
                 ) : (
-                  <span className="text-gray-700 text-base">
+                  <span className="text-[15px] leading-[1.75] text-gray-800">
                     {editValues.fechaFin
                       ? (() => {
                           try {
@@ -681,7 +701,7 @@ export function IndicadorModal({
             <div className="space-y-6">
               {/* Descripción */}
               <div>
-                <h3 className="font-semibold text-gray-900 text-base mb-2">
+                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Descripción
                 </h3>
                 {isEditMode ? (
@@ -693,11 +713,11 @@ export function IndicadorModal({
                         descripcion: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[110px] resize-y text-base"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
                     rows={3}
                   />
                 ) : (
-                  <p className="text-gray-700 text-base">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
                     {editValues.descripcion}
                   </p>
                 )}
@@ -707,7 +727,7 @@ export function IndicadorModal({
               <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
                 {/* Forma de Cálculo */}
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Forma de Cálculo
                   </h3>
                   {isEditMode ? (
@@ -719,11 +739,11 @@ export function IndicadorModal({
                           formaCalculo: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[110px] resize-y text-base"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
                       rows={3}
                     />
                   ) : (
-                    <p className="text-gray-700 text-base">
+                    <p className="text-[15px] leading-[1.75] text-gray-800">
                       {editValues.formaCalculo}
                     </p>
                   )}
@@ -731,7 +751,7 @@ export function IndicadorModal({
 
                 {/* Formato del Número */}
                 <div className="w-48 flex-shrink-0">
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Formato del número
                   </h3>
                   {isEditMode ? (
@@ -743,7 +763,7 @@ export function IndicadorModal({
                           formatoNumero: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
                     >
                       {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
                         (option) => (
@@ -754,7 +774,7 @@ export function IndicadorModal({
                       )}
                     </select>
                   ) : (
-                    <p className="text-gray-700 text-base">
+                    <p className="text-[15px] leading-[1.75] text-gray-800">
                       {editValues.formatoNumero}
                     </p>
                   )}
@@ -763,18 +783,15 @@ export function IndicadorModal({
 
               {/* Resultados */}
               <div className="mt-4">
-                <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 mb-2">
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Resultados
-                  </h2>
-                </div>
+                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  Resultados
+                </h3>
 
                 {/* Esperado y Actual con línea separadora vertical */}
                 <div className="flex items-center">
                   {/* Resultado Esperado */}
                   <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span className="text-sm font-medium text-gray-800 mb-1">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1">
                       Esperado
                     </span>
                     {isEditMode ? (
@@ -787,21 +804,21 @@ export function IndicadorModal({
                             resultadoEsperado: e.target.value,
                           })
                         }
-                        className="w-full max-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
                       />
                     ) : (
-                      <p className="text-xl font-bold text-gray-800">
+                      <p className="text-[15px] font-semibold text-gray-800">
                         {resultadoEsperadoFormateado}
                       </p>
                     )}
                   </div>
 
                   {/* Línea separadora vertical */}
-                  <div className="w-px h-10 bg-gray-200 self-center"></div>
+                  <div className="w-px h-10 bg-gray-100 self-center"></div>
 
                   {/* Resultado Actual */}
                   <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span className={`text-sm font-medium mb-1 ${colorEstado}`}>
+                    <span className={`text-[10px] font-medium uppercase tracking-[0.14em] mb-1 ${colorEstado}`}>
                       Actual
                     </span>
                     {isEditMode ? (
@@ -814,10 +831,10 @@ export function IndicadorModal({
                             resultadoAlcanzado: e.target.value,
                           })
                         }
-                        className="w-full max-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold text-center"
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
                       />
                     ) : (
-                      <p className={`text-xl font-bold ${colorEstado}`}>
+                      <p className={`text-[15px] font-semibold ${colorEstado}`}>
                         {resultadoAlcanzadoFormateado}
                       </p>
                     )}
@@ -825,30 +842,30 @@ export function IndicadorModal({
                 </div>
 
                 {/* Línea separadora horizontal debajo */}
-                <div className="w-full h-px bg-gray-200 mt-1.5"></div>
+                <div className="w-full h-px bg-gray-100 mt-1.5"></div>
               </div>
             </div>
 
             {/* Evidencias */}
             <div>
-              <h3 className="font-semibold text-gray-900 text-base mb-2">
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                 Evidencias
               </h3>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
                 {isLoadingEvidencias ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-[13px] text-gray-400">
                     Cargando evidencias...
                   </p>
                 ) : evidenciasIndicador.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">
-                    No se han cargado evidencias
-                  </p>
+                  <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
+                    <p className="text-[13px] text-gray-400">No se han cargado evidencias</p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {evidenciasIndicador.map((ev) => (
                       <div
                         key={ev.id}
-                        className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm"
+                        className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-none"
                       >
                         {ev.tipo === 'image' ? (
                           <a
@@ -931,7 +948,7 @@ export function IndicadorModal({
                                 alert(res.error ?? 'Error al eliminar');
                               }
                             }}
-                            className="absolute top-1 right-1 p-1.5 bg-red-100 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                            className="absolute top-1 right-1 p-1 rounded-sm bg-white/90 border border-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-colors"
                             title="Eliminar evidencia"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -983,25 +1000,24 @@ export function IndicadorModal({
                     />
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-2"
+                      variant="ghost"
+                      className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5 h-auto"
                       disabled={isUploadingEvidencia}
                       onClick={() => evidenciasFileInputRef.current?.click()}
                     >
                       {isUploadingEvidencia ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           Subiendo...
                         </>
                       ) : (
                         <>
-                          <Paperclip className="h-4 w-4" />
+                          <Paperclip className="h-3.5 w-3.5" strokeWidth={2} />
                           Agregar evidencia (JPG o PDF)
                         </>
                       )}
                     </Button>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-[12px] text-gray-400 mt-1">
                       Imágenes máx. 250 KB (se comprimen automáticamente). PDF
                       máx. 2 MB.
                     </p>
@@ -1011,52 +1027,52 @@ export function IndicadorModal({
           </div>
 
           {/* SEPARADOR VERTICAL SUTIL */}
-          <div className="w-px bg-gray-200"></div>
+          <div className="w-px bg-gray-100"></div>
 
           {/* COLUMNA DERECHA: Solo Comentarios */}
           <div
             ref={comentariosContainerRef}
-            className="flex flex-col pb-2 h-full min-h-0"
+            className="flex flex-col pb-2 h-full min-h-0 border-l border-gray-100 pl-6"
           >
             {/* Header de comentarios - movido más arriba */}
-            <div className="flex items-center space-x-2 pb-3 border-b border-gray-200 mb-6 flex-shrink-0">
-              <MessageSquare className="h-6 w-6 text-blue-600" />
-              <h2 className="text-xl font-bold text-gray-900">Comentarios</h2>
+            <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
+              <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">Comentarios</h3>
             </div>
 
             {/* Lista de comentarios - con flex-1 para ocupar espacio disponible */}
             <div
               ref={comentariosListRef}
-              className="space-y-4 flex-1 overflow-y-auto mb-6"
+              className="space-y-3 flex-1 overflow-y-auto mb-4 min-h-0 custom-scrollbar"
               style={{ minHeight: 0, maxHeight: '100%' }}
             >
               {isLoadingComentarios ? (
-                <p className="text-base text-gray-500">
+                <p className="text-[13px] text-gray-400">
                   Cargando comentarios...
                 </p>
               ) : comentarios.length === 0 ? (
-                <p className="text-base text-gray-500">
-                  No hay comentarios aún
-                </p>
+                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
+                  <p className="text-[13px] text-gray-400">No hay comentarios aún</p>
+                </div>
               ) : (
                 comentarios.map((comentario) => (
                   <div
                     key={comentario.id}
-                    className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
+                    className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-white"
                   >
                     <div className="flex-shrink-0">
                       <img
                         src={DEFAULT_AVATAR}
                         alt={comentario.user.name || 'Usuario'}
-                        className="w-10 h-10 rounded-full object-cover"
+                        className="w-8 h-8 rounded-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
-                        <span className="text-base font-semibold text-gray-900">
+                        <span className="text-[13px] font-medium text-gray-800">
                           {comentario.user.name || 'Usuario'}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-[11px] text-gray-400">
                           {new Date(comentario.createdAt).toLocaleDateString(
                             'es-ES',
                             {
@@ -1069,7 +1085,7 @@ export function IndicadorModal({
                           )}
                         </span>
                       </div>
-                      <p className="text-base text-gray-700 whitespace-pre-wrap">
+                      <p className="text-[13px] text-gray-700 leading-snug whitespace-pre-wrap">
                         {comentario.contenido}
                       </p>
                     </div>
@@ -1080,24 +1096,24 @@ export function IndicadorModal({
 
             {/* Input para nuevo comentario - posicionado al final */}
             {session?.user && (
-              <div className="flex items-start space-x-4 pt-6 pb-4 border-t border-gray-200 flex-shrink-0">
+              <div className="flex gap-3 pt-3 pb-1 border-t border-gray-100 flex-shrink-0">
                 <div className="flex-shrink-0">
                   <img
                     src={DEFAULT_AVATAR}
                     alt={session.user.name || 'Usuario'}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-8 h-8 rounded-full object-cover"
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <div className="text-sm text-gray-500 mb-2">
+                  <div className="text-[12px] text-gray-400">
                     Comentas como {session.user.name || session.user.email}
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex gap-2">
                     <textarea
                       value={nuevoComentario}
                       onChange={(e) => setNuevoComentario(e.target.value)}
                       placeholder="Escribe un comentario..."
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 resize-none text-[13px] text-gray-800"
                       rows={3}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && e.ctrlKey) {
@@ -1108,10 +1124,10 @@ export function IndicadorModal({
                     <button
                       onClick={handleEnviarComentario}
                       disabled={!nuevoComentario.trim() || isEnviandoComentario}
-                      className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-gray-500 hover:text-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-end focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                       title="Enviar comentario (Ctrl+Enter)"
                     >
-                      <Send className="h-5 w-5" />
+                      <Send className="h-4 w-4" strokeWidth={2} />
                     </button>
                   </div>
                 </div>
@@ -1122,45 +1138,12 @@ export function IndicadorModal({
 
         {/* Toast de éxito */}
         {showSuccessToast && (
-          <div className="fixed bottom-6 right-6 bg-emerald-500 text-white px-8 py-4 rounded-lg shadow-lg flex items-center space-x-2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <Check className="h-6 w-6" />
-            <span className="font-semibold text-base">Guardado con éxito</span>
+          <div className="fixed bottom-6 right-6 border border-emerald-200 bg-white text-emerald-700 px-6 py-3 rounded-lg shadow-md flex items-center gap-2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <Check className="h-4 w-4" />
+            <span className="text-[13px] font-medium">Guardado con éxito</span>
           </div>
         )}
 
-        {/* Footer con botones de guardar y cancelar */}
-        {isEditMode ? (
-          <div className="absolute bottom-6 left-6 flex items-center space-x-4 z-50">
-            {/* Botón redondo de cancelar (X roja) */}
-            <button
-              onClick={handleCancelAll}
-              className="w-14 h-14 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 border border-red-200"
-              title="Salir del modo edición"
-              disabled={isSaving}
-            >
-              <span className="text-xl font-semibold">×</span>
-            </button>
-
-            {/* Botón Guardar */}
-            <button
-              onClick={handleSaveAll}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-base"
-              disabled={isSaving || !hasChanges()}
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="h-5 w-5" />
-                  <span>Guardar cambios</span>
-                </>
-              )}
-            </button>
-          </div>
-        ) : null}
       </DialogContent>
     </Dialog>
   );

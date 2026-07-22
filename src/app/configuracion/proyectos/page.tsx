@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,14 +28,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  MultiSelectNombres,
+  MULTI_VALUE_SEP,
+} from '@/components/ui/multi-select-nombres';
+import {
   listProyectosConfig,
   deleteProyectoConfig,
-  updateProyectoFondoConfig,
+  updateProyectoCamposConfig,
   type ProyectoListRow,
+  type ProyectoCamposConfigUpdate,
 } from '@/lib/actions/configuracion-proyectos';
-import { getFondos } from '@/lib/actions/configuracion';
+import {
+  getFondos,
+  getLineas,
+  getSedes,
+  getEscuelas,
+} from '@/lib/actions/configuracion';
 import { verifyConfigUnlock } from '@/lib/actions/configuracion-usuarios';
 import { Lock, Unlock, Trash2 } from 'lucide-react';
+
+const SIN_LINEA = '__sin_linea__';
 
 function formatDate(d: Date): string {
   return new Date(d).toLocaleString('es-CL', {
@@ -44,21 +56,77 @@ function formatDate(d: Date): string {
   });
 }
 
+/** Parsea sede almacenada (coma o pipe) al formato MultiSelectNombres. */
+function sedeToMultiValue(sede: string): string {
+  return (sede ?? '')
+    .split(/\s*\|\s*|\s*,\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(MULTI_VALUE_SEP);
+}
+
+function escuelasToMultiValue(
+  escuelas: { nombre: string }[]
+): string {
+  return escuelas.map((e) => e.nombre).join(MULTI_VALUE_SEP);
+}
+
+function parseMultiNames(value: string): string[] {
+  return value
+    .split(MULTI_VALUE_SEP)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function mapNamesToIds(
+  names: string[],
+  catalogo: { id: string; nombre: string }[]
+): string[] {
+  const map = new Map(
+    catalogo.map((item) => [item.nombre.toLowerCase(), item.id])
+  );
+  return names
+    .map((n) => map.get(n.toLowerCase()))
+    .filter((id): id is string => Boolean(id));
+}
+
+type LineaCatalog = {
+  id: string;
+  nombre: string;
+  fondoId: string;
+  fondo: { id: string; nombre: string };
+};
+
 export default function ConfiguracionProyectosPage() {
   const [proyectos, setProyectos] = useState<ProyectoListRow[]>([]);
   const [fondos, setFondos] = useState<{ id: string; nombre: string }[]>([]);
+  const [lineas, setLineas] = useState<LineaCatalog[]>([]);
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [escuelas, setEscuelas] = useState<{ id: string; nombre: string }[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ProyectoListRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProyectoListRow | null>(
+    null
+  );
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [updatingFondoId, setUpdatingFondoId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [nombreDrafts, setNombreDrafts] = useState<Record<string, string>>(
+    {}
+  );
   const unlockPasswordRef = useRef<string | null>(null);
+  const saveSeqRef = useRef(0);
+  const proyectosRef = useRef<ProyectoListRow[]>([]);
+  const multiSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {}
+  );
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const tableHeaderRef = useRef<HTMLTableSectionElement>(null);
@@ -66,22 +134,47 @@ export default function ConfiguracionProyectosPage() {
   const load = async () => {
     setLoading(true);
     setError(null);
-    const [res, fondosList] = await Promise.all([
-      listProyectosConfig(),
-      getFondos(),
-    ]);
+    const [res, fondosList, lineasList, sedesList, escuelasList] =
+      await Promise.all([
+        listProyectosConfig(),
+        getFondos(),
+        getLineas(),
+        getSedes(),
+        getEscuelas(),
+      ]);
     if (res.success && res.data) {
       setProyectos(res.data);
+      proyectosRef.current = res.data;
+      setNombreDrafts(
+        Object.fromEntries(res.data.map((p) => [p.id, p.proyecto]))
+      );
     } else {
       setError(res.error ?? 'Error al cargar proyectos');
     }
     setFondos(fondosList ?? []);
+    setLineas((lineasList as LineaCatalog[]) ?? []);
+    setSedes(sedesList ?? []);
+    setEscuelas(escuelasList ?? []);
     setLoading(false);
   };
 
   useEffect(() => {
     load();
+    return () => {
+      Object.values(multiSaveTimersRef.current).forEach(clearTimeout);
+    };
   }, []);
+
+  const lineasByFondoNombre = useMemo(() => {
+    const map = new Map<string, LineaCatalog[]>();
+    for (const linea of lineas) {
+      const key = linea.fondo.nombre;
+      const list = map.get(key) ?? [];
+      list.push(linea);
+      map.set(key, list);
+    }
+    return map;
+  }, [lineas]);
 
   const handleUnlock = async () => {
     setUnlockError(null);
@@ -108,7 +201,11 @@ export default function ConfiguracionProyectosPage() {
     setDeleteError(null);
     const res = await deleteProyectoConfig(deleteTarget.id, deletePassword);
     if (res.success) {
-      setProyectos((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+      setProyectos((prev) => {
+        const next = prev.filter((x) => x.id !== deleteTarget.id);
+        proyectosRef.current = next;
+        return next;
+      });
       setDeleteTarget(null);
       setDeletePassword('');
     } else {
@@ -117,24 +214,154 @@ export default function ConfiguracionProyectosPage() {
     setDeleting(false);
   };
 
-  const handleFondoChange = async (proyectoId: string, fondo: string) => {
-    const prev = proyectos.find((p) => p.id === proyectoId)?.fondo;
-    if (prev === fondo) return;
-    setUpdatingFondoId(proyectoId);
-    setProyectos((rows) =>
-      rows.map((p) => (p.id === proyectoId ? { ...p, fondo } : p))
-    );
-    const res = await updateProyectoFondoConfig(proyectoId, fondo);
-    if (!res.success) {
-      setProyectos((rows) =>
-        rows.map((p) =>
-          p.id === proyectoId ? { ...p, fondo: prev ?? '' } : p
-        )
+  const applyOptimistic = (
+    proyectoId: string,
+    patch: Partial<ProyectoListRow>
+  ) => {
+    setProyectos((rows) => {
+      const next = rows.map((p) =>
+        p.id === proyectoId ? { ...p, ...patch } : p
       );
-      setError(res.error ?? 'Error al actualizar el fondo');
-    }
-    setUpdatingFondoId(null);
+      proyectosRef.current = next;
+      return next;
+    });
   };
+
+  const saveCampos = async (
+    proyectoId: string,
+    campos: ProyectoCamposConfigUpdate,
+    optimistic: Partial<ProyectoListRow>,
+    rollback: ProyectoListRow
+  ) => {
+    const seq = ++saveSeqRef.current;
+    setUpdatingId(proyectoId);
+    applyOptimistic(proyectoId, optimistic);
+    if (optimistic.proyecto !== undefined) {
+      setNombreDrafts((d) => ({ ...d, [proyectoId]: optimistic.proyecto! }));
+    }
+    const res = await updateProyectoCamposConfig(proyectoId, campos);
+    // Ignorar respuestas obsoletas (p. ej. toggles rápidos en multi-select)
+    if (seq !== saveSeqRef.current) return;
+    if (!res.success) {
+      setProyectos((rows) => {
+        const next = rows.map((p) => (p.id === proyectoId ? rollback : p));
+        proyectosRef.current = next;
+        return next;
+      });
+      setNombreDrafts((d) => ({ ...d, [proyectoId]: rollback.proyecto }));
+      setError(res.error ?? 'Error al actualizar el proyecto');
+    } else if (campos.fondo !== undefined) {
+      // Tras cambio de fondo, alinear línea en UI si el server la limpió
+      const lineasDelFondo =
+        lineasByFondoNombre.get(campos.fondo.trim()) ?? [];
+      const lineaActual =
+        optimistic.linea !== undefined
+          ? optimistic.linea
+          : rollback.linea;
+      if (
+        lineaActual &&
+        !lineasDelFondo.some((l) => l.nombre === lineaActual)
+      ) {
+        applyOptimistic(proyectoId, { linea: null });
+      }
+    }
+    setUpdatingId(null);
+  };
+
+  const handleNombreSave = async (proyectoId: string) => {
+    const row = proyectos.find((p) => p.id === proyectoId);
+    if (!row) return;
+    const next = (nombreDrafts[proyectoId] ?? row.proyecto).trim();
+    if (!next || next === row.proyecto) {
+      setNombreDrafts((d) => ({ ...d, [proyectoId]: row.proyecto }));
+      return;
+    }
+    await saveCampos(
+      proyectoId,
+      { proyecto: next },
+      { proyecto: next },
+      row
+    );
+  };
+
+  const handleFondoChange = async (proyectoId: string, fondo: string) => {
+    const row = proyectos.find((p) => p.id === proyectoId);
+    if (!row || row.fondo === fondo) return;
+    const lineasDelFondo = lineasByFondoNombre.get(fondo) ?? [];
+    const lineaOk =
+      row.linea && lineasDelFondo.some((l) => l.nombre === row.linea)
+        ? row.linea
+        : null;
+    await saveCampos(
+      proyectoId,
+      { fondo, linea: lineaOk },
+      { fondo, linea: lineaOk },
+      row
+    );
+  };
+
+  const handleLineaChange = async (proyectoId: string, value: string) => {
+    const row = proyectos.find((p) => p.id === proyectoId);
+    if (!row) return;
+    const linea = value === SIN_LINEA ? null : value;
+    if ((row.linea ?? null) === linea) return;
+    await saveCampos(proyectoId, { linea }, { linea }, row);
+  };
+
+  const handleSedesChange = (proyectoId: string, value: string) => {
+    const row = proyectosRef.current.find((p) => p.id === proyectoId);
+    if (!row) return;
+    const current = sedeToMultiValue(row.sede);
+    if (current === value) return;
+    const prevSede = row.sede;
+    const sede = parseMultiNames(value).join(', ');
+    applyOptimistic(proyectoId, { sede });
+    const key = `${proyectoId}:sede`;
+    clearTimeout(multiSaveTimersRef.current[key]);
+    multiSaveTimersRef.current[key] = setTimeout(() => {
+      const rollbackBase =
+        proyectosRef.current.find((p) => p.id === proyectoId) ?? row;
+      void saveCampos(
+        proyectoId,
+        { sede },
+        { sede },
+        { ...rollbackBase, sede: prevSede }
+      );
+    }, 400);
+  };
+
+  const handleEscuelasChange = (proyectoId: string, value: string) => {
+    const row = proyectosRef.current.find((p) => p.id === proyectoId);
+    if (!row) return;
+    const current = escuelasToMultiValue(row.escuelas);
+    if (current === value) return;
+    const prevEscuelas = row.escuelas;
+    const names = parseMultiNames(value);
+    const escuelasIds = mapNamesToIds(names, escuelas);
+    const nextEscuelas = names
+      .map((nombre) => {
+        const found = escuelas.find(
+          (e) => e.nombre.toLowerCase() === nombre.toLowerCase()
+        );
+        return found ? { id: found.id, nombre: found.nombre } : null;
+      })
+      .filter((e): e is { id: string; nombre: string } => Boolean(e));
+    applyOptimistic(proyectoId, { escuelas: nextEscuelas });
+    const key = `${proyectoId}:escuelas`;
+    clearTimeout(multiSaveTimersRef.current[key]);
+    multiSaveTimersRef.current[key] = setTimeout(() => {
+      const rollbackBase =
+        proyectosRef.current.find((p) => p.id === proyectoId) ?? row;
+      void saveCampos(
+        proyectoId,
+        { escuelasIds },
+        { escuelas: nextEscuelas },
+        { ...rollbackBase, escuelas: prevEscuelas }
+      );
+    }, 400);
+  };
+
+  const colCount = unlocked ? 8 : 7;
 
   return (
     <div ref={pageRootRef} className="h-full flex flex-col min-h-0 gap-6">
@@ -143,8 +370,8 @@ export default function ConfiguracionProyectosPage() {
           <div>
             <CardTitle>Proyectos</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Listado de proyectos registrados. Puedes asignar el fondo desde el
-              catálogo de validación. Desbloquea con la contraseña de
+              Listado de proyectos registrados. Puedes editar nombre, fondo,
+              línea, sedes y escuelas. Desbloquea con la contraseña de
               administración para poder eliminar proyectos y todo su contenido.
             </p>
           </div>
@@ -194,20 +421,24 @@ export default function ConfiguracionProyectosPage() {
             <div className="rounded-t-md border border-b-0 overflow-hidden flex-shrink-0">
               <Table className="table-fixed w-full">
                 <colgroup>
-                  <col style={{ width: '28%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '10%' }} />
                   <col style={{ width: '16%' }} />
-                  {unlocked && <col style={{ width: '10%' }} />}
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '11%' }} />
+                  {unlocked && <col style={{ width: '8%' }} />}
                 </colgroup>
                 <TableHeader ref={tableHeaderRef}>
                   <TableRow className="[&_th]:bg-muted/50 [&_th]:border-b [&_th]:font-medium [&_th]:text-muted-foreground [&_th]:h-10 [&_th]:px-2 [&_th]:text-left [&_th]:align-middle">
                     <TableHead>Proyecto</TableHead>
                     <TableHead>Fondo</TableHead>
-                    <TableHead>Sede</TableHead>
+                    <TableHead>Línea</TableHead>
+                    <TableHead>Sedes</TableHead>
+                    <TableHead>Escuelas</TableHead>
                     <TableHead>Participantes</TableHead>
-                    <TableHead>Creado</TableHead>
+                    <TableHead>Fecha de creación</TableHead>
                     {unlocked && <TableHead>Eliminar</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -216,34 +447,56 @@ export default function ConfiguracionProyectosPage() {
             <div className="flex-1 min-h-0 overflow-auto rounded-b-md border">
               <Table className="table-fixed w-full">
                 <colgroup>
-                  <col style={{ width: '28%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '10%' }} />
                   <col style={{ width: '16%' }} />
-                  {unlocked && <col style={{ width: '10%' }} />}
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '11%' }} />
+                  {unlocked && <col style={{ width: '8%' }} />}
                 </colgroup>
                 <TableBody>
                   {proyectos.map((p) => {
                     const fondoEnCatalogo = fondos.some(
                       (f) => f.nombre === p.fondo
                     );
+                    const lineasDelFondo =
+                      lineasByFondoNombre.get(p.fondo) ?? [];
+                    const lineaEnCatalogo = lineasDelFondo.some(
+                      (l) => l.nombre === p.linea
+                    );
+                    const busy = updatingId === p.id;
                     return (
                       <TableRow key={p.id}>
-                        <TableCell className="font-medium">
-                          {p.proyecto}
+                        <TableCell className="align-top py-2">
+                          <Input
+                            className="h-8 text-sm font-medium"
+                            value={nombreDrafts[p.id] ?? p.proyecto}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setNombreDrafts((d) => ({
+                                ...d,
+                                [p.id]: e.target.value,
+                              }))
+                            }
+                            onBlur={() => handleNombreSave(p.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top py-2">
                           <Select
                             value={p.fondo || undefined}
                             onValueChange={(value) =>
                               handleFondoChange(p.id, value)
                             }
-                            disabled={
-                              updatingFondoId === p.id || fondos.length === 0
-                            }
+                            disabled={busy || fondos.length === 0}
                           >
-                            <SelectTrigger className="h-8 w-full max-w-[180px]">
+                            <SelectTrigger className="h-8 w-full">
                               <SelectValue
                                 placeholder={
                                   fondos.length === 0
@@ -266,15 +519,79 @@ export default function ConfiguracionProyectosPage() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {p.sede}
+                        <TableCell className="align-top py-2">
+                          <Select
+                            value={p.linea || SIN_LINEA}
+                            onValueChange={(value) =>
+                              handleLineaChange(p.id, value)
+                            }
+                            disabled={busy}
+                          >
+                            <SelectTrigger className="h-8 w-full">
+                              <SelectValue placeholder="Sin línea" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SIN_LINEA}>
+                                Sin línea
+                              </SelectItem>
+                              {p.linea && !lineaEnCatalogo ? (
+                                <SelectItem value={p.linea}>
+                                  {p.linea} (actual)
+                                </SelectItem>
+                              ) : null}
+                              {lineasDelFondo.map((l) => (
+                                <SelectItem key={l.id} value={l.nombre}>
+                                  {l.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
-                        <TableCell>{p.participantes}</TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="align-top py-2">
+                          <MultiSelectNombres
+                            options={sedes}
+                            value={sedeToMultiValue(p.sede)}
+                            onChange={(v) => handleSedesChange(p.id, v)}
+                            placeholder="Seleccionar sedes"
+                            triggerClassName="h-8 min-h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="align-top py-2">
+                          <MultiSelectNombres
+                            options={escuelas}
+                            value={escuelasToMultiValue(p.escuelas)}
+                            onChange={(v) => handleEscuelasChange(p.id, v)}
+                            placeholder="Seleccionar escuelas"
+                            triggerClassName="h-8 min-h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="align-top py-2">
+                          {p.participantes.length === 0 ? (
+                            <span className="text-muted-foreground text-sm">
+                              —
+                            </span>
+                          ) : (
+                            <ul className="space-y-0.5 text-sm break-words">
+                              {p.participantes.map((part, idx) => (
+                                <li
+                                  key={`${p.id}-${part.nombre}-${part.rol}-${idx}`}
+                                  className="text-muted-foreground"
+                                >
+                                  <span className="text-foreground font-medium">
+                                    {part.nombre}
+                                  </span>
+                                  {' · '}
+                                  {part.rol}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top py-2 text-muted-foreground text-sm">
                           {formatDate(p.createdAt)}
                         </TableCell>
                         {unlocked && (
-                          <TableCell>
+                          <TableCell className="align-top py-2">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -289,6 +606,16 @@ export default function ConfiguracionProyectosPage() {
                       </TableRow>
                     );
                   })}
+                  {proyectos.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={colCount}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        No hay proyectos registrados.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

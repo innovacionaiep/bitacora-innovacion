@@ -37,9 +37,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { useProyectosParaUsuario } from '@/hooks/useProyectosParaUsuario';
 import { ProyectoWithRelations } from '@/types/proyecto';
-import type { ProyectoListadoItem } from '@/lib/actions/proyectos';
+import type { ProyectoListadoItem } from '@/types/proyecto';
 import {
   ResumenTab,
   GanttTab,
@@ -85,6 +86,8 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
 export function ProyectosContent() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  const { can } = useActiveRolePermissions();
+  const canCreateProject = can('projects.create');
   const {
     proyectos: proyectosIniciales,
     loading,
@@ -223,16 +226,29 @@ export function ProyectosContent() {
     const participantes = selectedProject.participantes_rel ?? [];
     const userId = session?.user?.id;
     const userEmail = session?.user?.email?.trim().toLowerCase();
+    const activeRole = session?.user?.activeRole ?? null;
     const isMe = (p: { userId?: string | null; email?: string | null }) =>
       p.userId === userId ||
       (userEmail && p.email?.trim().toLowerCase() === userEmail);
+    // Preferir el rol que coincide con el rol activo (matriz de atribuciones)
+    if (activeRole) {
+      const matchActive = participantes.find(
+        (p) => isMe(p) && p.rol === activeRole
+      );
+      if (matchActive) return matchActive.rol;
+    }
     const isCoord = participantes.some(
       (p) => isMe(p) && (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
     );
     if (isCoord) return 'Coordinador';
     const first = participantes.find(isMe);
     return first?.rol ?? null;
-  }, [selectedProject, session?.user?.id, session?.user?.email]);
+  }, [
+    selectedProject,
+    session?.user?.id,
+    session?.user?.email,
+    session?.user?.activeRole,
+  ]);
 
   // Si el proyecto seleccionado ya no está en la lista (ej. cambió de rol), limpiar selección
   useEffect(() => {
@@ -1368,6 +1384,7 @@ export function ProyectosContent() {
                 <p className="text-gray-500 mb-6">
                   Selecciona un proyecto para ver sus detalles o crea uno nuevo
                 </p>
+                {canCreateProject && (
                 <Button
                   variant="outline"
                   asChild
@@ -1381,6 +1398,7 @@ export function ProyectosContent() {
                     <span>Crear proyecto</span>
                   </Link>
                 </Button>
+                )}
               </div>
 
               <div className="relative mb-4 shrink-0">
@@ -1427,7 +1445,7 @@ export function ProyectosContent() {
                   </div>
                 )}
 
-              {borradores.length > 0 && (
+              {canCreateProject && borradores.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-gray-200 text-center">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">
                     Borradores

@@ -3,22 +3,24 @@
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 
 /**
- * Redirige a dashboard si el rol activo deja de ser Admin mientras el usuario
- * está en una ruta de configuración (evita que sigan viendo la página tras cambiar de rol).
+ * Redirige a /inicio si el rol activo pierde view.ajustes mientras está en configuración.
  */
 export function ConfigRoleGuard() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const { can, loading } = useActiveRolePermissions();
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+    if (loading) return;
     if (!pathname?.startsWith('/configuracion')) return;
-    if (session?.user?.activeRole === 'Admin') return;
-    router.replace('/');
-  }, [status, pathname, session?.user?.activeRole, router]);
+    if (can('view.ajustes')) return;
+    router.replace('/inicio');
+  }, [status, pathname, can, loading, router]);
 
   return null;
 }

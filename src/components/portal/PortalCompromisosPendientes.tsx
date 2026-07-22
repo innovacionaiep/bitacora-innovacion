@@ -23,22 +23,36 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 
 type CompromisoPortal = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosPendientesParaUsuario>
 >['data'][number];
 
-const POST_IT_ROJO = 'bg-red-100 border-red-300 shadow-red-200/50';
-const POST_IT_VERDE = 'bg-emerald-100 border-emerald-400 shadow-emerald-300/50';
+const PANEL_SHELL =
+  'h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none overflow-hidden';
+const PANEL_HEADER =
+  'flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50/90';
+const PANEL_TITLE =
+  'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2';
 
-function getPostItClass(c: CompromisoPortal): string {
-  return c.completado ? POST_IT_VERDE : POST_IT_ROJO;
+const NOTE_PENDIENTE =
+  'border border-red-200 bg-red-50/40';
+const NOTE_REALIZADO =
+  'border border-emerald-200 bg-emerald-50/40';
+
+function getNoteClass(c: CompromisoPortal): string {
+  return c.completado ? NOTE_REALIZADO : NOTE_PENDIENTE;
 }
 
 function EstadoIcon({ compromiso }: { compromiso: CompromisoPortal }) {
   if (compromiso.completado)
-    return <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />;
-  return <CircleAlert className="h-5 w-5 text-red-600 shrink-0" />;
+    return (
+      <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" strokeWidth={1.75} />
+    );
+  return (
+    <CircleAlert className="h-4 w-4 text-red-600 shrink-0" strokeWidth={1.75} />
+  );
 }
 
 function tituloDeDescripcion(desc: string, max = 50): string {
@@ -56,6 +70,15 @@ function formatFecha(createdAt: Date | string): string {
   });
 }
 
+function PanelTitle() {
+  return (
+    <h3 className={PANEL_TITLE}>
+      <ClipboardCheck className="h-3.5 w-3.5 text-gray-500" strokeWidth={1.75} />
+      Compromisos pendientes
+    </h3>
+  );
+}
+
 export interface PortalCompromisosPendientesProps {
   compromisos: CompromisoPortal[];
   activeRole: string | null;
@@ -65,7 +88,7 @@ export interface PortalCompromisosPendientesProps {
 
 export function PortalCompromisosPendientes({
   compromisos: compromisosProp,
-  activeRole,
+  activeRole: _activeRole,
   onSuccess,
   loading = false,
 }: PortalCompromisosPendientesProps) {
@@ -83,10 +106,9 @@ export function PortalCompromisosPendientes({
     setCompromisos(compromisosProp);
   }, [compromisosProp]);
 
-  const isCoordinadorOrAdmin =
-    activeRole === 'Coordinador' || activeRole === 'Admin';
-  const canMarkRealizado =
-    activeRole === 'Encargado' || activeRole === 'Admin';
+  const { can } = useActiveRolePermissions();
+  const isCoordinadorOrAdmin = can('compromisos.create_edit');
+  const canMarkRealizado = can('compromisos.mark_done');
 
   const handleToggleRealizado = async (id: string) => {
     if (!canMarkRealizado) return;
@@ -175,15 +197,12 @@ export function PortalCompromisosPendientes({
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
-        <div className="flex-shrink-0 px-4 py-3 border-b">
-          <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
-            <ClipboardCheck className="h-6 w-6 text-emerald-600" />
-            Compromisos pendientes
-          </h3>
+      <div className={PANEL_SHELL}>
+        <div className={PANEL_HEADER}>
+          <PanelTitle />
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
       </div>
     );
@@ -195,104 +214,99 @@ export function PortalCompromisosPendientes({
 
   return (
     <>
-    <div className="h-full flex flex-col border rounded-lg bg-card shadow-md overflow-hidden">
-      <div className="flex-shrink-0 px-4 py-3 border-b">
-        <h3 className="font-semibold text-lg text-emerald-600 flex items-center gap-2">
-          <ClipboardCheck className="h-6 w-6 text-emerald-600" />
-          Compromisos pendientes
-        </h3>
-      </div>
-      <div className="flex-1 min-h-0 overflow-auto px-4 py-2">
-        {list.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No hay compromisos pendientes.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {list.map((c) => {
-              const titulo =
-                c.titulo?.trim() || tituloDeDescripcion(c.descripcion);
-              const proyectoNombre =
-                (c as CompromisoPortal & { proyecto?: { proyecto?: string } })
-                  .proyecto?.proyecto ?? '';
+      <div className={PANEL_SHELL}>
+        <div className={PANEL_HEADER}>
+          <PanelTitle />
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto px-5 py-3">
+          {list.length === 0 ? (
+            <p className="text-[13px] text-gray-400">
+              No hay compromisos pendientes.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {list.map((c) => {
+                const titulo =
+                  c.titulo?.trim() || tituloDeDescripcion(c.descripcion);
+                const proyectoNombre =
+                  (c as CompromisoPortal & { proyecto?: { proyecto?: string } })
+                    .proyecto?.proyecto ?? '';
 
-              return (
-                <div
-                  key={c.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleOpenDetail(c)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleOpenDetail(c);
-                    }
-                  }}
-                  className={`rounded-lg border-2 shadow-md p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:shadow-lg transition-all duration-200 ${getPostItClass(c)}`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p
-                      className={`text-sm font-medium flex-1 min-w-0 line-clamp-2 break-words ${
-                        c.completado
-                          ? 'line-through text-gray-600'
-                          : 'text-gray-900'
-                      }`}
-                      title={c.descripcion}
-                    >
-                      {titulo}
-                    </p>
-                    <EstadoIcon compromiso={c} />
-                  </div>
-                  {proyectoNombre && (
-                    <p className="text-xs text-gray-600 mb-1">
-                      {proyectoNombre}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 mb-2">
-                    Creado: {formatFecha(c.createdAt)}
-                  </p>
+                return (
                   <div
-                    className="flex flex-wrap gap-3 mt-auto"
-                    onClick={(e) => e.stopPropagation()}
+                    key={c.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleOpenDetail(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleOpenDetail(c);
+                      }
+                    }}
+                    className={`rounded-lg shadow-none p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`}
                   >
-                    <label className="flex items-center gap-2 cursor-pointer text-xs">
-                      {togglingId === c.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Checkbox
-                          checked={c.completado}
-                          onCheckedChange={() => handleToggleRealizado(c.id)}
-                          disabled={!canMarkRealizado}
-                          className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
-                        />
-                      )}
-                      Realizado
-                    </label>
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p
+                        className={`text-[13px] font-medium flex-1 min-w-0 line-clamp-2 break-words [overflow-wrap:anywhere] ${
+                          c.completado
+                            ? 'line-through text-gray-500'
+                            : 'text-gray-900'
+                        }`}
+                        title={c.descripcion}
+                      >
+                        {titulo}
+                      </p>
+                      <EstadoIcon compromiso={c} />
+                    </div>
+                    {proyectoNombre && (
+                      <p className="text-[11px] text-gray-500 tracking-wide mb-1">
+                        {proyectoNombre}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-gray-400 mb-2">
+                      Creado: {formatFecha(c.createdAt)}
+                    </p>
+                    <div
+                      className="flex flex-wrap gap-3 mt-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-600">
+                        {togglingId === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                        ) : (
+                          <Checkbox
+                            checked={c.completado}
+                            onCheckedChange={() => handleToggleRealizado(c.id)}
+                            disabled={!canMarkRealizado}
+                            className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
+                          />
+                        )}
+                        Realizado
+                      </label>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
 
       {selectedCompromiso && detailModalOpen && (
         <Dialog
           open={true}
           onOpenChange={(open) => !open && handleCloseDetail()}
         >
-          <DialogContent
-            className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}
-          >
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          <DialogContent className="sm:max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg [&>button]:hidden">
+            <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+              <DialogTitle className="m-0 flex items-center justify-between text-[13px] font-medium leading-none tracking-wide text-gray-800">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <ClipboardCheck
                     className={
                       selectedCompromiso.completado
-                        ? 'h-5 w-5 text-emerald-600'
-                        : 'h-5 w-5 text-red-600'
+                        ? 'size-3.5 shrink-0 text-emerald-600'
+                        : 'size-3.5 shrink-0 text-red-600'
                     }
                   />
                   {isEditingCompromiso ? (
@@ -300,11 +314,7 @@ export function PortalCompromisosPendientes({
                       value={editTitulo}
                       onChange={(e) => setEditTitulo(e.target.value)}
                       placeholder="Título del compromiso"
-                      className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
-                        selectedCompromiso.completado
-                          ? 'bg-emerald-100 border-emerald-400'
-                          : 'bg-red-100 border-red-300'
-                      }`}
+                      className="flex-1 h-8 border-gray-200 bg-white text-[13px] font-medium shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                     />
                   ) : (
                     selectedCompromiso.titulo?.trim() ||
@@ -314,19 +324,29 @@ export function PortalCompromisosPendientes({
                 <EstadoIcon compromiso={selectedCompromiso} />
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              {(selectedCompromiso as CompromisoPortal & { proyecto?: { proyecto?: string } }).proyecto?.proyecto && (
+            <div className="space-y-4 px-5 py-5 bg-white">
+              {(
+                selectedCompromiso as CompromisoPortal & {
+                  proyecto?: { proyecto?: string };
+                }
+              ).proyecto?.proyecto && (
                 <div className="space-y-1">
-                  <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                  <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Proyecto
                   </Label>
-                  <p className="text-sm text-gray-700">
-                    {(selectedCompromiso as CompromisoPortal & { proyecto?: { proyecto?: string } }).proyecto?.proyecto}
+                  <p className="text-[13px] text-gray-700">
+                    {
+                      (
+                        selectedCompromiso as CompromisoPortal & {
+                          proyecto?: { proyecto?: string };
+                        }
+                      ).proyecto?.proyecto
+                    }
                   </p>
                 </div>
               )}
               <div className="space-y-2">
-                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Descripción
                 </Label>
                 {isEditingCompromiso ? (
@@ -335,14 +355,14 @@ export function PortalCompromisosPendientes({
                     onChange={(e) => setEditDescripcion(e.target.value)}
                     placeholder="Escriba el compromiso..."
                     rows={4}
-                    className="resize-none"
+                    className="resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                   />
                 ) : (
                   <p
-                    className={`text-sm whitespace-pre-wrap break-words break-all ${
+                    className={`text-[15px] leading-[1.75] whitespace-pre-wrap break-words break-all ${
                       selectedCompromiso.completado
-                        ? 'line-through text-gray-600'
-                        : 'text-gray-900'
+                        ? 'line-through text-gray-500'
+                        : 'text-gray-800'
                     }`}
                   >
                     {selectedCompromiso.descripcion}
@@ -350,17 +370,17 @@ export function PortalCompromisosPendientes({
                 )}
               </div>
               <div className="space-y-1">
-                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Fecha de creación
                 </Label>
-                <p className="text-sm text-gray-700">
+                <p className="text-[13px] text-gray-500">
                   {formatFecha(selectedCompromiso.createdAt)}
                 </p>
               </div>
-              <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
+              <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
                 <label className="flex items-center gap-3 cursor-pointer">
                   {togglingId === selectedCompromiso.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                   ) : (
                     <Checkbox
                       checked={selectedCompromiso.completado}
@@ -369,30 +389,32 @@ export function PortalCompromisosPendientes({
                         handleToggleRealizado(selectedCompromiso.id)
                       }
                       disabled={!canMarkRealizado}
-                      className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
+                      className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
                     />
                   )}
-                  <span className="font-medium text-gray-700">
+                  <span className="text-[13px] font-medium text-gray-700">
                     Realizado (Encargado)
                   </span>
                 </label>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3">
               {isEditingCompromiso ? (
                 <>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => {
                       setIsEditingCompromiso(false);
                       setEditTitulo(selectedCompromiso.titulo ?? '');
                       setEditDescripcion(selectedCompromiso.descripcion ?? '');
                     }}
                     disabled={savingEdit}
+                    className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
                   >
                     Cancelar edición
                   </Button>
                   <Button
+                    variant="ghost"
                     onClick={handleSaveEdit}
                     disabled={
                       !editDescripcion.trim() ||
@@ -402,7 +424,7 @@ export function PortalCompromisosPendientes({
                         (editTitulo.trim() || null) ===
                           (selectedCompromiso.titulo ?? null))
                     }
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
                   >
                     {savingEdit ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -415,13 +437,20 @@ export function PortalCompromisosPendientes({
                 <>
                   {isCoordinadorOrAdmin && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => setIsEditingCompromiso(true)}
+                      className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
                     >
                       Editar
                     </Button>
                   )}
-                  <Button onClick={handleCloseDetail}>Cerrar</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleCloseDetail}
+                    className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
+                  >
+                    Cerrar
+                  </Button>
                 </>
               )}
             </DialogFooter>

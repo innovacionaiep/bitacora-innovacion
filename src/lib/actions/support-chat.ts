@@ -3,6 +3,7 @@
 import { getSession } from '@/lib/auth-utils';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { roleHasPermission } from '@/lib/permissions/check';
 
 export type SupportMessageRow = {
   id: string;
@@ -24,8 +25,11 @@ export async function getSupportMessages(
   if (!session?.user?.id) {
     return { success: false, error: 'No autenticado' };
   }
-  const isAdmin = session.user.activeRole === 'Admin';
-  if (!isAdmin && userId !== session.user.id) {
+  const isSupportAdmin = await roleHasPermission(
+    session.user.activeRole,
+    'soporte.admin'
+  );
+  if (!isSupportAdmin && userId !== session.user.id) {
     return { success: false, error: 'Sin permisos' };
   }
   const messages = await prisma.supportMessage.findMany({
@@ -69,7 +73,11 @@ export async function sendSupportMessage(payload: {
     return { success: false, error: 'El mensaje no puede estar vacío' };
   }
   if (isFromAdmin) {
-    if (session.user.activeRole !== 'Admin') {
+    const isSupportAdmin = await roleHasPermission(
+      session.user.activeRole,
+      'soporte.admin'
+    );
+    if (!isSupportAdmin) {
       return { success: false, error: 'Sin permisos' };
     }
   } else {
@@ -116,7 +124,11 @@ export async function getSupportConversationsForAdmin(): Promise<{
   if (!session?.user?.id) {
     return { success: false, error: 'No autenticado' };
   }
-  if (session.user.activeRole !== 'Admin') {
+  const isSupportAdmin = await roleHasPermission(
+    session.user.activeRole,
+    'soporte.admin'
+  );
+  if (!isSupportAdmin) {
     return { success: false, error: 'Sin permisos' };
   }
   const messages = await prisma.supportMessage.findMany({

@@ -75,11 +75,11 @@ export function IndicadorDetalleModal({
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg border border-gray-200 bg-white shadow-md sm:rounded-lg">
           <DialogTitle className="sr-only">Cargando indicador</DialogTitle>
           <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">Cargando indicador…</p>
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <p className="mt-4 text-[13px] text-gray-400">Cargando indicador…</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -89,7 +89,7 @@ export function IndicadorDetalleModal({
   if (error || !indicador) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg border border-gray-200 bg-white shadow-md sm:rounded-lg">
           <DialogTitle className="sr-only">Error</DialogTitle>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-sm text-destructive">{error ?? 'Indicador no encontrado'}</p>

@@ -38,6 +38,8 @@ import {
   Paperclip,
   Loader2,
   X,
+  Save,
+  Pencil,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -110,6 +112,70 @@ const MONTHS = [
   'Diciembre',
 ];
 
+type ActivityEditableField = 'name' | 'description';
+
+function ActivityFieldSaveCancel({
+  isSaving,
+  onSave,
+  onCancel,
+}: {
+  isSaving: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-4 mt-2">
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={isSaving}
+        className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+      >
+        <Save className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        Guardar
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+      >
+        <X className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
+function ActivityHoverEditButton({
+  onClick,
+  tooltip = 'Editar',
+  className = 'right-0 top-0',
+}: {
+  onClick: () => void;
+  tooltip?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`absolute z-10 ${className}`}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onClick}
+            className="h-7 w-7 shrink-0 rounded-sm opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
+            aria-label={tooltip}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  );
+}
+
 // Props del componente
 interface GanttChartProps {
   projectId: string;
@@ -171,9 +237,10 @@ const SortableActivity = memo(function SortableActivity({
   } = useSortable({ id: activity.id });
 
   // Función unificada para calcular altura de fila
+  // taskSpacing debe coincidir con el usado al posicionar nombres/barras de tareas (25)
   const getRowHeight = (isExpanded: boolean, taskCount: number) => {
     const baseHeight = 3 + 50; // padding superior + altura barra actividad
-    const taskHeight = isExpanded ? taskCount * 22 : 0; // altura por tarea
+    const taskHeight = isExpanded ? taskCount * 25 : 0; // altura por tarea
     const bottomPadding = 10; // padding inferior unificado
     return Math.max(48, baseHeight + taskHeight + bottomPadding);
   };
@@ -664,6 +731,13 @@ export default function GanttChart({
   >('create');
   const [selectedActivityForPopup, setSelectedActivityForPopup] =
     useState<Activity | null>(null);
+  const [editingActivityField, setEditingActivityField] =
+    useState<ActivityEditableField | null>(null);
+  const [activityFieldDraft, setActivityFieldDraft] = useState({
+    name: '',
+    description: '',
+  });
+  const [isSavingActivityField, setIsSavingActivityField] = useState(false);
 
   // Timer para ocultar el tooltip con delay
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
@@ -1304,7 +1378,7 @@ export default function GanttChart({
   };
 
   // Manejar clic en agregar actividad
-  const handleAddActivityClick = (event: React.MouseEvent) => {
+  const handleAddActivityClick = (_event?: React.MouseEvent) => {
     closeFormPopups();
     openActivityPopup('create');
   };
@@ -1330,13 +1404,13 @@ export default function GanttChart({
     setShowAddTask(true);
   };
 
-  // Manejar clic en editar actividad
+  // Manejar clic en editar actividad → abre detalle (edición por campo con hover)
   const handleEditActivityClick = (
     event: React.MouseEvent,
     activity: Activity
   ) => {
     closeFormPopups();
-    openActivityPopup('edit', activity);
+    openActivityPopup('view', activity);
   };
 
   // Manejar cambios en el formulario de edición
@@ -1353,6 +1427,70 @@ export default function GanttChart({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleStartActivityFieldEdit = (field: ActivityEditableField) => {
+    if (!selectedActivityForPopup) return;
+    setActivityFieldDraft({
+      name: selectedActivityForPopup.name || '',
+      description: selectedActivityForPopup.description || '',
+    });
+    setEditingActivityField(field);
+    setEditingTaskId(null);
+    setShowInlineAddTask(false);
+  };
+
+  const handleCancelActivityFieldEdit = () => {
+    setEditingActivityField(null);
+    if (selectedActivityForPopup) {
+      setActivityFieldDraft({
+        name: selectedActivityForPopup.name || '',
+        description: selectedActivityForPopup.description || '',
+      });
+    }
+  };
+
+  const handleSaveActivityField = async () => {
+    if (!selectedActivityForPopup || !editingActivityField) return;
+
+    if (editingActivityField === 'name') {
+      const name = activityFieldDraft.name.trim();
+      if (!name) {
+        alert('Por favor completa el nombre de la actividad');
+        return;
+      }
+      if (name.length > 50) {
+        alert('El nombre de la actividad no puede exceder los 50 caracteres');
+        return;
+      }
+    }
+
+    setIsSavingActivityField(true);
+    try {
+      const payload =
+        editingActivityField === 'name'
+          ? { name: activityFieldDraft.name.trim() }
+          : { description: activityFieldDraft.description };
+
+      const { error } = await updateActivity(
+        selectedActivityForPopup.id,
+        payload
+      );
+
+      if (error) {
+        alert('Error al actualizar la actividad: ' + error);
+        return;
+      }
+
+      setSelectedActivityForPopup({
+        ...selectedActivityForPopup,
+        ...payload,
+      });
+      setEditingActivityField(null);
+      showSuccessMessage('Cambios guardados');
+    } finally {
+      setIsSavingActivityField(false);
+    }
   };
 
   const handleSaveTaskEdit = async () => {
@@ -1726,18 +1864,28 @@ export default function GanttChart({
   // Función para abrir el popup unificado en diferentes modos
   const openActivityPopup = useCallback(
     (mode: 'create' | 'edit' | 'view', activity?: Activity) => {
-      setActivityPopupMode(mode);
+      // 'edit' legacy → view con edición por campo (hover)
+      const resolvedMode = mode === 'edit' ? 'view' : mode;
+      setActivityPopupMode(resolvedMode);
       setSelectedActivityForPopup(activity || null);
+      setEditingActivityField(null);
+      setEditingTaskId(null);
+      setShowInlineAddTask(false);
 
-      if (mode === 'create') {
+      if (resolvedMode === 'create') {
         setUnifiedActivityForm({ name: '', description: '' });
         setTempTasks([]);
+        setActivityFieldDraft({ name: '', description: '' });
       } else if (activity) {
         setUnifiedActivityForm({
           name: activity.name,
           description: activity.description || '',
         });
-        setTempTasks(mode === 'edit' ? [] : activity.tasks || []);
+        setActivityFieldDraft({
+          name: activity.name,
+          description: activity.description || '',
+        });
+        setTempTasks([]);
       }
 
       setShowActivityPopup(true);
@@ -1928,9 +2076,9 @@ export default function GanttChart({
       >
         {/* Header compacto de progreso */}
         <div className="mb-3 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-6 min-w-0">
             {/* Botones de toggle Gantt/Kanban */}
-            <div className="flex items-center space-x-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
               {/* Botón de pantalla completa */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1939,7 +2087,7 @@ export default function GanttChart({
                     onClick={toggleFullscreen}
                     variant="ghost"
                     size="sm"
-                    className="h-10 w-10 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                    className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
                   >
                     {isFullscreen ? (
                       <Minimize className="h-4 w-4" />
@@ -1957,20 +2105,22 @@ export default function GanttChart({
                 </TooltipContent>
               </Tooltip>
 
-              {/* Nombre del proyecto en fullscreen (sin botón de cambiar proyecto) */}
+              {/* Nombre del proyecto en fullscreen (máx. 50 caracteres) — ancho del texto, no flex-1 */}
               {isFullscreen && projectName && (
-                <div className="flex items-center space-x-3 flex-1 pl-[1.9rem]">
-                  {/* Nombre del proyecto - pl-[1.9rem] ~5% menos que pl-8, evita que space-x-2 del padre anule el espaciado */}
-                  <h1 className="text-2xl font-bold text-gray-900 truncate flex-1 min-w-0">
-                    {projectName}
+                <div className="flex min-w-0 max-w-full shrink items-center pl-[1.9rem]">
+                  <h1
+                    className="truncate text-2xl font-bold text-gray-900"
+                    title={projectName}
+                  >
+                    {projectName.length > 50
+                      ? `${projectName.slice(0, 50)}…`
+                      : projectName}
                   </h1>
                 </div>
               )}
 
-              {/* Contenedor de botones Gantt/Kanban con espaciado solo en fullscreen */}
-              <div
-                className={`flex items-center space-x-2 ${isFullscreen ? 'ml-8' : ''}`}
-              >
+              {/* Gantt/Kanban: justo a la derecha del título */}
+              <div className="flex shrink-0 items-center space-x-2">
                 <Button
                   type="button"
                   onClick={() => setViewMode('gantt')}
@@ -2004,8 +2154,8 @@ export default function GanttChart({
               </div>
             </div>
 
-            {/* Progreso del proyecto */}
-            <div className="flex items-center space-x-4">
+            {/* Progreso del proyecto — alineado al borde derecho del Gantt (mismo contenedor) */}
+            <div className="flex shrink-0 items-center space-x-4">
               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
@@ -2020,7 +2170,7 @@ export default function GanttChart({
                       style={{ width: `${calculateProjectProgress()}%` }}
                     ></div>
                   </div>
-                  <span className="text-4xl font-bold text-emerald-600">
+                  <span className="text-4xl font-bold text-emerald-600 tabular-nums">
                     {calculateProjectProgress()}%
                   </span>
                 </div>
@@ -2109,40 +2259,6 @@ export default function GanttChart({
                                     ) : (
                                       <ChevronRight className="h-4 w-4" />
                                     )}
-                                  </Button>
-                                </div>
-                              )}
-                              {viewMode === 'gantt' && (
-                                <div className="relative group">
-                                  <Button
-                                    onClick={handleAddActivityClick}
-                                    variant="outline"
-                                    className="rounded-full w-7 h-7 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                                    aria-label="Agregar actividad"
-                                    onMouseEnter={(e) => {
-                                      const rect =
-                                        e.currentTarget.getBoundingClientRect();
-                                      const tooltip = document.getElementById(
-                                        'add-activity-tooltip'
-                                      );
-                                      if (tooltip) {
-                                        tooltip.style.left = `${rect.left + rect.width / 2}px`;
-                                        tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
-                                        tooltip.style.transform =
-                                          'translateX(-50%)';
-                                        tooltip.style.opacity = '1';
-                                      }
-                                    }}
-                                    onMouseLeave={() => {
-                                      const tooltip = document.getElementById(
-                                        'add-activity-tooltip'
-                                      );
-                                      if (tooltip) {
-                                        tooltip.style.opacity = '0';
-                                      }
-                                    }}
-                                  >
-                                    <Plus className="h-4 w-4" />
                                   </Button>
                                 </div>
                               )}
@@ -2254,7 +2370,7 @@ export default function GanttChart({
                                   <Circle className="h-8 w-8 mx-auto mb-2" />
                                   <p className="text-sm">No hay actividades</p>
                                   <p className="text-xs mt-1">
-                                    Usa el botón + en el header para agregar una
+                                    Usa el botón + de abajo para agregar una
                                   </p>
                                 </div>
                               </div>
@@ -2311,21 +2427,41 @@ export default function GanttChart({
                                   )}
                                 />
                               </SortableContext>
-
-                              {/* Footer para marcar el fin de las actividades */}
-                              <div className="flex">
-                                <div
-                                  className="w-[500px] border-r border-gray-200 bg-gray-50"
-                                  data-column="activities"
-                                >
-                                  <div className="h-6"></div>
-                                </div>
-                                <div className="flex-1 bg-gray-50">
-                                  <div className="h-6"></div>
-                                </div>
-                              </div>
                             </DndContext>
                           )}
+
+                          {/* Fila para crear nueva actividad */}
+                          <div
+                            className="flex bg-gray-50 hover:bg-emerald-50/80 transition-colors cursor-pointer border-t border-dashed border-gray-200"
+                            onClick={handleAddActivityClick}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleAddActivityClick();
+                              }
+                            }}
+                          >
+                            <div
+                              className="w-[500px] border-r border-gray-200 bg-gray-50 text-center py-1.5"
+                              data-column="activities"
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddActivityClick();
+                                }}
+                                className="p-1.5 bg-gray-700 rounded-full hover:bg-emerald-500 transition-colors cursor-pointer inline-flex items-center justify-center shadow-md"
+                                title="Agregar actividad"
+                                aria-label="Agregar actividad"
+                              >
+                                <Plus className="h-4 w-4 text-white" strokeWidth={2.5} />
+                              </button>
+                            </div>
+                            <div className="flex-1 bg-gray-50" />
+                          </div>
                         </div>
                       </>
                     )}
@@ -2565,6 +2701,8 @@ export default function GanttChart({
               setUnifiedActivityForm({ name: '', description: '' });
               setTempTasks([]);
               setActivityPopupMode('view');
+              setEditingActivityField(null);
+              setActivityFieldDraft({ name: '', description: '' });
               setEditingTaskId(null);
               setShowInlineAddTask(false);
               setInlineTaskForm({
@@ -2578,42 +2716,18 @@ export default function GanttChart({
           }}
         >
           <DialogContent
-            className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-10"
+            closeButtonPosition="outside-top-right"
+            className="w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header - nombre + Progreso (o botones en edit/create) */}
-            <div className="mb-6 flex-shrink-0">
-              <div className="flex items-center justify-between gap-4 mb-3">
+            {/* Header - nombre + Progreso (o botones en create) */}
+            <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 flex items-center gap-2 min-w-0">
-                  {activityPopupMode === 'view' ? (
-                    <>
-                      <DialogTitle className="text-2xl font-bold text-emerald-600">
-                        {selectedActivityForPopup?.name || 'Sin nombre'}
-                      </DialogTitle>
-                      {selectedActivityForPopup && (
-                        <button
-                          onClick={() => {
-                            setActivityPopupMode('edit');
-                            setUnifiedActivityForm({
-                              name: selectedActivityForPopup.name || '',
-                              description:
-                                selectedActivityForPopup.description || '',
-                            });
-                            setTempTasks([]);
-                          }}
-                          className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors flex-shrink-0"
-                          title="Editar actividad"
-                        >
-                          <Edit className="h-5 w-5" />
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col gap-1">
+                  {activityPopupMode === 'create' ? (
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
                       <DialogTitle className="sr-only">
-                        {activityPopupMode === 'create'
-                          ? 'Crear actividad'
-                          : 'Editar actividad'}
+                        Crear actividad
                       </DialogTitle>
                       <Input
                         value={unifiedActivityForm.name}
@@ -2624,23 +2738,61 @@ export default function GanttChart({
                           )
                         }
                         placeholder="Nombre de la actividad (obligatorio)"
-                        className="text-2xl font-bold text-emerald-600 h-auto py-1 px-2 border-emerald-300 w-full min-w-[42rem] max-w-full"
+                        className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
                         maxLength={50}
                       />
-                      <span className="text-xs text-gray-400">
+                      <span className="text-[12px] text-gray-400">
                         {unifiedActivityForm.name.length}/50 caracteres
-                        {(activityPopupMode === 'create' ||
-                          activityPopupMode === 'edit') && (
-                          <span className="text-amber-600 ml-1">
-                            · obligatorio
-                          </span>
-                        )}
+                        <span className="text-amber-600 ml-1">
+                          · obligatorio
+                        </span>
                       </span>
+                    </div>
+                  ) : editingActivityField === 'name' ? (
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <DialogTitle className="sr-only">
+                        Editar nombre
+                      </DialogTitle>
+                      <Input
+                        value={activityFieldDraft.name}
+                        onChange={(e) =>
+                          setActivityFieldDraft((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder="Nombre de la actividad"
+                        className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
+                        maxLength={50}
+                        autoFocus
+                      />
+                      <span className="text-[12px] text-gray-400">
+                        {activityFieldDraft.name.length}/50 caracteres
+                      </span>
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingActivityField}
+                        onSave={handleSaveActivityField}
+                        onCancel={handleCancelActivityFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative min-w-0 max-w-full pr-8">
+                      <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
+                        {selectedActivityForPopup?.name || 'Sin nombre'}
+                      </DialogTitle>
+                      {selectedActivityForPopup && (
+                        <ActivityHoverEditButton
+                          onClick={() => handleStartActivityFieldEdit('name')}
+                          tooltip="Editar nombre"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
-                {activityPopupMode === 'view' && selectedActivityForPopup && (
-                  <div className="flex items-center space-x-4 flex-shrink-0">
+                {activityPopupMode === 'view' &&
+                  selectedActivityForPopup &&
+                  editingActivityField !== 'name' && (
+                  <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
                     <span className="text-base font-medium text-gray-700">
                       Progreso
                     </span>
@@ -2652,77 +2804,54 @@ export default function GanttChart({
                         }}
                       />
                     </div>
-                    <span className="text-2xl font-bold text-emerald-600 min-w-[4rem]">
+                    <span className="text-2xl font-bold text-gray-800 min-w-[4rem] tabular-nums">
                       {getActivityProgress(selectedActivityForPopup)}%
                     </span>
                   </div>
                 )}
-                {(activityPopupMode === 'edit' ||
-                  activityPopupMode === 'create') && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      size="sm"
+                {activityPopupMode === 'create' && (
+                  <div className="flex h-7 shrink-0 items-center gap-3">
+                    <button
+                      type="button"
                       onClick={handleUnifiedActivityAction}
                       disabled={
-                        isSubmittingActivityAction ||
-                        (activityPopupMode === 'create' &&
-                          tempTasks.length === 0)
+                        isSubmittingActivityAction || tempTasks.length === 0
                       }
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:pointer-events-none"
+                      className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
                     >
-                      {isSubmittingActivityAction
-                        ? activityPopupMode === 'create'
-                          ? 'Creando...'
-                          : 'Guardando...'
-                        : activityPopupMode === 'create'
-                          ? 'Crear Actividad'
-                          : 'Guardar cambios'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                      <Save className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                      {isSubmittingActivityAction ? 'Creando...' : 'Crear'}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
-                        if (activityPopupMode === 'create') {
-                          setShowActivityPopup(false);
-                          setSelectedActivityForPopup(null);
-                          setUnifiedActivityForm({ name: '', description: '' });
-                          setTempTasks([]);
-                          setActivityPopupMode('view');
-                        } else {
-                          setActivityPopupMode('view');
-                          setUnifiedActivityForm({
-                            name: selectedActivityForPopup?.name || '',
-                            description:
-                              selectedActivityForPopup?.description || '',
-                          });
-                          setTempTasks([]);
-                        }
+                        setShowActivityPopup(false);
+                        setSelectedActivityForPopup(null);
+                        setUnifiedActivityForm({ name: '', description: '' });
+                        setTempTasks([]);
+                        setActivityPopupMode('view');
                         setEditingTaskId(null);
                         setShowInlineAddTask(false);
                       }}
+                      className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
                     >
+                      <X className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
                       Cancelar
-                    </Button>
+                    </button>
                   </div>
                 )}
               </div>
-              <div className="w-full h-px bg-emerald-600 mt-2" />
             </div>
 
             {/* Layout de 3 columnas */}
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-8 mt-0 flex-1 min-h-0 overflow-hidden">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
               {/* COLUMNA IZQUIERDA: Descripción + Período */}
-              <div className="space-y-6 overflow-y-auto min-h-0 border-r border-gray-200 pr-8">
+              <div className="space-y-6 overflow-y-auto min-h-0 border-r border-gray-100 pr-6 custom-scrollbar">
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
                   </h3>
-                  {activityPopupMode === 'view' ? (
-                    <p className="text-gray-700 text-base">
-                      {selectedActivityForPopup?.description ||
-                        'Sin descripción'}
-                    </p>
-                  ) : (
+                  {activityPopupMode === 'create' ? (
                     <textarea
                       value={unifiedActivityForm.description}
                       onChange={(e) =>
@@ -2732,17 +2861,53 @@ export default function GanttChart({
                         )
                       }
                       placeholder="Descripción (opcional)"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[100px] resize-y text-base"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[100px] resize-y text-[13px] text-gray-800"
                       rows={4}
                     />
+                  ) : editingActivityField === 'description' ? (
+                    <div className="min-w-0">
+                      <textarea
+                        value={activityFieldDraft.description}
+                        onChange={(e) =>
+                          setActivityFieldDraft((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="Descripción (opcional)"
+                        className="w-full px-0 py-1 border-0 border-b border-gray-200 rounded-none bg-transparent shadow-none focus:outline-none focus:ring-0 focus:border-emerald-500 min-h-[100px] resize-y text-[15px] leading-[1.75] text-gray-800"
+                        rows={4}
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingActivityField}
+                        onSave={handleSaveActivityField}
+                        onCancel={handleCancelActivityFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative min-w-0 pr-8">
+                      <p className="text-[15px] text-gray-800 leading-[1.75] break-words [overflow-wrap:anywhere]">
+                        {selectedActivityForPopup?.description ||
+                          'Sin descripción'}
+                      </p>
+                      {selectedActivityForPopup && (
+                        <ActivityHoverEditButton
+                          onClick={() =>
+                            handleStartActivityFieldEdit('description')
+                          }
+                          tooltip="Editar descripción"
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Período
                   </h3>
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50/40 p-4">
                     {(() => {
                       const activityRange = selectedActivityForPopup
                         ? getActivityDateRange(selectedActivityForPopup)
@@ -2756,7 +2921,7 @@ export default function GanttChart({
                         );
                       }
                       return (
-                        <p className="text-sm text-gray-500 italic text-center py-4">
+                        <p className="text-[13px] text-gray-400 text-center py-4">
                           {activityPopupMode === 'create'
                             ? 'El período se calculará según las tareas'
                             : 'Sin tareas definidas'}
@@ -2768,24 +2933,26 @@ export default function GanttChart({
 
                 {/* Evidencias */}
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Evidencias
                   </h3>
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="rounded-lg border border-gray-200 bg-white p-4">
                     {isLoadingEvidencias ? (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-[13px] text-gray-400">
                         Cargando evidencias...
                       </p>
                     ) : evidenciasActividad.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">
-                        No se han cargado evidencias
-                      </p>
+                      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
+                        <p className="text-[13px] text-gray-400">
+                          No se han cargado evidencias
+                        </p>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
                         {evidenciasActividad.map((ev) => (
                           <div
                             key={ev.id}
-                            className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm"
+                            className="relative group rounded-lg border border-gray-200 bg-white overflow-hidden shadow-none"
                           >
                             {ev.tipo === 'image' ? (
                               <a
@@ -2801,16 +2968,16 @@ export default function GanttChart({
                                 />
                               </a>
                             ) : (
-                              <div className="flex flex-col items-center justify-center aspect-video p-4 text-red-600">
+                              <div className="flex flex-col items-center justify-center aspect-video p-4 text-gray-600">
                                 <a
                                   href={ev.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex flex-col items-center hover:bg-red-50 rounded transition-colors flex-1 w-full justify-center"
+                                  className="flex flex-col items-center hover:bg-gray-50 rounded transition-colors flex-1 w-full justify-center"
                                   title="Abrir PDF en nueva pestaña"
                                 >
-                                  <FileText className="h-10 w-10 mb-1" />
-                                  <span className="text-xs font-medium text-center truncate w-full">
+                                  <FileText className="h-8 w-8 mb-1 text-gray-500" />
+                                  <span className="text-[12px] font-medium text-center truncate w-full text-gray-700">
                                     {ev.nombreArchivo ?? 'Documento PDF'}
                                   </span>
                                 </a>
@@ -2848,17 +3015,17 @@ export default function GanttChart({
                                       );
                                     }
                                   }}
-                                  className="mt-2 text-xs underline hover:no-underline text-red-700"
+                                  className="mt-2 text-[12px] text-gray-500 hover:text-emerald-700 underline hover:no-underline transition-colors"
                                 >
                                   Descargar
                                 </button>
                               </div>
                             )}
-                            {activityPopupMode === 'edit' &&
-                              selectedActivityForPopup?.id &&
+                            {selectedActivityForPopup?.id &&
                               !selectedActivityForPopup.id.startsWith(
                                 'temp-'
-                              ) && (
+                              ) &&
+                              activityPopupMode !== 'create' && (
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -2875,7 +3042,7 @@ export default function GanttChart({
                                       alert(res.error ?? 'Error al eliminar');
                                     }
                                   }}
-                                  className="absolute top-1 right-1 p-1.5 bg-red-100 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                                  className="absolute top-1 right-1 p-1 rounded-sm bg-white/90 border border-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
                                   title="Eliminar evidencia"
                                 >
                                   <X className="h-3.5 w-3.5" />
@@ -2932,29 +3099,27 @@ export default function GanttChart({
                               e.target.value = '';
                             }}
                           />
-                          <Button
+                          <button
                             type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2"
                             disabled={isUploadingEvidencia}
                             onClick={() =>
                               evidenciasFileInputRef.current?.click()
                             }
+                            className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5"
                           >
                             {isUploadingEvidencia ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 Subiendo...
                               </>
                             ) : (
                               <>
-                                <Paperclip className="h-4 w-4" />
+                                <Paperclip className="h-3.5 w-3.5" strokeWidth={2} />
                                 Agregar evidencia (JPG o PDF)
                               </>
                             )}
-                          </Button>
-                          <p className="text-xs text-gray-500 mt-1">
+                          </button>
+                          <p className="text-[12px] text-gray-400 mt-1.5">
                             Imágenes máx. 250 KB (se comprimen automáticamente).
                             PDF máx. 2 MB.
                           </p>
@@ -2965,41 +3130,50 @@ export default function GanttChart({
               </div>
 
               {/* COLUMNA CENTRAL: Tareas */}
-              <div className="flex flex-col min-h-0 overflow-hidden">
-                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                  <h3 className="font-semibold text-gray-900 text-base">
+              <div className="group/tasks flex flex-col min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Tareas{' '}
-                    {activityPopupMode === 'view'
-                      ? `(${selectedActivityForPopup?.tasks?.length ?? 0})`
-                      : `(${(selectedActivityForPopup?.tasks?.length ?? 0) + tempTasks.length})`}
+                    <span className="normal-case tracking-normal text-gray-400">
+                      {activityPopupMode === 'create'
+                        ? `(${tempTasks.length})`
+                        : `(${selectedActivityForPopup?.tasks?.length ?? 0})`}
+                    </span>
                     {activityPopupMode === 'create' && (
-                      <span className="font-normal text-amber-600 text-sm ml-1">
+                      <span className="normal-case tracking-normal text-amber-600 text-[12px] ml-1 font-normal">
                         (obligatorio al menos una)
                       </span>
                     )}
                   </h3>
-                  {activityPopupMode !== 'view' && (
-                    <button
-                      onClick={() => setShowInlineAddTask(true)}
-                      className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors"
-                      title="Agregar tarea"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInlineAddTask(true);
+                      setEditingActivityField(null);
+                      setEditingTaskId(null);
+                    }}
+                    className={`inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm ${
+                      activityPopupMode === 'create'
+                        ? ''
+                        : 'opacity-0 group-hover/tasks:opacity-100 focus-visible:opacity-100'
+                    }`}
+                    title="Agregar tarea"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                    Agregar
+                  </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                   {/* Formulario inline para agregar tarea */}
                   {showInlineAddTask && (
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                    <div className="p-3.5 rounded-lg border border-gray-200 bg-gray-50/50 space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900">
+                        <span className="text-[13px] font-medium tracking-wide text-gray-800">
                           Nueva tarea
                         </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
+                        <button
+                          type="button"
                           onClick={() => {
                             setShowInlineAddTask(false);
                             setInlineTaskForm({
@@ -3009,9 +3183,10 @@ export default function GanttChart({
                               endDate: '',
                             });
                           }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-gray-400 hover:text-gray-900 transition-colors"
                         >
-                          ×
-                        </Button>
+                          <X className="h-3.5 w-3.5" strokeWidth={2} />
+                        </button>
                       </div>
                       <Input
                         value={inlineTaskForm.name}
@@ -3023,6 +3198,7 @@ export default function GanttChart({
                         }
                         placeholder="Nombre de la tarea *"
                         maxLength={60}
+                        className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                       />
                       <textarea
                         value={inlineTaskForm.description}
@@ -3033,12 +3209,12 @@ export default function GanttChart({
                           }))
                         }
                         placeholder="Descripción (opcional)"
-                        className="w-full px-3 py-2 border rounded-md text-sm resize-none"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-[13px] shadow-none resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1"
                         rows={2}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-xs text-gray-600">
+                          <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                             Inicio
                           </Label>
                           <Calendar
@@ -3055,7 +3231,7 @@ export default function GanttChart({
                           />
                         </div>
                         <div>
-                          <Label className="text-xs text-gray-600">
+                          <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                             Término
                           </Label>
                           <Calendar
@@ -3073,26 +3249,24 @@ export default function GanttChart({
                           />
                         </div>
                       </div>
-                      <Button
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={handleInlineAddTask}
                         disabled={isCreatingTask}
-                        className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:pointer-events-none"
+                        className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
                       >
+                        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                         {isCreatingTask ? 'Creando...' : 'Crear tarea'}
-                      </Button>
+                      </button>
                     </div>
                   )}
 
                   {(() => {
                     let tasksToShow: Task[] = [];
-                    if (activityPopupMode === 'view') {
-                      tasksToShow = selectedActivityForPopup?.tasks || [];
-                    } else if (activityPopupMode === 'edit') {
-                      const existing = selectedActivityForPopup?.tasks || [];
-                      tasksToShow = [...existing, ...tempTasks];
-                    } else {
+                    if (activityPopupMode === 'create') {
                       tasksToShow = tempTasks;
+                    } else {
+                      tasksToShow = selectedActivityForPopup?.tasks || [];
                     }
                     tasksToShow = [...tasksToShow].sort(
                       (a, b) =>
@@ -3102,11 +3276,13 @@ export default function GanttChart({
 
                     if (tasksToShow.length === 0 && !showInlineAddTask) {
                       return (
-                        <p className="text-sm text-gray-500 italic text-center py-8">
-                          {activityPopupMode === 'create'
-                            ? 'Debes agregar al menos una tarea para crear la actividad. Haz clic en + para agregar.'
-                            : 'No hay tareas definidas'}
-                        </p>
+                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-8">
+                          <p className="text-[13px] text-gray-400 text-center">
+                            {activityPopupMode === 'create'
+                              ? 'Debes agregar al menos una tarea para crear la actividad. Haz clic en Agregar.'
+                              : 'No hay tareas definidas'}
+                          </p>
+                        </div>
                       );
                     }
 
@@ -3114,21 +3290,20 @@ export default function GanttChart({
                       editingTaskId === task.id ? (
                         <div
                           key={task.id}
-                          className="p-4 bg-amber-50 rounded-lg border border-amber-200 space-y-3"
+                          className="p-3.5 rounded-lg border border-gray-200 bg-gray-50/50 space-y-3"
                         >
                           <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-900">
+                            <span className="text-[13px] font-medium tracking-wide text-gray-800">
                               Editar tarea
                             </span>
-                            <Button
-                              size="icon"
-                              variant="outline"
+                            <button
+                              type="button"
                               onClick={() => setEditingTaskId(null)}
-                              className="h-8 w-8 shrink-0 rounded-full border-amber-300 bg-white text-gray-700 hover:bg-amber-100 hover:text-gray-900 hover:border-amber-400"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-gray-400 hover:text-gray-900 transition-colors"
                               title="Cerrar edición"
                             >
-                              <X className="h-4 w-4" />
-                            </Button>
+                              <X className="h-3.5 w-3.5" strokeWidth={2} />
+                            </button>
                           </div>
                           <Input
                             value={editingTaskForm.name}
@@ -3140,6 +3315,7 @@ export default function GanttChart({
                             }
                             placeholder="Nombre"
                             maxLength={60}
+                            className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                           />
                           <textarea
                             value={editingTaskForm.description}
@@ -3150,12 +3326,12 @@ export default function GanttChart({
                               }))
                             }
                             placeholder="Descripción"
-                            className="w-full px-3 py-2 border rounded-md text-sm resize-none"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-[13px] shadow-none resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1"
                             rows={2}
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs text-gray-600">
+                              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                                 Inicio
                               </Label>
                               <Calendar
@@ -3172,7 +3348,7 @@ export default function GanttChart({
                               />
                             </div>
                             <div>
-                              <Label className="text-xs text-gray-600">
+                              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                                 Término
                               </Label>
                               <Calendar
@@ -3190,18 +3366,29 @@ export default function GanttChart({
                               />
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveTaskEdit}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                          >
-                            Guardar
-                          </Button>
+                          <div className="flex items-center gap-4">
+                            <button
+                              type="button"
+                              onClick={handleSaveTaskEdit}
+                              className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <Save className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingTaskId(null)}
+                              className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <X className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                              Cancelar
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div
                           key={task.id}
-                          className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                          className="group/field relative p-3.5 rounded-lg border border-gray-200 bg-white"
                         >
                           <div className="flex items-start gap-3">
                             <label
@@ -3242,15 +3429,15 @@ export default function GanttChart({
                                 className="sr-only"
                               />
                               <div
-                                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${
+                                className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-all ${
                                   task.completed
-                                    ? 'bg-emerald-500 border-emerald-500'
-                                    : 'bg-white border-gray-300 hover:border-emerald-400'
+                                    ? 'bg-emerald-600 border-emerald-600'
+                                    : 'bg-white border-gray-300 hover:border-emerald-500'
                                 }`}
                               >
                                 {task.completed && (
                                   <svg
-                                    className="w-3 h-3 text-white"
+                                    className="w-2.5 h-2.5 text-white"
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -3265,25 +3452,27 @@ export default function GanttChart({
                             </label>
                             <div className="flex-1 min-w-0">
                               <span
-                                className={`font-medium block ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                                className={`text-[13px] font-medium block ${task.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}
                               >
                                 {task.name}
                               </span>
                               {task.description && (
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-[12px] text-gray-500 mt-1 leading-snug">
                                   {task.description}
                                 </p>
                               )}
-                              <span className="text-xs text-gray-500 mt-2 block">
+                              <span className="text-[11px] text-gray-400 mt-2 block">
                                 {formatDateForTooltip(task.startDate)} -{' '}
                                 {formatDateForTooltip(task.endDate)}
                               </span>
                             </div>
-                            {activityPopupMode !== 'view' && (
-                              <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/field:opacity-100 focus-within:opacity-100 transition-opacity">
                                 <button
+                                  type="button"
                                   onClick={() => {
                                     setEditingTaskId(task.id);
+                                    setEditingActivityField(null);
+                                    setShowInlineAddTask(false);
                                     setEditingTaskForm({
                                       name: task.name,
                                       description: task.description || '',
@@ -3291,12 +3480,13 @@ export default function GanttChart({
                                       endDate: task.endDate,
                                     });
                                   }}
-                                  className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-gray-400 hover:text-emerald-700 transition-colors"
                                   title="Editar tarea"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={async () => {
                                     if (task.id.startsWith('temp-')) {
                                       setTempTasks((prev) =>
@@ -3317,13 +3507,12 @@ export default function GanttChart({
                                       }
                                     }
                                   }}
-                                  className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 hover:bg-red-200"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-gray-400 hover:text-red-600 transition-colors"
                                   title="Eliminar tarea"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
                               </div>
-                            )}
                           </div>
                         </div>
                       )
@@ -3333,10 +3522,10 @@ export default function GanttChart({
               </div>
 
               {/* COLUMNA DERECHA: Comentarios */}
-              <div className="flex flex-col min-h-0 border-l border-gray-200 pl-8">
-                <div className="flex items-center gap-2 pb-3 border-b border-gray-200 mb-4 flex-shrink-0">
-                  <MessageSquare className="h-6 w-6 text-blue-600" />
-                  <h3 className="text-xl font-bold text-gray-900">
+              <div className="flex flex-col min-h-0 border-l border-gray-100 pl-6">
+                <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
+                  <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
+                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Comentarios
                   </h3>
                 </div>
@@ -3344,30 +3533,37 @@ export default function GanttChart({
                 {selectedActivityForPopup?.id &&
                 !selectedActivityForPopup.id.startsWith('temp-') ? (
                   <>
-                    <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-0">
+                    <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0 custom-scrollbar">
                       {isLoadingComentariosActividad ? (
-                        <p className="text-gray-500">Cargando comentarios...</p>
+                        <p className="text-[13px] text-gray-400">Cargando comentarios...</p>
                       ) : comentariosActividad.length === 0 ? (
-                        <p className="text-gray-500">No hay comentarios aún</p>
+                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
+                          <p className="text-[13px] text-gray-400">No hay comentarios aún</p>
+                        </div>
                       ) : (
                         comentariosActividad.map((c) => (
                           <div
                             key={c.id}
-                            className="flex gap-4 p-4 bg-gray-50 rounded-lg"
+                            className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-white"
                           >
                             <div className="flex-shrink-0">
                               <img
                                 src={DEFAULT_AVATAR}
                                 alt=""
-                                className="w-10 h-10 rounded-full object-cover"
+                                className="w-8 h-8 rounded-full object-cover"
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-gray-900">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="text-[13px] font-medium text-gray-800">
                                   {c.user.name || 'Usuario'}
                                 </span>
-                                <span className="text-sm text-gray-500">
+                                {c.rolEnProyecto && (
+                                  <span className="text-[11px] font-medium text-gray-500">
+                                    · {c.rolEnProyecto}
+                                  </span>
+                                )}
+                                <span className="text-[11px] text-gray-400">
                                   {new Date(c.createdAt).toLocaleDateString(
                                     'es-ES',
                                     {
@@ -3380,7 +3576,7 @@ export default function GanttChart({
                                   )}
                                 </span>
                               </div>
-                              <p className="text-gray-700 whitespace-pre-wrap">
+                              <p className="text-[13px] text-gray-700 leading-snug whitespace-pre-wrap">
                                 {c.contenido}
                               </p>
                             </div>
@@ -3390,18 +3586,21 @@ export default function GanttChart({
                     </div>
 
                     {session?.user && (
-                      <div className="flex gap-4 pt-4 pb-2 border-t border-gray-200 flex-shrink-0">
+                      <div className="flex gap-3 pt-3 pb-1 border-t border-gray-100 flex-shrink-0">
                         <div className="flex-shrink-0">
                           <img
                             src={DEFAULT_AVATAR}
                             alt=""
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="w-8 h-8 rounded-full object-cover"
                           />
                         </div>
                         <div className="flex-1 space-y-2">
-                          <p className="text-sm text-gray-500">
+                          <p className="text-[12px] text-gray-400">
                             Comentas como{' '}
                             {session.user.name || session.user.email}
+                            {session.user.activeRole
+                              ? ` · ${session.user.activeRole}`
+                              : ''}
                           </p>
                           <div className="flex gap-2">
                             <textarea
@@ -3410,18 +3609,19 @@ export default function GanttChart({
                                 setNuevoComentarioActividad(e.target.value)
                               }
                               placeholder="Escribe un comentario..."
-                              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base"
+                              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 resize-none text-[13px] text-gray-800"
                               rows={3}
                             />
                             <button
+                              type="button"
                               onClick={handleEnviarComentarioActividad}
                               disabled={
                                 !nuevoComentarioActividad.trim() ||
                                 isEnviandoComentarioActividad
                               }
-                              className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-sm text-gray-500 hover:text-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-end focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                             >
-                              <Send className="h-5 w-5" />
+                              <Send className="h-4 w-4" strokeWidth={2} />
                             </button>
                           </div>
                         </div>
@@ -3429,7 +3629,7 @@ export default function GanttChart({
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-500 italic">
+                  <p className="text-[13px] text-gray-400">
                     Los comentarios estarán disponibles después de crear la
                     actividad.
                   </p>
@@ -3448,14 +3648,6 @@ export default function GanttChart({
           {allExpanded
             ? 'Contraer todas las actividades'
             : 'Expandir todas las actividades'}
-        </div>
-
-        <div
-          id="add-activity-tooltip"
-          className="fixed px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 pointer-events-none whitespace-nowrap z-[99999] opacity-0 transition-opacity duration-200"
-          style={{ transform: 'translateX(-50%)' }}
-        >
-          Agregar actividad
         </div>
       </div>
     </TooltipProvider>

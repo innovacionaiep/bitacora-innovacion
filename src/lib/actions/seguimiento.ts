@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { roleHasPermission, userCanOnProject } from '@/lib/permissions/check';
 import { revalidatePath } from 'next/cache';
 import { createHistorialEntry } from './historial';
 import { toggleTaskCompletion } from './gantt';
@@ -68,13 +69,18 @@ export async function addCompromiso(
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const rol = await getRolUsuarioEnProyecto(user.id, proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeCrear = rol === 'Coordinador' || activeRole === 'Admin';
+    const puedeCrear = await userCanOnProject({
+      activeRole,
+      email: userEmail,
+      userId: user.id,
+      proyectoId,
+      key: 'compromisos.create_edit',
+    });
     if (!puedeCrear) {
       return {
         success: false,
-        error: 'Solo el coordinador o un admin pueden agregar compromisos',
+        error: 'No tienes permiso para agregar compromisos en este proyecto',
         data: null,
       };
     }
@@ -132,13 +138,18 @@ export async function updateCompromiso(
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeEditar = rol === 'Coordinador' || activeRole === 'Admin';
+    const puedeEditar = await userCanOnProject({
+      activeRole,
+      email: userEmail,
+      userId: user.id,
+      proyectoId: compromiso.proyectoId,
+      key: 'compromisos.create_edit',
+    });
     if (!puedeEditar) {
       return {
         success: false,
-        error: 'Solo el coordinador o un admin pueden editar el compromiso',
+        error: 'No tienes permiso para editar el compromiso en este proyecto',
         data: null,
       };
     }
@@ -206,13 +217,18 @@ export async function toggleCompromiso(compromisoId: string) {
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const rol = await getRolUsuarioEnProyecto(user.id, compromiso.proyectoId, userEmail);
     const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const puedeMarcarRealizado = rol === 'Encargado' || activeRole === 'Admin';
+    const puedeMarcarRealizado = await userCanOnProject({
+      activeRole,
+      email: userEmail,
+      userId: user.id,
+      proyectoId: compromiso.proyectoId,
+      key: 'compromisos.mark_done',
+    });
     if (!puedeMarcarRealizado) {
       return {
         success: false,
-        error: 'Solo el encargado o un admin pueden marcar "Realizado (Encargado)"',
+        error: 'No tienes permiso para marcar "Realizado (Encargado)"',
         data: null,
       };
     }
@@ -290,7 +306,8 @@ export async function getProyectosParaSeguimiento() {
     }
 
     const activeRole = user.activeRole ?? null;
-    if (activeRole !== 'Admin' && activeRole !== 'Coordinador') {
+    const canViewAll = await roleHasPermission(activeRole, 'projects.view_all');
+    if (!canViewAll) {
       return { success: false, error: 'Acceso denegado', data: [] };
     }
 

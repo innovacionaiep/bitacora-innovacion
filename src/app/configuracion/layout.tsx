@@ -1,8 +1,15 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-utils';
 import Link from 'next/link';
-import { Users, FolderKanban, ListChecks, FileCode } from 'lucide-react';
+import {
+  Users,
+  FolderKanban,
+  ListChecks,
+  FileCode,
+  Shield,
+} from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
+import { roleHasPermission } from '@/lib/permissions/check';
 
 export default async function ConfiguracionLayout({
   children,
@@ -13,13 +20,18 @@ export default async function ConfiguracionLayout({
   if (!session?.user) {
     redirect('/auth/login');
   }
-  if (session.user.activeRole !== 'Admin') {
-    redirect('/');
+  const canAjustes = await roleHasPermission(
+    session.user.activeRole,
+    'view.ajustes'
+  );
+  if (!canAjustes) {
+    redirect('/inicio');
   }
 
   const navItems = [
     { href: '/configuracion/usuarios', label: 'Usuarios', icon: Users },
     { href: '/configuracion/proyectos', label: 'Proyectos', icon: FolderKanban },
+    { href: '/configuracion/roles', label: 'Roles', icon: Shield },
     {
       href: '/configuracion/validacion',
       label: 'Validación de datos',

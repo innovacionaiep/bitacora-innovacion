@@ -34,9 +34,14 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     hideCloseButton?: boolean;
+    /** Posición del botón cerrar. `outside-top-right` lo deja flotando fuera del modal. */
+    closeButtonPosition?: 'inside' | 'outside-top-left' | 'outside-top-right';
   }
->(({ className, children, hideCloseButton = false, ...props }, ref) => {
+>(({ className, children, hideCloseButton = false, closeButtonPosition = 'inside', ...props }, ref) => {
   const portalContainer = useScalePortalContainer();
+  const isOutside =
+    closeButtonPosition === 'outside-top-left' ||
+    closeButtonPosition === 'outside-top-right';
   return (
   <DialogPrimitive.Portal container={portalContainer ?? undefined}>
     <DialogOverlay />
@@ -44,13 +49,31 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg',
-        className
+        className,
+        // Debe ir después de className para ganar a overflow-hidden del modal
+        isOutside && 'overflow-visible'
       )}
       {...props}
     >
-      {children}
+      {isOutside ? (
+        // Recorta el contenido a las esquinas redondeadas; la X queda fuera como hermano
+        <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg">
+          {children}
+        </div>
+      ) : (
+        children
+      )}
       {!hideCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+        <DialogPrimitive.Close
+          className={cn(
+            'w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-2 disabled:pointer-events-none z-[60]',
+            closeButtonPosition === 'outside-top-right'
+              ? 'absolute -right-12 top-0'
+              : closeButtonPosition === 'outside-top-left'
+                ? 'absolute -left-12 top-0'
+                : 'absolute right-4 top-4'
+          )}
+        >
           <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

@@ -145,26 +145,30 @@ export function AgregarIndicadorModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agregar indicador</DialogTitle>
+      <DialogContent className="max-w-lg max-h-[90vh] gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
+        <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+          <DialogTitle className="m-0 text-[13px] font-medium tracking-wide text-gray-800">
+            Agregar indicador
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5 overflow-y-auto max-h-[calc(90vh-3rem)]">
           <div>
-            <Label htmlFor="objetivoEspecifico">Objetivo específico *</Label>
+            <Label htmlFor="objetivoEspecifico" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Objetivo específico *
+            </Label>
             <select
               id="objetivoEspecifico"
               value={form.objetivoEspecificoId}
               onChange={(e) =>
                 setForm({ ...form, objetivoEspecificoId: e.target.value })
               }
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full mt-1.5 h-9 px-3 border border-gray-200 rounded-md bg-white text-[13px] text-gray-700 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1"
               required
             >
               <option value="">Seleccione un objetivo</option>
-              {objetivosEspecificos.map((oe) => (
+              {objetivosEspecificos.map((oe, index) => (
                 <option key={oe.id} value={oe.id}>
-                  Objetivo {oe.orden}: {oe.descripcion.slice(0, 60)}
+                  Objetivo {index + 1}: {oe.descripcion.slice(0, 60)}
                   {oe.descripcion.length > 60 ? '…' : ''}
                 </option>
               ))}
@@ -172,19 +176,23 @@ export function AgregarIndicadorModal({
           </div>
 
           <div>
-            <Label htmlFor="nombre">Nombre *</Label>
+            <Label htmlFor="nombre" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Nombre *
+            </Label>
             <Input
               id="nombre"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               placeholder="Ej: Nivel de satisfacción de participantes"
-              className="mt-1"
+              className="mt-1.5 h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="descripcion">Descripción *</Label>
+            <Label htmlFor="descripcion" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Descripción *
+            </Label>
             <textarea
               id="descripcion"
               value={form.descripcion}
@@ -192,13 +200,15 @@ export function AgregarIndicadorModal({
                 setForm({ ...form, descripcion: e.target.value })
               }
               placeholder="Descripción del indicador"
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-y"
+              className="w-full mt-1.5 px-3 py-2 border border-gray-200 rounded-md bg-white text-[13px] text-gray-800 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[80px] resize-y"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="formaCalculo">Forma de cálculo *</Label>
+            <Label htmlFor="formaCalculo" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Forma de cálculo *
+            </Label>
             <textarea
               id="formaCalculo"
               value={form.formaCalculo}
@@ -206,20 +216,22 @@ export function AgregarIndicadorModal({
                 setForm({ ...form, formaCalculo: e.target.value })
               }
               placeholder="Cómo se calcula este indicador"
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-y"
+              className="w-full mt-1.5 px-3 py-2 border border-gray-200 rounded-md bg-white text-[13px] text-gray-800 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[80px] resize-y"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="formatoNumero">Formato del número</Label>
+            <Label htmlFor="formatoNumero" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Formato del número
+            </Label>
             <select
               id="formatoNumero"
               value={form.formatoNumero}
               onChange={(e) =>
                 setForm({ ...form, formatoNumero: e.target.value })
               }
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full mt-1.5 h-9 px-3 border border-gray-200 rounded-md bg-white text-[13px] text-gray-700 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1"
             >
               {FORMATO_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
@@ -230,7 +242,9 @@ export function AgregarIndicadorModal({
           </div>
 
           <div>
-            <Label htmlFor="resultadoEsperado">Resultado esperado *</Label>
+            <Label htmlFor="resultadoEsperado" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              Resultado esperado *
+            </Label>
             <Input
               id="resultadoEsperado"
               value={form.resultadoEsperado}
@@ -238,14 +252,16 @@ export function AgregarIndicadorModal({
                 setForm({ ...form, resultadoEsperado: e.target.value })
               }
               placeholder="Ej: 75, 4.00, 10"
-              className="mt-1"
+              className="mt-1.5 h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="fechaInicio">Fecha inicio</Label>
+              <Label htmlFor="fechaInicio" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                Fecha inicio
+              </Label>
               <Input
                 id="fechaInicio"
                 type="date"
@@ -253,30 +269,38 @@ export function AgregarIndicadorModal({
                 onChange={(e) =>
                   setForm({ ...form, fechaInicio: e.target.value })
                 }
-                className="mt-1"
+                className="mt-1.5 h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
             <div>
-              <Label htmlFor="fechaFin">Fecha fin</Label>
+              <Label htmlFor="fechaFin" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                Fecha fin
+              </Label>
               <Input
                 id="fechaFin"
                 type="date"
                 value={form.fechaFin}
                 onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
-                className="mt-1"
+                className="mt-1.5 h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3 pt-2 border-t border-gray-100">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => handleOpenChange(false)}
+              className="h-7 px-0 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button
+              type="submit"
+              variant="ghost"
+              disabled={isSaving}
+              className="h-7 px-0 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent disabled:opacity-50"
+            >
               {isSaving ? 'Guardando…' : 'Agregar indicador'}
             </Button>
           </DialogFooter>

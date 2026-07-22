@@ -1,12 +1,16 @@
 import { redirect } from 'next/navigation';
 import { getProyectosDashboard } from '@/lib/actions/proyectos';
-import { getSession, ROLES_SIN_DASHBOARD_REPORTES, type Role } from '@/lib/auth-utils';
+import { getSession } from '@/lib/auth-utils';
+import { roleHasPermission } from '@/lib/permissions/check';
 import DashboardPage from './DashboardPage';
 
 export default async function DashboardRoute() {
   const session = await getSession();
-  const activeRole = session?.user?.activeRole;
-  if (activeRole && ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role)) {
+  const canView = await roleHasPermission(
+    session?.user?.activeRole,
+    'view.dashboard'
+  );
+  if (!canView) {
     redirect('/inicio');
   }
 

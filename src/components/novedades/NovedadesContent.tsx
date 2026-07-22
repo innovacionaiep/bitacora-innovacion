@@ -11,6 +11,7 @@ interface NovedadesContentProps {
   initialHasMore?: boolean;
   initialCursor?: string;
   initialProyectosParaFiltro?: Proyecto[];
+  canManagePosts?: boolean;
   onPostCreated?: (post: PostWithRelations) => void;
   onPostDeleted?: (postId: string) => void;
   onOpenEvento?: (postId: string) => void;
@@ -23,6 +24,7 @@ export function NovedadesContent({
   initialHasMore = true,
   initialCursor,
   initialProyectosParaFiltro = [],
+  canManagePosts = false,
   onPostCreated: externalOnPostCreated,
   onPostDeleted: onPostDeleted,
   onOpenEvento,
@@ -43,10 +45,11 @@ export function NovedadesContent({
   return (
     <div className="relative min-h-[600px] w-full">
       <div className="w-full">
-        {/* Casilla crear publicación (estilo LinkedIn) */}
-        <div className="mb-0">
-          <CreatePostForm onPostCreated={handlePostCreated} />
-        </div>
+        {canManagePosts && (
+          <div className="mb-0">
+            <CreatePostForm onPostCreated={handlePostCreated} />
+          </div>
+        )}
 
         {/* Línea + Ordenar por / Filtrar */}
         <PostFilters

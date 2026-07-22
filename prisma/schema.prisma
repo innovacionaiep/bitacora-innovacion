@@ -854,3 +854,15 @@ model SupportMessage {
   @@index([createdAt])
   @@map("support_messages")
 }
+
+/// Matriz rol × permiso (visualización y atribuciones). Catálogo de keys en código.
+model RolePermission {
+  id            String   @id @default(cuid())
+  role          String // Admin | Coordinador | Colaborador | Encargado | Docente | Estudiante | Beneficiario
+  permissionKey String   @map("permission_key")
+  enabled       Boolean  @default(false)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([role, permissionKey])
+  @@map("role_permissions")
+}

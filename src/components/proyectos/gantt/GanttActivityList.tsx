@@ -27,7 +27,8 @@ export function GanttActivityVirtualList({
     (activity: Activity) => {
       const isExpanded = expandedDescriptions.has(activity.id);
       const baseHeight = 3 + 50;
-      const taskHeight = isExpanded ? activity.tasks.length * 22 : 0;
+      // Debe coincidir con taskSpacing (25) al posicionar tareas en GanttChart
+      const taskHeight = isExpanded ? activity.tasks.length * 25 : 0;
       return Math.max(48, baseHeight + taskHeight + 10);
     },
     [expandedDescriptions]

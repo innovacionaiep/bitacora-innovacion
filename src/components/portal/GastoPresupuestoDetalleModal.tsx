@@ -64,11 +64,11 @@ export function GastoPresupuestoDetalleModal({
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
           <DialogTitle className="sr-only">Cargando presupuesto</DialogTitle>
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">Cargando ítem de presupuesto…</p>
+          <div className="flex flex-col items-center justify-center py-12 px-5">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <p className="mt-4 text-[13px] text-gray-400">Cargando ítem de presupuesto…</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -78,10 +78,10 @@ export function GastoPresupuestoDetalleModal({
   if (error || !gasto) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
           <DialogTitle className="sr-only">Error</DialogTitle>
-          <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-sm text-destructive">{error ?? 'Ítem no encontrado'}</p>
+          <div className="flex flex-col items-center justify-center py-12 px-5">
+            <p className="text-[13px] text-red-600">{error ?? 'Ítem no encontrado'}</p>
           </div>
         </DialogContent>
       </Dialog>

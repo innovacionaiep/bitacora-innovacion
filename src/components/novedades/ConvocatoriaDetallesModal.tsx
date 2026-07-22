@@ -178,10 +178,10 @@ export function ConvocatoriaDetallesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-blue-600" />
+      <DialogContent className="max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
+        <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+          <DialogTitle className="m-0 flex items-center gap-2 text-[13px] font-medium leading-none tracking-wide text-gray-800">
+            <ClipboardList className="size-3.5 shrink-0 text-blue-600" />
             <span>
               {convocatoria
                 ? 'Detalles de la convocatoria'
@@ -192,10 +192,10 @@ export function ConvocatoriaDetallesModal({
 
         {isViewMode ? (
           <>
-            <div className="space-y-4">
+            <div className="space-y-4 px-5 py-5">
               {imagenUrl ? (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Imagen
                   </p>
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden border bg-muted">
@@ -209,108 +209,126 @@ export function ConvocatoriaDetallesModal({
                 </div>
               ) : null}
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Título de convocatoria
                 </p>
-                <p className="text-base text-gray-900">{titulo || '—'}</p>
+                <p className="text-[13px] text-gray-700">{titulo || '—'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Fecha de inicio
                   </p>
-                  <p className="text-base text-gray-900">
+                  <p className="text-[13px] text-gray-700">
                     {fechaInicio
                       ? formatDisplayDate(new Date(fechaInicio))
                       : '—'}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Fecha de fin
                   </p>
-                  <p className="text-base text-gray-900">
+                  <p className="text-[13px] text-gray-700">
                     {fechaFin ? formatDisplayDate(new Date(fechaFin)) : '—'}
                   </p>
                 </div>
               </div>
               {descripcion != null && descripcion !== '' && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                     Descripción
                   </p>
-                  <p className="text-base text-gray-900 whitespace-pre-wrap">
+                  <p className="text-[13px] text-gray-700 whitespace-pre-wrap">
                     {descripcion}
                   </p>
                 </div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => onOpenChange(false)}
+                className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
               >
                 Cerrar
               </Button>
               {isAdmin && (
-                <Button type="button" onClick={handleEditar} className="gap-2">
-                  <Pencil className="h-4 w-4" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleEditar}
+                  className="h-7 gap-1.5 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
+                >
+                  <Pencil className="size-3.5 shrink-0" />
                   Editar
                 </Button>
               )}
             </DialogFooter>
           </>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
             <div className="space-y-2">
-              <Label htmlFor="conv-titulo">Título de convocatoria</Label>
+              <Label htmlFor="conv-titulo" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                Título de convocatoria
+              </Label>
               <Input
                 id="conv-titulo"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 placeholder="Ej. Beca de innovación 2025"
                 required
+                className="border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="conv-inicio">Fecha de inicio</Label>
+                <Label htmlFor="conv-inicio" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                  Fecha de inicio
+                </Label>
                 <Input
                   id="conv-inicio"
                   type="date"
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
                   required
+                  className="border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="conv-fin">Fecha de fin</Label>
+                <Label htmlFor="conv-fin" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                  Fecha de fin
+                </Label>
                 <Input
                   id="conv-fin"
                   type="date"
                   value={fechaFin}
                   onChange={(e) => setFechaFin(e.target.value)}
                   required
+                  className="border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="conv-desc">Descripción</Label>
+              <Label htmlFor="conv-desc" className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                Descripción
+              </Label>
               <Textarea
                 id="conv-desc"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Detalles adicionales de la convocatoria..."
                 rows={4}
+                className="resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
+              <Label className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                <ImageIcon className="size-3.5 shrink-0 text-gray-500" />
                 Imagen de la convocatoria
               </Label>
               <input
@@ -319,7 +337,7 @@ export function ConvocatoriaDetallesModal({
                 type="file"
                 accept="image/*"
                 onChange={handleImagenChange}
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                className="block w-full text-[13px] text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-200 file:text-[13px] file:font-normal file:bg-white file:text-gray-700 hover:file:text-emerald-700 file:cursor-pointer cursor-pointer"
               />
               {imagenPreviewUrl || imagenUrl ? (
                 <div className="space-y-1 mt-2">
@@ -338,7 +356,7 @@ export function ConvocatoriaDetallesModal({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground hover:text-destructive"
+                    className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
                     onClick={quitarImagen}
                   >
                     Quitar imagen
@@ -347,18 +365,24 @@ export function ConvocatoriaDetallesModal({
               ) : null}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-gray-100 -mx-5 px-5 py-3 gap-3 mt-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() =>
                   convocatoria ? resetFromConvocatoria() : onOpenChange(false)
                 }
                 disabled={saving}
+                className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button
+                type="submit"
+                variant="ghost"
+                disabled={saving}
+                className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
+              >
                 {saving ? 'Guardando…' : 'Guardar'}
               </Button>
             </DialogFooter>

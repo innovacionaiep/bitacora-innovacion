@@ -143,11 +143,11 @@ export function EventoDetallesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
         <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
-          <DialogHeader className="p-6 pb-3">
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-orange-600" />
+          <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+            <DialogTitle className="m-0 flex items-center gap-2 text-[13px] font-medium leading-none tracking-wide text-gray-800">
+              <CalendarIcon className="size-3.5 shrink-0 text-orange-600" />
               <span>Detalles del evento</span>
             </DialogTitle>
           </DialogHeader>
@@ -157,17 +157,17 @@ export function EventoDetallesModal({
               <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
-            <div className="px-6 pb-6">
+            <div className="px-5 py-5">
               <p className="text-sm text-destructive">{error}</p>
             </div>
           ) : data ? (
-            <div className="px-6 pb-6 space-y-5">
+            <div className="px-5 py-5 space-y-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                  <h2 className="text-[13px] font-medium text-gray-800 leading-tight">
                     {data.eventoNombre}
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-[12px] text-gray-400 mt-1">
                     {formatEventDate(data.eventoFecha)}
                   </p>
                 </div>
@@ -198,16 +198,16 @@ export function EventoDetallesModal({
                     </div>
                   )}
 
-                  <div className="p-4 rounded-xl border bg-white">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  <div className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <p className="text-[13px] text-gray-700 whitespace-pre-wrap">
                       {data.eventoDescripcion}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl border bg-white">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  <div className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                       Proyectos asociados
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -235,8 +235,8 @@ export function EventoDetallesModal({
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border bg-white">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  <div className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                       Publicado por
                     </h3>
                     <div className="flex items-center gap-3">
@@ -257,8 +257,8 @@ export function EventoDetallesModal({
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border bg-white">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  <div className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                       Encargados del/los proyecto(s)
                     </h3>
                     {uniqueEncargados.length === 0 ? (
@@ -289,13 +289,13 @@ export function EventoDetallesModal({
                     )}
                   </div>
 
-                  <div className="p-4 rounded-xl border bg-white">
+                  <div className="p-4 rounded-lg border border-gray-200 bg-white">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900">
+                        <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                           Asistentes confirmados
                         </h3>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[12px] text-gray-400 mt-0.5">
                           {data.asistentesCount} confirmado
                           {data.asistentesCount === 1 ? '' : 's'}
                         </p>
@@ -305,13 +305,12 @@ export function EventoDetallesModal({
                         <Button
                           onClick={handleToggleAsistencia}
                           disabled={data.isAsistiendo}
+                          variant="ghost"
                           className={cn(
-                            'gap-2',
-                            data.isAsistiendo
-                              ? 'bg-emerald-600 hover:bg-emerald-600 cursor-not-allowed'
-                              : ''
+                            'h-7 gap-1.5 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent',
+                            data.isAsistiendo &&
+                              'text-emerald-700 cursor-not-allowed hover:text-emerald-700'
                           )}
-                          variant={data.isAsistiendo ? 'default' : 'outline'}
                         >
                           Asistiré
                         </Button>

@@ -15,11 +15,11 @@ interface SimpleDonutChartProps {
 export function SimpleDonutChart({
   data,
   title,
-  size = 200,
+  size = 160,
 }: SimpleDonutChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-gray-500">
+      <div className="flex items-center justify-center h-48 text-[13px] text-gray-400">
         No hay datos disponibles
       </div>
     );
@@ -36,15 +36,13 @@ export function SimpleDonutChart({
     '#f59e0b',
     '#ef4444',
     '#8b5cf6',
-    '#ec4899',
+    '#9ca3af',
   ];
 
   let currentOffset = 0;
   const segments = data.map((item, index) => {
     const percentage = total > 0 ? (item.value / total) * 100 : 0;
     const segmentLength = (percentage / 100) * circumference;
-    // strokeDasharray: [longitud del segmento visible, espacio en blanco]
-    // El espacio en blanco es el resto de la circunferencia para que el siguiente segmento comience después
     const gap = circumference - segmentLength;
     const strokeDasharray = `${segmentLength} ${gap}`;
     const strokeDashoffset = -currentOffset;
@@ -63,16 +61,17 @@ export function SimpleDonutChart({
   return (
     <div className="w-full h-full">
       {title && (
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">{title}</h3>
+        <h3 className="text-[13px] font-medium tracking-wide text-gray-800 mb-4">
+          {title}
+        </h3>
       )}
       <div className="flex flex-col items-center justify-center gap-4 h-full">
-        {/* Gráfico donut centrado */}
         <div
           className="relative flex-shrink-0"
           style={{ width: size, height: size }}
         >
           <svg width={size} height={size} className="transform -rotate-90">
-            {segments.map((segment, index) => (
+            {segments.map((segment) => (
               <circle
                 key={segment.label}
                 cx={center}
@@ -80,7 +79,7 @@ export function SimpleDonutChart({
                 r={radius}
                 fill="none"
                 stroke={segment.color}
-                strokeWidth="20"
+                strokeWidth="16"
                 strokeDasharray={segment.strokeDasharray}
                 strokeDashoffset={segment.strokeDashoffset}
                 strokeLinecap="butt"
@@ -89,32 +88,28 @@ export function SimpleDonutChart({
             ))}
           </svg>
         </div>
-        {/* Leyendas debajo del gráfico */}
-        <div className="w-full px-2">
+        <div className="w-full px-1">
           <div className="space-y-2">
             {segments.map((segment) => (
-              <div key={segment.label} className="relative">
-                <div className="flex items-center justify-between text-xs gap-2 pb-1.5">
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: segment.color }}
-                    />
-                    <span className="text-gray-700 truncate">
-                      {segment.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1 flex-shrink-0">
-                    <span className="text-gray-900 font-bold">
-                      {segment.value}
-                    </span>
-                    <span className="text-gray-500">
-                      ({segment.percentage.toFixed(1)}%)
-                    </span>
-                  </div>
+              <div
+                key={segment.label}
+                className="flex items-center justify-between text-[12px] gap-2 pb-1.5 border-b border-gray-100 last:border-0"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: segment.color }}
+                  />
+                  <span className="text-gray-600 truncate">{segment.label}</span>
                 </div>
-                {/* Línea sutil debajo de cada elemento */}
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-200"></div>
+                <div className="flex items-center gap-1 flex-shrink-0 tabular-nums">
+                  <span className="text-gray-800 font-medium">
+                    {segment.value}
+                  </span>
+                  <span className="text-gray-400">
+                    ({segment.percentage.toFixed(1)}%)
+                  </span>
+                </div>
               </div>
             ))}
           </div>

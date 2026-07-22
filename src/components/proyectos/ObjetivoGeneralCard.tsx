@@ -116,10 +116,11 @@ export function ObjetivoGeneralCard({
               {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
               <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
               {objetivoGeneral.objetivosEspecificos.map(
-                (objetivoEspecifico) => (
+                (objetivoEspecifico, index) => (
                   <div key={objetivoEspecifico.id} className="relative z-10">
                     <ObjetivoEspecificoCard
                       objetivoEspecifico={objetivoEspecifico}
+                      numero={index + 1}
                       onIndicadorClick={onIndicadorClick}
                       deleteMode={deleteMode}
                       onDeleteIndicador={onDeleteIndicador}

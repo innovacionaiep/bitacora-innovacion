@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getSession, ROLES_SIN_DASHBOARD_REPORTES, type Role } from '@/lib/auth-utils';
+import { getSession } from '@/lib/auth-utils';
+import { roleHasPermission } from '@/lib/permissions/check';
 
 export default async function ReportesLayout({
   children,
@@ -7,8 +8,11 @@ export default async function ReportesLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const activeRole = session?.user?.activeRole;
-  if (activeRole && ROLES_SIN_DASHBOARD_REPORTES.includes(activeRole as Role)) {
+  const canView = await roleHasPermission(
+    session?.user?.activeRole,
+    'view.reportes'
+  );
+  if (!canView) {
     redirect('/inicio');
   }
 

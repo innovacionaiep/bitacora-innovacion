@@ -25,6 +25,7 @@ import {
   CircleAlert,
   CheckCircle,
 } from 'lucide-react';
+import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 
 type CompromisoItem = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosProyecto>
@@ -113,10 +114,13 @@ export function CompromisosPostItWall({
   const [savingEdit, setSavingEdit] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
+  const { can } = useActiveRolePermissions();
   const isCoordinadorOrAdmin =
-    rolEnProyecto === 'Coordinador' || activeRole === 'Admin';
+    can('compromisos.create_edit') &&
+    (activeRole === 'Admin' || rolEnProyecto === activeRole);
   const canMarkRealizado =
-    rolEnProyecto === 'Encargado' || activeRole === 'Admin';
+    can('compromisos.mark_done') &&
+    (activeRole === 'Admin' || rolEnProyecto === activeRole);
 
   const handleAdd = async () => {
     if (!addDescripcion.trim()) return;
@@ -345,13 +349,13 @@ export function CompromisosPostItWall({
           onOpenChange={(open) => !open && handleCloseDetail()}
         >
           <DialogContent
-            className={`sm:max-w-lg ${getPostItClass(selectedCompromiso)} border-2 shadow-lg [&>button]:hidden`}
+            className="sm:max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg [&>button]:hidden"
           >
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+              <DialogTitle className="m-0 flex items-center justify-between text-[13px] font-medium leading-none tracking-wide text-gray-800">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <ClipboardCheck
-                    className={`h-5 w-5 ${
+                    className={`size-3.5 shrink-0 ${
                       selectedCompromiso.completado
                         ? 'text-emerald-600'
                         : 'text-red-600'
@@ -362,11 +366,7 @@ export function CompromisosPostItWall({
                       value={editTitulo}
                       onChange={(e) => setEditTitulo(e.target.value)}
                       placeholder="Título del compromiso"
-                      className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
-                        selectedCompromiso.completado
-                          ? 'bg-emerald-100 border-emerald-400'
-                          : 'bg-red-100 border-red-300'
-                      }`}
+                      className="flex-1 h-8 border-gray-200 bg-white text-[13px] font-medium shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                     />
                   ) : (
                     selectedCompromiso.titulo?.trim() ||
@@ -379,9 +379,9 @@ export function CompromisosPostItWall({
                 <EstadoIcon compromiso={selectedCompromiso} />
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className={`space-y-4 px-5 py-5 ${getPostItClass(selectedCompromiso)}`}>
               <div className="space-y-2">
-                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Descripción
                 </Label>
                 {isEditingCompromiso ? (
@@ -390,7 +390,7 @@ export function CompromisosPostItWall({
                     onChange={(e) => setEditDescripcion(e.target.value)}
                     placeholder="Escriba el compromiso..."
                     rows={4}
-                    className="resize-none"
+                    className="resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                   />
                 ) : (
                   <p
@@ -405,7 +405,7 @@ export function CompromisosPostItWall({
                 )}
               </div>
               <div className="space-y-1">
-                <Label className="text-gray-500 text-xs uppercase tracking-wide">
+                <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Fecha de creación
                 </Label>
                 <p className="text-sm text-gray-700">
@@ -433,21 +433,23 @@ export function CompromisosPostItWall({
                 </label>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3">
               {isEditingCompromiso ? (
                 <>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => {
                       setIsEditingCompromiso(false);
                       setEditTitulo(selectedCompromiso.titulo ?? '');
                       setEditDescripcion(selectedCompromiso.descripcion ?? '');
                     }}
                     disabled={savingEdit}
+                    className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
                   >
                     Cancelar edición
                   </Button>
                   <Button
+                    variant="ghost"
                     onClick={handleSaveEdit}
                     disabled={
                       !editDescripcion.trim() ||
@@ -457,7 +459,7 @@ export function CompromisosPostItWall({
                         (editTitulo.trim() || null) ===
                           (selectedCompromiso.titulo ?? null))
                     }
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
                   >
                     {savingEdit ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -470,13 +472,20 @@ export function CompromisosPostItWall({
                 <>
                   {isCoordinadorOrAdmin && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => setIsEditingCompromiso(true)}
+                      className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
                     >
                       Editar
                     </Button>
                   )}
-                  <Button onClick={() => handleCloseDetail()}>Cerrar</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleCloseDetail()}
+                    className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
+                  >
+                    Cerrar
+                  </Button>
                 </>
               )}
             </DialogFooter>
@@ -486,27 +495,27 @@ export function CompromisosPostItWall({
 
       {/* Popup nuevo compromiso (mismo diseño que detalle, sin rotación) */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-emerald-600" />
+        <DialogContent className="sm:max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg">
+          <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
+            <DialogTitle className="m-0 flex items-center gap-2 text-[13px] font-medium leading-none tracking-wide text-gray-800">
+              <ClipboardCheck className="size-3.5 shrink-0 text-emerald-600" />
               Nuevo compromiso
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 px-5 py-5">
             <div className="space-y-2">
-              <Label className="text-gray-500 text-xs uppercase tracking-wide">
+              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                 Título
               </Label>
               <Input
                 value={addTitulo}
                 onChange={(e) => setAddTitulo(e.target.value)}
                 placeholder="Título breve (se muestra en la tarjeta)"
-                className="w-full"
+                className="w-full border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-500 text-xs uppercase tracking-wide">
+              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                 Descripción
               </Label>
               <Textarea
@@ -514,26 +523,28 @@ export function CompromisosPostItWall({
                 onChange={(e) => setAddDescripcion(e.target.value)}
                 placeholder="Escriba el compromiso..."
                 rows={4}
-                className="resize-none"
+                className="resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
               />
             </div>
-            <p className="text-xs text-gray-500 pt-1">
+            <p className="text-[12px] text-gray-400 pt-1">
               El encargado marcará &quot;Realizado (Encargado)&quot; cuando
               complete el compromiso.
             </p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setShowAddModal(false)}
               disabled={submitting}
+              className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
             >
               Cancelar
             </Button>
             <Button
+              variant="ghost"
               onClick={handleAdd}
               disabled={!addDescripcion.trim() || submitting}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
