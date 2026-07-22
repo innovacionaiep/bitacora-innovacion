@@ -23,8 +23,7 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { toggleIndicadorValidation } from '@/lib/actions/indicadores';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { useState, useEffect, useRef } from 'react';
 import { updateIndicador } from '@/lib/actions/indicadores';
 import {
@@ -53,17 +52,22 @@ interface IndicadorModalProps {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   };
   onClose: () => void;
-  onUpdate?: () => Promise<void>;
+  onUpdate?: (optimistic?: {
+    id: string;
+    patch: Partial<{
+      nombre: string;
+      descripcion: string;
+      formaCalculo: string;
+      formatoNumero: string | null;
+      resultadoEsperado: string;
+      resultadoAlcanzado: string;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+    }>;
+  }) => Promise<void> | void;
   projectId?: string;
-  canValidateAsCoordinator?: boolean;
   /** Oculta el botón Editar (ej. en el portal de inicio). El botón de cargar evidencias sigue visible. */
   hideEditButton?: boolean;
 }
@@ -73,12 +77,10 @@ export function IndicadorModal({
   onClose,
   onUpdate,
   projectId,
-  canValidateAsCoordinator = false,
   hideEditButton = false,
 }: IndicadorModalProps) {
   const { data: session } = useSession();
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isTogglingValidation, setIsTogglingValidation] = useState(false);
   const [editValues, setEditValues] = useState({
     nombre: indicador.nombre,
     descripcion: indicador.descripcion,
@@ -368,35 +370,50 @@ export function IndicadorModal({
         return;
       }
 
+      const previousEditValues = { ...editValues };
+      const newEditValues = {
+        ...editValues,
+        ...updateData,
+        formatoNumero:
+          updateData.formatoNumero ?? editValues.formatoNumero ?? '',
+        fechaInicio: updateData.fechaInicio ?? editValues.fechaInicio ?? '',
+        fechaFin: updateData.fechaFin ?? editValues.fechaFin ?? '',
+      };
+
+      justSavedRef.current = true;
+      setEditValues(newEditValues);
+      setIsEditMode(false);
+      setShowSuccessToast(true);
+      setIsSaving(false);
+
+      if (onUpdate) {
+        void onUpdate({
+          id: indicador.id,
+          patch: {
+            ...updateData,
+            formatoNumero:
+              updateData.formatoNumero !== undefined
+                ? updateData.formatoNumero
+                : editValues.formatoNumero,
+            fechaInicio:
+              updateData.fechaInicio !== undefined
+                ? updateData.fechaInicio
+                : editValues.fechaInicio || null,
+            fechaFin:
+              updateData.fechaFin !== undefined
+                ? updateData.fechaFin
+                : editValues.fechaFin || null,
+          },
+        });
+      }
+
       const result = await updateIndicador(indicador.id, updateData);
 
-      if (result.success) {
-        // Marcar que acabamos de guardar ANTES de cambiar cualquier estado
-        // Esto evita que el useEffect sobrescriba los valores cuando se ejecute
-        justSavedRef.current = true;
-
-        // Actualizar el estado local inmediatamente con los valores guardados
-        // Esto evita mostrar valores antiguos mientras se actualiza el estado del padre
-        const newEditValues = {
-          ...editValues,
-          ...updateData,
-          formatoNumero:
-            updateData.formatoNumero ?? editValues.formatoNumero ?? '',
-          fechaInicio: updateData.fechaInicio ?? editValues.fechaInicio ?? '',
-          fechaFin: updateData.fechaFin ?? editValues.fechaFin ?? '',
-        };
-        setEditValues(newEditValues);
-
-        setIsEditMode(false);
-        setShowSuccessToast(true);
-
-        // Refrescar los datos después de guardar exitosamente
-        if (onUpdate) {
-          await onUpdate();
-        }
-        // Los valores se actualizarán automáticamente cuando el prop indicador cambie
-        // gracias al useEffect que maneja las actualizaciones cuando no está en modo edición
-      } else {
+      if (!result.success) {
+        justSavedRef.current = false;
+        setEditValues(previousEditValues);
+        setIsEditMode(true);
+        setShowSuccessToast(false);
         alert(`Error al guardar: ${result.error}`);
       }
     } catch (error) {
@@ -517,116 +534,10 @@ export function IndicadorModal({
       >
         {/* Header con título, nombre e indicador de cumplimiento */}
         <div className="mb-4 flex-shrink-0">
-          {/* Fila 1: INDICADOR + validación (cuando cumplimiento 100%) */}
           <div className="flex items-center gap-3 mb-2">
             <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide mb-0 flex-shrink-0">
               INDICADOR
             </DialogTitle>
-            {!isEditMode && porcentajeCumplimiento >= 100 && (
-              <>
-                <div
-                  className="h-5 w-px bg-gray-300 flex-shrink-0"
-                  aria-hidden
-                />
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  {(() => {
-                    const validado = !!indicador.validadoPorCoordinador;
-                    const por = indicador.validadoPorCoordinadorPor;
-                    const canCheck = canValidateAsCoordinator;
-
-                    if (validado && por) {
-                      return (
-                        <label
-                          className={`flex items-center gap-2 text-emerald-700 ${
-                            canValidateAsCoordinator && !isTogglingValidation
-                              ? 'cursor-pointer'
-                              : 'cursor-default'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked
-                            disabled={
-                              !canValidateAsCoordinator || isTogglingValidation
-                            }
-                            className="sr-only"
-                            onChange={async () => {
-                              if (
-                                !canValidateAsCoordinator ||
-                                isTogglingValidation
-                              )
-                                return;
-                              setIsTogglingValidation(true);
-                              const result = await toggleIndicadorValidation(
-                                indicador.id
-                              );
-                              setIsTogglingValidation(false);
-                              if (result.success && onUpdate) await onUpdate();
-                              else alert(result.error ?? 'Error al actualizar');
-                            }}
-                          />
-                          <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                            {isTogglingValidation ? (
-                              <Loader2 className="h-3 w-3 animate-spin text-white" />
-                            ) : (
-                              <Check className="h-3 w-3 text-white" />
-                            )}
-                          </div>
-                          <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                            Validado{' '}
-                            <Avatar className="h-7 w-7 flex-shrink-0">
-                              <AvatarImage src={por.image ?? undefined} />
-                              <AvatarFallback className="text-xs">
-                                {(por.name ?? 'U').slice(0, 1).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>{por.name ?? 'Coordinador'}</span>
-                          </span>
-                        </label>
-                      );
-                    }
-                    return (
-                      <label
-                        className={`flex items-center gap-2 cursor-pointer select-none ${
-                          !canCheck ? 'cursor-not-allowed opacity-80' : ''
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          disabled={!canCheck || isTogglingValidation}
-                          className="sr-only"
-                          onChange={async () => {
-                            if (!canCheck || isTogglingValidation) return;
-                            setIsTogglingValidation(true);
-                            const result = await toggleIndicadorValidation(
-                              indicador.id
-                            );
-                            setIsTogglingValidation(false);
-                            if (result.success && onUpdate) await onUpdate();
-                            else alert(result.error ?? 'Error al validar');
-                          }}
-                        />
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                            canCheck && !isTogglingValidation
-                              ? 'border-gray-400 bg-white hover:border-gray-500'
-                              : 'border-gray-300 bg-gray-100'
-                          }`}
-                        >
-                          {isTogglingValidation && (
-                            <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
-                          )}
-                        </div>
-                        <span className="text-sm text-red-600 font-medium">
-                          Validación de Coordinador pendiente
-                        </span>
-                      </label>
-                    );
-                  })()}
-                </div>
-              </>
-            )}
           </div>
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex-1 flex items-center gap-2 min-w-0">
@@ -1134,20 +1045,11 @@ export function IndicadorModal({
                     className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
                   >
                     <div className="flex-shrink-0">
-                      {comentario.user.image ? (
-                        <img
-                          src={comentario.user.image}
-                          alt={comentario.user.name || 'Usuario'}
-                          className="w-10 h-10 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
-                            {(comentario.user.name ||
-                              comentario.user.email)[0].toUpperCase()}
-                          </span>
-                        </div>
-                      )}
+                      <img
+                        src={DEFAULT_AVATAR}
+                        alt={comentario.user.name || 'Usuario'}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
@@ -1180,20 +1082,11 @@ export function IndicadorModal({
             {session?.user && (
               <div className="flex items-start space-x-4 pt-6 pb-4 border-t border-gray-200 flex-shrink-0">
                 <div className="flex-shrink-0">
-                  {session.user.image ? (
-                    <img
-                      src={session.user.image}
-                      alt={session.user.name || 'Usuario'}
-                      className="w-10 h-10 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-600">
-                        {(session.user.name ||
-                          session.user.email)[0].toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  <img
+                    src={DEFAULT_AVATAR}
+                    alt={session.user.name || 'Usuario'}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 space-y-2">
                   <div className="text-sm text-gray-500 mb-2">

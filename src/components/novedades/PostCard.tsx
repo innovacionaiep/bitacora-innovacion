@@ -20,6 +20,7 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import {
   Tooltip,
   TooltipContent,
@@ -256,7 +257,7 @@ export function PostCard({
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={post.author.image || undefined} />
+                <AvatarImage src={DEFAULT_AVATAR} />
                 <AvatarFallback>{authorInitials}</AvatarFallback>
               </Avatar>
               <div>

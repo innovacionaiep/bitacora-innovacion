@@ -5,6 +5,7 @@ import { MessageCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { LikeButton } from './LikeButton';
 import {
   toggleCommentLike,
@@ -82,7 +83,7 @@ export function CommentItem({
   return (
     <div className={`flex gap-3 ${isReply ? 'ml-10' : ''}`}>
       <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarImage src={comment.author.image || undefined} />
+        <AvatarImage src={DEFAULT_AVATAR} />
         <AvatarFallback className="text-xs">{authorInitials}</AvatarFallback>
       </Avatar>
 

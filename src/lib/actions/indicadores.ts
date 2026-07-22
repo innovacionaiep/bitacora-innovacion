@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createHistorialEntry } from './historial';
-import { getSession } from '@/lib/auth-utils';
 
 export interface IndicadorData {
   id: string;
@@ -18,12 +17,6 @@ export interface IndicadorData {
   fechaInicio?: string | null;
   fechaFin?: string | null;
   comentariosCount: number;
-  validadoPorCoordinador?: boolean;
-  validadoPorCoordinadorPor?: {
-    id: string;
-    name: string | null;
-    image: string | null;
-  } | null;
   objetivoEspecifico: {
     id: string;
     descripcion: string;
@@ -68,9 +61,6 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
               select: {
                 comentarios: true,
               },
-            },
-            validadoPorCoordinadorPor: {
-              select: { id: true, name: true, image: true },
             },
           },
         },
@@ -168,8 +158,6 @@ export async function getIndicadoresByProyecto(proyectoId: string): Promise<{
                 fechaInicio: ind.fechaInicio,
                 fechaFin: ind.fechaFin,
                 comentariosCount: ind._count.comentarios,
-                validadoPorCoordinador: ind.validadoPorCoordinador,
-                validadoPorCoordinadorPor: ind.validadoPorCoordinadorPor,
                 objetivoEspecifico: {
                   id: obj.id,
                   descripcion: obj.descripcion,
@@ -250,23 +238,12 @@ export async function getIndicadorById(indicadorId: string): Promise<{
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   };
   error?: string;
 }> {
   try {
     const ind = await prisma.indicador.findUnique({
       where: { id: indicadorId },
-      include: {
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
     });
     if (!ind) {
       return { success: false, error: 'Indicador no encontrado' };
@@ -283,8 +260,6 @@ export async function getIndicadorById(indicadorId: string): Promise<{
         formatoNumero: ind.formatoNumero,
         fechaInicio: ind.fechaInicio,
         fechaFin: ind.fechaFin,
-        validadoPorCoordinador: ind.validadoPorCoordinador,
-        validadoPorCoordinadorPor: ind.validadoPorCoordinadorPor,
       },
     };
   } catch (error) {
@@ -705,104 +680,3 @@ export async function sincronizarObjetivosProyecto(
   }
 }
 
-async function isCoordinatorOfProject(
-  userId: string,
-  projectId: string
-): Promise<boolean> {
-  const participante = await prisma.proyectoParticipante.findFirst({
-    where: {
-      proyectoId: projectId,
-      userId,
-      rol: 'Coordinador',
-    },
-  });
-  return !!participante;
-}
-
-/**
- * Marcar o desmarcar validación de coordinador en un indicador.
- * Solo coordinadores del proyecto pueden validar. El indicador debe tener cumplimiento al 100% para poder validar.
- */
-export async function toggleIndicadorValidation(indicadorId: string) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return { success: false, error: 'Debes iniciar sesión' };
-    }
-
-    const indicador = await prisma.indicador.findUnique({
-      where: { id: indicadorId },
-      include: {
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    if (!indicador) {
-      return { success: false, error: 'Indicador no encontrado' };
-    }
-
-    const isCoordinator = await isCoordinatorOfProject(
-      session.user.id,
-      indicador.proyectoId
-    );
-    if (!isCoordinator) {
-      return {
-        success: false,
-        error: 'Solo los coordinadores del proyecto pueden validar indicadores',
-      };
-    }
-
-    const resultadoEsperado =
-      parseFloat(
-        String(indicador.resultadoEsperado).replace(/%/g, '').replace(/,/g, '.')
-      ) || 0;
-    const resultadoAlcanzado =
-      parseFloat(
-        String(indicador.resultadoAlcanzado)
-          .replace(/%/g, '')
-          .replace(/,/g, '.')
-      ) || 0;
-    const cumplimiento100 =
-      resultadoEsperado > 0 &&
-      (resultadoAlcanzado / resultadoEsperado) * 100 >= 100;
-    if (!cumplimiento100 && !indicador.validadoPorCoordinador) {
-      return {
-        success: false,
-        error:
-          'El indicador debe alcanzar el 100% de cumplimiento para poder validar',
-      };
-    }
-
-    const newValidado = !indicador.validadoPorCoordinador;
-    const updated = await prisma.indicador.update({
-      where: { id: indicadorId },
-      data: {
-        validadoPorCoordinador: newValidado,
-        validadoPorCoordinadorId: newValidado ? session.user.id : null,
-      },
-      include: {
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    if (newValidado) {
-      await createHistorialEntry({
-        proyectoId: indicador.proyectoId,
-        accion: 'Validar',
-        tabProyecto: 'Indicadores',
-        elementoEspecifico: `Indicador "${indicador.nombre}"`,
-        cambioGenerado: 'Validado por coordinador',
-      });
-    }
-
-    revalidatePath('/proyectos');
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error('Error toggling indicator validation:', error);
-    return { success: false, error: 'Error al validar indicador' };
-  }
-}

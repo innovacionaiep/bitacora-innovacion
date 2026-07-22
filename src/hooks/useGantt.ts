@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   getActivities,
   createActivity,
@@ -14,6 +15,7 @@ import {
   type ActivityWithTasks,
 } from '@/lib/actions/gantt';
 import { ActivityStatus } from '@prisma/client';
+import { proyectoActivitiesKey } from '@/lib/query-keys';
 
 export type Task = {
   id: string;
@@ -40,6 +42,7 @@ export function useGantt(
   projectId: string | null,
   initialActivities?: Activity[] | null
 ) {
+  const queryClient = useQueryClient();
   const [activities, setActivities] = useState<Activity[]>(
     initialActivities ?? []
   );
@@ -50,7 +53,7 @@ export function useGantt(
 
   const ACTIVITY_COLORS = ['bg-gray-700'];
 
-  const loadActivities = useCallback(async () => {
+  const loadActivities = useCallback(async (force = false) => {
     if (!projectId) {
       setActivities([]);
       return;
@@ -63,13 +66,24 @@ export function useGantt(
     setError(null);
 
     try {
-      const result = await getActivities(projectId);
-
-      if (!result.success) {
-        throw new Error(result.error);
+      if (force) {
+        await queryClient.invalidateQueries({
+          queryKey: proyectoActivitiesKey(projectId),
+        });
       }
-
-      setActivities(result.data || []);
+      const data = await queryClient.fetchQuery({
+        queryKey: proyectoActivitiesKey(projectId),
+        queryFn: async () => {
+          const result = await getActivities(projectId);
+          if (!result.success) {
+            throw new Error(result.error);
+          }
+          return (result.data || []) as Activity[];
+        },
+        staleTime: force ? 0 : 60_000,
+      });
+      setActivities(data);
+      queryClient.setQueryData(proyectoActivitiesKey(projectId), data);
     } catch (err) {
       console.error('Error loading activities:', err);
       setError(
@@ -79,7 +93,7 @@ export function useGantt(
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [projectId]);
+  }, [projectId, queryClient]);
 
   const createActivityHandler = async (activityData: {
     name: string;
@@ -378,7 +392,7 @@ export function useGantt(
     setError(null);
 
     try {
-      await loadActivities();
+      await loadActivities(true);
       return { success: true, error: null };
     } catch (err) {
       const errorMessage =
@@ -413,7 +427,7 @@ export function useGantt(
       const result = await reorderActivities(updates);
 
       if (!result.success) {
-        await loadActivities();
+        await loadActivities(true);
         throw new Error(result.error);
       }
 
@@ -461,7 +475,13 @@ export function useGantt(
   const updateActivitiesState = (
     updater: (activities: Activity[]) => Activity[]
   ) => {
-    setActivities(updater);
+    setActivities((prev) => {
+      const next = updater(prev);
+      if (projectId) {
+        queryClient.setQueryData(proyectoActivitiesKey(projectId), next);
+      }
+      return next;
+    });
   };
 
   const prevProjectIdRef = useRef<string | null>(null);
@@ -478,13 +498,26 @@ export function useGantt(
 
     if (initialActivities != null) {
       setActivities(initialActivities);
+      queryClient.setQueryData(
+        proyectoActivitiesKey(projectId),
+        initialActivities
+      );
+      return;
+    }
+
+    // Preferir cache RQ si existe (incluye [] cargado)
+    const cached = queryClient.getQueryData<Activity[]>(
+      proyectoActivitiesKey(projectId)
+    );
+    if (cached != null) {
+      setActivities(cached);
       return;
     }
 
     if (projectChanged) {
-      loadActivities();
+      void loadActivities();
     }
-  }, [projectId, initialActivities, loadActivities]);
+  }, [projectId, initialActivities, loadActivities, queryClient]);
 
   return {
     activities,

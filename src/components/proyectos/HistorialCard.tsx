@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -22,6 +23,8 @@ import {
 } from '@/lib/actions/historial';
 import { History, Filter, CalendarIcon } from 'lucide-react';
 import { parse, format, subMonths } from 'date-fns';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
+import { historialKey, historialFiltrosKey } from '@/lib/query-keys';
 
 interface HistorialCardProps {
   projectId: string;
@@ -43,8 +46,6 @@ interface HistorialEntry {
 }
 
 export function HistorialCard({ projectId }: HistorialCardProps) {
-  const [historial, setHistorial] = useState<HistorialEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({
     personaId: 'all',
     accion: 'all',
@@ -52,25 +53,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
     fechaDesde: '',
     fechaHasta: '',
   });
-  const [opcionesFiltros, setOpcionesFiltros] = useState({
-    personas: [] as Array<{ id: string; name: string | null; email: string }>,
-    acciones: [] as string[],
-    tabs: [] as string[],
-    fechaMin: undefined as Date | undefined,
-    fechaMax: undefined as Date | undefined,
-  });
   const [sliderResetKey, setSliderResetKey] = useState(0);
-
-  const sliderDateRange = useMemo(() => {
-    const hoy = new Date();
-    const min = opcionesFiltros.fechaMin
-      ? new Date(opcionesFiltros.fechaMin)
-      : subMonths(hoy, 12);
-    const max = opcionesFiltros.fechaMax
-      ? new Date(opcionesFiltros.fechaMax)
-      : hoy;
-    return { min, max };
-  }, [opcionesFiltros.fechaMin, opcionesFiltros.fechaMax]);
 
   const toISODate = (str: string): string => {
     if (!str) return '';
@@ -84,49 +67,82 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
     }
   };
 
-  useEffect(() => {
-    loadHistorial();
-    loadFiltros();
-  }, [projectId, filtros]);
+  const filterParams = useMemo(
+    () => ({
+      personaId: filtros.personaId !== 'all' ? filtros.personaId : undefined,
+      accion: filtros.accion !== 'all' ? filtros.accion : undefined,
+      tabProyecto:
+        filtros.tabProyecto !== 'all' ? filtros.tabProyecto : undefined,
+      fechaDesde: filtros.fechaDesde
+        ? toISODate(filtros.fechaDesde)
+        : undefined,
+      fechaHasta: filtros.fechaHasta
+        ? toISODate(filtros.fechaHasta)
+        : undefined,
+    }),
+    [filtros]
+  );
 
-  const loadHistorial = async () => {
-    setLoading(true);
-    try {
+  const historialQuery = useQuery({
+    queryKey: historialKey(projectId, filterParams),
+    queryFn: async () => {
       const result = await getHistorialProyecto(projectId, {
-        personaId: filtros.personaId !== 'all' ? filtros.personaId : undefined,
-        accion: filtros.accion !== 'all' ? filtros.accion : undefined,
-        tabProyecto:
-          filtros.tabProyecto !== 'all' ? filtros.tabProyecto : undefined,
-        fechaDesde: filtros.fechaDesde ? toISODate(filtros.fechaDesde) : undefined,
-        fechaHasta: filtros.fechaHasta ? toISODate(filtros.fechaHasta) : undefined,
+        personaId: filterParams.personaId,
+        accion: filterParams.accion,
+        tabProyecto: filterParams.tabProyecto,
+        fechaDesde: filterParams.fechaDesde,
+        fechaHasta: filterParams.fechaHasta,
       });
-
-      if (result.success && result.data) {
-        setHistorial(result.data);
+      if (!result.success) {
+        throw new Error(result.error ?? 'Error al cargar historial');
       }
-    } catch (error) {
-      console.error('Error al cargar historial:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (result.data ?? []) as HistorialEntry[];
+    },
+    staleTime: 30_000,
+  });
 
-  const loadFiltros = async () => {
-    try {
+  const filtrosQuery = useQuery({
+    queryKey: historialFiltrosKey(projectId),
+    queryFn: async () => {
       const result = await getHistorialFiltros(projectId);
-      if (result.success && result.data) {
-        setOpcionesFiltros({
-          personas: result.data.personas,
-          acciones: result.data.acciones,
-          tabs: result.data.tabs,
-          fechaMin: result.data.fechaMin ?? undefined,
-          fechaMax: result.data.fechaMax ?? undefined,
-        });
+      if (!result.success || !result.data) {
+        throw new Error(result.error ?? 'Error al cargar filtros');
       }
-    } catch (error) {
-      console.error('Error al cargar filtros:', error);
-    }
+      return {
+        personas: result.data.personas as Array<{
+          id: string;
+          name: string | null;
+          email: string;
+        }>,
+        acciones: result.data.acciones,
+        tabs: result.data.tabs,
+        fechaMin: result.data.fechaMin ?? undefined,
+        fechaMax: result.data.fechaMax ?? undefined,
+      };
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const historial = historialQuery.data ?? [];
+  const loading = historialQuery.isLoading && !historialQuery.data;
+  const opcionesFiltros = filtrosQuery.data ?? {
+    personas: [] as Array<{ id: string; name: string | null; email: string }>,
+    acciones: [] as string[],
+    tabs: [] as string[],
+    fechaMin: undefined as Date | undefined,
+    fechaMax: undefined as Date | undefined,
   };
+
+  const sliderDateRange = useMemo(() => {
+    const hoy = new Date();
+    const min = opcionesFiltros.fechaMin
+      ? new Date(opcionesFiltros.fechaMin)
+      : subMonths(hoy, 12);
+    const max = opcionesFiltros.fechaMax
+      ? new Date(opcionesFiltros.fechaMax)
+      : hoy;
+    return { min, max };
+  }, [opcionesFiltros.fechaMin, opcionesFiltros.fechaMax]);
 
   const formatFecha = (fecha: Date | string) => {
     const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
@@ -142,7 +158,6 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
   const formatResumen = (entry: HistorialEntry) => {
     const persona =
       entry.user.name || entry.user.email || 'Usuario desconocido';
-    const avatar = entry.user.image;
 
     // Conjugar verbos
     const conjugaciones: Record<string, string> = {
@@ -179,12 +194,12 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
         elementoNombre = (
           <>
             la tarea{' '}
-            <strong>
-              <em>{tareaNombre}</em>
+            <strong className="font-medium text-gray-800 not-italic">
+              {tareaNombre}
             </strong>{' '}
             de la actividad{' '}
-            <strong>
-              <em>{actividadNombre}</em>
+            <strong className="font-medium text-gray-800 not-italic">
+              {actividadNombre}
             </strong>
           </>
         );
@@ -196,8 +211,8 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
         elementoNombre = (
           <>
             la tarea{' '}
-            <strong>
-              <em>{tareaMatch[1]}</em>
+            <strong className="font-medium text-gray-800 not-italic">
+              {tareaMatch[1]}
             </strong>
           </>
         );
@@ -209,8 +224,8 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
         elementoNombre = (
           <>
             el indicador{' '}
-            <strong>
-              <em>{indicadorMatch[1]}</em>
+            <strong className="font-medium text-gray-800 not-italic">
+              {indicadorMatch[1]}
             </strong>
           </>
         );
@@ -222,15 +237,19 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
         elementoNombre = (
           <>
             la actividad{' '}
-            <strong>
-              <em>{actividadMatch[1]}</em>
+            <strong className="font-medium text-gray-800 not-italic">
+              {actividadMatch[1]}
             </strong>
           </>
         );
       }
     } else {
       // Si no tiene formato conocido, usar tal cual pero en negrita
-      elementoNombre = <strong>{entry.elementoEspecifico}</strong>;
+      elementoNombre = (
+        <strong className="font-medium text-gray-800">
+          {entry.elementoEspecifico}
+        </strong>
+      );
     }
 
     // Determinar si mostrar cambioGenerado (no para "Marcar realizada")
@@ -240,32 +259,29 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
       entry.cambioGenerado.trim() !== '';
 
     return (
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         {/* Avatar */}
-        {avatar ? (
-          <img
-            src={avatar}
-            alt={persona}
-            className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200"
-          />
-        ) : (
-          <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 ring-2 ring-gray-200">
-            <span className="text-xs text-gray-600 font-medium">
-              {(persona.charAt(0) || 'U').toUpperCase()}
-            </span>
-          </div>
-        )}
+        <img
+          src={DEFAULT_AVATAR}
+          alt={persona}
+          className="h-7 w-7 rounded-full flex-shrink-0 ring-1 ring-gray-200 object-cover"
+        />
 
         {/* Texto del resumen */}
         <div className="flex-1">
-          <strong>{persona}</strong> ha{' '}
-          <strong className="text-red-600">{accionConjugada}</strong> en{' '}
-          <strong className="text-emerald-600">{tabTexto}</strong>{' '}
+          <strong className="font-medium text-gray-900">{persona}</strong> ha{' '}
+          <strong className="font-medium text-orange-700">
+            {accionConjugada}
+          </strong>{' '}
+          en{' '}
+          <strong className="font-medium text-emerald-700">{tabTexto}</strong>{' '}
           {elementoNombre}
           {mostrarCambio && (
             <>
               : {'"'}
-              <span className="text-blue-600">{entry.cambioGenerado}</span>
+              <span className="font-medium text-violet-700">
+                {entry.cambioGenerado}
+              </span>
               {'"'}
             </>
           )}
@@ -292,32 +308,35 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
     return 'Rango de fechas';
   };
 
+  const filterTriggerClass =
+    'h-9 rounded-md border border-gray-200 bg-white text-[13px] font-medium tracking-wide text-gray-600 hover:bg-gray-50 focus:ring-2 focus:ring-emerald-500/40';
+
   return (
-    <Card className="h-full shadow-md flex flex-col">
-      <CardHeader className="border-b border-gray-200 pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold text-gray-900 shrink-0">
-            <History className="h-5 w-5 text-emerald-600" />
+    <Card className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none">
+      <CardHeader className="px-5 py-3 border-b border-gray-100 bg-gray-50/90 rounded-t-lg space-y-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-gray-800 shrink-0">
+            <History className="h-3.5 w-3.5 text-gray-500" />
             Historial de actualizaciones del proyecto
           </CardTitle>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <div
               className="hidden sm:block h-6 w-px bg-gray-200 shrink-0"
               aria-hidden
             />
-            <div className="flex items-center gap-2 text-sm text-gray-600 shrink-0">
-              <Filter className="h-4 w-4" />
-              <span className="font-medium">Filtros:</span>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 shrink-0">
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filtros</span>
             </div>
 
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-[200px] justify-start text-left font-normal"
+                  className={`w-[200px] justify-start text-left ${filterTriggerClass}`}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />
                   <span className="truncate">{formatDateRangeLabel()}</span>
                 </Button>
               </PopoverTrigger>
@@ -347,7 +366,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full text-gray-500 hover:text-gray-700"
+                      className="w-full text-[13px] text-gray-500 hover:text-gray-700"
                       onClick={() => {
                         setFiltros((prev) => ({
                           ...prev,
@@ -370,7 +389,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
                 setFiltros((prev) => ({ ...prev, personaId: value }))
               }
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={`w-[180px] ${filterTriggerClass}`}>
                 <SelectValue placeholder="Persona" />
               </SelectTrigger>
               <SelectContent>
@@ -389,7 +408,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
                 setFiltros((prev) => ({ ...prev, accion: value }))
               }
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={`w-[180px] ${filterTriggerClass}`}>
                 <SelectValue placeholder="Acción" />
               </SelectTrigger>
               <SelectContent>
@@ -408,7 +427,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
                 setFiltros((prev) => ({ ...prev, tabProyecto: value }))
               }
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={`w-[180px] ${filterTriggerClass}`}>
                 <SelectValue placeholder="Tab del proyecto" />
               </SelectTrigger>
               <SelectContent>
@@ -424,31 +443,33 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-auto p-6">
+      <CardContent className="flex-1 overflow-auto p-0">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-gray-500">Cargando historial...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-emerald-600 mx-auto mb-3" />
+              <p className="text-[13px] text-gray-400">Cargando historial...</p>
             </div>
           </div>
         ) : historial.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <History className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-base">No hay registros en el historial</p>
+          <div className="text-center py-12">
+            <History className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+            <p className="text-[13px] text-gray-400">
+              No hay registros en el historial
+            </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-gray-100">
             {historial.map((entry) => (
               <div
                 key={entry.id}
-                className="border-l-4 border-emerald-500 bg-gradient-to-r from-emerald-50 via-white to-gray-50 rounded-r-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4"
+                className="px-4 py-3.5 hover:bg-gray-50/80 transition-colors"
               >
                 <div className="grid grid-cols-[200px_1fr] gap-4">
-                  <div className="text-sm text-gray-600 font-medium">
+                  <div className="text-[11px] font-medium tracking-wide text-gray-400">
                     {formatFecha(entry.fecha)}
                   </div>
-                  <div className="text-gray-800 leading-relaxed">
+                  <div className="text-[13px] leading-[1.75] text-gray-800">
                     {formatResumen(entry)}
                   </div>
                 </div>

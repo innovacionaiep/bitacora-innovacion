@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import {
   Tooltip,
   TooltipContent,
@@ -99,17 +100,45 @@ export function EventoDetallesModal({
   }, [open, postId]);
 
   const handleToggleAsistencia = async () => {
-    if (!postId) return;
+    if (!postId || !data) return;
     setError(null);
+
+    const prevIs = data.isAsistiendo;
+    const prevCount = data.asistentesCount;
+    const prevAsistentes = data.asistentes;
+    const nextIs = !prevIs;
+
+    setData({
+      ...data,
+      isAsistiendo: nextIs,
+      asistentesCount: Math.max(0, prevCount + (nextIs ? 1 : -1)),
+      asistentes: nextIs
+        ? data.asistentes
+        : data.asistentes.slice(0, Math.max(0, prevCount - 1)),
+    });
+
     const res = await toggleEventoAsistencia(postId);
-    if (!res.success) {
+    if (!res.success || !res.data) {
+      setData({
+        ...data,
+        isAsistiendo: prevIs,
+        asistentesCount: prevCount,
+        asistentes: prevAsistentes,
+      });
       setError(res.error || 'No se pudo actualizar la asistencia');
       return;
     }
+
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            isAsistiendo: res.data!.isAsistiendo,
+            asistentesCount: res.data!.asistentesCount,
+          }
+        : current
+    );
     onAttendanceChanged?.();
-    // Re-cargar detalles para reflejar conteo y lista
-    const refetch = await getEventoDetalles(postId);
-    if (refetch.success && refetch.data) setData(refetch.data);
   };
 
   return (
@@ -212,7 +241,7 @@ export function EventoDetallesModal({
                     </h3>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={data.author.image || undefined} />
+                        <AvatarImage src={DEFAULT_AVATAR} />
                         <AvatarFallback>
                           {getInitials(data.author.name || data.author.email)}
                         </AvatarFallback>
@@ -241,7 +270,7 @@ export function EventoDetallesModal({
                         {uniqueEncargados.map((e) => (
                           <div key={e.id} className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={e.image || undefined} />
+                              <AvatarImage src={DEFAULT_AVATAR} />
                               <AvatarFallback>
                                 {getInitials(e.name || e.email)}
                               </AvatarFallback>
@@ -312,7 +341,7 @@ export function EventoDetallesModal({
                           className="flex items-center gap-3 p-2 rounded-lg border bg-gray-50"
                         >
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={a.image || undefined} />
+                            <AvatarImage src={DEFAULT_AVATAR} />
                             <AvatarFallback>
                               {getInitials(a.name || a.email)}
                             </AvatarFallback>

@@ -1,6 +1,7 @@
 'use client';
 
 import { History, Loader2 } from 'lucide-react';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 
 type HistorialEntry = Awaited<
   ReturnType<typeof import('@/lib/actions/historial').getHistorialRecienteParaUsuario>
@@ -75,7 +76,6 @@ export function PortalHistorialReciente({
             {list.map((entry) => {
               const persona =
                 entry.user?.name || entry.user?.email || 'Usuario';
-              const avatar = entry.user?.image;
               const accionConjugada =
                 CONJUGACIONES[entry.accion] || entry.accion.toLowerCase();
               const proyectoNombre = (entry as HistorialEntry & { proyecto?: { proyecto?: string } }).proyecto?.proyecto ?? '';
@@ -85,19 +85,11 @@ export function PortalHistorialReciente({
                   key={entry.id}
                   className="flex items-start gap-3 text-sm border-b border-border/50 pb-3 last:border-0 last:pb-0"
                 >
-                  {avatar ? (
-                    <img
-                      src={avatar}
-                      alt={persona}
-                      className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 ring-2 ring-gray-200">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {(persona.charAt(0) || 'U').toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  <img
+                    src={DEFAULT_AVATAR}
+                    alt={persona}
+                    className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200 object-cover"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-muted-foreground text-xs mb-0.5">
                       {proyectoNombre && (

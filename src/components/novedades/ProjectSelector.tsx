@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Check, ChevronsUpDown, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
@@ -23,12 +24,15 @@ interface ProjectSelectorProps {
   disabled?: boolean;
 }
 
+const SEARCH_THRESHOLD = 7;
+
 export function ProjectSelector({
   selectedIds,
   onSelectionChange,
   disabled = false,
 }: ProjectSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,19 @@ export function ProjectSelector({
     }
     loadProyectos();
   }, []);
+
+  const showSearch = proyectos.length > SEARCH_THRESHOLD;
+
+  const filteredProyectos = useMemo(() => {
+    if (!showSearch || !search.trim()) return proyectos;
+    const q = search.trim().toLowerCase();
+    return proyectos.filter((p) => p.proyecto.toLowerCase().includes(q));
+  }, [proyectos, search, showSearch]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSearch('');
+  };
 
   const toggleProyecto = (proyectoId: string) => {
     if (selectedIds.includes(proyectoId)) {
@@ -82,7 +99,7 @@ export function ProjectSelector({
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -98,34 +115,54 @@ export function ProjectSelector({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-full p-0 z-50 bg-popover border rounded-md shadow-md"
+          className="w-[var(--radix-popover-trigger-width)] p-0 z-50 bg-popover border rounded-md shadow-md"
           align="start"
         >
-          <div className="max-h-60 overflow-auto p-1">
-            {proyectos.map((proyecto) => (
-              <div
-                key={proyecto.id}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 cursor-pointer rounded hover:bg-accent',
-                  selectedIds.includes(proyecto.id) && 'bg-accent'
-                )}
-                onClick={() => toggleProyecto(proyecto.id)}
-              >
-                <div
-                  className={cn(
-                    'h-4 w-4 border rounded flex items-center justify-center',
-                    selectedIds.includes(proyecto.id)
-                      ? 'bg-primary border-primary'
-                      : 'border-input'
-                  )}
-                >
-                  {selectedIds.includes(proyecto.id) && (
-                    <Check className="h-3 w-3 text-primary-foreground" />
-                  )}
-                </div>
-                <span className="text-sm truncate">{proyecto.proyecto}</span>
+          {showSearch && (
+            <div className="border-b p-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="h-8 pl-8 text-sm"
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
               </div>
-            ))}
+            </div>
+          )}
+          <div className="max-h-60 overflow-auto p-1">
+            {filteredProyectos.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2 px-3">
+                Sin resultados
+              </p>
+            ) : (
+              filteredProyectos.map((proyecto) => (
+                <div
+                  key={proyecto.id}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 cursor-pointer rounded hover:bg-accent',
+                    selectedIds.includes(proyecto.id) && 'bg-accent'
+                  )}
+                  onClick={() => toggleProyecto(proyecto.id)}
+                >
+                  <div
+                    className={cn(
+                      'h-4 w-4 border rounded flex items-center justify-center',
+                      selectedIds.includes(proyecto.id)
+                        ? 'bg-primary border-primary'
+                        : 'border-input'
+                    )}
+                  >
+                    {selectedIds.includes(proyecto.id) && (
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    )}
+                  </div>
+                  <span className="text-sm truncate">{proyecto.proyecto}</span>
+                </div>
+              ))
+            )}
           </div>
         </PopoverContent>
       </Popover>

@@ -22,20 +22,12 @@ interface ObjetivoGeneralCardProps {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   }) => void;
   /** Botones o acciones a la derecha del objetivo general (ej. Agregar / Eliminar indicador) */
   actions?: ReactNode;
   /** Si está activo el modo eliminar, se muestra botón papelera en cada indicador */
   deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
-  canValidateAsCoordinator?: boolean;
-  onIndicadorValidationToggle?: () => void;
   /** Callback para agregar un objetivo específico (cuando no hay ninguno) */
   onAddObjetivoEspecifico?: (descripcion: string) => Promise<void>;
 }
@@ -47,8 +39,6 @@ export function ObjetivoGeneralCard({
   actions,
   deleteMode,
   onDeleteIndicador,
-  canValidateAsCoordinator,
-  onIndicadorValidationToggle,
   onAddObjetivoEspecifico,
 }: ObjetivoGeneralCardProps) {
   const [nuevoObjetivoTexto, setNuevoObjetivoTexto] = useState('');
@@ -118,7 +108,7 @@ export function ObjetivoGeneralCard({
               )}
             </div>
 
-            {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores + validaciones (80px a la derecha respecto al Objetivo General) */}
+            {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores (80px a la derecha respecto al Objetivo General) */}
             <div
               className="flex flex-col gap-16 relative"
               style={{ marginLeft: '80px' }}
@@ -133,8 +123,6 @@ export function ObjetivoGeneralCard({
                       onIndicadorClick={onIndicadorClick}
                       deleteMode={deleteMode}
                       onDeleteIndicador={onDeleteIndicador}
-                      canValidateAsCoordinator={canValidateAsCoordinator}
-                      onIndicadorValidationToggle={onIndicadorValidationToggle}
                     />
                   </div>
                 )

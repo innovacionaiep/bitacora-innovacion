@@ -1,9 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCompromisosProyecto } from '@/lib/actions/seguimiento';
 import { CompromisosPostItWall } from './CompromisosPostItWall';
 import { Loader2 } from 'lucide-react';
+import { compromisosKey } from '@/lib/query-keys';
+
+type CompromisosData = NonNullable<
+  Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
+>;
 
 interface SeguimientoCardProps {
   projectId: string;
@@ -18,31 +24,53 @@ export function SeguimientoCard({
   rolEnProyecto,
   activeRole,
 }: SeguimientoCardProps) {
-  const [compromisos, setCompromisos] = useState<
-    Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const loadData = async (isRefetch = false) => {
-    if (!isRefetch) setLoading(true);
-    const compromisosRes = await getCompromisosProyecto(projectId);
-    if (compromisosRes.success && compromisosRes.data) {
-      setCompromisos(compromisosRes.data);
-    }
-    setLoading(false);
-  };
+  const query = useQuery({
+    queryKey: compromisosKey(projectId),
+    queryFn: async () => {
+      const compromisosRes = await getCompromisosProyecto(projectId);
+      if (!compromisosRes.success) {
+        throw new Error(compromisosRes.error ?? 'Error al cargar compromisos');
+      }
+      return (compromisosRes.data ?? []) as CompromisosData;
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    if (projectId) {
-      loadData(false);
-    }
-  }, [projectId]);
+  const compromisos = query.data ?? [];
+
+  const setCompromisos = useCallback(
+    (update: CompromisosData | ((prev: CompromisosData) => CompromisosData)) => {
+      queryClient.setQueryData<CompromisosData>(
+        compromisosKey(projectId),
+        (prev) => {
+          const current = prev ?? [];
+          return typeof update === 'function' ? update(current) : update;
+        }
+      );
+    },
+    [projectId, queryClient]
+  );
 
   const handleSuccess = async () => {
-    await loadData(true);
+    await queryClient.invalidateQueries({
+      queryKey: compromisosKey(projectId),
+    });
+    await queryClient.fetchQuery({
+      queryKey: compromisosKey(projectId),
+      queryFn: async () => {
+        const compromisosRes = await getCompromisosProyecto(projectId);
+        if (!compromisosRes.success) {
+          throw new Error(compromisosRes.error ?? 'Error al cargar compromisos');
+        }
+        return (compromisosRes.data ?? []) as CompromisosData;
+      },
+      staleTime: 0,
+    });
   };
 
-  if (loading) {
+  if (query.isLoading && !query.data) {
     return (
       <div className="h-full flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -64,6 +92,12 @@ export function SeguimientoCard({
               setCompromisos((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
               )
+            }
+            onOptimisticCompromisoAdd={(compromiso) =>
+              setCompromisos((prev) => [compromiso, ...prev])
+            }
+            onOptimisticCompromisoRemove={(id) =>
+              setCompromisos((prev) => prev.filter((c) => c.id !== id))
             }
           />
         </div>

@@ -59,6 +59,45 @@ export async function createHistorialEntry(data: HistorialEntryData) {
   }
 }
 
+/**
+ * Crear varias entradas de historial con una sola lectura de usuario.
+ */
+export async function createHistorialEntriesBatch(
+  proyectoId: string,
+  accion: string,
+  tabProyecto: string,
+  entries: Array<{ elementoEspecifico: string; cambioGenerado: string }>
+) {
+  if (entries.length === 0) {
+    return { success: true as const, count: 0 };
+  }
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false as const, error: 'Usuario no autenticado' };
+    }
+
+    const result = await prisma.historialProyecto.createMany({
+      data: entries.map((entry) => ({
+        proyectoId,
+        userId: user.id,
+        accion,
+        tabProyecto,
+        elementoEspecifico: entry.elementoEspecifico,
+        cambioGenerado: entry.cambioGenerado,
+      })),
+    });
+
+    return { success: true as const, count: result.count };
+  } catch (error) {
+    console.error('Error al crear entradas de historial en batch:', error);
+    return {
+      success: false as const,
+      error: 'Error al crear entradas de historial',
+    };
+  }
+}
+
 export interface HistorialFiltros {
   personaId?: string;
   accion?: string;
@@ -157,45 +196,40 @@ export async function getHistorialProyecto(
  */
 export async function getHistorialFiltros(proyectoId: string) {
   try {
-    // Obtener todas las personas que han realizado acciones
-    const personas = await prisma.historialProyecto.findMany({
-      where: { proyectoId },
-      select: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const [personas, acciones, tabs, dateRange] = await Promise.all([
+      prisma.historialProyecto.findMany({
+        where: { proyectoId },
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-      distinct: ['userId'],
-    });
-
-    // Obtener todas las acciones únicas
-    const acciones = await prisma.historialProyecto.findMany({
-      where: { proyectoId },
-      select: {
-        accion: true,
-      },
-      distinct: ['accion'],
-    });
-
-    // Obtener todos los tabs únicos
-    const tabs = await prisma.historialProyecto.findMany({
-      where: { proyectoId },
-      select: {
-        tabProyecto: true,
-      },
-      distinct: ['tabProyecto'],
-    });
-
-    // Obtener rango de fechas real de los logs del proyecto
-    const dateRange = await prisma.historialProyecto.aggregate({
-      where: { proyectoId },
-      _min: { fecha: true },
-      _max: { fecha: true },
-    });
+        distinct: ['userId'],
+      }),
+      prisma.historialProyecto.findMany({
+        where: { proyectoId },
+        select: {
+          accion: true,
+        },
+        distinct: ['accion'],
+      }),
+      prisma.historialProyecto.findMany({
+        where: { proyectoId },
+        select: {
+          tabProyecto: true,
+        },
+        distinct: ['tabProyecto'],
+      }),
+      prisma.historialProyecto.aggregate({
+        where: { proyectoId },
+        _min: { fecha: true },
+        _max: { fecha: true },
+      }),
+    ]);
 
     return {
       success: true,

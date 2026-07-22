@@ -12,7 +12,6 @@ import {
   PortalHistorialReciente,
 } from '@/components/portal';
 import {
-  getRolesConProyectosVigentes,
   getProyectosDelUsuarioConRol,
   getAlertasPortalUsuario,
   type InicioInitialData,
@@ -27,9 +26,6 @@ export function InicioClient({
   initialData?: InicioInitialData | null;
 }) {
   const { data: session, status } = useSession();
-  const [rolesVigentes, setRolesVigentes] = useState<string[]>(
-    initialData?.rolesVigentes ?? []
-  );
   const [proyectos, setProyectos] = useState<
     Awaited<ReturnType<typeof getProyectosDelUsuarioConRol>>['data']
   >(initialData?.proyectos ?? []);
@@ -42,7 +38,6 @@ export function InicioClient({
   const [historial, setHistorial] = useState<
     Awaited<ReturnType<typeof getHistorialRecienteParaUsuario>>['data']
   >(initialData?.historial ?? []);
-  const [loadingPortal, setLoadingPortal] = useState(!initialData);
   const [loadingProyectos, setLoadingProyectos] = useState(!initialData);
   const [loadingAlertas, setLoadingAlertas] = useState(!initialData);
   const [loadingCompromisos, setLoadingCompromisos] = useState(!initialData);
@@ -55,14 +50,8 @@ export function InicioClient({
   const syncClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeRole = session?.user?.activeRole ?? null;
-  const roleToLoad = activeRole ?? rolesVigentes[0] ?? null;
-
-  const loadRoles = useCallback(async () => {
-    const res = await getRolesConProyectosVigentes();
-    if (res.success && res.data) {
-      setRolesVigentes(res.data);
-    }
-  }, []);
+  const availableRoles = session?.user?.availableRoles ?? [];
+  const roleToLoad = activeRole ?? availableRoles[0] ?? null;
 
   const loadPortalData = useCallback(
     async (role: string | null, options?: { isRoleChange?: boolean }) => {
@@ -75,8 +64,7 @@ export function InicioClient({
         setLoadingCompromisos(true);
         setLoadingHistorial(true);
       } else {
-        // Carga inicial: loading global + por sección
-        setLoadingPortal(true);
+        // Carga inicial: loading por sección
         setLoadingProyectos(true);
         setLoadingAlertas(true);
         setLoadingCompromisos(true);
@@ -104,28 +92,23 @@ export function InicioClient({
         return r;
       });
 
-      try {
-        await Promise.all([
-          proyPromise,
-          alertasPromise,
-          compromisosPromise,
-          historialPromise,
-        ]);
-      } finally {
-        setLoadingPortal(false);
-      }
+      await Promise.all([
+        proyPromise,
+        alertasPromise,
+        compromisosPromise,
+        historialPromise,
+      ]);
     },
     []
   );
 
   useEffect(() => {
-    if (status === 'loading') return;
-    if (initialData && rolesVigentes.length > 0) return;
-    loadRoles();
-  }, [status, loadRoles, initialData, rolesVigentes.length]);
-
-  useEffect(() => {
-    if (status === 'authenticated' && roleToLoad != null && roleToLoad === lastLoadedRoleRef.current && isRoleChangeInProgressRef.current) {
+    if (
+      status === 'authenticated' &&
+      roleToLoad != null &&
+      roleToLoad === lastLoadedRoleRef.current &&
+      isRoleChangeInProgressRef.current
+    ) {
       if (syncClearTimeoutRef.current) clearTimeout(syncClearTimeoutRef.current);
       syncClearTimeoutRef.current = setTimeout(() => {
         syncClearTimeoutRef.current = null;
@@ -160,7 +143,7 @@ export function InicioClient({
     };
   }, []);
 
-  // Sincronizar portal cuando el rol activo cambia desde fuera (p. ej. Mi Cuenta)
+  // Sincronizar portal cuando el rol activo cambia desde la sesión
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.activeRole) return;
     const newRole = session.user.activeRole;
@@ -189,7 +172,7 @@ export function InicioClient({
         <div className="h-full overflow-auto">
           <div className="space-y-8 w-full max-w-2xl mx-auto text-center py-12">
             <h1 className="text-4xl font-bold tracking-tight">
-              Bienvenido a Bemindr
+              Bienvenido a Bitácora
             </h1>
             <p className="text-muted-foreground">
               Inicia sesión para acceder a tu portal de proyectos.
@@ -210,19 +193,13 @@ export function InicioClient({
     }
   }
 
-  // Siempre mostrar el portal completo (secciones visibles; vacías o cargando si no hay datos)
   return (
     <div className="h-full flex flex-col overflow-hidden bg-gray-100">
       <div className="flex-shrink-0">
-        <PortalWelcomeHeader
-          rolesVigentes={rolesVigentes}
-          onRoleChange={handleRoleChange}
-        />
+        <PortalWelcomeHeader onRoleChange={handleRoleChange} />
       </div>
 
-      {/* Contenido: grid unificado para que Últimas, Reuniones y Compromisos tengan el mismo ancho */}
       <div className="flex-1 min-h-0 grid grid-cols-[1.5fr_1fr] gap-4 mt-4 overflow-visible">
-        {/* Col 1: Mis proyectos (arriba) + Alertas (abajo) */}
         <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
           <div className="h-[262px] shrink-0 p-2 overflow-visible">
             <PortalMisProyectos proyectos={proyectos} loading={loadingProyectos} />
@@ -232,11 +209,12 @@ export function InicioClient({
               alertas={alertas}
               activeRole={displayRole ?? activeRole}
               loading={loadingAlertas}
-              onSuccess={() => loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })}
+              onSuccess={() =>
+                loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
+              }
             />
           </div>
         </div>
-        {/* Col 2: Últimas actualizaciones | Compromisos pendientes */}
         <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
           <div className="h-[262px] shrink-0 p-2 overflow-visible">
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
@@ -245,7 +223,9 @@ export function InicioClient({
             <PortalCompromisosPendientes
               compromisos={compromisos}
               activeRole={displayRole ?? activeRole}
-              onSuccess={() => loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })}
+              onSuccess={() =>
+                loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
+              }
               loading={loadingCompromisos}
             />
           </div>

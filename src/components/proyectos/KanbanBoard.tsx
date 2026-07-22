@@ -3,14 +3,12 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   ChevronDown,
   ChevronRight,
   CheckCircle,
   Circle,
   Plus,
-  Check,
 } from 'lucide-react';
 import { useState, useMemo, memo } from 'react';
 import { Activity } from '@/hooks/useGantt';
@@ -341,79 +339,6 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
                 ))}
             </div>
           )}
-
-          {/* Validación coordinador - solo para actividades finalizadas (DONE con todas las tareas completadas) */}
-          {activity.status === 'DONE' &&
-            activity.tasks.length > 0 &&
-            activity.tasks.every((t) => t.completed) && (
-              <div className="mt-3 pt-2 border-t border-gray-200 flex justify-end">
-                {(
-                  activity as Activity & {
-                    validadoPorCoordinador?: boolean;
-                    validadoPorCoordinadorPor?: {
-                      id: string;
-                      name: string | null;
-                      image: string | null;
-                    } | null;
-                  }
-                ).validadoPorCoordinador &&
-                (
-                  activity as Activity & {
-                    validadoPorCoordinadorPor?: {
-                      id: string;
-                      name: string | null;
-                      image: string | null;
-                    } | null;
-                  }
-                ).validadoPorCoordinadorPor ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
-                    <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-2.5 w-2.5 text-white" />
-                    </div>
-                    <span className="inline-flex items-center gap-1">
-                      Validado por{' '}
-                      <Avatar className="h-5 w-5 flex-shrink-0">
-                        <AvatarImage
-                          src={
-                            (
-                              activity as Activity & {
-                                validadoPorCoordinadorPor?: {
-                                  image: string | null;
-                                };
-                              }
-                            ).validadoPorCoordinadorPor?.image ?? undefined
-                          }
-                        />
-                        <AvatarFallback className="text-[10px]">
-                          {(
-                            (
-                              activity as Activity & {
-                                validadoPorCoordinadorPor?: {
-                                  name: string | null;
-                                };
-                              }
-                            ).validadoPorCoordinadorPor?.name ?? 'U'
-                          )
-                            .slice(0, 1)
-                            .toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>
-                        {(
-                          activity as Activity & {
-                            validadoPorCoordinadorPor?: { name: string | null };
-                          }
-                        ).validadoPorCoordinadorPor?.name ?? 'Coordinador'}
-                      </span>
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-red-600 font-medium">
-                    Validación pendiente
-                  </span>
-                )}
-              </div>
-            )}
         </CardContent>
       </Card>
     </div>
@@ -669,7 +594,7 @@ export default function KanbanBoard({
       onDragEnd={handleDragEnd}
     >
       <div
-        className={`flex gap-4 overflow-x-auto pb-4 w-full ${isFullscreen ? 'h-[calc(100vh-135px)]' : 'h-[calc(100vh-300px)]'}`}
+        className={`flex gap-4 overflow-x-auto pb-4 w-full h-full min-h-0`}
       >
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn

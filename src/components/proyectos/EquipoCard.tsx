@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Plus, Edit, Trash2 } from 'lucide-react';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 
 // Ver docs/SISTEMA-ROLES.md para documentación de roles
 interface Participante {
@@ -103,16 +104,12 @@ export function EquipoCard({
               className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div className="flex items-center space-x-3">
-                <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center text-sm">
-                  {participante.user.image ? (
-                    <img
-                      src={participante.user.image}
-                      alt={participante.user.name || 'Usuario'}
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-3.5 w-3.5 text-gray-600" />
-                  )}
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm overflow-hidden">
+                  <img
+                    src={DEFAULT_AVATAR}
+                    alt={participante.user.name || 'Usuario'}
+                    className="w-7 h-7 rounded-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">

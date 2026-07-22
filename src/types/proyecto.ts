@@ -2,6 +2,7 @@ import {
   Proyecto,
   Escuela,
   Carrera,
+  Asignatura,
   Comuna,
   GrupoInteres,
   SocioComunitario,
@@ -13,6 +14,7 @@ import {
   ProyectoParticipante,
   ProyectoEscuela,
   ProyectoCarrera,
+  ProyectoAsignatura,
   ProyectoComuna,
   ProyectoGrupoInteres,
   ProyectoSocioComunitario,
@@ -30,6 +32,8 @@ export type ProyectoWithRelations = Proyecto & {
     socioComunitario?: SocioComunitario | null;
     sede?: { id: string; nombre: string } | null;
     escuela?: { id: string; nombre: string } | null;
+    carrera?: { id: string; nombre: string } | null;
+    asignatura?: { id: string; nombre: string } | null;
     /** Nombre a mostrar: prioridad cuenta registrada (user) por email, luego participante.nombre */
     displayName?: string | null;
     /** Avatar a mostrar: prioridad cuenta registrada (user) por email */
@@ -40,6 +44,9 @@ export type ProyectoWithRelations = Proyecto & {
   })[];
   carreras: (ProyectoCarrera & {
     carrera: Carrera;
+  })[];
+  asignaturas: (ProyectoAsignatura & {
+    asignatura: Asignatura;
   })[];
   comunas: (ProyectoComuna & {
     comuna: Comuna;
@@ -67,6 +74,8 @@ export type ProyectoConVariaciones = ProyectoWithRelations & {
 export type ProyectoFormData = {
   proyecto: string;
   fondo: string;
+  /** Sub-fondo dentro del fondo */
+  linea?: string | null;
   sede: string;
   /** Si se envía, se usa para construir sede (varias sedes unidas por coma) */
   sedesIds?: string[];
@@ -81,6 +90,7 @@ export type ProyectoFormData = {
   // Relaciones (arrays de IDs)
   escuelasIds: string[];
   carrerasIds: string[];
+  asignaturasIds: string[];
   comunasIds: string[];
   gruposInteresIds: string[];
   sociosComunitariosIds: string[];
@@ -167,6 +177,8 @@ export type EscuelaItem = CatalogoItem & {
 };
 
 export type CarreraItem = CatalogoItem;
+
+export type AsignaturaItem = CatalogoItem;
 
 export type ComunaItem = CatalogoItem & {
   region: string;

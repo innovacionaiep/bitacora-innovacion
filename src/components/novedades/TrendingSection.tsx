@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import {
   MonthlyTrends,
   TrendingItem,
@@ -86,7 +87,6 @@ export function TrendingSection({
     const nombre = isSede
       ? (item as TrendingSede).sede
       : (item as TrendingItem).nombre;
-    const image = isPersona ? (item as TrendingItem).image : null;
 
     return (
       <div
@@ -106,7 +106,7 @@ export function TrendingSection({
         {/* Avatar para personas */}
         {isPersona && (
           <Avatar className="h-6 w-6 border border-gray-200 shrink-0">
-            <AvatarImage src={image || undefined} />
+            <AvatarImage src={DEFAULT_AVATAR} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-[10px]">
               {getInitials(nombre)}
             </AvatarFallback>

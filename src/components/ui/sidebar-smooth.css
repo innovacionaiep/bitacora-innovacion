@@ -1,19 +1,16 @@
-/* Eliminar el efecto rebote del sidebar */
+/* Eliminar el efecto rebote del contenido interno del sidebar */
 [data-sidebar='sidebar'] {
   transition: none !important;
 }
 
-/* Eliminar todas las transiciones que causan rebote */
 [data-sidebar='sidebar'] * {
   transition: none !important;
 }
 
-/* Eliminar transiciones del contenedor del sidebar */
 [data-sidebar='sidebar'] > * {
   transition: none !important;
 }
 
-/* Eliminar transiciones de elementos internos */
 [data-sidebar='sidebar'] [data-sidebar='menu-button'] {
   transition: none !important;
 }
@@ -36,4 +33,11 @@
 
 [data-sidebar='sidebar'] [data-sidebar='footer'] {
   transition: none !important;
+}
+
+/* Permitir solo la animación de ancho del panel / spacer */
+.group.peer,
+.group.peer > .fixed,
+.group.peer > div.relative {
+  transition: width 200ms linear !important;
 }

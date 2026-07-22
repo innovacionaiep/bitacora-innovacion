@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { RefreshCw, User, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import {
   getRandomParticipants,
   RandomParticipant,
@@ -113,7 +114,7 @@ export function DiscoveryParticipants({
             className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <Avatar className="h-10 w-10 border border-gray-200">
-              <AvatarImage src={participant.image || undefined} />
+              <AvatarImage src={DEFAULT_AVATAR} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
                 {getInitials(participant.nombre)}
               </AvatarFallback>

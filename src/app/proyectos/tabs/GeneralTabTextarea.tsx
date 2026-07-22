@@ -28,7 +28,10 @@ export function GeneralTabTextarea({
     <Textarea
       ref={ref}
       rows={2}
-      className={cn('min-h-[52px] resize-none overflow-y-auto', className)}
+      className={cn(
+        'min-h-[52px] resize-none overflow-y-auto break-words [overflow-wrap:anywhere] max-w-full',
+        className
+      )}
       onFocus={(e) => {
         expandHeight();
         onFocus?.(e);

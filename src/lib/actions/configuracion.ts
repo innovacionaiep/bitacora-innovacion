@@ -243,13 +243,17 @@ export async function updateCarrera(id: string, nombre: string) {
 
 export async function deleteCarrera(id: string) {
   try {
-    const inUse = await prisma.proyectoCarrera.count({
+    const inUseProyecto = await prisma.proyectoCarrera.count({
       where: { carreraId: id },
     });
-    if (inUse > 0) {
+    const inUseParticipante = await prisma.proyectoParticipante.count({
+      where: { carreraId: id },
+    });
+    if (inUseProyecto > 0 || inUseParticipante > 0) {
       return {
         success: false,
-        error: 'No se puede eliminar: hay proyectos que usan esta carrera',
+        error:
+          'No se puede eliminar: hay proyectos o participantes que usan esta carrera',
       };
     }
     await prisma.carrera.delete({ where: { id } });
@@ -300,6 +304,106 @@ export async function importCarrerasFromNames(
   } catch (e) {
     console.error(e);
     return { success: false, error: 'Error al importar carreras' };
+  }
+}
+
+// ----- Asignaturas -----
+export async function getAsignaturas() {
+  return prisma.asignatura.findMany({
+    orderBy: { nombre: 'asc' },
+  });
+}
+
+export async function createAsignatura(nombre: string) {
+  try {
+    await prisma.asignatura.create({
+      data: { nombre: nombre.trim() },
+    });
+    revalidatePath(CONFIG_PATH);
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al crear asignatura' };
+  }
+}
+
+export async function updateAsignatura(id: string, nombre: string) {
+  try {
+    await prisma.asignatura.update({
+      where: { id },
+      data: { nombre: nombre.trim() },
+    });
+    revalidatePath(CONFIG_PATH);
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al actualizar asignatura' };
+  }
+}
+
+export async function deleteAsignatura(id: string) {
+  try {
+    const inUseProyecto = await prisma.proyectoAsignatura.count({
+      where: { asignaturaId: id },
+    });
+    const inUseParticipante = await prisma.proyectoParticipante.count({
+      where: { asignaturaId: id },
+    });
+    if (inUseProyecto > 0 || inUseParticipante > 0) {
+      return {
+        success: false,
+        error:
+          'No se puede eliminar: hay proyectos o participantes que usan esta asignatura',
+      };
+    }
+    await prisma.asignatura.delete({ where: { id } });
+    revalidatePath(CONFIG_PATH);
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al eliminar asignatura' };
+  }
+}
+
+/** Importa asignaturas desde una lista de nombres (ej. leídos de un xlsx). Crea las que no existan. */
+export async function importAsignaturasFromNames(
+  nombres: string[]
+): Promise<{
+  success: boolean;
+  created?: number;
+  skipped?: number;
+  error?: string;
+}> {
+  try {
+    const nombresUnicos = [
+      ...new Set(
+        nombres
+          .map((n) => (typeof n === 'string' ? n.trim() : String(n).trim()))
+          .filter(Boolean)
+      ),
+    ];
+    if (nombresUnicos.length === 0) {
+      return { success: true, created: 0, skipped: 0 };
+    }
+    const existentes = await prisma.asignatura.findMany({
+      where: { nombre: { in: nombresUnicos } },
+      select: { nombre: true },
+    });
+    const setExistentes = new Set(existentes.map((e) => e.nombre));
+    const aCrear = nombresUnicos.filter((n) => !setExistentes.has(n));
+    for (const nombre of aCrear) {
+      await prisma.asignatura.create({ data: { nombre } });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return {
+      success: true,
+      created: aCrear.length,
+      skipped: nombresUnicos.length - aCrear.length,
+    };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al importar asignaturas' };
   }
 }
 
@@ -356,5 +460,205 @@ export async function deleteGrupoInteres(id: string) {
   } catch (e) {
     console.error(e);
     return { success: false, error: 'Error al eliminar grupo de interés' };
+  }
+}
+
+// ----- Fondos -----
+export async function getFondos() {
+  return prisma.fondo.findMany({
+    orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+  });
+}
+
+export async function createFondo(nombre: string, orden?: number) {
+  try {
+    await prisma.fondo.create({
+      data: { nombre: nombre.trim(), orden: orden ?? 0 },
+    });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/configuracion/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al crear fondo' };
+  }
+}
+
+export async function updateFondo(id: string, nombre: string, orden?: number) {
+  try {
+    const existing = await prisma.fondo.findUnique({ where: { id } });
+    if (!existing) {
+      return { success: false, error: 'Fondo no encontrado' };
+    }
+    const nuevoNombre = nombre.trim();
+    await prisma.fondo.update({
+      where: { id },
+      data: {
+        nombre: nuevoNombre,
+        ...(orden !== undefined && { orden }),
+      },
+    });
+    // Si cambió el nombre, actualizar proyectos que usaban el nombre anterior
+    if (existing.nombre !== nuevoNombre) {
+      await prisma.proyecto.updateMany({
+        where: { fondo: existing.nombre },
+        data: { fondo: nuevoNombre },
+      });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/configuracion/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al actualizar fondo' };
+  }
+}
+
+export async function deleteFondo(id: string) {
+  try {
+    const fondo = await prisma.fondo.findUnique({ where: { id } });
+    if (!fondo) {
+      return { success: false, error: 'Fondo no encontrado' };
+    }
+    const enUso = await prisma.proyecto.count({
+      where: { fondo: fondo.nombre },
+    });
+    if (enUso > 0) {
+      return {
+        success: false,
+        error: 'No se puede eliminar: hay proyectos que usan este fondo',
+      };
+    }
+    await prisma.fondo.delete({ where: { id } });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/configuracion/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al eliminar fondo' };
+  }
+}
+
+/** Rellena la tabla Fondos con valores distintos de Proyecto.fondo y defaults conocidos. */
+export async function backfillFondosFromProyectos(): Promise<{
+  success: boolean;
+  created?: number;
+  error?: string;
+}> {
+  try {
+    const defaults = ['IMPULSA', 'FONDART', 'CORFO', 'SENCE', 'Otro'];
+    const proyectos = await prisma.proyecto.findMany({
+      select: { fondo: true },
+    });
+    const desdeProyectos = proyectos
+      .map((p) => p.fondo?.trim())
+      .filter((n): n is string => Boolean(n));
+    const nombres = Array.from(
+      new Set([...defaults, ...desdeProyectos])
+    ).sort();
+    const existentes = await prisma.fondo.findMany({ select: { nombre: true } });
+    const setExistentes = new Set(existentes.map((e) => e.nombre));
+    const aCrear = nombres.filter((n) => !setExistentes.has(n));
+    for (let i = 0; i < aCrear.length; i++) {
+      await prisma.fondo.create({
+        data: { nombre: aCrear[i], orden: i },
+      });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/configuracion/proyectos');
+    return { success: true, created: aCrear.length };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al cargar fondos desde proyectos' };
+  }
+}
+
+// ----- Líneas (sub-fondo dentro de un Fondo) -----
+export async function getLineas() {
+  return prisma.linea.findMany({
+    orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+    include: { fondo: { select: { id: true, nombre: true } } },
+  });
+}
+
+export async function createLinea(
+  nombre: string,
+  fondoId: string,
+  orden?: number
+) {
+  try {
+    if (!fondoId.trim()) {
+      return { success: false, error: 'El fondo es obligatorio' };
+    }
+    const fondo = await prisma.fondo.findUnique({ where: { id: fondoId } });
+    if (!fondo) {
+      return { success: false, error: 'Fondo no encontrado' };
+    }
+    await prisma.linea.create({
+      data: {
+        nombre: nombre.trim(),
+        fondoId,
+        orden: orden ?? 0,
+      },
+    });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al crear línea' };
+  }
+}
+
+export async function updateLinea(
+  id: string,
+  nombre: string,
+  fondoId: string,
+  orden?: number
+) {
+  try {
+    const existing = await prisma.linea.findUnique({
+      where: { id },
+      include: { fondo: { select: { nombre: true } } },
+    });
+    if (!existing) {
+      return { success: false, error: 'Línea no encontrada' };
+    }
+    if (!fondoId.trim()) {
+      return { success: false, error: 'El fondo es obligatorio' };
+    }
+    const fondo = await prisma.fondo.findUnique({ where: { id: fondoId } });
+    if (!fondo) {
+      return { success: false, error: 'Fondo no encontrado' };
+    }
+    const nuevoNombre = nombre.trim();
+    await prisma.linea.update({
+      where: { id },
+      data: {
+        nombre: nuevoNombre,
+        fondoId,
+        ...(orden !== undefined && { orden }),
+      },
+    });
+    // Si cambió el nombre, actualizar proyectos que usaban el nombre anterior en ese fondo
+    if (existing.nombre !== nuevoNombre) {
+      await prisma.proyecto.updateMany({
+        where: {
+          linea: existing.nombre,
+          fondo: existing.fondo.nombre,
+        },
+        data: { linea: nuevoNombre },
+      });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al actualizar línea' };
   }
 }

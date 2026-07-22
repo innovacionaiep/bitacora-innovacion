@@ -22,7 +22,19 @@ export interface ObjetivoEspecificoOption {
 interface AgregarIndicadorModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => Promise<void>;
+  onSuccess: (created?: {
+    objetivoEspecificoId: string;
+    indicador: {
+      id: string;
+      nombre: string;
+      descripcion: string;
+      formaCalculo: string;
+      resultadoEsperado: string;
+      formatoNumero?: string | null;
+      fechaInicio?: string | null;
+      fechaFin?: string | null;
+    };
+  }) => Promise<void>;
   proyectoId: string;
   objetivosEspecificos: ObjetivoEspecificoOption[];
 }
@@ -105,9 +117,22 @@ export function AgregarIndicadorModal({
         }
       );
       if (result.success) {
+        const formSnapshot = { ...form };
         resetForm();
         onClose();
-        await onSuccess();
+        await onSuccess({
+          objetivoEspecificoId: formSnapshot.objetivoEspecificoId,
+          indicador: {
+            id: result.id ?? `temp-ind-${Date.now()}`,
+            nombre: formSnapshot.nombre.trim(),
+            descripcion: formSnapshot.descripcion.trim(),
+            formaCalculo: formSnapshot.formaCalculo.trim(),
+            resultadoEsperado: formSnapshot.resultadoEsperado.trim(),
+            formatoNumero: formSnapshot.formatoNumero || null,
+            fechaInicio: formSnapshot.fechaInicio.trim() || null,
+            fechaFin: formSnapshot.fechaFin.trim() || null,
+          },
+        });
       } else {
         alert(result.error || 'Error al crear el indicador');
       }

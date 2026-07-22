@@ -1,23 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  getCarreras,
-  getComunas,
-  getEscuelas,
-  getGruposInteres,
-  getSociosComunitarios,
+  getCatalogosGeneral,
   updateProyectoGeneralTab,
 } from '@/lib/actions/proyectos';
-import { getSedes } from '@/lib/actions/configuracion';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+import { catalogosGeneralKey } from '@/lib/query-keys';
 import {
   buildGeneralDraft,
+  buildOptimisticRelationRows,
   extractYouTubeVideoId,
-  mapNamesToIds,
-  parseNameList,
   type CatalogosGeneral,
   type GeneralDraft,
+  type GeneralFieldId,
+  mapNamesToIds,
+  parseNameList,
 } from './general-tab-utils';
 
 type ProyectoTabName =
@@ -29,6 +28,40 @@ type ProyectoTabName =
   | 'Presupuesto'
   | 'Historial'
   | 'Seguimiento';
+
+const EMPTY_CATALOGOS: CatalogosGeneral = {
+  escuelas: [],
+  carreras: [],
+  asignaturas: [],
+  comunas: [],
+  gruposInteres: [],
+  sociosComunitarios: [],
+  sedes: [],
+  fondos: [],
+  lineas: [],
+};
+
+function mapCatalogosResult(
+  data: NonNullable<Awaited<ReturnType<typeof getCatalogosGeneral>>['data']>
+): CatalogosGeneral {
+  return {
+    escuelas: data.escuelas,
+    carreras: data.carreras,
+    asignaturas: data.asignaturas,
+    comunas: data.comunas,
+    gruposInteres: data.gruposInteres.map((g) => ({
+      ...g,
+      descripcion: g.descripcion ?? undefined,
+    })),
+    sociosComunitarios: data.sociosComunitarios.map((s) => ({
+      ...s,
+      descripcion: s.descripcion ?? undefined,
+    })),
+    sedes: data.sedes,
+    fondos: data.fondos,
+    lineas: data.lineas ?? [],
+  };
+}
 
 export function useGeneralTab({
   project,
@@ -51,18 +84,17 @@ export function useGeneralTab({
   onSaveRevert?: () => void;
   showAddForm?: boolean;
 }) {
-  const [isGeneralEditMode, setIsGeneralEditMode] = useState(false);
+  const queryClient = useQueryClient();
+  const [editingField, setEditingField] = useState<GeneralFieldId | null>(null);
   const [isGeneralSaving, setIsGeneralSaving] = useState(false);
   const [generalDraft, setGeneralDraft] = useState<GeneralDraft | null>(null);
-  const [catalogosGeneral, setCatalogosGeneral] = useState<CatalogosGeneral>({
-    escuelas: [],
-    carreras: [],
-    comunas: [],
-    gruposInteres: [],
-    sociosComunitarios: [],
-    sedes: [],
-  });
+  const [catalogosGeneral, setCatalogosGeneral] =
+    useState<CatalogosGeneral>(EMPTY_CATALOGOS);
   const [catalogosLoading, setCatalogosLoading] = useState(false);
+  const catalogosLoadingRef = useRef(false);
+  const catalogosPromiseRef = useRef<Promise<CatalogosGeneral> | null>(null);
+  const catalogosRef = useRef<CatalogosGeneral>(EMPTY_CATALOGOS);
+
   const [tempVideoUrl, setTempVideoUrl] = useState('');
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
@@ -72,112 +104,128 @@ export function useGeneralTab({
   const [activeInfoBasicaTab, setActiveInfoBasicaTab] =
     useState<string>('local-disciplinar');
 
-  const loadCatalogosGeneral = async () => {
-    if (catalogosLoading) return;
+  const getProjectVideoUrl = (proj: ProyectoWithRelations) =>
+    (proj as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ??
+    projectVideos[proj.id] ??
+    '';
+
+  const loadCatalogosGeneral = async (
+    force = false
+  ): Promise<CatalogosGeneral> => {
+    if (!force) {
+      const cached = queryClient.getQueryData<CatalogosGeneral>(
+        catalogosGeneralKey
+      );
+      if (cached) {
+        catalogosRef.current = cached;
+        setCatalogosGeneral(cached);
+        return cached;
+      }
+    }
+    if (catalogosLoadingRef.current && catalogosPromiseRef.current) {
+      return catalogosPromiseRef.current;
+    }
+
+    catalogosLoadingRef.current = true;
     setCatalogosLoading(true);
 
-    const [
-      escuelasResult,
-      carrerasResult,
-      comunasResult,
-      gruposResult,
-      sociosResult,
-      sedesList,
-    ] = await Promise.all([
-      getEscuelas(),
-      getCarreras(),
-      getComunas(),
-      getGruposInteres(),
-      getSociosComunitarios(),
-      getSedes(),
-    ]);
+    const promise = (async () => {
+      if (force) {
+        await queryClient.invalidateQueries({ queryKey: catalogosGeneralKey });
+      }
+      const next = await queryClient.fetchQuery({
+        queryKey: catalogosGeneralKey,
+        queryFn: async () => {
+          const result = await getCatalogosGeneral();
+          if (!result.success || !result.data) {
+            throw new Error(result.error ?? 'Error al obtener catálogos');
+          }
+          return mapCatalogosResult(result.data);
+        },
+        staleTime: 10 * 60_000,
+      });
 
-    setCatalogosGeneral({
-      escuelas: escuelasResult.success ? (escuelasResult.data ?? []) : [],
-      carreras: carrerasResult.success ? (carrerasResult.data ?? []) : [],
-      comunas: comunasResult.success ? (comunasResult.data ?? []) : [],
-      gruposInteres: gruposResult.success
-        ? (gruposResult.data ?? []).map((g) => ({
-            ...g,
-            descripcion: g.descripcion ?? undefined,
-          }))
-        : [],
-      sociosComunitarios: sociosResult.success
-        ? (sociosResult.data ?? []).map((s) => ({
-            ...s,
-            descripcion: s.descripcion ?? undefined,
-          }))
-        : [],
-      sedes: sedesList ?? [],
-    });
+      catalogosRef.current = next;
+      setCatalogosGeneral(next);
+      return next;
+    })();
 
-    setCatalogosLoading(false);
+    catalogosPromiseRef.current = promise;
+
+    try {
+      return await promise;
+    } catch {
+      return EMPTY_CATALOGOS;
+    } finally {
+      catalogosLoadingRef.current = false;
+      catalogosPromiseRef.current = null;
+      setCatalogosLoading(false);
+    }
   };
 
-  const handleToggleGeneralEditMode = () => {
+  const handleStartEditField = (field: GeneralFieldId) => {
     if (!project) return;
-    if (!isGeneralEditMode) {
-      setGeneralDraft(buildGeneralDraft(project));
+    const draft = buildGeneralDraft(project);
+    if (
+      field === 'objetivosEspecificos' &&
+      draft.objetivosEspecificos.length === 0
+    ) {
+      draft.objetivosEspecificos = [
+        {
+          id: `temp-${Date.now()}`,
+          descripcion: '',
+          orden: 0,
+        },
+      ];
     }
-    setIsGeneralEditMode((prev) => !prev);
+    setGeneralDraft(draft);
+    setTempVideoUrl(getProjectVideoUrl(project));
+    setEditingField(field);
+    // Asegurar catálogos si el prefetch aún no terminó o falló
+    void loadCatalogosGeneral();
   };
 
   const handleCancelGeneralEdit = () => {
     if (!project) return;
     setGeneralDraft(buildGeneralDraft(project));
-    const videoUrl =
-      (project as ProyectoWithRelations & { youtubeUrl?: string | null })
-        .youtubeUrl ??
-      projectVideos[project.id] ??
-      '';
-    setTempVideoUrl(videoUrl);
-    setIsGeneralEditMode(false);
+    setTempVideoUrl(getProjectVideoUrl(project));
+    setEditingField(null);
   };
 
   const handleSaveGeneralTab = async () => {
     if (!project || !generalDraft || isGeneralSaving) return;
+    const fieldBeingEdited = editingField;
+    const previousProject = project;
+    const previousVideoUrl = tempVideoUrl;
 
     try {
-      if (
-        catalogosGeneral.escuelas.length === 0 &&
-        catalogosGeneral.carreras.length === 0 &&
-        catalogosGeneral.comunas.length === 0 &&
-        catalogosGeneral.gruposInteres.length === 0 &&
-        catalogosGeneral.sociosComunitarios.length === 0
-      ) {
-        await loadCatalogosGeneral();
-      }
+      setIsGeneralSaving(true);
+      const catalogs = await loadCatalogosGeneral();
 
       const escuelasNames = parseNameList(generalDraft.escuelasTexto);
       const carrerasNames = parseNameList(generalDraft.carrerasTexto);
+      const asignaturasNames = parseNameList(generalDraft.asignaturasTexto);
       const comunasNames = parseNameList(generalDraft.comunasTexto);
       const gruposNames = parseNameList(generalDraft.gruposInteresTexto);
       const sociosNames = parseNameList(generalDraft.sociosComunitariosTexto);
 
-      const escuelasMapped = mapNamesToIds(
-        escuelasNames,
-        catalogosGeneral.escuelas
+      const escuelasMapped = mapNamesToIds(escuelasNames, catalogs.escuelas);
+      const carrerasMapped = mapNamesToIds(carrerasNames, catalogs.carreras);
+      const asignaturasMapped = mapNamesToIds(
+        asignaturasNames,
+        catalogs.asignaturas
       );
-      const carrerasMapped = mapNamesToIds(
-        carrerasNames,
-        catalogosGeneral.carreras
-      );
-      const comunasMapped = mapNamesToIds(
-        comunasNames,
-        catalogosGeneral.comunas
-      );
-      const gruposMapped = mapNamesToIds(
-        gruposNames,
-        catalogosGeneral.gruposInteres
-      );
+      const comunasMapped = mapNamesToIds(comunasNames, catalogs.comunas);
+      const gruposMapped = mapNamesToIds(gruposNames, catalogs.gruposInteres);
       const sociosMapped = mapNamesToIds(
         sociosNames,
-        catalogosGeneral.sociosComunitarios
+        catalogs.sociosComunitarios
       );
 
       const missing: string[] = [
         ...escuelasMapped.missing,
         ...carrerasMapped.missing,
+        ...asignaturasMapped.missing,
         ...comunasMapped.missing,
         ...gruposMapped.missing,
         ...sociosMapped.missing,
@@ -187,6 +235,7 @@ export function useGeneralTab({
         alert(
           `No se encontraron estos valores en el catálogo: ${missing.join(', ')}`
         );
+        setIsGeneralSaving(false);
         return;
       }
 
@@ -205,6 +254,12 @@ export function useGeneralTab({
       if (generalDraft.proyecto.trim() !== initialDraft.proyecto.trim()) {
         payload.proyecto = generalDraft.proyecto.trim();
       }
+      if (generalDraft.fondo.trim() !== initialDraft.fondo.trim()) {
+        payload.fondo = generalDraft.fondo.trim();
+      }
+      if (generalDraft.linea.trim() !== initialDraft.linea.trim()) {
+        payload.linea = generalDraft.linea.trim() || null;
+      }
       if (generalDraft.sede.trim() !== initialDraft.sede.trim()) {
         payload.sede = generalDraft.sede.trim();
       }
@@ -215,6 +270,7 @@ export function useGeneralTab({
         const videoTrimmed = tempVideoUrl.trim();
         if (videoTrimmed && !extractYouTubeVideoId(videoTrimmed)) {
           alert('Por favor ingresa una URL válida de YouTube');
+          setIsGeneralSaving(false);
           return;
         }
         payload.youtubeUrl = videoTrimmed || null;
@@ -249,35 +305,42 @@ export function useGeneralTab({
       }
       const initialEscuelasIds = mapNamesToIds(
         parseNameList(initialDraft.escuelasTexto),
-        catalogosGeneral.escuelas
+        catalogs.escuelas
       ).ids;
       if (!idsEqual(escuelasMapped.ids, initialEscuelasIds)) {
         payload.escuelasIds = escuelasMapped.ids;
       }
       const initialCarrerasIds = mapNamesToIds(
         parseNameList(initialDraft.carrerasTexto),
-        catalogosGeneral.carreras
+        catalogs.carreras
       ).ids;
       if (!idsEqual(carrerasMapped.ids, initialCarrerasIds)) {
         payload.carrerasIds = carrerasMapped.ids;
       }
+      const initialAsignaturasIds = mapNamesToIds(
+        parseNameList(initialDraft.asignaturasTexto),
+        catalogs.asignaturas
+      ).ids;
+      if (!idsEqual(asignaturasMapped.ids, initialAsignaturasIds)) {
+        payload.asignaturasIds = asignaturasMapped.ids;
+      }
       const initialComunasIds = mapNamesToIds(
         parseNameList(initialDraft.comunasTexto),
-        catalogosGeneral.comunas
+        catalogs.comunas
       ).ids;
       if (!idsEqual(comunasMapped.ids, initialComunasIds)) {
         payload.comunasIds = comunasMapped.ids;
       }
       const initialGruposIds = mapNamesToIds(
         parseNameList(initialDraft.gruposInteresTexto),
-        catalogosGeneral.gruposInteres
+        catalogs.gruposInteres
       ).ids;
       if (!idsEqual(gruposMapped.ids, initialGruposIds)) {
         payload.gruposInteresIds = gruposMapped.ids;
       }
       const initialSociosIds = mapNamesToIds(
         parseNameList(initialDraft.sociosComunitariosTexto),
-        catalogosGeneral.sociosComunitarios
+        catalogs.sociosComunitarios
       ).ids;
       if (!idsEqual(sociosMapped.ids, initialSociosIds)) {
         payload.sociosComunitariosIds = sociosMapped.ids;
@@ -327,26 +390,55 @@ export function useGeneralTab({
         };
       }
 
+      const extraKeys = new Set([
+        ...Object.keys(generalDraft.desarrolloTecnicoExtra),
+        ...Object.keys(initialDraft.desarrolloTecnicoExtra),
+      ]);
+      const extraChanged = [...extraKeys].some(
+        (id) =>
+          (generalDraft.desarrolloTecnicoExtra[id] ?? '').trim() !==
+          (initialDraft.desarrolloTecnicoExtra[id] ?? '').trim()
+      );
+      if (extraChanged) {
+        payload.desarrolloTecnicoValores = [...extraKeys].map((subcategoriaId) => ({
+          subcategoriaId,
+          valor: (generalDraft.desarrolloTecnicoExtra[subcategoriaId] ?? '').trim(),
+        }));
+      }
+
       const optimisticObjetivosRel = [
         ...(generalDraft.objetivoGeneral.trim()
           ? [
               {
-                id: generalDraft.objetivoGeneralId ?? '',
+                id: generalDraft.objetivoGeneralId ?? `temp-og-${Date.now()}`,
                 descripcion: generalDraft.objetivoGeneral.trim(),
                 orden: 0,
                 tipo: 'General' as const,
+                proyectoId: project.id,
+                createdAt: new Date(),
+                updatedAt: new Date(),
               },
             ]
           : []),
-        ...generalDraft.objetivosEspecificos.map((o) => ({
-          id: o.id,
-          descripcion: o.descripcion.trim(),
-          orden: o.orden,
-          tipo: 'Especifico' as const,
-        })),
+        ...generalDraft.objetivosEspecificos
+          .filter((o) => o.descripcion.trim())
+          .map((o) => ({
+            id: o.id,
+            descripcion: o.descripcion.trim(),
+            orden: o.orden,
+            tipo: 'Especifico' as const,
+            proyectoId: project.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
       ];
       const optimisticDesarrolloTecnico = {
-        ...project.desarrolloTecnico,
+        ...(project.desarrolloTecnico ?? {
+          id: `temp-dt-${project.id}`,
+          proyectoId: project.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
         continuidadFasesAnteriores:
           generalDraft.desarrolloTecnico.continuidadFasesAnteriores.trim(),
         pertinenciaLocal:
@@ -355,10 +447,8 @@ export function useGeneralTab({
           generalDraft.desarrolloTecnico.pertinenciaDisciplinar.trim(),
         necesidadProblema:
           generalDraft.desarrolloTecnico.necesidadProblema.trim(),
-        publicoObjetivo:
-          generalDraft.desarrolloTecnico.publicoObjetivo.trim(),
-        solucionAvance:
-          generalDraft.desarrolloTecnico.solucionAvance.trim(),
+        publicoObjetivo: generalDraft.desarrolloTecnico.publicoObjetivo.trim(),
+        solucionAvance: generalDraft.desarrolloTecnico.solucionAvance.trim(),
         perspectiveGenero:
           generalDraft.desarrolloTecnico.perspectiveGenero.trim(),
         resultadosContribucion:
@@ -370,14 +460,80 @@ export function useGeneralTab({
           generalDraft.desarrolloTecnico.factorInnovador.trim(),
         escalabilidad: generalDraft.desarrolloTecnico.escalabilidad.trim(),
       };
+
+      const optimisticValoresBySub = new Map(
+        (project.desarrolloTecnicoValores ?? []).map((v) => [
+          v.subcategoriaId,
+          v,
+        ])
+      );
+      for (const [subcategoriaId, valor] of Object.entries(
+        generalDraft.desarrolloTecnicoExtra
+      )) {
+        const existing = optimisticValoresBySub.get(subcategoriaId);
+        optimisticValoresBySub.set(subcategoriaId, {
+          id: existing?.id ?? `temp-dtv-${subcategoriaId}`,
+          proyectoId: project.id,
+          subcategoriaId,
+          valor: valor.trim(),
+          subcategoria: existing?.subcategoria,
+        });
+      }
+
+      // Incluir relaciones en el optimista: la vista lee project.escuelas/etc., no el draft
       const optimisticProject = {
         ...project,
         proyecto: generalDraft.proyecto.trim(),
+        fondo: generalDraft.fondo.trim(),
+        linea: generalDraft.linea.trim() || null,
         sede: generalDraft.sede.trim(),
         youtubeUrl: tempVideoUrl.trim() || null,
         objetivos_rel: optimisticObjetivosRel,
         desarrolloTecnico: optimisticDesarrolloTecnico,
-      } as ProyectoWithRelations & { youtubeUrl?: string | null };
+        desarrolloTecnicoValores: [...optimisticValoresBySub.values()],
+        escuelas: buildOptimisticRelationRows(
+          project.id,
+          escuelasMapped.ids,
+          catalogs.escuelas,
+          'escuelaId',
+          'escuela'
+        ),
+        carreras: buildOptimisticRelationRows(
+          project.id,
+          carrerasMapped.ids,
+          catalogs.carreras,
+          'carreraId',
+          'carrera'
+        ),
+        asignaturas: buildOptimisticRelationRows(
+          project.id,
+          asignaturasMapped.ids,
+          catalogs.asignaturas,
+          'asignaturaId',
+          'asignatura'
+        ),
+        comunas: buildOptimisticRelationRows(
+          project.id,
+          comunasMapped.ids,
+          catalogs.comunas,
+          'comunaId',
+          'comuna'
+        ),
+        gruposInteres: buildOptimisticRelationRows(
+          project.id,
+          gruposMapped.ids,
+          catalogs.gruposInteres,
+          'grupoInteresId',
+          'grupoInteres'
+        ),
+        sociosComunitarios: buildOptimisticRelationRows(
+          project.id,
+          sociosMapped.ids,
+          catalogs.sociosComunitarios,
+          'socioComunitarioId',
+          'socioComunitario'
+        ),
+      } as unknown as ProyectoWithRelations & { youtubeUrl?: string | null };
 
       setProject(optimisticProject);
       setGeneralDraft(buildGeneralDraft(optimisticProject));
@@ -386,14 +542,26 @@ export function useGeneralTab({
         ...prev,
         [project.id]: tempVideoUrl.trim() || '',
       }));
-      setIsGeneralEditMode(false);
+      setEditingField(null);
       onSaveSuccess();
       setIsGeneralSaving(false);
 
       const result = await updateProyectoGeneralTab(payload);
 
       if (!result.success || !result.data) {
-        setIsGeneralEditMode(true);
+        setProject(previousProject);
+        setGeneralDraft(buildGeneralDraft(previousProject));
+        setTempVideoUrl(previousVideoUrl);
+        setProjectVideos((prev) => ({
+          ...prev,
+          [previousProject.id]:
+            (previousProject as ProyectoWithRelations & {
+              youtubeUrl?: string | null;
+            }).youtubeUrl ??
+            previousVideoUrl ??
+            '',
+        }));
+        setEditingField(fieldBeingEdited);
         onSaveRevert?.();
         alert(result.error || 'Error al actualizar el proyecto');
         return;
@@ -402,8 +570,13 @@ export function useGeneralTab({
       const updated = result.data as ProyectoWithRelations & {
         youtubeUrl?: string | null;
       };
-      setProject(result.data);
-      setGeneralDraft(buildGeneralDraft(result.data));
+      setProject((prev) =>
+        ({
+          ...updated,
+          activities: prev?.activities ?? updated.activities,
+        }) as ProyectoWithRelations
+      );
+      setGeneralDraft(buildGeneralDraft(updated));
       setTempVideoUrl(updated.youtubeUrl ?? '');
       setProjectVideos((prev) => ({
         ...prev,
@@ -411,7 +584,10 @@ export function useGeneralTab({
       }));
       fetchProyectos({ silent: true });
     } catch {
-      setIsGeneralEditMode(true);
+      setProject(previousProject);
+      setGeneralDraft(buildGeneralDraft(previousProject));
+      setTempVideoUrl(previousVideoUrl);
+      setEditingField(fieldBeingEdited);
       onSaveRevert?.();
       setIsGeneralSaving(false);
       alert('Error inesperado al guardar los cambios');
@@ -424,35 +600,29 @@ export function useGeneralTab({
       return;
     }
     setGeneralDraft(buildGeneralDraft(project));
-    const videoUrl =
-      (project as ProyectoWithRelations & { youtubeUrl?: string | null })
-        .youtubeUrl ??
-      projectVideos[project.id] ??
-      '';
-    setTempVideoUrl(videoUrl);
-    setIsGeneralEditMode(false);
+    setTempVideoUrl(getProjectVideoUrl(project));
+    setEditingField(null);
   }, [project]);
 
   useEffect(() => {
-    if (selectedTab !== 'General' && isGeneralEditMode) {
-      setIsGeneralEditMode(false);
+    if (
+      selectedTab !== 'General' &&
+      editingField &&
+      editingField !== 'fondo'
+    ) {
+      setEditingField(null);
     }
-  }, [selectedTab, isGeneralEditMode]);
+  }, [selectedTab, editingField]);
 
+  // Catálogos solo al abrir formulario de alta (edición dispara load en handleStartEditField)
   useEffect(() => {
-    if (isGeneralEditMode) {
-      loadCatalogosGeneral();
-    }
-  }, [isGeneralEditMode]);
-
-  useEffect(() => {
-    if (showAddForm && catalogosGeneral.sedes.length === 0) {
-      loadCatalogosGeneral();
+    if (showAddForm) {
+      void loadCatalogosGeneral();
     }
   }, [showAddForm]);
 
   return {
-    isGeneralEditMode,
+    editingField,
     isGeneralSaving,
     generalDraft,
     setGeneralDraft,
@@ -467,7 +637,7 @@ export function useGeneralTab({
     activeInfoBasicaTab,
     setActiveInfoBasicaTab,
     loadCatalogosGeneral,
-    handleToggleGeneralEditMode,
+    handleStartEditField,
     handleCancelGeneralEdit,
     handleSaveGeneralTab,
   };

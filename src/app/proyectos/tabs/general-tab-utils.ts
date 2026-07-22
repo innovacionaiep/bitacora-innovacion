@@ -1,5 +1,7 @@
 import { MULTI_VALUE_SEP } from '@/components/ui/multi-select-nombres';
+import { parseYouTubeUrl } from '@/lib/youtube';
 import {
+  type AsignaturaItem,
   type CarreraItem,
   type ComunaItem,
   type EscuelaItem,
@@ -8,8 +10,51 @@ import {
   ProyectoWithRelations,
 } from '@/types/proyecto';
 
+export type DesarrolloTecnicoFieldKey =
+  | 'continuidadFasesAnteriores'
+  | 'pertinenciaLocal'
+  | 'pertinenciaDisciplinar'
+  | 'necesidadProblema'
+  | 'publicoObjetivo'
+  | 'solucionAvance'
+  | 'perspectiveGenero'
+  | 'resultadosContribucion'
+  | 'metodologiaMedicion'
+  | 'ejesImpacto'
+  | 'factorInnovador'
+  | 'escalabilidad';
+
+export type GeneralFieldId =
+  | 'proyecto'
+  | 'fondo'
+  | 'linea'
+  | 'objetivoGeneral'
+  | 'objetivosEspecificos'
+  | 'video'
+  | 'sociosComunitarios'
+  | 'sede'
+  | 'comunas'
+  | 'escuelas'
+  | 'carreras'
+  | 'asignaturas'
+  | 'gruposInteres'
+  | `dt.${DesarrolloTecnicoFieldKey}`
+  /** Elementos DT creados en config sin campoKey legacy */
+  | `dt.sub.${string}`;
+
+export const GENERAL_MULTI_SELECT_FIELDS: GeneralFieldId[] = [
+  'sede',
+  'comunas',
+  'escuelas',
+  'carreras',
+  'asignaturas',
+  'gruposInteres',
+];
+
 export type GeneralDraft = {
   proyecto: string;
+  fondo: string;
+  linea: string;
   objetivoGeneralId?: string;
   objetivoGeneral: string;
   objetivosEspecificos: Array<{
@@ -20,54 +65,59 @@ export type GeneralDraft = {
   sede: string;
   escuelasTexto: string;
   carrerasTexto: string;
+  asignaturasTexto: string;
   comunasTexto: string;
   gruposInteresTexto: string;
   sociosComunitariosTexto: string;
-  desarrolloTecnico: {
-    continuidadFasesAnteriores: string;
-    pertinenciaLocal: string;
-    pertinenciaDisciplinar: string;
-    necesidadProblema: string;
-    publicoObjetivo: string;
-    solucionAvance: string;
-    perspectiveGenero: string;
-    resultadosContribucion: string;
-    metodologiaMedicion: string;
-    ejesImpacto: string;
-    factorInnovador: string;
-    escalabilidad: string;
-  };
+  desarrolloTecnico: Record<DesarrolloTecnicoFieldKey, string>;
+  /** Valores por subcategoriaId (elementos nuevos sin columna legacy) */
+  desarrolloTecnicoExtra: Record<string, string>;
 };
+
+export const LEGACY_DT_FIELD_KEYS: DesarrolloTecnicoFieldKey[] = [
+  'continuidadFasesAnteriores',
+  'pertinenciaLocal',
+  'pertinenciaDisciplinar',
+  'necesidadProblema',
+  'publicoObjetivo',
+  'solucionAvance',
+  'perspectiveGenero',
+  'resultadosContribucion',
+  'metodologiaMedicion',
+  'ejesImpacto',
+  'factorInnovador',
+  'escalabilidad',
+];
+
+export function isLegacyDtFieldKey(
+  key: string | null | undefined
+): key is DesarrolloTecnicoFieldKey {
+  return (
+    !!key &&
+    (LEGACY_DT_FIELD_KEYS as string[]).includes(key)
+  );
+}
 
 export type CatalogosGeneral = {
   escuelas: EscuelaItem[];
   carreras: CarreraItem[];
+  asignaturas: AsignaturaItem[];
   comunas: ComunaItem[];
   gruposInteres: GrupoInteresItem[];
   sociosComunitarios: SocioComunitarioItem[];
   sedes: { id: string; nombre: string; orden: number }[];
+  fondos: { id: string; nombre: string; orden: number }[];
+  lineas: {
+    id: string;
+    nombre: string;
+    orden: number;
+    fondoId: string;
+    fondoNombre: string;
+  }[];
 };
 
-export const extractYouTubeVideoId = (url: string): string | null => {
-  try {
-    const urlObj = new URL(url);
-
-    if (
-      urlObj.hostname.includes('youtube.com') &&
-      urlObj.pathname === '/watch'
-    ) {
-      return urlObj.searchParams.get('v');
-    }
-
-    if (urlObj.hostname === 'youtu.be') {
-      return urlObj.pathname.slice(1);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
+export const extractYouTubeVideoId = (url: string): string | null =>
+  parseYouTubeUrl(url)?.videoId ?? null;
 
 export const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
   const objetivoGeneral = project.objetivos_rel?.find(
@@ -80,6 +130,8 @@ export const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft 
 
   return {
     proyecto: project.proyecto ?? '',
+    fondo: project.fondo ?? '',
+    linea: project.linea ?? '',
     objetivoGeneralId: objetivoGeneral?.id,
     objetivoGeneral: objetivoGeneral?.descripcion ?? '',
     objetivosEspecificos: objetivosEspecificos.map((obj) => ({
@@ -95,6 +147,10 @@ export const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft 
     carrerasTexto:
       project.carreras
         ?.map((item) => item.carrera.nombre)
+        .join(MULTI_VALUE_SEP) ?? '',
+    asignaturasTexto:
+      project.asignaturas
+        ?.map((item) => item.asignatura.nombre)
         .join(MULTI_VALUE_SEP) ?? '',
     comunasTexto:
       project.comunas
@@ -125,6 +181,14 @@ export const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft 
       factorInnovador: project.desarrolloTecnico?.factorInnovador ?? '',
       escalabilidad: project.desarrolloTecnico?.escalabilidad ?? '',
     },
+    desarrolloTecnicoExtra: Object.fromEntries(
+      (project.desarrolloTecnicoValores ?? [])
+        .filter(
+          (v) =>
+            !isLegacyDtFieldKey(v.subcategoria?.campoKey ?? null)
+        )
+        .map((v) => [v.subcategoriaId, v.valor ?? ''])
+    ),
   };
 };
 
@@ -155,3 +219,25 @@ export const mapNamesToIds = (
 
   return { ids, missing };
 };
+
+/** Construye filas de relación para update optimista en UI (sin roundtrip al servidor). */
+export function buildOptimisticRelationRows<T extends { id: string }>(
+  proyectoId: string,
+  ids: string[],
+  catalogo: T[],
+  foreignKey: string,
+  nestedKey: string
+) {
+  const byId = new Map(catalogo.map((item) => [item.id, item]));
+  return ids
+    .map((id) => {
+      const nested = byId.get(id);
+      if (!nested) return null;
+      return {
+        proyectoId,
+        [foreignKey]: id,
+        [nestedKey]: nested,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null);
+}

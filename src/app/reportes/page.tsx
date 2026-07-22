@@ -85,9 +85,10 @@ export default function ReportesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Reportes</h1>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <h1 className="shrink-0 text-2xl font-semibold pb-6">Reportes</h1>
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -188,6 +189,7 @@ export default function ReportesPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

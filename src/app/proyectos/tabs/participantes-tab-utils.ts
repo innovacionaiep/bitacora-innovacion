@@ -22,19 +22,61 @@ export const ROLE_COLORS: Record<string, string> = {
 export type NewParticipanteForm = {
   rol: 'Encargado' | 'Coordinador' | 'Colaborador' | 'Docente' | 'Estudiante' | 'Beneficiario';
   nombre: string;
+  rut: string;
   email: string;
   cargo: string;
+  laborEnProyecto: string;
   socioComunitarioId: string;
   sedeId: string;
   escuelaId: string;
+  carreraId: string;
+  asignaturaId: string;
 };
 
 export const emptyNewParticipanteData = (): NewParticipanteForm => ({
   rol: 'Colaborador',
   nombre: '',
+  rut: '',
   email: '',
   cargo: '',
+  laborEnProyecto: '',
   socioComunitarioId: '',
   sedeId: '',
   escuelaId: '',
+  carreraId: '',
+  asignaturaId: '',
 });
+
+/** Valida campos obligatorios según rol. Devuelve mensaje de error o null. */
+export function validateParticipanteForm(data: {
+  rol: string;
+  nombre?: string;
+  email?: string;
+  rut?: string;
+  socioComunitarioId?: string;
+  carreraId?: string;
+  asignaturaId?: string;
+}): string | null {
+  if (!data.nombre?.trim()) {
+    return 'El nombre es obligatorio.';
+  }
+  if (!data.email?.trim()) {
+    return 'El correo es obligatorio.';
+  }
+  if (
+    (data.rol === 'Docente' || data.rol === 'Estudiante') &&
+    !data.rut?.trim()
+  ) {
+    return 'El RUT es obligatorio para docentes y estudiantes.';
+  }
+  if (data.rol === 'Estudiante' && !data.carreraId) {
+    return 'La carrera es obligatoria para estudiantes.';
+  }
+  if (data.rol === 'Estudiante' && !data.asignaturaId) {
+    return 'La asignatura es obligatoria para estudiantes.';
+  }
+  if (data.rol === 'Beneficiario' && !data.socioComunitarioId) {
+    return 'El socio comunitario es obligatorio para beneficiarios.';
+  }
+  return null;
+}

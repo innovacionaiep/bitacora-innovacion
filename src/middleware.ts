@@ -15,7 +15,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth pages (login, register)
+     * - static assets in /public (png, svg, etc.) — needed so next/image
+     *   and <img> can load them without a session cookie
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|auth).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

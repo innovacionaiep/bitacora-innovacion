@@ -15,7 +15,6 @@ export interface IndicadorDetalleModalProps {
   proyectoId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  canValidate?: boolean;
   onSuccess?: () => void | Promise<void>;
 }
 
@@ -24,7 +23,6 @@ export function IndicadorDetalleModal({
   proyectoId,
   open,
   onOpenChange,
-  canValidate = false,
   onSuccess,
 }: IndicadorDetalleModalProps) {
   const [indicador, setIndicador] = useState<{
@@ -37,12 +35,6 @@ export function IndicadorDetalleModal({
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +105,6 @@ export function IndicadorDetalleModal({
       onClose={handleClose}
       onUpdate={handleUpdate}
       projectId={proyectoId ?? undefined}
-      canValidateAsCoordinator={canValidate}
       hideEditButton
     />
   );

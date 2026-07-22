@@ -17,7 +17,6 @@ import {
   addCompromiso,
   updateCompromiso,
   toggleCompromiso,
-  toggleValidacionCompromiso,
 } from '@/lib/actions/seguimiento';
 import {
   Plus,
@@ -25,7 +24,6 @@ import {
   ClipboardCheck,
   CircleAlert,
   CheckCircle,
-  BadgeCheck,
 } from 'lucide-react';
 
 type CompromisoItem = Awaited<
@@ -33,30 +31,18 @@ type CompromisoItem = Awaited<
 >['data'][number];
 
 const POST_IT_ROJO = 'bg-red-100 border-red-300 shadow-red-200/50';
-const POST_IT_AMARILLO = 'bg-amber-100 border-amber-300 shadow-amber-200/50';
 const POST_IT_VERDE = 'bg-emerald-100 border-emerald-400 shadow-emerald-300/50';
 
-/** Clase de la tarjeta según estado: pendiente (rojo), realizado (amarillo), validado (verde). */
+/** Clase de la tarjeta según estado: realizado (verde) o pendiente (rojo). */
 function getPostItClass(compromiso: CompromisoItem): string {
-  if (compromiso.validadoPorCoordinador) return POST_IT_VERDE;
-  if (compromiso.completado) return POST_IT_AMARILLO;
-  return POST_IT_ROJO;
+  return compromiso.completado ? POST_IT_VERDE : POST_IT_ROJO;
 }
 
 /** Icono y etiqueta de estado para la tarjeta (esquina superior derecha). */
 function EstadoIcon({ compromiso }: { compromiso: CompromisoItem }) {
-  const isValidado = compromiso.validadoPorCoordinador;
-  const isRealizado = compromiso.completado;
-  if (isValidado) {
+  if (compromiso.completado) {
     return (
-      <span className="flex-shrink-0 text-emerald-600" aria-label="Validada">
-        <BadgeCheck className="h-5 w-5" />
-      </span>
-    );
-  }
-  if (isRealizado) {
-    return (
-      <span className="flex-shrink-0 text-amber-600" aria-label="Realizada">
+      <span className="flex-shrink-0 text-emerald-600" aria-label="Realizada">
         <CheckCircle className="h-5 w-5" />
       </span>
     );
@@ -90,14 +76,18 @@ interface CompromisosPostItWallProps {
   projectId: string;
   compromisos: CompromisoItem[];
   rolEnProyecto?: string | null;
-  /** Rol activo del usuario (ej. Admin). Los Admin pueden crear y validar compromisos. */
+  /** Rol activo del usuario (ej. Admin). Los Admin pueden crear compromisos. */
   activeRole?: string | null;
   onSuccess: () => void | Promise<void>;
-  /** Actualización optimista: se llama antes de la acción en servidor para que el checkbox cambie al instante. */
+  /** Actualización optimista del listado (toggle / edit). */
   onOptimisticCompromisoUpdate?: (
     id: string,
-    patch: { completado?: boolean; validadoPorCoordinador?: boolean }
+    patch: { completado?: boolean; titulo?: string | null; descripcion?: string }
   ) => void;
+  /** Inserta un compromiso temporal al agregar. */
+  onOptimisticCompromisoAdd?: (compromiso: CompromisoItem) => void;
+  /** Quita un compromiso temporal si falla el add. */
+  onOptimisticCompromisoRemove?: (id: string) => void;
 }
 
 export function CompromisosPostItWall({
@@ -107,15 +97,14 @@ export function CompromisosPostItWall({
   activeRole,
   onSuccess,
   onOptimisticCompromisoUpdate,
+  onOptimisticCompromisoAdd,
+  onOptimisticCompromisoRemove,
 }: CompromisosPostItWallProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addTitulo, setAddTitulo] = useState('');
   const [addDescripcion, setAddDescripcion] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [togglingValidacionId, setTogglingValidacionId] = useState<
-    string | null
-  >(null);
   const [selectedCompromiso, setSelectedCompromiso] =
     useState<CompromisoItem | null>(null);
   const [isEditingCompromiso, setIsEditingCompromiso] = useState(false);
@@ -131,16 +120,34 @@ export function CompromisosPostItWall({
 
   const handleAdd = async () => {
     if (!addDescripcion.trim()) return;
-    setSubmitting(true);
-    const result = await addCompromiso(projectId, addDescripcion.trim(), {
+    const tempId = `temp-comp-${Date.now()}`;
+    const optimistic: CompromisoItem = {
+      id: tempId,
+      proyectoId: projectId,
       titulo: addTitulo.trim() || null,
+      descripcion: addDescripcion.trim(),
+      fechaLimite: null,
+      asignadoA: null,
+      completado: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as CompromisoItem;
+
+    onOptimisticCompromisoAdd?.(optimistic);
+    setShowAddModal(false);
+    setAddTitulo('');
+    setAddDescripcion('');
+
+    setSubmitting(true);
+    const result = await addCompromiso(projectId, optimistic.descripcion, {
+      titulo: optimistic.titulo,
     });
     setSubmitting(false);
     if (result.success) {
-      setShowAddModal(false);
-      setAddTitulo('');
-      setAddDescripcion('');
-      await onSuccess();
+      void onSuccess();
+    } else {
+      onOptimisticCompromisoRemove?.(tempId);
+      alert(result.error ?? 'Error al agregar compromiso');
     }
   };
 
@@ -150,39 +157,25 @@ export function CompromisosPostItWall({
       onOptimisticCompromisoUpdate?.(id, {
         completado: !compromiso.completado,
       });
+      setSelectedCompromiso((prev) =>
+        prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+      );
     }
     setTogglingId(id);
     const result = await toggleCompromiso(id);
     setTogglingId(null);
     if (result.success) {
-      setSelectedCompromiso((prev) =>
-        prev?.id === id ? { ...prev, completado: !prev.completado } : prev
-      );
-      await onSuccess();
-    } else {
-      onSuccess();
-    }
-  };
-
-  const handleToggleValidacion = async (id: string) => {
-    const compromiso = compromisos.find((c) => c.id === id);
-    if (compromiso) {
+      void onSuccess();
+    } else if (compromiso) {
       onOptimisticCompromisoUpdate?.(id, {
-        validadoPorCoordinador: !compromiso.validadoPorCoordinador,
+        completado: compromiso.completado,
       });
-    }
-    setTogglingValidacionId(id);
-    const result = await toggleValidacionCompromiso(id);
-    setTogglingValidacionId(null);
-    if (result.success) {
       setSelectedCompromiso((prev) =>
         prev?.id === id
-          ? { ...prev, validadoPorCoordinador: !prev.validadoPorCoordinador }
+          ? { ...prev, completado: compromiso.completado }
           : prev
       );
-      await onSuccess();
-    } else {
-      onSuccess();
+      void onSuccess();
     }
   };
 
@@ -196,20 +189,37 @@ export function CompromisosPostItWall({
 
   const handleSaveEdit = async () => {
     if (!selectedCompromiso) return;
+    const previous = selectedCompromiso;
+    const nextTitulo = editTitulo.trim() || null;
+    const nextDescripcion = editDescripcion.trim();
+
+    onOptimisticCompromisoUpdate?.(selectedCompromiso.id, {
+      titulo: nextTitulo,
+      descripcion: nextDescripcion,
+    });
+    setSelectedCompromiso({
+      ...selectedCompromiso,
+      titulo: nextTitulo,
+      descripcion: nextDescripcion,
+    });
+    setIsEditingCompromiso(false);
+
     setSavingEdit(true);
     const result = await updateCompromiso(selectedCompromiso.id, {
-      titulo: editTitulo.trim() || null,
-      descripcion: editDescripcion.trim(),
+      titulo: nextTitulo,
+      descripcion: nextDescripcion,
     });
     setSavingEdit(false);
-    if (result.success && result.data) {
-      setSelectedCompromiso({
-        ...selectedCompromiso,
-        titulo: result.data.titulo ?? null,
-        descripcion: result.data.descripcion,
+    if (result.success) {
+      void onSuccess();
+    } else {
+      onOptimisticCompromisoUpdate?.(previous.id, {
+        titulo: previous.titulo,
+        descripcion: previous.descripcion,
       });
-      setIsEditingCompromiso(false);
-      await onSuccess();
+      setSelectedCompromiso(previous);
+      setIsEditingCompromiso(true);
+      alert(result.error ?? 'Error al guardar compromiso');
     }
   };
 
@@ -283,7 +293,7 @@ export function CompromisosPostItWall({
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p
                           className={`text-sm font-medium flex-1 min-w-0 line-clamp-1 break-words ${
-                            compromiso.validadoPorCoordinador
+                            compromiso.completado
                               ? 'line-through text-gray-600'
                               : 'text-gray-900'
                           }`}
@@ -312,29 +322,11 @@ export function CompromisosPostItWall({
                                 handleToggleRealizado(compromiso.id)
                               }
                               disabled={!canMarkRealizado}
-                              className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black data-[state=checked]:border-amber-600"
-                            />
-                          )}
-                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                            Realizado (Encargado)
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-                          {togglingId === compromiso.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                          ) : (
-                            <Checkbox
-                              checked={compromiso.validadoPorCoordinador}
-                              onCheckedChange={() =>
-                                isCoordinadorOrAdmin &&
-                                handleToggleValidacion(compromiso.id)
-                              }
-                              disabled={!isCoordinadorOrAdmin}
                               className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
                             />
                           )}
                           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                            Validado (Coordinador)
+                            Realizado (Encargado)
                           </span>
                         </label>
                       </div>
@@ -360,11 +352,9 @@ export function CompromisosPostItWall({
                 <div className="flex items-center gap-2">
                   <ClipboardCheck
                     className={`h-5 w-5 ${
-                      selectedCompromiso.validadoPorCoordinador
+                      selectedCompromiso.completado
                         ? 'text-emerald-600'
-                        : selectedCompromiso.completado
-                          ? 'text-amber-600'
-                          : 'text-red-600'
+                        : 'text-red-600'
                     }`}
                   />
                   {isEditingCompromiso ? (
@@ -373,11 +363,9 @@ export function CompromisosPostItWall({
                       onChange={(e) => setEditTitulo(e.target.value)}
                       placeholder="Título del compromiso"
                       className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
-                        selectedCompromiso.validadoPorCoordinador
+                        selectedCompromiso.completado
                           ? 'bg-emerald-100 border-emerald-400'
-                          : selectedCompromiso.completado
-                            ? 'bg-amber-100 border-amber-300'
-                            : 'bg-red-100 border-red-300'
+                          : 'bg-red-100 border-red-300'
                       }`}
                     />
                   ) : (
@@ -436,29 +424,11 @@ export function CompromisosPostItWall({
                         handleToggleRealizado(selectedCompromiso.id)
                       }
                       disabled={!canMarkRealizado}
-                      className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black data-[state=checked]:border-amber-600"
-                    />
-                  )}
-                  <span className="font-medium text-gray-700">
-                    Realizado (Encargado)
-                  </span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  {togglingId === selectedCompromiso.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                  ) : (
-                    <Checkbox
-                      checked={selectedCompromiso.validadoPorCoordinador}
-                      onCheckedChange={() =>
-                        isCoordinadorOrAdmin &&
-                        handleToggleValidacion(selectedCompromiso.id)
-                      }
-                      disabled={!isCoordinadorOrAdmin}
                       className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
                     />
                   )}
                   <span className="font-medium text-gray-700">
-                    Validado (Coordinador)
+                    Realizado (Encargado)
                   </span>
                 </label>
               </div>
@@ -548,9 +518,8 @@ export function CompromisosPostItWall({
               />
             </div>
             <p className="text-xs text-gray-500 pt-1">
-              El encargado marcará &quot;Realizado (Encargado)&quot; y el
-              coordinador validará con &quot;Validado (Coordinador)&quot; en el
-              muro.
+              El encargado marcará &quot;Realizado (Encargado)&quot; cuando
+              complete el compromiso.
             </p>
           </div>
           <DialogFooter>

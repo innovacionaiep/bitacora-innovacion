@@ -7,10 +7,10 @@ import { DesktopScaleCompensate } from '@/components/DesktopScaleCompensate';
 
 // 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
 export const metadata = {
-  title: 'Bemindr - Gestión de Proyectos',
+  title: 'Bitácora - Gestión de Proyectos',
   description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
   openGraph: {
-    title: 'Bemindr - Gestión de Proyectos',
+    title: 'Bitácora - Gestión de Proyectos',
     description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
   },
 };

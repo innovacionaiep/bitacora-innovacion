@@ -19,19 +19,23 @@ import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
 
 interface IndicadoresCardProps {
   projectId: string;
-  coordinadorIds?: string[];
-  currentUserId?: string;
 }
 
 export function IndicadoresCard({
   projectId,
-  coordinadorIds = [],
-  currentUserId,
 }: IndicadoresCardProps) {
-  const { data, loading, error, progresoGeneral, fetchIndicadores } =
-    useIndicadores(projectId);
-  const canValidateAsCoordinator =
-    !!currentUserId && coordinadorIds.includes(currentUserId);
+  const {
+    data,
+    loading,
+    error,
+    progresoGeneral,
+    fetchIndicadores,
+    patchIndicador,
+    removeIndicadorOptimistic,
+    addIndicadorOptimistic,
+    addObjetivoEspecificoOptimistic,
+    setData,
+  } = useIndicadores(projectId);
   const [deleteMode, setDeleteMode] = useState(false);
   const [showAgregarModal, setShowAgregarModal] = useState(false);
   const [selectedIndicador, setSelectedIndicador] = useState<{
@@ -44,36 +48,118 @@ export function IndicadoresCard({
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   } | null>(null);
 
-  // Función para refrescar los datos después de guardar
-  const handleIndicadorUpdated = async () => {
-    await fetchIndicadores(false);
+  const handleIndicadorUpdated = async (optimistic?: {
+    id: string;
+    patch: Partial<{
+      nombre: string;
+      descripcion: string;
+      formaCalculo: string;
+      formatoNumero: string | null;
+      resultadoEsperado: string;
+      resultadoAlcanzado: string;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+    }>;
+  }) => {
+    if (optimistic) {
+      patchIndicador(optimistic.id, optimistic.patch);
+      setSelectedIndicador((prev) =>
+        prev && prev.id === optimistic.id
+          ? {
+              ...prev,
+              ...optimistic.patch,
+              formatoNumero:
+                optimistic.patch.formatoNumero !== undefined
+                  ? optimistic.patch.formatoNumero
+                  : prev.formatoNumero,
+              fechaInicio:
+                optimistic.patch.fechaInicio !== undefined
+                  ? optimistic.patch.fechaInicio
+                  : prev.fechaInicio,
+              fechaFin:
+                optimistic.patch.fechaFin !== undefined
+                  ? optimistic.patch.fechaFin
+                  : prev.fechaFin,
+            }
+          : prev
+      );
+    }
+    void fetchIndicadores(false);
   };
 
   const handleDeleteIndicador = async (indicadorId: string) => {
     if (!confirm('¿Eliminar este indicador?')) return;
+    const previous = data;
+    removeIndicadorOptimistic(indicadorId);
+    if (selectedIndicador?.id === indicadorId) setSelectedIndicador(null);
+
     const result = await deleteIndicador(indicadorId);
     if (result.success) {
-      await fetchIndicadores(false);
+      void fetchIndicadores(false);
     } else {
+      if (previous) setData(previous);
       alert(result.error || 'Error al eliminar');
     }
   };
 
   const handleAddObjetivoEspecifico = async (descripcion: string) => {
+    const previous = data;
+    const tempId = `temp-oe-${Date.now()}`;
+    addObjetivoEspecificoOptimistic({
+      id: tempId,
+      descripcion: descripcion.trim(),
+      orden: (data?.objetivosGenerales[0]?.objetivosEspecificos.length ?? 0) + 1,
+    });
+
     const result = await createObjetivoEspecifico(projectId, descripcion);
     if (result.success) {
-      await fetchIndicadores(false);
+      void fetchIndicadores(false);
     } else {
+      if (previous) setData(previous);
       alert(result.error || 'Error al agregar objetivo específico');
     }
+  };
+
+  const handleAgregarIndicadorSuccess = async (created?: {
+    objetivoEspecificoId: string;
+    indicador: {
+      id: string;
+      nombre: string;
+      descripcion: string;
+      formaCalculo: string;
+      resultadoEsperado: string;
+      formatoNumero?: string | null;
+      fechaInicio?: string | null;
+      fechaFin?: string | null;
+    };
+  }) => {
+    if (created) {
+      const oe = data?.objetivosGenerales
+        .flatMap((og) => og.objetivosEspecificos)
+        .find((o) => o.id === created.objetivoEspecificoId);
+      addIndicadorOptimistic(created.objetivoEspecificoId, {
+        id: created.indicador.id,
+        nombre: created.indicador.nombre,
+        descripcion: created.indicador.descripcion,
+        formaCalculo: created.indicador.formaCalculo,
+        resultadoEsperado: created.indicador.resultadoEsperado,
+        resultadoAlcanzado: '',
+        formatoNumero: created.indicador.formatoNumero,
+        porcentajeCumplimiento: 0,
+        porcentajeAvance: 0,
+        fechaInicio: created.indicador.fechaInicio,
+        fechaFin: created.indicador.fechaFin,
+        comentariosCount: 0,
+        objetivoEspecifico: {
+          id: created.objetivoEspecificoId,
+          descripcion: oe?.descripcion ?? '',
+          orden: oe?.orden ?? 0,
+        },
+      });
+    }
+    void fetchIndicadores(false);
   };
 
   const objetivosEspecificosForModal = useMemo(() => {
@@ -125,9 +211,7 @@ export function IndicadoresCard({
                 selectedIndicador.formaCalculo ||
               indicadorActualizado.fechaInicio !==
                 selectedIndicador.fechaInicio ||
-              indicadorActualizado.fechaFin !== selectedIndicador.fechaFin ||
-              indicadorActualizado.validadoPorCoordinador !==
-                selectedIndicador.validadoPorCoordinador
+              indicadorActualizado.fechaFin !== selectedIndicador.fechaFin
             ) {
               setSelectedIndicador({
                 id: indicadorActualizado.id,
@@ -139,10 +223,6 @@ export function IndicadoresCard({
                 formatoNumero: indicadorActualizado.formatoNumero,
                 fechaInicio: indicadorActualizado.fechaInicio,
                 fechaFin: indicadorActualizado.fechaFin,
-                validadoPorCoordinador:
-                  indicadorActualizado.validadoPorCoordinador,
-                validadoPorCoordinadorPor:
-                  indicadorActualizado.validadoPorCoordinadorPor,
               });
             }
             break;
@@ -203,8 +283,6 @@ export function IndicadoresCard({
               <ObjetivoGeneralCard
                 objetivoGeneral={objetivoGeneral}
                 progresoGeneral={progresoGeneral}
-                canValidateAsCoordinator={canValidateAsCoordinator}
-                onIndicadorValidationToggle={handleIndicadorUpdated}
                 onAddObjetivoEspecifico={
                   objetivoGeneral.objetivosEspecificos.length === 0
                     ? handleAddObjetivoEspecifico
@@ -221,9 +299,6 @@ export function IndicadoresCard({
                     formatoNumero: indicador.formatoNumero,
                     fechaInicio: indicador.fechaInicio,
                     fechaFin: indicador.fechaFin,
-                    validadoPorCoordinador: indicador.validadoPorCoordinador,
-                    validadoPorCoordinadorPor:
-                      indicador.validadoPorCoordinadorPor,
                   });
                 }}
                 actions={
@@ -307,7 +382,6 @@ export function IndicadoresCard({
           onClose={() => setSelectedIndicador(null)}
           onUpdate={handleIndicadorUpdated}
           projectId={projectId}
-          canValidateAsCoordinator={canValidateAsCoordinator}
         />
       )}
 
@@ -315,7 +389,7 @@ export function IndicadoresCard({
       <AgregarIndicadorModal
         open={showAgregarModal}
         onClose={() => setShowAgregarModal(false)}
-        onSuccess={handleIndicadorUpdated}
+        onSuccess={handleAgregarIndicadorSuccess}
         proyectoId={projectId}
         objetivosEspecificos={objetivosEspecificosForModal}
       />

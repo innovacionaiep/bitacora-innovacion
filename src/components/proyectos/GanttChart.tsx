@@ -38,7 +38,6 @@ import {
   Paperclip,
   Loader2,
   X,
-  Check,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -62,7 +61,7 @@ import {
 } from '@/components/ui/tooltip';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { GanttActivityVirtualList } from '@/components/proyectos/gantt/GanttActivityList';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
@@ -76,10 +75,7 @@ const KanbanBoard = dynamic(() => import('@/components/proyectos/KanbanBoard'), 
     </div>
   ),
 });
-import {
-  reorderActivitiesKanban,
-  toggleActivityValidation,
-} from '@/lib/actions/gantt';
+import { reorderActivitiesKanban } from '@/lib/actions/gantt';
 import {
   DndContext,
   closestCenter,
@@ -120,10 +116,6 @@ interface GanttChartProps {
   projectName?: string;
   showProjectSelector?: boolean;
   onProjectChange?: () => void;
-  /** IDs de usuarios que son coordinadores del proyecto (para permitir validación) */
-  coordinadorIds?: string[];
-  /** ID del usuario actual (para saber si puede validar) */
-  currentUserId?: string;
   /** Actividades precargadas del proyecto (evita refetch al abrir tab Gantt) */
   initialActivities?: Activity[];
 }
@@ -565,87 +557,6 @@ const SortableActivity = memo(function SortableActivity({
                         {activityProgress}%
                       </div>
                     </div>
-                    {/* Indicador de validación coordinador - solo para actividades finalizadas y cuando la actividad no está expandida */}
-                    {activity.tasks.length > 0 &&
-                      activity.tasks.every((t) => t.completed) &&
-                      !expandedDescriptions.has(activity.id) && (
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5 ml-2"
-                          style={{
-                            left: `${startPos.left + barWidth}%`,
-                          }}
-                        >
-                          {(
-                            activity as Activity & {
-                              validadoPorCoordinador?: boolean;
-                              validadoPorCoordinadorPor?: {
-                                id: string;
-                                name: string | null;
-                                image: string | null;
-                              } | null;
-                            }
-                          ).validadoPorCoordinador &&
-                          (
-                            activity as Activity & {
-                              validadoPorCoordinadorPor?: {
-                                id: string;
-                                name: string | null;
-                                image: string | null;
-                              } | null;
-                            }
-                          ).validadoPorCoordinadorPor ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded whitespace-nowrap">
-                              <div className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                                <Check className="h-2.5 w-2.5 text-white" />
-                              </div>
-                              <span className="inline-flex items-center gap-1">
-                                Validado por{' '}
-                                <Avatar className="h-5 w-5 flex-shrink-0">
-                                  <AvatarImage
-                                    src={
-                                      (
-                                        activity as Activity & {
-                                          validadoPorCoordinadorPor?: {
-                                            image: string | null;
-                                          };
-                                        }
-                                      ).validadoPorCoordinadorPor?.image ??
-                                      undefined
-                                    }
-                                  />
-                                  <AvatarFallback className="text-[10px]">
-                                    {(
-                                      (
-                                        activity as Activity & {
-                                          validadoPorCoordinadorPor?: {
-                                            name: string | null;
-                                          };
-                                        }
-                                      ).validadoPorCoordinadorPor?.name ?? 'U'
-                                    )
-                                      .slice(0, 1)
-                                      .toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>
-                                  {(
-                                    activity as Activity & {
-                                      validadoPorCoordinadorPor?: {
-                                        name: string | null;
-                                      };
-                                    }
-                                  ).validadoPorCoordinadorPor?.name ??
-                                    'Coordinador'}
-                                </span>
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-xs text-red-600 font-medium whitespace-nowrap">
-                              Validación pendiente
-                            </span>
-                          )}
-                        </div>
-                      )}
                   </div>
                 </div>
               </div>
@@ -723,13 +634,9 @@ export default function GanttChart({
   projectName,
   showProjectSelector = false,
   onProjectChange,
-  coordinadorIds = [],
-  currentUserId,
   initialActivities,
 }: GanttChartProps) {
   const { data: session } = useSession();
-  const canValidateAsCoordinator =
-    !!currentUserId && coordinadorIds.includes(currentUserId);
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -890,7 +797,6 @@ export default function GanttChart({
   >([]);
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
-  const [isTogglingValidation, setIsTogglingValidation] = useState(false);
   const [isSubmittingActivityAction, setIsSubmittingActivityAction] =
     useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -1507,7 +1413,7 @@ export default function GanttChart({
           tasks: updated,
         });
       }
-      await loadActivities();
+      // useGantt.updateTask ya parchea el estado; no hace falta refetch completo
     }
     setEditingTaskId(null);
   };
@@ -1639,6 +1545,7 @@ export default function GanttChart({
 
       // Crear nueva actividad
       setIsSubmittingActivityAction(true);
+      const tasksToCreate = [...tempTasks];
       try {
         const { error, data: newActivity } = await createActivity({
           name: unifiedActivityForm.name,
@@ -1648,21 +1555,25 @@ export default function GanttChart({
         if (error) {
           alert('Error al crear la actividad: ' + error);
         } else if (newActivity) {
-          // Crear las tareas asociadas
-          for (const task of tempTasks) {
-            await createTask(newActivity.id, {
-              name: task.name,
-              description: task.description || '',
-              startDate: task.startDate,
-              endDate: task.endDate,
-            });
-          }
-
+          // Cerrar UI al instante; crear tareas en paralelo en background
           setUnifiedActivityForm({ name: '', description: '' });
           setTempTasks([]);
           setShowActivityPopup(false);
           setSelectedActivityForPopup(null);
           showSuccessMessage('Actividad creada exitosamente con sus tareas');
+          setIsSubmittingActivityAction(false);
+
+          await Promise.all(
+            tasksToCreate.map((task) =>
+              createTask(newActivity.id, {
+                name: task.name,
+                description: task.description || '',
+                startDate: task.startDate,
+                endDate: task.endDate,
+              })
+            )
+          );
+          return;
         }
       } finally {
         setIsSubmittingActivityAction(false);
@@ -2013,10 +1924,10 @@ export default function GanttChart({
   return (
     <TooltipProvider>
       <div
-        className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white overflow-auto' : ''} ${isFullscreen ? 'p-4' : 'pt-2 px-4 pb-8'}`}
+        className={`${isFullscreen ? 'fixed inset-0 z-50 flex h-full min-h-0 flex-col overflow-hidden bg-white p-4' : 'flex h-full min-h-0 flex-col overflow-hidden pt-2 px-4 pb-4'}`}
       >
         {/* Header compacto de progreso */}
-        <div className="mb-3">
+        <div className="mb-3 shrink-0">
           <div className="flex items-center justify-between">
             {/* Botones de toggle Gantt/Kanban */}
             <div className="flex items-center space-x-2">
@@ -2135,27 +2046,13 @@ export default function GanttChart({
         )}
 
         {/* Calendario Gantt - Siempre visible */}
-        <div className="mt-0">
-          <Card
-            className={
-              isFullscreen
-                ? viewMode === 'gantt'
-                  ? 'h-[calc(100vh-160px)]'
-                  : 'h-[calc(100vh-100px)]'
-                : ''
-            }
-          >
-            <CardContent className="p-0 h-full">
-              <div
-                className={`gantt-container relative ${isFullscreen ? 'h-full' : ''}`}
-              >
+        <div className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+            <CardContent className="p-0 h-full min-h-0 overflow-hidden">
+              <div className="gantt-container relative h-full min-h-0">
                 {/* Contenedor sin scroll horizontal: prohibido para evitar scroll lateral */}
-                <div
-                  className={`overflow-x-hidden ${isFullscreen ? 'h-full' : ''}`}
-                >
-                  <div
-                    className={`w-full min-w-[800px] relative ${isFullscreen ? 'h-full' : ''}`}
-                  >
+                <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto">
+                  <div className="w-full min-w-[800px] relative h-full min-h-0">
                     {/* Header del calendario - solo en vista Gantt */}
                     {viewMode === 'gantt' && (
                       <div className="flex border-b border-white">
@@ -2684,210 +2581,15 @@ export default function GanttChart({
             className="w-[85vw] max-w-[85vw] h-[85vh] p-10 overflow-hidden flex flex-col pb-10"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header - ACTIVIDAD | validación a la derecha; debajo nombre + Progreso */}
+            {/* Header - nombre + Progreso (o botones en edit/create) */}
             <div className="mb-6 flex-shrink-0">
-              {/* Fila 1: ACTIVIDAD + línea separadora + checkbox validación */}
-              <div className="flex items-center gap-3 mb-2">
-                <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide flex-shrink-0">
-                  ACTIVIDAD
-                </DialogTitle>
-                {activityPopupMode === 'view' && selectedActivityForPopup && (
-                  <>
-                    <div
-                      className="h-5 w-px bg-gray-300 flex-shrink-0"
-                      aria-hidden
-                    />
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {(() => {
-                        const act = selectedActivityForPopup;
-                        const tasks = act.tasks ?? [];
-                        const allCompleted =
-                          tasks.length > 0 && tasks.every((t) => t.completed);
-                        const validado = !!(
-                          act as Activity & {
-                            validadoPorCoordinador?: boolean;
-                            validadoPorCoordinadorPor?: {
-                              id: string;
-                              name: string | null;
-                              image: string | null;
-                            } | null;
-                          }
-                        ).validadoPorCoordinador;
-                        const por = (
-                          act as Activity & {
-                            validadoPorCoordinadorPor?: {
-                              id: string;
-                              name: string | null;
-                              image: string | null;
-                            } | null;
-                          }
-                        ).validadoPorCoordinadorPor;
-                        const canCheck =
-                          canValidateAsCoordinator && allCompleted;
-                        const isChecked = validado;
-
-                        if (!allCompleted) {
-                          return (
-                            <div className="flex items-center gap-2 text-gray-500">
-                              <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-100 flex-shrink-0" />
-                              <span className="text-sm">
-                                Actividad no finalizada
-                              </span>
-                            </div>
-                          );
-                        }
-                        if (isChecked && por) {
-                          return (
-                            <label
-                              className={`flex items-center gap-2 text-emerald-700 ${
-                                canValidateAsCoordinator &&
-                                !isTogglingValidation
-                                  ? 'cursor-pointer'
-                                  : 'cursor-default'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked
-                                disabled={
-                                  !canValidateAsCoordinator ||
-                                  isTogglingValidation
-                                }
-                                className="sr-only"
-                                onChange={async () => {
-                                  if (
-                                    !canValidateAsCoordinator ||
-                                    isTogglingValidation
-                                  )
-                                    return;
-                                  const id = act.id;
-                                  if (id.startsWith('temp-')) return;
-                                  setIsTogglingValidation(true);
-                                  const result =
-                                    await toggleActivityValidation(id);
-                                  setIsTogglingValidation(false);
-                                  if (result.success && result.data) {
-                                    setSelectedActivityForPopup({
-                                      ...act,
-                                      ...result.data,
-                                      validadoPorCoordinador:
-                                        result.data.validadoPorCoordinador,
-                                      validadoPorCoordinadorId:
-                                        result.data.validadoPorCoordinadorId ??
-                                        null,
-                                      validadoPorCoordinadorPor:
-                                        result.data.validadoPorCoordinadorPor ??
-                                        null,
-                                    } as Activity);
-                                    updateActivitiesState((prev) =>
-                                      prev.map((a) =>
-                                        a.id === id
-                                          ? { ...a, ...result.data }
-                                          : a
-                                      )
-                                    );
-                                    await loadActivities();
-                                  } else {
-                                    alert(
-                                      result.error ?? 'Error al actualizar'
-                                    );
-                                  }
-                                }}
-                              />
-                              <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                                {isTogglingValidation ? (
-                                  <Loader2 className="h-3 w-3 animate-spin text-white" />
-                                ) : (
-                                  <Check className="h-3 w-3 text-white" />
-                                )}
-                              </div>
-                              <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                                Validado por
-                                <Avatar className="h-7 w-7 flex-shrink-0">
-                                  <AvatarImage src={por.image ?? undefined} />
-                                  <AvatarFallback className="text-xs">
-                                    {(por.name ?? 'U')
-                                      .slice(0, 1)
-                                      .toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{por.name ?? 'Coordinador'}</span>
-                              </span>
-                            </label>
-                          );
-                        }
-                        return (
-                          <label
-                            className={`flex items-center gap-2 cursor-pointer select-none ${
-                              !canCheck ? 'cursor-not-allowed opacity-80' : ''
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={false}
-                              disabled={!canCheck || isTogglingValidation}
-                              className="sr-only"
-                              onChange={async () => {
-                                if (!canCheck || isTogglingValidation) return;
-                                const id = act.id;
-                                if (id.startsWith('temp-')) return;
-                                setIsTogglingValidation(true);
-                                const result =
-                                  await toggleActivityValidation(id);
-                                setIsTogglingValidation(false);
-                                if (result.success && result.data) {
-                                  setSelectedActivityForPopup({
-                                    ...act,
-                                    ...result.data,
-                                    validadoPorCoordinador:
-                                      result.data.validadoPorCoordinador,
-                                    validadoPorCoordinadorId:
-                                      result.data.validadoPorCoordinadorId ??
-                                      undefined,
-                                    validadoPorCoordinadorPor:
-                                      result.data.validadoPorCoordinadorPor ??
-                                      undefined,
-                                  } as Activity);
-                                  updateActivitiesState((prev) =>
-                                    prev.map((a) =>
-                                      a.id === id ? { ...a, ...result.data } : a
-                                    )
-                                  );
-                                  await loadActivities();
-                                } else {
-                                  alert(result.error ?? 'Error al validar');
-                                }
-                              }}
-                            />
-                            <div
-                              className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                                canCheck && !isTogglingValidation
-                                  ? 'border-gray-400 bg-white hover:border-gray-500'
-                                  : 'border-gray-300 bg-gray-100'
-                              }`}
-                            >
-                              {isTogglingValidation && (
-                                <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
-                              )}
-                            </div>
-                            <span className="text-sm text-red-600 font-medium">
-                              Validación de Coordinador pendiente
-                            </span>
-                          </label>
-                        );
-                      })()}
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Fila 2: Nombre de actividad + Progreso (o botones en edit/create) */}
               <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex-1 flex items-center gap-2 min-w-0">
                   {activityPopupMode === 'view' ? (
                     <>
-                      <h1 className="text-2xl font-bold text-emerald-600">
+                      <DialogTitle className="text-2xl font-bold text-emerald-600">
                         {selectedActivityForPopup?.name || 'Sin nombre'}
-                      </h1>
+                      </DialogTitle>
                       {selectedActivityForPopup && (
                         <button
                           onClick={() => {
@@ -2908,6 +2610,11 @@ export default function GanttChart({
                     </>
                   ) : (
                     <div className="flex flex-col gap-1">
+                      <DialogTitle className="sr-only">
+                        {activityPopupMode === 'create'
+                          ? 'Crear actividad'
+                          : 'Editar actividad'}
+                      </DialogTitle>
                       <Input
                         value={unifiedActivityForm.name}
                         onChange={(e) =>
@@ -3649,20 +3356,11 @@ export default function GanttChart({
                             className="flex gap-4 p-4 bg-gray-50 rounded-lg"
                           >
                             <div className="flex-shrink-0">
-                              {c.user.image ? (
-                                <img
-                                  src={c.user.image}
-                                  alt=""
-                                  className="w-10 h-10 rounded-full"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-gray-600">
-                                    {(c.user.name ||
-                                      c.user.email)[0].toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
+                              <img
+                                src={DEFAULT_AVATAR}
+                                alt=""
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
@@ -3694,20 +3392,11 @@ export default function GanttChart({
                     {session?.user && (
                       <div className="flex gap-4 pt-4 pb-2 border-t border-gray-200 flex-shrink-0">
                         <div className="flex-shrink-0">
-                          {session.user.image ? (
-                            <img
-                              src={session.user.image}
-                              alt=""
-                              className="w-10 h-10 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-600">
-                                {(session.user.name ||
-                                  session.user.email)[0].toUpperCase()}
-                              </span>
-                            </div>
-                          )}
+                          <img
+                            src={DEFAULT_AVATAR}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
                         </div>
                         <div className="flex-1 space-y-2">
                           <p className="text-sm text-gray-500">

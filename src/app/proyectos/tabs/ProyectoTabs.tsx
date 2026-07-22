@@ -89,13 +89,9 @@ export function ResumenTab({
 
 export function GanttTab({
   project,
-  coordinadorIds,
-  currentUserId,
   onProjectChange,
 }: {
   project: ProyectoWithRelations;
-  coordinadorIds: string[];
-  currentUserId?: string;
   onProjectChange: () => void;
 }) {
   return (
@@ -104,8 +100,6 @@ export function GanttTab({
         projectId={project.id}
         projectName={project.proyecto}
         onProjectChange={onProjectChange}
-        coordinadorIds={coordinadorIds}
-        currentUserId={currentUserId}
         initialActivities={project.activities}
       />
     </div>
@@ -114,20 +108,12 @@ export function GanttTab({
 
 export function IndicadoresTab({
   projectId,
-  coordinadorIds,
-  currentUserId,
 }: {
   projectId: string;
-  coordinadorIds: string[];
-  currentUserId?: string;
 }) {
   return (
     <div className="h-full pt-2 overflow-x-hidden">
-      <IndicadoresCard
-        projectId={projectId}
-        coordinadorIds={coordinadorIds}
-        currentUserId={currentUserId}
-      />
+      <IndicadoresCard projectId={projectId} />
     </div>
   );
 }

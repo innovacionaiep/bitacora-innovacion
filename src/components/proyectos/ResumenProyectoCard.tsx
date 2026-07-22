@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Crosshair,
   MapPin,
@@ -38,11 +39,13 @@ import {
 import {
   getCompromisosProyecto,
 } from '@/lib/actions/seguimiento';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { getHistorialProyecto } from '@/lib/actions/historial';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { CuentaPresupuesto } from '@/types/presupuesto';
 import { ActivityStatus } from '@prisma/client';
+import { compromisosKey, historialKey } from '@/lib/query-keys';
 
 const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
   RRHH: 'RRHH',
@@ -106,34 +109,37 @@ export function ResumenProyectoCard({
     return mergeDeltaEnResumen(resumenPorCuenta, delta);
   }, [presupuestoAdjudicado, items, resumenPorCuenta]);
 
-  const [compromisos, setCompromisos] = useState<
-    Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
-  >([]);
-  const [historial, setHistorial] = useState<
-    Awaited<ReturnType<typeof getHistorialProyecto>>['data']
-  >([]);
-  const [loadingSeguimiento, setLoadingSeguimiento] = useState(true);
+  const compromisosQuery = useQuery({
+    queryKey: compromisosKey(projectId),
+    queryFn: async () => {
+      const cRes = await getCompromisosProyecto(projectId);
+      if (!cRes.success) {
+        throw new Error(cRes.error ?? 'Error al cargar compromisos');
+      }
+      return cRes.data ?? [];
+    },
+    enabled: !!projectId,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-    setLoadingSeguimiento(true);
-    void Promise.all([
-      getCompromisosProyecto(projectId),
-      getHistorialProyecto(projectId, undefined, 10),
-    ])
-      .then(([cRes, hRes]) => {
-        if (cancelled) return;
-        if (cRes.success && cRes.data) setCompromisos(cRes.data);
-        if (hRes.success && hRes.data) setHistorial(hRes.data);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSeguimiento(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+  const historialQuery = useQuery({
+    queryKey: historialKey(projectId, { limit: '10' }),
+    queryFn: async () => {
+      const hRes = await getHistorialProyecto(projectId, undefined, 10);
+      if (!hRes.success) {
+        throw new Error(hRes.error ?? 'Error al cargar historial');
+      }
+      return hRes.data ?? [];
+    },
+    enabled: !!projectId,
+    staleTime: 60_000,
+  });
+
+  const compromisos = compromisosQuery.data ?? [];
+  const historial = historialQuery.data ?? [];
+  const loadingSeguimiento =
+    (compromisosQuery.isLoading && !compromisosQuery.data) ||
+    (historialQuery.isLoading && !historialQuery.data);
 
   const loadingAvances = loadingGantt || loadingPresupuesto;
   const pctActividades = useMemo(() => {
@@ -564,7 +570,6 @@ export function ResumenProyectoCard({
                       const statusBadge =
                         ACTIVITY_STATUS_BADGE[act.status as ActivityStatus] ??
                         ACTIVITY_STATUS_BADGE.TODO;
-                      const validada = !!act.validadoPorCoordinador;
                       const numEvidencias = act._count?.evidencias ?? 0;
                       const tieneEvidencias = numEvidencias > 0;
                       return (
@@ -590,16 +595,6 @@ export function ResumenProyectoCard({
                                 Fuera de plazo
                               </Badge>
                             )}
-                            <Badge
-                              variant="secondary"
-                              className={
-                                validada
-                                  ? 'text-xs font-normal border bg-emerald-100 text-emerald-800 border-emerald-200'
-                                  : 'text-xs font-normal border bg-gray-100 text-gray-600 border-gray-200'
-                              }
-                            >
-                              {validada ? 'Validada' : 'Sin validar'}
-                            </Badge>
                             <Badge
                               variant="secondary"
                               className={
@@ -700,7 +695,6 @@ export function ResumenProyectoCard({
                     {historial.map((entry) => {
                       const persona =
                         entry.user?.name || entry.user?.email || 'Usuario';
-                      const avatar = entry.user?.image;
                       const accionConjugada =
                         CONJUGACIONES_HISTORIAL[entry.accion] ||
                         entry.accion.toLowerCase();
@@ -709,19 +703,11 @@ export function ResumenProyectoCard({
                           key={entry.id}
                           className="flex items-start gap-3 text-sm border-b border-border/50 pb-3 last:border-0 last:pb-0"
                         >
-                          {avatar ? (
-                            <img
-                              src={avatar}
-                              alt={persona}
-                              className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 ring-2 ring-gray-200">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {(persona.charAt(0) || 'U').toUpperCase()}
-                              </span>
-                            </div>
-                          )}
+                          <img
+                            src={DEFAULT_AVATAR}
+                            alt={persona}
+                            className="h-8 w-8 rounded-full flex-shrink-0 ring-2 ring-gray-200 object-cover"
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-muted-foreground text-xs mb-0.5">
                               {formatFechaHistorial(entry.fecha)}

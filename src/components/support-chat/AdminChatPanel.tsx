@@ -134,7 +134,7 @@ export function AdminChatPanel() {
   const selectedConv = conversations.find((c) => c.userId === selectedUserId);
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] min-h-[400px] rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+    <div className="flex h-full min-h-0 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
       <aside className="w-72 border-r border-gray-200 flex flex-col bg-gray-50/50">
         <div className="p-2 border-b border-gray-200">
           <h2 className="font-semibold text-gray-800 text-sm">

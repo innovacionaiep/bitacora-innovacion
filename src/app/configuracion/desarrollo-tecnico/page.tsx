@@ -333,7 +333,11 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent
+                      side="bottom"
+                      avoidCollisions={false}
+                      className="max-h-60 z-[100]"
+                    >
                       {ICON_NAMES.map((name) => (
                         <SelectItem key={name} value={name}>
                           <span className="flex items-center gap-2">
@@ -355,7 +359,11 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                       <SelectTrigger>
                         <SelectValue placeholder="Mantener categoría" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent
+                        side="bottom"
+                        avoidCollisions={false}
+                        className="max-h-60 z-[100]"
+                      >
                         {categorias.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             {cat.nombre}

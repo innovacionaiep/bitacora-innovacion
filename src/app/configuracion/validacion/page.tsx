@@ -24,7 +24,15 @@ import {
 import * as Config from '@/lib/actions/configuracion';
 import { Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
 
-type CatalogKind = 'sede' | 'comuna' | 'escuela' | 'carrera' | 'grupo';
+type CatalogKind =
+  | 'sede'
+  | 'comuna'
+  | 'escuela'
+  | 'carrera'
+  | 'asignatura'
+  | 'grupo'
+  | 'fondo'
+  | 'linea';
 
 export default function ConfiguracionValidacionPage() {
   const [sedes, setSedes] = useState<
@@ -39,8 +47,17 @@ export default function ConfiguracionValidacionPage() {
   const [carreras, setCarreras] = useState<
     Awaited<ReturnType<typeof Config.getCarreras>>
   >([]);
+  const [asignaturas, setAsignaturas] = useState<
+    Awaited<ReturnType<typeof Config.getAsignaturas>>
+  >([]);
   const [grupos, setGrupos] = useState<
     Awaited<ReturnType<typeof Config.getGruposInteres>>
+  >([]);
+  const [fondos, setFondos] = useState<
+    Awaited<ReturnType<typeof Config.getFondos>>
+  >([]);
+  const [lineas, setLineas] = useState<
+    Awaited<ReturnType<typeof Config.getLineas>>
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,27 +71,38 @@ export default function ConfiguracionValidacionPage() {
   const [formCodigo, setFormCodigo] = useState('');
   const [formDescripcion, setFormDescripcion] = useState('');
   const [formEscuelaId, setFormEscuelaId] = useState<string | null>(null);
+  const [formFondoId, setFormFondoId] = useState('');
   const [saving, setSaving] = useState(false);
   const [backfillingSedes, setBackfillingSedes] = useState(false);
+  const [backfillingFondos, setBackfillingFondos] = useState(false);
   const [uploadingCarrerasXlsx, setUploadingCarrerasXlsx] = useState(false);
   const [importCarrerasResult, setImportCarrerasResult] = useState<string | null>(null);
   const fileInputCarrerasRef = useRef<HTMLInputElement>(null);
+  const [uploadingAsignaturasXlsx, setUploadingAsignaturasXlsx] = useState(false);
+  const [importAsignaturasResult, setImportAsignaturasResult] = useState<string | null>(null);
+  const fileInputAsignaturasRef = useRef<HTMLInputElement>(null);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [s, c, e, car, g] = await Promise.all([
+      const [s, c, e, car, asg, g, f, lin] = await Promise.all([
         Config.getSedes(),
         Config.getComunas(),
         Config.getEscuelas(),
         Config.getCarreras(),
+        Config.getAsignaturas(),
         Config.getGruposInteres(),
+        Config.getFondos(),
+        Config.getLineas(),
       ]);
       setSedes(s);
       setComunas(c);
       setEscuelas(e);
       setCarreras(car);
+      setAsignaturas(asg);
       setGrupos(g);
+      setFondos(f);
+      setLineas(lin);
     } catch (err) {
       setError('Error al cargar datos');
     }
@@ -95,6 +123,7 @@ export default function ConfiguracionValidacionPage() {
     setFormCodigo('');
     setFormDescripcion('');
     setFormEscuelaId(null);
+    setFormFondoId('');
     setSheetOpen(true);
     setError(null);
   };
@@ -113,6 +142,7 @@ export default function ConfiguracionValidacionPage() {
     setFormCodigo((row.codigo as string) ?? '');
     setFormDescripcion((row.descripcion as string) ?? '');
     setFormEscuelaId(cat === 'carrera' ? null : ((row.escuelaId as string) ?? null));
+    setFormFondoId((row.fondoId as string) ?? '');
     setSheetOpen(true);
     setError(null);
   };
@@ -160,6 +190,12 @@ export default function ConfiguracionValidacionPage() {
         else if (editId)
           res = await Config.updateCarrera(editId, formNombre);
         break;
+      case 'asignatura':
+        if (sheetMode === 'add')
+          res = await Config.createAsignatura(formNombre);
+        else if (editId)
+          res = await Config.updateAsignatura(editId, formNombre);
+        break;
       case 'grupo':
         if (sheetMode === 'add')
           res = await Config.createGrupoInteres(formNombre, formDescripcion);
@@ -168,6 +204,28 @@ export default function ConfiguracionValidacionPage() {
             editId,
             formNombre,
             formDescripcion
+          );
+        break;
+      case 'fondo':
+        if (sheetMode === 'add')
+          res = await Config.createFondo(formNombre, formOrden);
+        else if (editId)
+          res = await Config.updateFondo(editId, formNombre, formOrden);
+        break;
+      case 'linea':
+        if (!formFondoId.trim()) {
+          setError('El fondo es obligatorio');
+          setSaving(false);
+          return;
+        }
+        if (sheetMode === 'add')
+          res = await Config.createLinea(formNombre, formFondoId, formOrden);
+        else if (editId)
+          res = await Config.updateLinea(
+            editId,
+            formNombre,
+            formFondoId,
+            formOrden
           );
         break;
     }
@@ -237,6 +295,63 @@ export default function ConfiguracionValidacionPage() {
     }
   };
 
+  const handleAsignaturasXlsxChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportAsignaturasResult(null);
+    setUploadingAsignaturasXlsx(true);
+    setError(null);
+    try {
+      const XLSX = await import('xlsx');
+      const data = new Uint8Array(await file.arrayBuffer());
+      const wb = XLSX.read(data, { type: 'array' });
+      const firstSheet = wb.SheetNames[0];
+      if (!firstSheet) {
+        setError('El archivo no contiene hojas.');
+        return;
+      }
+      const ws = wb.Sheets[firstSheet];
+      const rows = XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        defval: '',
+      }) as unknown[][];
+      const isHeader =
+        rows.length > 1 &&
+        String((rows[0]?.[0] ?? '')).trim().toLowerCase() === 'nombre';
+      const dataRows = isHeader ? rows.slice(1) : rows;
+      const nombres = dataRows
+        .map((row) => String((row && row[0]) ?? '').trim())
+        .filter(Boolean);
+      if (nombres.length === 0) {
+        setError('No se encontraron nombres en la primera columna del archivo.');
+        return;
+      }
+      const res = await Config.importAsignaturasFromNames(nombres);
+      if (res.success) {
+        const created = res.created ?? 0;
+        const skipped = res.skipped ?? 0;
+        if (created > 0 || skipped > 0) {
+          setImportAsignaturasResult(
+            `Se cargaron ${created} asignatura(s) nueva(s). ${skipped} ya existían.`
+          );
+        } else {
+          setImportAsignaturasResult('No había asignaturas nuevas que agregar.');
+        }
+        loadAll();
+      } else {
+        setError(res.error ?? 'Error al importar');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al leer el archivo. Asegúrate de que sea un Excel (.xlsx) válido.');
+    } finally {
+      setUploadingAsignaturasXlsx(false);
+      e.target.value = '';
+    }
+  };
+
   const handleDelete = async (cat: CatalogKind, id: string) => {
     if (!confirm('¿Eliminar este registro?')) return;
     setError(null);
@@ -254,8 +369,14 @@ export default function ConfiguracionValidacionPage() {
       case 'carrera':
         res = await Config.deleteCarrera(id);
         break;
+      case 'asignatura':
+        res = await Config.deleteAsignatura(id);
+        break;
       case 'grupo':
         res = await Config.deleteGrupoInteres(id);
+        break;
+      case 'fondo':
+        res = await Config.deleteFondo(id);
         break;
     }
     if (res.success) loadAll();
@@ -289,7 +410,10 @@ export default function ConfiguracionValidacionPage() {
             <TabsTrigger value="comuna">Comunas</TabsTrigger>
             <TabsTrigger value="escuela">Escuelas</TabsTrigger>
             <TabsTrigger value="carrera">Carreras</TabsTrigger>
+            <TabsTrigger value="asignatura">Asignaturas</TabsTrigger>
             <TabsTrigger value="grupo">Grupos de interés</TabsTrigger>
+            <TabsTrigger value="fondo">Fondos</TabsTrigger>
+            <TabsTrigger value="linea">Líneas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sede" className="mt-4">
@@ -498,6 +622,64 @@ export default function ConfiguracionValidacionPage() {
             </Table>
           </TabsContent>
 
+          <TabsContent value="asignatura" className="mt-4">
+            <div className="flex justify-end gap-2 mb-2 flex-wrap items-center">
+              <input
+                ref={fileInputAsignaturasRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={handleAsignaturasXlsxChange}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={uploadingAsignaturasXlsx}
+                onClick={() => fileInputAsignaturasRef.current?.click()}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                {uploadingAsignaturasXlsx ? 'Cargando...' : 'Cargar xlsx'}
+              </Button>
+              <Button size="sm" onClick={() => openAdd('asignatura')}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar
+              </Button>
+            </div>
+            {importAsignaturasResult && (
+              <p className="text-sm text-green-600 mb-2">{importAsignaturasResult}</p>
+            )}
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="w-[120px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {asignaturas.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>{a.nombre}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit('asignatura', a.id, a)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete('asignatura', a.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
           <TabsContent value="grupo" className="mt-4">
             <div className="flex justify-end mb-2">
               <Button size="sm" onClick={() => openAdd('grupo')}>
@@ -540,6 +722,120 @@ export default function ConfiguracionValidacionPage() {
               </TableBody>
             </Table>
           </TabsContent>
+
+          <TabsContent value="fondo" className="mt-4">
+            <div className="flex justify-end gap-2 mb-2">
+              {fondos.length === 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={backfillingFondos}
+                  onClick={async () => {
+                    setBackfillingFondos(true);
+                    setError(null);
+                    const res = await Config.backfillFondosFromProyectos();
+                    if (res.success) {
+                      loadAll();
+                    } else {
+                      setError(res.error ?? 'Error');
+                    }
+                    setBackfillingFondos(false);
+                  }}
+                >
+                  {backfillingFondos
+                    ? 'Cargando...'
+                    : 'Cargar fondos por defecto'}
+                </Button>
+              )}
+              <Button size="sm" onClick={() => openAdd('fondo')}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar
+              </Button>
+            </div>
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Orden</TableHead>
+                  <TableHead className="w-[120px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fondos.map((f) => (
+                  <TableRow key={f.id}>
+                    <TableCell>{f.nombre}</TableCell>
+                    <TableCell>{f.orden}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit('fondo', f.id, f)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete('fondo', f.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
+          <TabsContent value="linea" className="mt-4">
+            <div className="flex justify-end gap-2 mb-2">
+              <Button
+                size="sm"
+                onClick={() => openAdd('linea')}
+                disabled={fondos.length === 0}
+              >
+                <Plus className="h-4 w-4 mr-1" /> Agregar
+              </Button>
+            </div>
+            {fondos.length === 0 && (
+              <p className="text-sm text-muted-foreground mb-3">
+                Primero crea al menos un fondo para poder agregar líneas.
+              </p>
+            )}
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Fondo</TableHead>
+                  <TableHead>Orden</TableHead>
+                  <TableHead className="w-[80px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineas.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>{l.nombre}</TableCell>
+                    <TableCell>{l.fondo.nombre}</TableCell>
+                    <TableCell>{l.orden}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          openEdit('linea', l.id, {
+                            nombre: l.nombre,
+                            orden: l.orden,
+                            fondoId: l.fondoId,
+                          })
+                        }
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -553,7 +849,10 @@ export default function ConfiguracionValidacionPage() {
               {catalog === 'comuna' && 'Comuna'}
               {catalog === 'escuela' && 'Escuela'}
               {catalog === 'carrera' && 'Carrera'}
+              {catalog === 'asignatura' && 'Asignatura'}
               {catalog === 'grupo' && 'Grupo de interés'}
+              {catalog === 'fondo' && 'Fondo'}
+              {catalog === 'linea' && 'Línea'}
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-4 py-4">
@@ -561,7 +860,10 @@ export default function ConfiguracionValidacionPage() {
               catalog === 'comuna' ||
               catalog === 'escuela' ||
               catalog === 'carrera' ||
-              catalog === 'grupo') && (
+              catalog === 'asignatura' ||
+              catalog === 'grupo' ||
+              catalog === 'fondo' ||
+              catalog === 'linea') && (
               <div className="space-y-2">
                 <Label>Nombre</Label>
                 <Input
@@ -571,7 +873,26 @@ export default function ConfiguracionValidacionPage() {
                 />
               </div>
             )}
-            {catalog === 'sede' && (
+            {catalog === 'linea' && (
+              <div className="space-y-2">
+                <Label>Fondo</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={formFondoId}
+                  onChange={(e) => setFormFondoId(e.target.value)}
+                >
+                  <option value="">Seleccionar fondo</option>
+                  {fondos.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {(catalog === 'sede' ||
+              catalog === 'fondo' ||
+              catalog === 'linea') && (
               <div className="space-y-2">
                 <Label>Orden</Label>
                 <Input

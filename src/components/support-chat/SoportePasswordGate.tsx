@@ -36,14 +36,14 @@ export function SoportePasswordGate() {
 
   if (unlocked) {
     return (
-      <div className="p-4 min-h-screen bg-gray-100">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-100 p-4">
         <AdminChatPanel />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="flex h-full min-h-0 items-center justify-center overflow-hidden bg-gray-100 p-4">
       <div className="w-full max-w-sm rounded-xl bg-white shadow-lg border border-gray-200 p-8">
         <div className="flex justify-center mb-6">
           <div className="rounded-full bg-gray-100 p-4">

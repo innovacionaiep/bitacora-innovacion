@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   Check,
-  Edit,
   FileText,
   Loader2,
   MessageSquare,
@@ -18,9 +17,8 @@ import {
   Send,
   X,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { getActivityById } from '@/lib/actions/gantt';
-import { toggleActivityValidation } from '@/lib/actions/gantt';
 import {
   getEvidenciasActividad,
   createEvidenciaActividad,
@@ -73,9 +71,7 @@ export interface ActividadDetalleModalProps {
   proyectoId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Si el usuario puede validar la actividad (Coordinador). El servidor verifica. */
-  canValidate?: boolean;
-  /** Si el usuario puede agregar evidencias (Encargado o Coordinador) */
+  /** Si el usuario puede agregar evidencias (Encargado) */
   canAddEvidencia?: boolean;
   onSuccess?: () => void | Promise<void>;
 }
@@ -85,7 +81,6 @@ export function ActividadDetalleModal({
   proyectoId,
   open,
   onOpenChange,
-  canValidate = false,
   canAddEvidencia = true,
   onSuccess,
 }: ActividadDetalleModalProps) {
@@ -99,7 +94,6 @@ export function ActividadDetalleModal({
   const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [sendingComentario, setSendingComentario] = useState(false);
-  const [togglingValidation, setTogglingValidation] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -138,27 +132,6 @@ export function ActividadDetalleModal({
       if (res.success && res.data) setComentarios(res.data);
     });
   }, [open, actividadId]);
-
-  const handleToggleValidation = async () => {
-    if (!activity || !canValidate || togglingValidation) return;
-    const tasks = activity.tasks ?? [];
-    const allCompleted = tasks.length > 0 && tasks.every((t) => t.completed);
-    if (!allCompleted) return;
-    setTogglingValidation(true);
-    const result = await toggleActivityValidation(activity.id);
-    setTogglingValidation(false);
-    if (result.success && result.data) {
-      setActivity({
-        ...activity,
-        ...result.data,
-        validadoPorCoordinador: result.data.validadoPorCoordinador,
-        validadoPorCoordinadorPor: result.data.validadoPorCoordinadorPor ?? null,
-      } as ActivityWithRelations);
-      onSuccess?.();
-    } else {
-      alert(result.error ?? 'Error al actualizar');
-    }
-  };
 
   const handleUploadEvidencia = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,14 +185,8 @@ export function ActividadDetalleModal({
     }
   };
 
-  const act = activity as ActivityWithRelations & {
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: { id: string; name: string | null; image: string | null } | null;
-  };
-  const tasks = act?.tasks ?? [];
+  const tasks = activity?.tasks ?? [];
   const allCompleted = tasks.length > 0 && tasks.every((t) => t.completed);
-  const validado = !!act?.validadoPorCoordinador;
-  const por = act?.validadoPorCoordinadorPor;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -244,68 +211,16 @@ export function ActividadDetalleModal({
         ) : (
           <>
             <div className="mb-6 flex-shrink-0">
-              <div className="flex items-center gap-3 mb-2">
-                <DialogTitle className="text-base font-semibold text-emerald-600 uppercase tracking-wide">
-                  ACTIVIDAD
-                </DialogTitle>
-                <div className="h-5 w-px bg-gray-300" />
-                <div className="flex items-center gap-3">
-                  {!allCompleted ? (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-100" />
-                      <span className="text-sm">Actividad no finalizada</span>
-                    </div>
-                  ) : validado && por ? (
-                    <div className="flex items-center gap-2 text-emerald-700">
-                      <div className="w-5 h-5 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center">
-                        <Check className="h-3 w-3 text-white" />
-                      </div>
-                      <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                        Validado por
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={por.image ?? undefined} />
-                          <AvatarFallback className="text-xs">
-                            {(por.name ?? 'U').slice(0, 1).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {por.name ?? 'Coordinador'}
-                      </span>
-                    </div>
-                  ) : (
-                    <label
-                      className={`flex items-center gap-2 cursor-pointer select-none ${
-                        !canValidate ? 'cursor-not-allowed opacity-80' : ''
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        disabled={!canValidate || togglingValidation}
-                        className="sr-only"
-                        onChange={handleToggleValidation}
-                      />
-                      <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          canValidate && !togglingValidation
-                            ? 'border-gray-400 bg-white hover:border-gray-500'
-                            : 'border-gray-300 bg-gray-100'
-                        }`}
-                      >
-                        {togglingValidation && (
-                          <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
-                        )}
-                      </div>
-                      <span className="text-sm text-red-600 font-medium">
-                        Validación de Coordinador pendiente
-                      </span>
-                    </label>
-                  )}
+              {!allCompleted && (
+                <div className="flex items-center gap-2 text-gray-500 mb-2">
+                  <div className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-100" />
+                  <span className="text-sm">Actividad no finalizada</span>
                 </div>
-              </div>
+              )}
               <div className="flex items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold text-emerald-600">
+                <DialogTitle className="text-2xl font-bold text-emerald-600">
                   {activity.name || 'Sin nombre'}
-                </h1>
+                </DialogTitle>
                 <div className="flex items-center gap-4">
                   <span className="text-base font-medium text-gray-700">Progreso</span>
                   <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
@@ -500,19 +415,11 @@ export function ActividadDetalleModal({
                     comentarios.map((c) => (
                       <div key={c.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
                         <div className="flex-shrink-0">
-                          {c.user.image ? (
-                            <img
-                              src={c.user.image}
-                              alt=""
-                              className="w-10 h-10 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-600">
-                                {(c.user.name || c.user.email)[0].toUpperCase()}
-                              </span>
-                            </div>
-                          )}
+                          <img
+                            src={DEFAULT_AVATAR}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -538,19 +445,11 @@ export function ActividadDetalleModal({
                 {session?.user && (
                   <div className="flex gap-4 pt-4 pb-2 border-t border-gray-200 flex-shrink-0">
                     <div className="flex-shrink-0">
-                      {session.user.image ? (
-                        <img
-                          src={session.user.image}
-                          alt=""
-                          className="w-10 h-10 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
-                            {(session.user.name || session.user.email)[0].toUpperCase()}
-                          </span>
-                        </div>
-                      )}
+                      <img
+                        src={DEFAULT_AVATAR}
+                        alt=""
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
                     </div>
                     <div className="flex-1 space-y-2">
                       <p className="text-sm text-gray-500">

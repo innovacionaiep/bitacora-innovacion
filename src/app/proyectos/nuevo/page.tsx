@@ -44,6 +44,7 @@ function defaultPayload(): ProyectoFormPayload {
     participantes: 0,
     escuelasIds: [],
     carrerasIds: [],
+    asignaturasIds: [],
     comunasIds: [],
     gruposInteresIds: [],
     sociosComunitariosIds: [],
@@ -297,30 +298,36 @@ function NuevoProyectoContent() {
 
   if (loadingDraft) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex h-full min-h-0 items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      {showSuccessMessage && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800">
-          <Check className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-          <span className="font-medium">Proyecto creado con éxito. Redirigiendo...</span>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col overflow-hidden px-4">
+      <div className="shrink-0 pt-6">
+        {showSuccessMessage && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800">
+            <Check className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium">Proyecto creado con éxito. Redirigiendo...</span>
+          </div>
+        )}
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/proyectos">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold text-gray-900">Crear proyecto</h1>
         </div>
-      )}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/proyectos">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Crear proyecto</h1>
       </div>
 
-      <form className="space-y-6 pb-24" onSubmit={(e) => e.preventDefault()}>
+      <form
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        onSubmit={(e) => e.preventDefault()}
+      >
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
         <Card>
           <CardHeader>
             <CardTitle>Datos básicos del proyecto</CardTitle>
@@ -452,8 +459,9 @@ function NuevoProyectoContent() {
             </div>
           </CardContent>
         </Card>
+        </div>
 
-        <div className="flex flex-wrap gap-4 pt-4 border-t">
+        <div className="flex shrink-0 flex-wrap gap-4 border-t bg-background py-4">
           <Button
             type="button"
             variant="outline"
@@ -478,7 +486,7 @@ function NuevoProyectoContent() {
 
 export default function NuevoProyectoPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><span className="text-muted-foreground">Cargando...</span></div>}>
+    <Suspense fallback={<div className="flex h-full min-h-0 items-center justify-center"><span className="text-muted-foreground">Cargando...</span></div>}>
       <NuevoProyectoContent />
     </Suspense>
   );

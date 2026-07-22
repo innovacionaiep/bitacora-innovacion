@@ -73,12 +73,6 @@ model User {
   commentLikes  CommentLike[]   @relation("CommentLikes")
   eventoAsistencias EventoAsistente[] @relation("EventoAsistencias")
 
-  // Actividades validadas por este coordinador
-  actividadesValidadasPor Activity[] @relation("ActivityValidadoPor")
-
-  // Indicadores validados por este coordinador
-  indicadoresValidadosPor Indicador[] @relation("IndicadorValidadoPor")
-
   // Borradores de proyectos (formulario crear proyecto)
   proyectoBorradores ProyectoBorrador[]
 
@@ -128,6 +122,8 @@ model Proyecto {
   id               String   @id @default(cuid())
   proyecto         String
   fondo            String
+  /** Sub-fondo / línea dentro del fondo (nombre denormalizado del catálogo Linea) */
+  linea            String?
   sede             String
   youtubeUrl       String?  @map("youtube_url") @db.Text
   focalizacion     String? // Social|Productiva|Ambiental|null
@@ -145,6 +141,7 @@ model Proyecto {
   participantes_rel  ProyectoParticipante[]
   escuelas           ProyectoEscuela[]
   carreras           ProyectoCarrera[]
+  asignaturas        ProyectoAsignatura[]
   comunas            ProyectoComuna[]
   gruposInteres      ProyectoGrupoInteres[]
   sociosComunitarios ProyectoSocioComunitario[]
@@ -222,11 +219,15 @@ model ProyectoParticipante {
   userId             String?  @map("user_id") // Opcional: para participantes sin cuenta activa
   rol                String // Encargado|Coordinador|Colaborador|Docente|Estudiante|Beneficiario
   nombre             String? // Nombre del participante (cuando no tiene cuenta)
-  email              String? // Email del participante (cuando no tiene cuenta)
+  rut                String? // RUT (obligatorio para Docente y Estudiante)
+  email              String? // Email del participante (obligatorio)
   cargo              String? // Cargo del participante en el proyecto
+  laborEnProyecto    String?  @map("labor_en_proyecto") // Labor / rol descriptivo en el proyecto
   socioComunitarioId String?  @map("socio_comunitario_id") // Socio comunitario (obligatorio para Beneficiarios)
   sedeId             String?  @map("sede_id") // Sede (catálogo configuración - validación de datos)
   escuelaId          String?  @map("escuela_id") // Escuela (catálogo configuración - validación de datos)
+  carreraId          String?  @map("carrera_id") // Carrera (obligatorio para Estudiante)
+  asignaturaId       String?  @map("asignatura_id") // Asignatura (obligatorio para Estudiante)
   createdAt          DateTime @default(now()) @map("created_at")
 
   proyecto         Proyecto         @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
@@ -234,10 +235,34 @@ model ProyectoParticipante {
   socioComunitario SocioComunitario? @relation(fields: [socioComunitarioId], references: [id], onDelete: SetNull)
   sede             Sede?            @relation(fields: [sedeId], references: [id], onDelete: SetNull)
   escuela          Escuela?         @relation(fields: [escuelaId], references: [id], onDelete: SetNull)
+  carrera          Carrera?         @relation(fields: [carreraId], references: [id], onDelete: SetNull)
+  asignatura       Asignatura?      @relation(fields: [asignaturaId], references: [id], onDelete: SetNull)
 
   @@unique([proyectoId, userId, rol])
   @@index([userId, rol])
   @@map("proyecto_participantes")
+}
+
+// Fondos (catálogo para listas desplegables; Proyecto.fondo sigue siendo String)
+model Fondo {
+  id     String  @id @default(cuid())
+  nombre String
+  orden  Int     @default(0)
+  lineas Linea[]
+
+  @@map("fondos")
+}
+
+// Líneas (sub-fondo dentro de un Fondo; Proyecto.linea guarda el nombre)
+model Linea {
+  id      String @id @default(cuid())
+  nombre  String
+  orden   Int    @default(0)
+  fondoId String @map("fondo_id")
+  fondo   Fondo  @relation(fields: [fondoId], references: [id], onDelete: Restrict)
+
+  @@index([fondoId])
+  @@map("lineas")
 }
 
 // Sedes (catálogo para listas desplegables; Proyecto.sede sigue siendo String)
@@ -274,9 +299,10 @@ model ProyectoEscuela {
 
 // Carreras del Proyecto (many-to-many)
 model Carrera {
-  id        String             @id @default(cuid())
-  nombre    String
-  proyectos ProyectoCarrera[]
+  id                    String                 @id @default(cuid())
+  nombre                String
+  proyectos             ProyectoCarrera[]
+  proyectoParticipantes ProyectoParticipante[]
 
   @@map("carreras")
 }
@@ -290,6 +316,27 @@ model ProyectoCarrera {
 
   @@id([proyectoId, carreraId])
   @@map("proyecto_carreras")
+}
+
+// Asignaturas del Proyecto (many-to-many)
+model Asignatura {
+  id                    String                 @id @default(cuid())
+  nombre                String
+  proyectos             ProyectoAsignatura[]
+  proyectoParticipantes ProyectoParticipante[]
+
+  @@map("asignaturas")
+}
+
+model ProyectoAsignatura {
+  proyectoId   String @map("proyecto_id")
+  asignaturaId String @map("asignatura_id")
+
+  proyecto   Proyecto   @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  asignatura Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, asignaturaId])
+  @@map("proyecto_asignaturas")
 }
 
 // Comunas del Proyecto (many-to-many)
@@ -392,8 +439,6 @@ model Activity {
   orderIndex             Int            @default(0) @map("order_index")
   kanbanOrderIndex       Int            @default(0) @map("kanban_order_index")
   status                 ActivityStatus @default(TODO)
-  validadoPorCoordinador Boolean        @default(false) @map("validado_por_coordinador")
-  validadoPorCoordinadorId String?       @map("validado_por_coordinador_id")
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
 
@@ -401,7 +446,6 @@ model Activity {
   tasks                  Task[]
   comentarios            ComentarioActividad[]
   evidencias             EvidenciaActividad[]
-  validadoPorCoordinadorPor User?       @relation("ActivityValidadoPor", fields: [validadoPorCoordinadorId], references: [id], onDelete: SetNull)
 
   @@index([projectId])
   @@map("activities")
@@ -501,8 +545,6 @@ model Indicador {
   porcentajeAvance       Float    @default(0) @map("porcentaje_avance")
   fechaInicio            String?  @map("fecha_inicio") // Formato: YYYY-MM-DD
   fechaFin               String?  @map("fecha_fin") // Formato: YYYY-MM-DD
-  validadoPorCoordinador Boolean  @default(false) @map("validado_por_coordinador")
-  validadoPorCoordinadorId String? @map("validado_por_coordinador_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
@@ -510,7 +552,6 @@ model Indicador {
   objetivoEspecifico ObjetivoProyecto @relation(fields: [objetivoEspecificoId], references: [id], onDelete: Cascade)
   comentarios       ComentarioIndicador[]
   evidencias        EvidenciaIndicador[]
-  validadoPorCoordinadorPor User? @relation("IndicadorValidadoPor", fields: [validadoPorCoordinadorId], references: [id], onDelete: SetNull)
 
   @@index([proyectoId])
   @@map("indicadores")
@@ -645,7 +686,6 @@ model CompromisoProyecto {
   descripcion            String    @db.Text
   fechaLimite            DateTime? @map("fecha_limite")
   completado             Boolean   @default(false)
-  validadoPorCoordinador Boolean   @default(false) @map("validado_por_coordinador")
   asignadoA              String?   @map("asignado_a")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")

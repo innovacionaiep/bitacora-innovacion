@@ -139,7 +139,6 @@ export async function updateUserProfile(
   userId: string,
   data: {
     name?: string;
-    image?: string;
     activeRole?: string;
   }
 ) {
@@ -156,7 +155,6 @@ export async function updateUserProfile(
       where: { id: userId },
       data: {
         ...(data.name !== undefined && { name: data.name }),
-        ...(data.image !== undefined && { image: data.image }),
         ...(data.activeRole !== undefined && { activeRole: data.activeRole }),
       },
     });

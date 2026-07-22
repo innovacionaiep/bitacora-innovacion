@@ -2,12 +2,13 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
-import { createHistorialEntry } from './historial';
+import { createHistorialEntry, createHistorialEntriesBatch } from './historial';
 import { getCurrentUser, getSession } from '@/lib/auth-utils';
 import {
   Proyecto,
   Escuela,
   Carrera,
+  Asignatura,
   Comuna,
   GrupoInteres,
   SocioComunitario,
@@ -34,6 +35,8 @@ export type ProyectoConVariaciones = ProyectoWithRelations & {
 export type GeneralTabUpdateData = {
   proyectoId: string;
   proyecto?: string;
+  fondo?: string;
+  linea?: string | null;
   sede?: string;
   youtubeUrl?: string | null;
   objetivoGeneral?: {
@@ -47,6 +50,7 @@ export type GeneralTabUpdateData = {
   }>;
   escuelasIds?: string[];
   carrerasIds?: string[];
+  asignaturasIds?: string[];
   comunasIds?: string[];
   gruposInteresIds?: string[];
   sociosComunitariosIds?: string[];
@@ -64,6 +68,11 @@ export type GeneralTabUpdateData = {
     factorInnovador?: string | null;
     escalabilidad?: string | null;
   };
+  /** Elementos DT nuevos (sin columna legacy), por subcategoría de config */
+  desarrolloTecnicoValores?: Array<{
+    subcategoriaId: string;
+    valor: string;
+  }>;
 };
 
 /**
@@ -92,6 +101,8 @@ async function _getProyectosFromDB(whereIds?: string[]) {
           socioComunitario: true,
           sede: true,
           escuela: true,
+          carrera: true,
+          asignatura: true,
         },
       },
       escuelas: {
@@ -102,6 +113,11 @@ async function _getProyectosFromDB(whereIds?: string[]) {
       carreras: {
         include: {
           carrera: true,
+        },
+      },
+      asignaturas: {
+        include: {
+          asignatura: true,
         },
       },
       comunas: {
@@ -200,10 +216,13 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
           user: { select: { id: true, name: true, email: true, image: true } },
           sede: { select: { id: true, nombre: true } },
           escuela: { select: { id: true, nombre: true } },
+          carrera: { select: { id: true, nombre: true } },
+          asignatura: { select: { id: true, nombre: true } },
         },
       },
       escuelas: { include: { escuela: true } },
       carreras: { include: { carrera: true } },
+      asignaturas: { include: { asignatura: true } },
       comunas: { include: { comuna: true } },
       gruposInteres: { include: { grupoInteres: true } },
       snapshotsMensuales: {
@@ -416,18 +435,19 @@ export async function getProyectosListadoParaUsuario(
 }
 
 export type GetProyectoOptions = {
-  /** Si false, omite activities/tasks (carga más rápida al seleccionar proyecto). */
+  /** Si true, incluye activities/tasks. Default false (carga rápida al seleccionar). */
   includeActivities?: boolean;
 };
 
 /**
- * Obtener un proyecto por ID con todas las relaciones
+ * Obtener un proyecto por ID con relaciones del detalle base (selects estrechos).
+ * Activities van aparte vía getActivities salvo includeActivities: true.
  */
 export async function getProyecto(
   id: string,
   options: GetProyectoOptions = {}
 ) {
-  const { includeActivities = true } = options;
+  const { includeActivities = false } = options;
   try {
     const proyecto = await prisma.proyecto.findUnique({
       where: { id },
@@ -435,8 +455,33 @@ export async function getProyecto(
         ...(includeActivities
           ? {
               activities: {
-                include: {
-                  tasks: true,
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  progress: true,
+                  projectId: true,
+                  color: true,
+                  orderIndex: true,
+                  kanbanOrderIndex: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  tasks: {
+                    select: {
+                      id: true,
+                      name: true,
+                      description: true,
+                      completed: true,
+                      startDate: true,
+                      endDate: true,
+                      progress: true,
+                      activityId: true,
+                      createdAt: true,
+                      updatedAt: true,
+                    },
+                    orderBy: { createdAt: 'asc' },
+                  },
                 },
                 orderBy: {
                   orderIndex: 'asc',
@@ -446,35 +491,50 @@ export async function getProyecto(
           : {}),
         participantes_rel: {
           include: {
-            user: true,
-            socioComunitario: true,
-            sede: true,
-            escuela: true,
+            user: {
+              select: { id: true, name: true, email: true, image: true },
+            },
+            socioComunitario: {
+              select: { id: true, nombre: true, descripcion: true },
+            },
+            sede: { select: { id: true, nombre: true } },
+            escuela: { select: { id: true, nombre: true } },
+            carrera: { select: { id: true, nombre: true } },
+            asignatura: { select: { id: true, nombre: true } },
           },
         },
         escuelas: {
           include: {
-            escuela: true,
+            escuela: { select: { id: true, nombre: true, codigo: true } },
           },
         },
         carreras: {
           include: {
-            carrera: true,
+            carrera: { select: { id: true, nombre: true } },
+          },
+        },
+        asignaturas: {
+          include: {
+            asignatura: { select: { id: true, nombre: true } },
           },
         },
         comunas: {
           include: {
-            comuna: true,
+            comuna: { select: { id: true, nombre: true, region: true } },
           },
         },
         gruposInteres: {
           include: {
-            grupoInteres: true,
+            grupoInteres: {
+              select: { id: true, nombre: true, descripcion: true },
+            },
           },
         },
         sociosComunitarios: {
           include: {
-            socioComunitario: true,
+            socioComunitario: {
+              select: { id: true, nombre: true, descripcion: true },
+            },
           },
         },
         objetivos_rel: {
@@ -484,7 +544,18 @@ export async function getProyecto(
         },
         desarrolloTecnico: true,
         desarrolloTecnicoValores: {
-          include: { subcategoria: true },
+          include: {
+            subcategoria: {
+              select: {
+                id: true,
+                nombre: true,
+                categoriaId: true,
+                orden: true,
+                icono: true,
+                campoKey: true,
+              },
+            },
+          },
         },
       },
     });
@@ -564,6 +635,7 @@ export async function createProyecto(data: CreateProyectoInput) {
       data: {
         proyecto: data.proyecto,
         fondo: data.fondo ?? '',
+        linea: data.linea?.trim() || null,
         sede: sedeStr,
         youtubeUrl: data.youtubeUrl ?? null,
         focalizacion: data.focalizacion,
@@ -582,6 +654,11 @@ export async function createProyecto(data: CreateProyectoInput) {
         carreras: {
           create: data.carrerasIds.map((carreraId) => ({
             carreraId,
+          })),
+        },
+        asignaturas: {
+          create: (data.asignaturasIds ?? []).map((asignaturaId) => ({
+            asignaturaId,
           })),
         },
         comunas: {
@@ -637,6 +714,11 @@ export async function createProyecto(data: CreateProyectoInput) {
         carreras: {
           include: {
             carrera: true,
+          },
+        },
+        asignaturas: {
+          include: {
+            asignatura: true,
           },
         },
         comunas: {
@@ -736,6 +818,7 @@ export async function createProyectoCompleto(
     const base: CreateProyectoInput = {
       proyecto: payload.proyecto,
       fondo: payload.fondo ?? '',
+      linea: payload.linea?.trim() || null,
       sede: sedeStr,
       ...(payload.sedesIds && { sedesIds: payload.sedesIds }),
       youtubeUrl: payload.youtubeUrl ?? null,
@@ -749,6 +832,7 @@ export async function createProyectoCompleto(
       participantes: payload.participantes ?? 0,
       escuelasIds: payload.escuelasIds ?? [],
       carrerasIds: payload.carrerasIds ?? [],
+      asignaturasIds: payload.asignaturasIds ?? [],
       comunasIds: payload.comunasIds ?? [],
       gruposInteresIds: payload.gruposInteresIds ?? [],
       sociosComunitariosIds: payload.sociosComunitariosIds ?? [],
@@ -860,6 +944,7 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
       data: {
         ...(data.proyecto !== undefined && { proyecto: data.proyecto }),
         ...(data.fondo !== undefined && { fondo: data.fondo }),
+        ...(data.linea !== undefined && { linea: data.linea }),
         ...(data.sede !== undefined && { sede: data.sede }),
         ...(data.focalizacion !== undefined && {
           focalizacion: data.focalizacion,
@@ -915,14 +1000,20 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       where: { id: data.proyectoId },
       select: {
         proyecto: true,
+        fondo: true,
+        linea: true,
         sede: true,
         escuelas: { select: { escuelaId: true } },
         carreras: { select: { carreraId: true } },
+        asignaturas: { select: { asignaturaId: true } },
         comunas: { select: { comunaId: true } },
         gruposInteres: { select: { grupoInteresId: true } },
         sociosComunitarios: { select: { socioComunitarioId: true } },
         objetivos_rel: { orderBy: { orden: 'asc' }, select: { id: true, descripcion: true, orden: true, tipo: true } },
         desarrolloTecnico: true,
+        desarrolloTecnicoValores: {
+          select: { subcategoriaId: true, valor: true },
+        },
       },
     });
 
@@ -932,11 +1023,18 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
     const estadoAnteriorYoutube = row?.youtube_url ?? null;
 
     await prisma.$transaction(async (tx) => {
-      if (data.proyecto !== undefined || data.sede !== undefined) {
+      if (
+        data.proyecto !== undefined ||
+        data.fondo !== undefined ||
+        data.linea !== undefined ||
+        data.sede !== undefined
+      ) {
         await tx.proyecto.update({
           where: { id: data.proyectoId },
           data: {
             ...(data.proyecto !== undefined && { proyecto: data.proyecto }),
+            ...(data.fondo !== undefined && { fondo: data.fondo }),
+            ...(data.linea !== undefined && { linea: data.linea }),
             ...(data.sede !== undefined && { sede: data.sede }),
           },
         });
@@ -970,6 +1068,20 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
             data: data.carrerasIds.map((carreraId) => ({
               proyectoId: data.proyectoId,
               carreraId,
+            })),
+          });
+        }
+      }
+
+      if (data.asignaturasIds) {
+        await tx.proyectoAsignatura.deleteMany({
+          where: { proyectoId: data.proyectoId },
+        });
+        if (data.asignaturasIds.length > 0) {
+          await tx.proyectoAsignatura.createMany({
+            data: data.asignaturasIds.map((asignaturaId) => ({
+              proyectoId: data.proyectoId,
+              asignaturaId,
             })),
           });
         }
@@ -1137,24 +1249,40 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
           }
         }
       }
+
+      if (data.desarrolloTecnicoValores !== undefined) {
+        for (const item of data.desarrolloTecnicoValores) {
+          const valor = item.valor?.trim() ?? '';
+          await tx.desarrolloTecnicoValor.upsert({
+            where: {
+              proyectoId_subcategoriaId: {
+                proyectoId: data.proyectoId,
+                subcategoriaId: item.subcategoriaId,
+              },
+            },
+            create: {
+              proyectoId: data.proyectoId,
+              subcategoriaId: item.subcategoriaId,
+              valor,
+            },
+            update: { valor },
+          });
+        }
+      }
     });
 
-    // Cargar proyecto actualizado con relaciones para obtener nombres (para historial e respuesta)
+    // Cargar proyecto actualizado SIN activities/tasks (el cliente preserva las ya cargadas)
     const proyectoActualizado = await prisma.proyecto.findUnique({
       where: { id: data.proyectoId },
       include: {
-        activities: {
-          include: {
-            tasks: {
-              orderBy: { createdAt: 'asc' },
-            },
-          },
-          orderBy: { orderIndex: 'asc' },
-        },
         participantes_rel: {
           include: {
             user: true,
             socioComunitario: true,
+            sede: true,
+            escuela: true,
+            carrera: true,
+            asignatura: true,
           },
         },
         escuelas: {
@@ -1165,6 +1293,11 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
         carreras: {
           include: {
             carrera: true,
+          },
+        },
+        asignaturas: {
+          include: {
+            asignatura: true,
           },
         },
         comunas: {
@@ -1207,6 +1340,7 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
     const prev = estadoAnterior;
     const prevEscuelas = prev?.escuelas.map((e) => e.escuelaId) ?? [];
     const prevCarreras = prev?.carreras.map((c) => c.carreraId) ?? [];
+    const prevAsignaturas = prev?.asignaturas.map((a) => a.asignaturaId) ?? [];
     const prevComunas = prev?.comunas.map((c) => c.comunaId) ?? [];
     const prevGrupos = prev?.gruposInteres.map((g) => g.grupoInteresId) ?? [];
     const prevSocios = prev?.sociosComunitarios.map((s) => s.socioComunitarioId) ?? [];
@@ -1217,6 +1351,12 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       historialEntries.push({
         elementoEspecifico: 'el nombre del proyecto',
         cambioGenerado: data.proyecto,
+      });
+    }
+    if (data.fondo !== undefined && !strEq(data.fondo, prev?.fondo ?? null)) {
+      historialEntries.push({
+        elementoEspecifico: 'el fondo del proyecto',
+        cambioGenerado: data.fondo || 'Sin fondo',
       });
     }
     if (data.sede !== undefined && !strEq(data.sede, prev?.sede ?? null)) {
@@ -1277,6 +1417,19 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
         cambioGenerado: nombres.length > 0 ? nombres.join(', ') : 'Sin carreras',
       });
     }
+    if (
+      data.asignaturasIds !== undefined &&
+      !idsEq(data.asignaturasIds, prevAsignaturas)
+    ) {
+      const nombres = proyectoActualizado.asignaturas
+        .map((a) => a.asignatura?.nombre)
+        .filter(Boolean) as string[];
+      historialEntries.push({
+        elementoEspecifico: 'las asignaturas del proyecto',
+        cambioGenerado:
+          nombres.length > 0 ? nombres.join(', ') : 'Sin asignaturas',
+      });
+    }
     if (data.comunasIds !== undefined && !idsEq(data.comunasIds, prevComunas)) {
       const nombres = proyectoActualizado.comunas
         .map((c) => c.comuna?.nombre)
@@ -1305,20 +1458,34 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       });
     }
 
-    const ELEMENTO_DESARROLLO_TECNICO: Record<string, string> = {
-      continuidadFasesAnteriores: 'la Continuidad de Fases Anteriores del proyecto',
-      pertinenciaLocal: 'la Pertinencia Local del proyecto',
-      pertinenciaDisciplinar: 'la Pertinencia Disciplinar del proyecto',
-      necesidadProblema: 'la Necesidad, Problema u Oportunidad del proyecto',
-      publicoObjetivo: 'el Público Objetivo del proyecto',
-      solucionAvance: 'la Solución o Avance del proyecto',
-      perspectiveGenero: 'la Perspectiva de Género del proyecto',
-      resultadosContribucion: 'los Resultados y Contribución Esperada del proyecto',
-      metodologiaMedicion: 'la Metodología y Medición del proyecto',
-      ejesImpacto: 'los Ejes de Impacto del proyecto',
-      factorInnovador: 'el Factor Innovador del proyecto',
-      escalabilidad: 'la Escalabilidad del proyecto',
+    const DEFAULT_ELEMENTO_DESARROLLO_TECNICO: Record<string, string> = {
+      continuidadFasesAnteriores: 'Continuidad de Fases Anteriores del proyecto',
+      pertinenciaLocal: 'Pertinencia Local del proyecto',
+      pertinenciaDisciplinar: 'Pertinencia Disciplinar del proyecto',
+      necesidadProblema: 'Necesidad, Problema u Oportunidad del proyecto',
+      publicoObjetivo: 'Público Objetivo del proyecto',
+      solucionAvance: 'Solución o Avance del proyecto',
+      perspectiveGenero: 'Perspectiva de Género del proyecto',
+      resultadosContribucion: 'Resultados y Contribución Esperada del proyecto',
+      metodologiaMedicion: 'Metodología y Medición del proyecto',
+      ejesImpacto: 'Ejes de Impacto del proyecto',
+      factorInnovador: 'Factor Innovador del proyecto',
+      escalabilidad: 'Escalabilidad del proyecto',
     };
+
+    const subcategoriasDt = await prisma.desarrolloTecnicoSubcategoria.findMany({
+      where: { campoKey: { not: null } },
+      select: { campoKey: true, nombre: true },
+    });
+    const ELEMENTO_DESARROLLO_TECNICO: Record<string, string> = {
+      ...DEFAULT_ELEMENTO_DESARROLLO_TECNICO,
+    };
+    for (const sub of subcategoriasDt) {
+      if (sub.campoKey && sub.nombre?.trim()) {
+        ELEMENTO_DESARROLLO_TECNICO[sub.campoKey] =
+          `${sub.nombre.trim()} del proyecto`;
+      }
+    }
 
     if (data.desarrolloTecnico !== undefined) {
       const dt = data.desarrolloTecnico;
@@ -1336,14 +1503,40 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       }
     }
 
-    for (const entry of historialEntries) {
-      await createHistorialEntry({
-        proyectoId: data.proyectoId,
-        accion: 'Actualizar',
-        tabProyecto: 'General',
-        elementoEspecifico: entry.elementoEspecifico,
-        cambioGenerado: entry.cambioGenerado,
+    if (data.desarrolloTecnicoValores !== undefined) {
+      const prevValoresBySub = new Map(
+        (prev?.desarrolloTecnicoValores ?? []).map((v) => [
+          v.subcategoriaId,
+          v.valor ?? '',
+        ])
+      );
+      const subIds = data.desarrolloTecnicoValores.map((v) => v.subcategoriaId);
+      const subsMeta = await prisma.desarrolloTecnicoSubcategoria.findMany({
+        where: { id: { in: subIds } },
+        select: { id: true, nombre: true },
       });
+      const nombreById = new Map(subsMeta.map((s) => [s.id, s.nombre]));
+      for (const item of data.desarrolloTecnicoValores) {
+        const valorNuevo = item.valor?.trim() ?? '';
+        const valorPrev = (prevValoresBySub.get(item.subcategoriaId) ?? '').trim();
+        if (valorNuevo !== valorPrev) {
+          const nombre =
+            nombreById.get(item.subcategoriaId)?.trim() || 'elemento de desarrollo técnico';
+          historialEntries.push({
+            elementoEspecifico: `${nombre} del proyecto`,
+            cambioGenerado: item.valor ?? '',
+          });
+        }
+      }
+    }
+
+    if (historialEntries.length > 0) {
+      await createHistorialEntriesBatch(
+        data.proyectoId,
+        'Actualizar',
+        'General',
+        historialEntries
+      );
     }
 
     revalidatePath('/proyectos');
@@ -1447,26 +1640,25 @@ const proyectoIncludeForParticipante = {
       socioComunitario: true,
       sede: true,
       escuela: true,
+      carrera: true,
+      asignatura: true,
     },
   },
-  escuelas: { include: { escuela: true } },
-  carreras: { include: { carrera: true } },
-  comunas: { include: { comuna: true } },
-  gruposInteres: { include: { grupoInteres: true } },
   sociosComunitarios: { include: { socioComunitario: true } },
-  objetivos_rel: { orderBy: { orden: 'asc' as const } },
-  desarrolloTecnico: true,
-  desarrolloTecnicoValores: { include: { subcategoria: true } },
 } as const;
 
 export type AddParticipanteData = {
   rol: string;
   nombre?: string;
+  rut?: string;
   email?: string;
   cargo?: string;
+  laborEnProyecto?: string;
   socioComunitarioId?: string;
   sedeId?: string;
   escuelaId?: string;
+  carreraId?: string;
+  asignaturaId?: string;
 };
 
 export async function addParticipanteProyecto(
@@ -1474,21 +1666,46 @@ export async function addParticipanteProyecto(
   data: AddParticipanteData
 ) {
   try {
+    if (!data.email?.trim()) {
+      return {
+        success: false,
+        error: 'El correo es obligatorio.',
+      };
+    }
+    if (
+      (data.rol === 'Docente' || data.rol === 'Estudiante') &&
+      !data.rut?.trim()
+    ) {
+      return {
+        success: false,
+        error: 'El RUT es obligatorio para docentes y estudiantes.',
+      };
+    }
+    if (data.rol === 'Estudiante' && !data.carreraId) {
+      return {
+        success: false,
+        error: 'La carrera es obligatoria para estudiantes.',
+      };
+    }
+    if (data.rol === 'Estudiante' && !data.asignaturaId) {
+      return {
+        success: false,
+        error: 'La asignatura es obligatoria para estudiantes.',
+      };
+    }
     let userId: string | null = null;
     let nombre = data.nombre ?? null;
-    let email = data.email ?? null;
-    if (data.email?.trim()) {
-      const user = await prisma.user.findFirst({
-        where: {
-          email: { equals: data.email.trim(), mode: 'insensitive' },
-        },
-        select: { id: true, name: true, email: true },
-      });
-      if (user) {
-        userId = user.id;
-        nombre = user.name ?? nombre;
-        email = user.email;
-      }
+    let email = data.email.trim();
+    const user = await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
+      select: { id: true, name: true, email: true },
+    });
+    if (user) {
+      userId = user.id;
+      nombre = user.name ?? nombre;
+      email = user.email;
     }
     const participante = await prisma.proyectoParticipante.create({
       data: {
@@ -1496,14 +1713,18 @@ export async function addParticipanteProyecto(
         userId,
         rol: data.rol,
         nombre,
+        rut: data.rut?.trim() || null,
         email,
         cargo: data.cargo ?? null,
+        laborEnProyecto: data.laborEnProyecto?.trim() || null,
         socioComunitarioId:
           data.rol === 'Beneficiario'
             ? (data.socioComunitarioId ?? null)
             : null,
         sedeId: data.sedeId ?? null,
         escuelaId: data.escuelaId ?? null,
+        carreraId: data.carreraId ?? null,
+        asignaturaId: data.asignaturaId ?? null,
       },
     });
     await createHistorialEntry({
@@ -1533,11 +1754,15 @@ export async function addParticipanteProyecto(
 export type UpdateParticipanteData = {
   rol?: string;
   nombre?: string;
+  rut?: string;
   email?: string;
   cargo?: string;
+  laborEnProyecto?: string;
   socioComunitarioId?: string;
   sedeId?: string;
   escuelaId?: string;
+  carreraId?: string;
+  asignaturaId?: string;
 };
 
 export async function updateParticipanteProyecto(
@@ -1552,34 +1777,82 @@ export async function updateParticipanteProyecto(
       return { success: false, error: 'Participante no encontrado' };
     }
     const finalRol = data.rol ?? existing.rol;
+    const finalRut =
+      data.rut !== undefined ? data.rut.trim() || null : existing.rut;
+    const finalCarreraId =
+      data.carreraId !== undefined
+        ? data.carreraId || null
+        : existing.carreraId;
+    const finalAsignaturaId =
+      data.asignaturaId !== undefined
+        ? data.asignaturaId || null
+        : existing.asignaturaId;
+    const finalEmail =
+      data.email !== undefined ? data.email.trim() || null : existing.email;
+    if (!finalEmail?.trim()) {
+      return {
+        success: false,
+        error: 'El correo es obligatorio.',
+      };
+    }
+    if (
+      (finalRol === 'Docente' || finalRol === 'Estudiante') &&
+      !finalRut?.trim()
+    ) {
+      return {
+        success: false,
+        error: 'El RUT es obligatorio para docentes y estudiantes.',
+      };
+    }
+    if (finalRol === 'Estudiante' && !finalCarreraId) {
+      return {
+        success: false,
+        error: 'La carrera es obligatoria para estudiantes.',
+      };
+    }
+    if (finalRol === 'Estudiante' && !finalAsignaturaId) {
+      return {
+        success: false,
+        error: 'La asignatura es obligatoria para estudiantes.',
+      };
+    }
     let resolvedUserId: string | null = existing.userId;
     let resolvedNombre: string | null = data.nombre !== undefined ? data.nombre : existing.nombre;
     let resolvedEmail: string | null = data.email !== undefined ? data.email : existing.email;
-    if (data.email !== undefined && data.email?.trim()) {
-      const user = await prisma.user.findFirst({
-        where: {
-          email: { equals: data.email.trim(), mode: 'insensitive' },
-        },
-        select: { id: true, name: true, email: true },
-      });
-      if (user) {
-        resolvedUserId = user.id;
-        resolvedNombre = user.name ?? resolvedNombre;
-        resolvedEmail = user.email;
+    if (data.email !== undefined) {
+      if (data.email.trim()) {
+        const user = await prisma.user.findFirst({
+          where: {
+            email: { equals: data.email.trim(), mode: 'insensitive' },
+          },
+          select: { id: true, name: true, email: true },
+        });
+        if (user) {
+          resolvedUserId = user.id;
+          resolvedNombre = user.name ?? resolvedNombre;
+          resolvedEmail = user.email;
+        } else {
+          resolvedUserId = null;
+          resolvedEmail = data.email.trim();
+        }
       } else {
         resolvedUserId = null;
-        resolvedEmail = data.email.trim();
+        resolvedEmail = null;
       }
     }
     const updateData = {
       ...(data.rol !== undefined && { rol: data.rol }),
       ...(data.nombre !== undefined && { nombre: data.nombre }),
+      ...(data.rut !== undefined && { rut: data.rut.trim() || null }),
       ...(data.email !== undefined && {
         nombre: resolvedNombre,
         email: resolvedEmail,
         userId: resolvedUserId,
       }),
       ...(data.cargo !== undefined && { cargo: data.cargo }),
+      ...(data.laborEnProyecto !== undefined && {
+        laborEnProyecto: data.laborEnProyecto.trim() || null,
+      }),
       ...(data.socioComunitarioId !== undefined && {
         socioComunitarioId:
           finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
@@ -1587,6 +1860,12 @@ export async function updateParticipanteProyecto(
       ...(data.sedeId !== undefined && { sedeId: data.sedeId || null }),
       ...(data.escuelaId !== undefined && {
         escuelaId: data.escuelaId || null,
+      }),
+      ...(data.carreraId !== undefined && {
+        carreraId: data.carreraId || null,
+      }),
+      ...(data.asignaturaId !== undefined && {
+        asignaturaId: data.asignaturaId || null,
       }),
     };
     await prisma.proyectoParticipante.update({
@@ -1687,6 +1966,21 @@ export async function getCarreras(): Promise<CatalogoResponse<Carrera>> {
 }
 
 /**
+ * Obtener todas las asignaturas
+ */
+export async function getAsignaturas(): Promise<CatalogoResponse<Asignatura>> {
+  try {
+    const asignaturas = await prisma.asignatura.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: asignaturas };
+  } catch (error) {
+    console.error('Error getting asignaturas:', error);
+    return { success: false, error: 'Error al obtener asignaturas' };
+  }
+}
+
+/**
  * Obtener todas las comunas
  */
 export async function getComunas(): Promise<CatalogoResponse<Comuna>> {
@@ -1732,6 +2026,89 @@ export async function getSociosComunitarios(): Promise<
   } catch (error) {
     console.error('Error getting socios comunitarios:', error);
     return { success: false, error: 'Error al obtener socios comunitarios' };
+  }
+}
+
+export type CatalogosGeneralData = {
+  escuelas: Escuela[];
+  carreras: Carrera[];
+  asignaturas: Asignatura[];
+  comunas: Comuna[];
+  gruposInteres: GrupoInteres[];
+  sociosComunitarios: SocioComunitario[];
+  sedes: { id: string; nombre: string; orden: number }[];
+  fondos: { id: string; nombre: string; orden: number }[];
+  lineas: {
+    id: string;
+    nombre: string;
+    orden: number;
+    fondoId: string;
+    fondoNombre: string;
+  }[];
+};
+
+/**
+ * Obtener todos los catálogos del tab General en una sola round-trip.
+ * Evita 7 server actions separadas al editar/crear proyectos.
+ */
+export async function getCatalogosGeneral(): Promise<{
+  success: boolean;
+  data?: CatalogosGeneralData;
+  error?: string;
+}> {
+  try {
+    const [
+      escuelas,
+      carreras,
+      asignaturas,
+      comunas,
+      gruposInteres,
+      sociosComunitarios,
+      sedes,
+      fondos,
+      lineasRaw,
+    ] = await Promise.all([
+      prisma.escuela.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.carrera.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.asignatura.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.comuna.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.grupoInteres.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.socioComunitario.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.sede.findMany({
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+      }),
+      prisma.fondo.findMany({
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+      }),
+      prisma.linea.findMany({
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+        include: { fondo: { select: { nombre: true } } },
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        escuelas,
+        carreras,
+        asignaturas,
+        comunas,
+        gruposInteres,
+        sociosComunitarios,
+        sedes,
+        fondos,
+        lineas: lineasRaw.map((l) => ({
+          id: l.id,
+          nombre: l.nombre,
+          orden: l.orden,
+          fondoId: l.fondoId,
+          fondoNombre: l.fondo.nombre,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error('Error getting catalogos general:', error);
+    return { success: false, error: 'Error al obtener catálogos' };
   }
 }
 

@@ -8,7 +8,6 @@ import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 
 /**
  * Obtener los roles para los que el usuario tiene al menos un proyecto (roles con proyectos vigentes).
- * Usado en el menú de la cabecera del portal de Inicio.
  */
 export async function getRolesConProyectosVigentes() {
   try {
@@ -194,8 +193,6 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
 
 export interface AlertasPortal {
   coordinador?: {
-    actividadesPorValidar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
-    indicadoresPorValidar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
     presupuestoPorSolicitar: Array<{ id: string; item: string; proyectoId: string; proyectoNombre: string }>;
   };
   encargado?: {
@@ -206,7 +203,7 @@ export interface AlertasPortal {
 }
 
 /**
- * Alertas del portal según rol activo: Coordinador → por validar; Encargado → por evidenciar.
+ * Alertas del portal según rol activo: Coordinador → presupuesto; Encargado → por evidenciar.
  * Solo proyectos donde el usuario tiene ese rol.
  */
 export async function getAlertasPortalUsuario(activeRole: string | null) {
@@ -229,81 +226,21 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
     const LIMITE_ALERTAS_PORTAL = 100;
 
     if (activeRole === 'Coordinador') {
-      const [actividades, indicadores, presupuesto] = await Promise.all([
-        prisma.activity.findMany({
-          where: {
-            projectId: { in: proyectoIds },
-            validadoPorCoordinador: false,
-          },
-          select: {
-            id: true,
-            name: true,
-            projectId: true,
-            progress: true,
-            project: { select: { proyecto: true } },
-            tasks: { select: { completed: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-        prisma.indicador.findMany({
-          where: {
-            proyectoId: { in: proyectoIds },
-            validadoPorCoordinador: false,
-          },
-          select: {
-            id: true,
-            nombre: true,
-            proyectoId: true,
-            porcentajeAvance: true,
-            proyecto: { select: { proyecto: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-        prisma.itemPresupuesto.findMany({
-          where: {
-            proyectoId: { in: proyectoIds },
-            idSolicitud: null,
-          },
-          select: {
-            id: true,
-            item: true,
-            proyectoId: true,
-            proyecto: { select: { proyecto: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-      ]);
-
-      // Solo mostrar actividades e indicadores con 100% de completitud para validar.
-      // Usar progreso calculado por tareas (como en el Gantt) para no depender solo del campo progress de la BD.
-      const ACTIVIDADES_INDICADORES_100 = 100;
-      const progressFromTasks = (a: { tasks: { completed: boolean }[] }) => {
-        const tasks = a.tasks ?? [];
-        if (tasks.length === 0) return 0;
-        const completed = tasks.filter((t) => t.completed).length;
-        return Math.round((completed / tasks.length) * 100);
-      };
-      const actividades100 = actividades.filter((a) => {
-        const computed = progressFromTasks(a);
-        return computed >= ACTIVIDADES_INDICADORES_100;
+      const presupuesto = await prisma.itemPresupuesto.findMany({
+        where: {
+          proyectoId: { in: proyectoIds },
+          idSolicitud: null,
+        },
+        select: {
+          id: true,
+          item: true,
+          proyectoId: true,
+          proyecto: { select: { proyecto: true } },
+        },
+        take: LIMITE_ALERTAS_PORTAL,
       });
+
       result.coordinador = {
-        actividadesPorValidar: actividades100.map((a) => ({
-            id: a.id,
-            name: a.name,
-            proyectoId: a.projectId,
-            proyectoNombre: a.project?.proyecto ?? '',
-            porcentaje: progressFromTasks(a),
-          })),
-        indicadoresPorValidar: indicadores
-          .filter((i) => Number(i.porcentajeAvance ?? 0) >= ACTIVIDADES_INDICADORES_100)
-          .map((i) => ({
-            id: i.id,
-            nombre: i.nombre,
-            proyectoId: i.proyectoId,
-            proyectoNombre: i.proyecto?.proyecto ?? '',
-            porcentaje: Number(i.porcentajeAvance ?? 0),
-          })),
         presupuestoPorSolicitar: presupuesto.map((p) => ({
           id: p.id,
           item: p.item,
@@ -400,7 +337,6 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
 }
 
 export type InicioInitialData = {
-  rolesVigentes: string[];
   role: string | null;
   proyectos: Awaited<ReturnType<typeof getProyectosDelUsuarioConRol>>['data'];
   alertas: Awaited<ReturnType<typeof getAlertasPortalUsuario>>['data'];
@@ -419,9 +355,10 @@ export async function getInicioInitialData(
   const user = await getCurrentUser();
   if (!user?.id) return null;
 
-  const rolesRes = await getRolesConProyectosVigentes();
-  const rolesVigentes = rolesRes.success && rolesRes.data ? rolesRes.data : [];
-  const role = activeRole ?? rolesVigentes[0] ?? null;
+  const role =
+    activeRole ??
+    (user as { availableRoles?: string[] }).availableRoles?.[0] ??
+    null;
 
   const [proyectosRes, alertasRes, compromisosRes, historialRes] =
     await Promise.all([
@@ -432,7 +369,6 @@ export async function getInicioInitialData(
     ]);
 
   return {
-    rolesVigentes,
     role,
     proyectos: proyectosRes.success ? proyectosRes.data ?? [] : [],
     alertas: alertasRes.success ? alertasRes.data : null,

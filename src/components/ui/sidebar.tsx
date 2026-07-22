@@ -29,8 +29,10 @@ const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '9.5rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
-const SIDEBAR_WIDTH_ICON = '3rem';
-const SIDEBAR_SPACER_ICON = '3.5rem';
+/** Ancho del panel en modo icono (única fuente de verdad; el spacer usa el mismo valor). */
+const SIDEBAR_WIDTH_ICON = '4rem';
+/** Duración de la animación de ancho (debe coincidir con el delay del modo icon). */
+const SIDEBAR_WIDTH_MS = 200;
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
 type SidebarContextProps = {
@@ -164,7 +166,6 @@ const SidebarProvider = React.forwardRef<
               {
                 '--sidebar-width': SIDEBAR_WIDTH,
                 '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
-                '--sidebar-spacer-icon': SIDEBAR_SPACER_ICON,
                 ...style,
               } as React.CSSProperties
             }
@@ -205,6 +206,32 @@ const Sidebar = React.forwardRef<
   ) => {
     const { isMobile, state, openMobile, setOpenMobile, expandOnHover, setHovered } =
       useSidebar();
+
+    // Modo icono (size-8, ocultar labels) va DESPUÉS de la animación de ancho al colapsar,
+    // y al expandir se quita al instante → transición suave sin snap final.
+    const [iconMode, setIconMode] = React.useState(state === 'collapsed');
+    const iconModeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    React.useEffect(() => {
+      if (iconModeTimerRef.current) {
+        clearTimeout(iconModeTimerRef.current);
+        iconModeTimerRef.current = null;
+      }
+      if (state === 'expanded') {
+        setIconMode(false);
+        return;
+      }
+      iconModeTimerRef.current = setTimeout(() => {
+        setIconMode(true);
+        iconModeTimerRef.current = null;
+      }, SIDEBAR_WIDTH_MS);
+      return () => {
+        if (iconModeTimerRef.current) {
+          clearTimeout(iconModeTimerRef.current);
+          iconModeTimerRef.current = null;
+        }
+      };
+    }, [state]);
 
     if (collapsible === 'none') {
       return (
@@ -249,43 +276,48 @@ const Sidebar = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          'group peer hidden text-sidebar-foreground md:block shrink-0 w-[var(--sidebar-width)] data-[collapsible=icon]:w-[var(--sidebar-spacer-icon)]'
+          // Ancho según data-state (animado). Sin franja: spacer = panel.
+          'group peer hidden text-sidebar-foreground md:block shrink-0 bg-sidebar',
+          'w-[var(--sidebar-width)] data-[state=collapsed]:w-[var(--sidebar-width-icon)]',
+          'transition-[width] duration-200 ease-linear'
         )}
         data-state={state}
-        data-collapsible={state === 'collapsed' ? collapsible : ''}
+        data-collapsible={iconMode ? collapsible : ''}
         data-variant={variant}
         data-side={side}
         onMouseEnter={expandOnHover ? () => setHovered(true) : undefined}
         onMouseLeave={expandOnHover ? () => setHovered(false) : undefined}
       >
-        {/* This is what handles the sidebar gap on desktop */}
+        {/* Reserva el espacio en el flujo del documento */}
         <div
           className={cn(
-            'relative w-[--sidebar-width] bg-transparent',
+            'relative w-[var(--sidebar-width)] bg-sidebar transition-[width] duration-200 ease-linear',
             'group-data-[collapsible=offcanvas]:w-0',
             'group-data-[side=right]:rotate-180',
             variant === 'floating' || variant === 'inset'
-              ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]'
-              : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon]'
+              ? 'group-data-[state=collapsed]:w-[calc(var(--sidebar-width-icon)+theme(spacing.4))]'
+              : 'group-data-[state=collapsed]:w-[var(--sidebar-width-icon)]'
           )}
         />
         <div
           className={cn(
-            'fixed inset-y-0 top-0 bottom-0 z-10 hidden h-full min-h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex',
+            'fixed inset-y-0 top-0 bottom-0 z-10 hidden h-full min-h-svh w-[var(--sidebar-width)] md:flex',
+            'transition-[width] duration-200 ease-linear',
+            'data-[state=collapsed]:w-[var(--sidebar-width-icon)]',
             side === 'left'
               ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
               : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-            // Adjust the padding for floating and inset variants.
             variant === 'floating' || variant === 'inset'
-              ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]'
-              : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l',
+              ? 'p-2 group-data-[state=collapsed]:w-[calc(var(--sidebar-width-icon)+theme(spacing.4)+2px)]'
+              : 'group-data-[side=left]:border-r group-data-[side=right]:border-l data-[state=collapsed]:border-r-0',
             className
           )}
+          data-state={state}
           {...props}
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            className="flex h-full w-full min-w-0 flex-col overflow-x-hidden bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
           >
             {children}
           </div>

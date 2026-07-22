@@ -33,7 +33,7 @@ export default async function ConfiguracionLayout({
   ];
 
   return (
-    <div className="flex flex-col w-full h-full min-h-0 px-8 pt-6 pb-6">
+    <div className="flex flex-col w-full h-full min-h-0 overflow-hidden pt-6 pb-6">
       <ConfigRoleGuard />
       <div className="flex-shrink-0 border-b border-gray-200 pb-4">
         <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>

@@ -29,6 +29,7 @@ import {
 import { useSession } from 'next-auth/react';
 import type { ItemPresupuestoItem } from '@/types/presupuesto';
 import { EstadoBadge } from './PresupuestoCard';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 
 interface GastoPresupuestoModalProps {
   gasto: ItemPresupuestoItem;
@@ -258,20 +259,11 @@ export function GastoPresupuestoModal({
                     className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
                   >
                     <div className="flex-shrink-0">
-                      {comentario.user.image ? (
-                        <img
-                          src={comentario.user.image}
-                          alt={comentario.user.name || 'Usuario'}
-                          className="w-10 h-10 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
-                            {(comentario.user.name ||
-                              comentario.user.email)[0].toUpperCase()}
-                          </span>
-                        </div>
-                      )}
+                      <img
+                        src={DEFAULT_AVATAR}
+                        alt={comentario.user.name || 'Usuario'}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
@@ -304,20 +296,11 @@ export function GastoPresupuestoModal({
             {session?.user && (
               <div className="flex items-start space-x-4 pt-6 pb-4 border-t border-gray-200 flex-shrink-0">
                 <div className="flex-shrink-0">
-                  {session.user.image ? (
-                    <img
-                      src={session.user.image}
-                      alt={session.user.name || 'Usuario'}
-                      className="w-10 h-10 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-600">
-                        {(session.user.name ||
-                          session.user.email)[0].toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  <img
+                    src={DEFAULT_AVATAR}
+                    alt={session.user.name || 'Usuario'}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 space-y-2">
                   <div className="text-sm text-gray-500 mb-2">

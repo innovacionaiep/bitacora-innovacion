@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+'use client';
+
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import {
   getProyectosListadoParaUsuario,
   createProyecto,
@@ -8,38 +12,41 @@ import {
   type ProyectoListadoItem,
 } from '@/lib/actions/proyectos';
 import type { ProyectoFormData } from '@/types/proyecto';
+import { proyectosListadoKey } from '@/lib/query-keys';
 
 /**
  * Hook que carga un listado ligero de proyectos (solo id, nombre, sede, escuelas).
- * La carga completa del proyecto se hace al seleccionar (getProyecto).
+ * Cache React Query; la carga completa del proyecto se hace al seleccionar (getProyecto).
  */
 export function useProyectosParaUsuario() {
-  const [proyectos, setProyectos] = useState<ProyectoListadoItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const activeRole =
+    (session?.user as { activeRole?: string | null } | undefined)?.activeRole ??
+    null;
+  const queryClient = useQueryClient();
 
-  const fetchProyectos = async (opts?: {
-    silent?: boolean;
-    activeRole?: string | null;
-  }) => {
-    try {
-      if (!opts?.silent) setLoading(true);
-      const result = await getProyectosListadoParaUsuario(opts?.activeRole);
+  const query = useQuery({
+    queryKey: proyectosListadoKey(activeRole),
+    queryFn: async () => {
+      const result = await getProyectosListadoParaUsuario(activeRole);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error ?? 'Error al obtener listado');
       }
+      return (result.data ?? []) as ProyectoListadoItem[];
+    },
+    staleTime: 60_000,
+    enabled: !!session?.user,
+  });
 
-      setProyectos(result.data || []);
-      setError(null);
-    } catch (err) {
-      console.error('❌ [useProyectosParaUsuario] Error:', err);
-      setError(
-        err instanceof Error ? err.message : 'Error al cargar proyectos'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchProyectos = useCallback(
+    async (opts?: { silent?: boolean; activeRole?: string | null }) => {
+      const role = opts?.activeRole !== undefined ? opts.activeRole : activeRole;
+      await queryClient.invalidateQueries({
+        queryKey: proyectosListadoKey(role),
+      });
+    },
+    [activeRole, queryClient]
+  );
 
   const createProyectoHandler = async (proyecto: ProyectoFormData) => {
     try {
@@ -50,7 +57,9 @@ export function useProyectosParaUsuario() {
       }
 
       if (result.data) {
-        await fetchProyectos({ silent: true });
+        await queryClient.invalidateQueries({
+          queryKey: ['proyectos-listado'],
+        });
       }
 
       return { data: result.data, error: null };
@@ -73,7 +82,9 @@ export function useProyectosParaUsuario() {
         return { data: null, error: result.error };
       }
 
-      await fetchProyectos({ silent: true });
+      await queryClient.invalidateQueries({
+        queryKey: ['proyectos-listado'],
+      });
 
       return { data: result.data, error: null };
     } catch (err) {
@@ -93,7 +104,13 @@ export function useProyectosParaUsuario() {
         return { error: result.error };
       }
 
-      setProyectos((prev) => prev.filter((p) => p.id !== id));
+      queryClient.setQueryData<ProyectoListadoItem[]>(
+        proyectosListadoKey(activeRole),
+        (prev) => (prev ? prev.filter((p) => p.id !== id) : prev)
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ['proyectos-listado'],
+      });
       return { error: null };
     } catch (err) {
       return {
@@ -103,14 +120,15 @@ export function useProyectosParaUsuario() {
     }
   };
 
-  useEffect(() => {
-    fetchProyectos();
-  }, []);
-
   return {
-    proyectos,
-    loading,
-    error,
+    proyectos: query.data ?? [],
+    loading: query.isLoading && !query.data,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Error al cargar proyectos'
+      : null,
     fetchProyectos,
     createProyecto: createProyectoHandler,
     updateProyecto: updateProyectoHandler,

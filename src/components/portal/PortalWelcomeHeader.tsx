@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { updateUserProfile } from '@/lib/auth-actions';
-import { Check, ChevronDown } from 'lucide-react';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
+import { Check, ChevronDown, LogOut, Pencil, X } from 'lucide-react';
 
 function getRoleColors(role: string): string {
   switch (role.toLowerCase()) {
@@ -56,19 +58,41 @@ function getRoleCircleColor(role: string): string {
 }
 
 export interface PortalWelcomeHeaderProps {
-  rolesVigentes: string[];
   onRoleChange?: (newRole: string) => void;
 }
 
-export function PortalWelcomeHeader({
-  rolesVigentes,
-  onRoleChange,
-}: PortalWelcomeHeaderProps) {
+export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) {
   const { data: session, update } = useSession();
   const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [tempFullName, setTempFullName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const sessionRefreshedRef = useRef(false);
 
+  const availableRoles = session?.user?.availableRoles ?? [];
   const currentRole =
-    optimisticRole ?? session?.user?.activeRole ?? rolesVigentes[0] ?? 'Sin rol';
+    optimisticRole ?? session?.user?.activeRole ?? availableRoles[0] ?? 'Sin rol';
+
+  useEffect(() => {
+    if (session?.user) {
+      setFullName(session.user.name || '');
+      setTempFullName(session.user.name || '');
+    }
+  }, [session?.user?.name, session?.user]);
+
+  useEffect(() => {
+    if (optimisticRole && session?.user?.activeRole === optimisticRole) {
+      setOptimisticRole(null);
+    }
+  }, [session?.user?.activeRole, optimisticRole]);
+
+  // Al montar Inicio, refrescar sesión para sincronizar availableRoles desde BD
+  useEffect(() => {
+    if (!session?.user?.id || sessionRefreshedRef.current) return;
+    sessionRefreshedRef.current = true;
+    update({ activeRole: session.user.activeRole ?? undefined });
+  }, [session?.user?.id, session?.user?.activeRole, update]);
 
   const handleRoleChange = async (newRole: string) => {
     if (!session?.user?.id) return;
@@ -85,43 +109,119 @@ export function PortalWelcomeHeader({
     } catch {
       setOptimisticRole(previousRole);
       await update({ activeRole: previousRole });
-      const roleToNotify: string | null = previousRole;
-      if (typeof roleToNotify === 'string') {
-        onRoleChange?.(roleToNotify);
+      if (typeof previousRole === 'string') {
+        onRoleChange?.(previousRole);
       }
     }
   };
 
+  const handleNameEdit = () => {
+    setIsEditingName(true);
+    setTempFullName(fullName);
+    setNameError('');
+  };
+
+  const handleNameCancel = () => {
+    setIsEditingName(false);
+    setTempFullName(fullName);
+    setNameError('');
+  };
+
+  const handleNameSave = async () => {
+    if (!tempFullName.trim()) {
+      setNameError('El nombre no puede estar vacío');
+      return;
+    }
+    if (!session?.user?.id) return;
+
+    const previousName = fullName;
+    setFullName(tempFullName);
+    setIsEditingName(false);
+    setNameError('');
+
+    try {
+      const result = await updateUserProfile(session.user.id, {
+        name: tempFullName,
+      });
+      if (!result.success) {
+        setFullName(previousName);
+        setIsEditingName(true);
+        setNameError(result.error || 'Error al actualizar el nombre');
+      } else {
+        update({ name: tempFullName }).catch(console.error);
+      }
+    } catch {
+      setFullName(previousName);
+      setIsEditingName(true);
+      setNameError('Error inesperado al actualizar el nombre');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/auth/login' });
+  };
+
   if (!session?.user) return null;
 
-  const name = session.user.name || session.user.email || 'Usuario';
-  const image = session.user.image;
+  const displayName = fullName || session.user.email || 'Usuario';
 
   return (
-    <header className="flex flex-wrap items-center gap-4 w-full">
+    <header className="flex flex-wrap items-center justify-between gap-4 w-full">
       <div className="flex items-center gap-4 min-w-0">
         <Avatar className="h-16 w-16 border-2 border-muted shrink-0">
-          <AvatarImage src={image ?? undefined} alt={name} />
+          <AvatarImage src={DEFAULT_AVATAR} alt={displayName} />
           <AvatarFallback className="text-lg">
-            {(name.charAt(0) || 'U').toUpperCase()}
+            {(displayName.charAt(0) || 'U').toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Bienvenido, {name}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Selecciona tu rol para ver el contenido asociado
+        <div className="min-w-0">
+          {!isEditingName ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight truncate">
+                Bienvenido, {displayName}
+              </h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNameEdit}
+                className="p-1 shrink-0"
+                aria-label="Editar nombre"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input
+                value={tempFullName}
+                onChange={(e) => setTempFullName(e.target.value)}
+                placeholder="Tu nombre completo"
+                className="text-xl font-bold h-10 max-w-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleNameSave();
+                  if (e.key === 'Escape') handleNameCancel();
+                }}
+                autoFocus
+              />
+              <Button onClick={() => void handleNameSave()} size="sm">
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button onClick={handleNameCancel} variant="outline" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          <p className="text-muted-foreground text-sm mt-0.5 truncate">
+            {session.user.email}
           </p>
+          {nameError && (
+            <p className="text-red-600 text-xs mt-1">{nameError}</p>
+          )}
         </div>
       </div>
 
-      {rolesVigentes.length > 0 && (
-        <>
-          <div
-            className="hidden sm:block h-10 w-px bg-border shrink-0"
-            aria-hidden
-          />
+      <div className="flex items-center gap-3 shrink-0 ml-auto">
+        {availableRoles.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -133,13 +233,13 @@ export function PortalWelcomeHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[160px]">
-              {rolesVigentes.map((role) => {
+              {availableRoles.map((role) => {
                 const isActive = role === currentRole;
                 return (
                   <DropdownMenuItem
                     key={role}
                     className={`cursor-pointer flex items-center gap-2 ${isActive ? 'bg-accent font-semibold' : ''}`}
-                    onClick={() => handleRoleChange(role)}
+                    onClick={() => void handleRoleChange(role)}
                   >
                     <div
                       className={`w-3 h-3 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
@@ -151,8 +251,17 @@ export function PortalWelcomeHeader({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-        </>
-      )}
+        )}
+
+        <Button
+          onClick={() => void handleSignOut()}
+          size="sm"
+          className="bg-red-500 hover:bg-red-600 text-white"
+        >
+          <LogOut className="h-3 w-3 mr-1" />
+          Cerrar Sesión
+        </Button>
+      </div>
     </header>
   );
 }

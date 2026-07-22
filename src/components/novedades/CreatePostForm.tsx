@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { Calendar } from '@/components/ui/calendar';
 import { ImageUploader, UploadedImage } from './ImageUploader';
 import { ProjectSelector } from './ProjectSelector';
@@ -148,7 +149,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
       <CardContent className="p-4">
         <div className="flex gap-3">
           <Avatar className="h-10 w-10 flex-shrink-0">
-            <AvatarImage src={user.image || undefined} />
+            <AvatarImage src={DEFAULT_AVATAR} />
             <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
 

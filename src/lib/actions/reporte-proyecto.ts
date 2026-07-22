@@ -33,7 +33,7 @@ export async function getDatosResumenProyecto(proyectoId: string): Promise<{
     resumenPresupuestoResult,
     compromisosResult,
   ] = await Promise.all([
-    getProyecto(proyectoId),
+    getProyecto(proyectoId, { includeActivities: false }),
     getIndicadoresByProyecto(proyectoId),
     getHistorialProyecto(proyectoId, undefined, HISTORIAL_LIMIT),
     getActivities(proyectoId),

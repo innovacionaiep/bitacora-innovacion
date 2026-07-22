@@ -17,6 +17,7 @@ import {
   Users,
   Target,
   TrendingUp,
+  Search,
 } from 'lucide-react';
 
 import {
@@ -287,6 +288,8 @@ interface SimpleMultiSelectProps {
   ) => void;
 }
 
+const SEARCH_THRESHOLD = 7;
+
 const SimpleMultiSelect = memo(function SimpleMultiSelect({
   label,
   filterKey,
@@ -296,6 +299,7 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
   onSelectionChange,
 }: SimpleMultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Click outside handler
@@ -308,6 +312,7 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setSearch('');
       }
     };
 
@@ -322,6 +327,14 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
     };
   }, [isOpen, filterKey]);
 
+  const showSearch = options.length > SEARCH_THRESHOLD;
+
+  const filteredOptions = useMemo(() => {
+    if (!showSearch || !search.trim()) return options;
+    const q = search.trim().toLowerCase();
+    return options.filter((option) => String(option).toLowerCase().includes(q));
+  }, [options, search, showSearch]);
+
   const displayText =
     selectedValues.length === 0
       ? placeholder
@@ -329,13 +342,21 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
         ? String(selectedValues[0])
         : `${selectedValues.length} seleccionados`;
 
+  const toggleOpen = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (!next) setSearch('');
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-2" ref={containerRef}>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <div className="relative">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleOpen}
           className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <span
@@ -350,34 +371,55 @@ const SimpleMultiSelect = memo(function SimpleMultiSelect({
 
         {isOpen && (
           <div
-            className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-2 shadow-md"
+            className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md"
             onMouseDown={(e) => {
               e.stopPropagation();
             }}
           >
-            <div className="max-h-64 overflow-y-auto">
-              {options.map((option) => {
-                const value = String(option);
-                const isChecked = selectedValues.includes(value);
-                return (
-                  <label
-                    key={value}
-                    className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-gray-100 cursor-pointer"
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={(checked) => {
-                        onSelectionChange(filterKey, value, checked === true);
+            {showSearch && (
+              <div className="border-b p-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar..."
+                    className="h-8 pl-8 text-sm"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="max-h-64 overflow-y-auto p-2">
+              {filteredOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1.5 px-2">
+                  Sin resultados
+                </p>
+              ) : (
+                filteredOptions.map((option) => {
+                  const value = String(option);
+                  const isChecked = selectedValues.includes(value);
+                  return (
+                    <label
+                      key={value}
+                      className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-gray-100 cursor-pointer"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
                       }}
-                      className="h-4 w-4 rounded border-gray-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500"
-                    />
-                    <span>{option}</span>
-                  </label>
-                );
-              })}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          onSelectionChange(filterKey, value, checked === true);
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white data-[state=checked]:border-emerald-500"
+                      />
+                      <span>{option}</span>
+                    </label>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -1925,7 +1967,7 @@ export default function DashboardPage({
     const tableMinWidth = 280 + 100 + 120 + 180 + roles.length * 140;
 
     return (
-      <div className="flex gap-4 h-[calc(100vh-200px)] w-full max-w-full overflow-hidden">
+      <div className="flex gap-4 h-full min-h-0 w-full max-w-full overflow-hidden">
         {/* Sección Izquierda - Gráfico */}
         <div
           className="flex-shrink-0"
@@ -2326,12 +2368,10 @@ export default function DashboardPage({
 
   if (loading) {
     return (
-      <div className="space-y-6 w-full px-8 pt-6 pb-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Cargando proyectos...</p>
-          </div>
+      <div className="flex h-full min-h-0 w-full items-center justify-center pt-6 pb-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando proyectos...</p>
         </div>
       </div>
     );
@@ -2339,14 +2379,12 @@ export default function DashboardPage({
 
   if (error) {
     return (
-      <div className="space-y-6 w-full px-8 pt-6 pb-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-red-500 mb-4">
-              Error al cargar los proyectos: {error}
-            </p>
-            <Button onClick={() => window.location.reload()}>Reintentar</Button>
-          </div>
+      <div className="flex h-full min-h-0 w-full items-center justify-center pt-6 pb-6">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">
+            Error al cargar los proyectos: {error}
+          </p>
+          <Button onClick={() => window.location.reload()}>Reintentar</Button>
         </div>
       </div>
     );
@@ -2361,9 +2399,9 @@ export default function DashboardPage({
   ];
 
   return (
-    <div className="min-h-0 min-w-0 space-y-6 w-full px-8 pt-6 pb-6">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden pt-6 pb-6 gap-6">
       {/* Header con título y botones de vistas */}
-      <div className="flex items-center justify-between w-full">
+      <div className="flex shrink-0 items-center justify-between w-full">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center space-x-2">
           {views.map((view) => (
@@ -2383,6 +2421,14 @@ export default function DashboardPage({
         </div>
       </div>
 
+      {/* Zona de contenido: scroll interno (Participantes usa overflow-hidden + h-full) */}
+      <div
+        className={
+          currentView === 'analisis-participantes'
+            ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+            : 'min-h-0 flex-1 overflow-y-auto'
+        }
+      >
       {/* Contenido según la vista seleccionada */}
       {currentView === 'lista' && (
         <div className="space-y-6 w-full">
@@ -2590,7 +2636,7 @@ export default function DashboardPage({
         currentView !== 'mirada-general' &&
         currentView !== 'analisis-escuela' &&
         currentView !== 'analisis-participantes' && (
-          <div className="flex justify-end">
+          <div className="flex justify-end pb-2">
             <Button
               onClick={exportToExcel}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200"
@@ -2600,6 +2646,7 @@ export default function DashboardPage({
             </Button>
           </div>
         )}
+      </div>
     </div>
   );
 }

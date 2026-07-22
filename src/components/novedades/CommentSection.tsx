@@ -5,6 +5,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { CommentItem } from './CommentItem';
 import {
   getComments,
@@ -127,7 +128,7 @@ export function CommentSection({
       {user && (
         <div className="flex gap-3">
           <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarImage src={user.image || undefined} />
+            <AvatarImage src={DEFAULT_AVATAR} />
             <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 flex gap-2">

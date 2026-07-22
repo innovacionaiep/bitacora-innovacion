@@ -97,9 +97,6 @@ export const authOptions: NextAuthOptions = {
         if (session.name !== undefined) {
           token.name = session.name;
         }
-        if (session.image !== undefined) {
-          token.picture = session.image;
-        }
 
         // Refrescar roles disponibles
         if (token.id) {

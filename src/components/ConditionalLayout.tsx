@@ -56,10 +56,18 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Página de Inicio (portal): sin scroll de ventana y márgenes cómodos
   const isInicioRoute = pathname === '/inicio';
 
-  // Márgenes de página: p-8 en todas excepto novedades
-  const contentPadding = isNovedadesRoute ? '' : 'pt-8 pl-8 pr-8 pb-8';
+  // Proyectos: menos padding superior para la botonera centrada al tope
+  const isProyectosRoute = pathname.startsWith('/proyectos');
+
+  // Márgenes de página: p-8 en todas excepto novedades; proyectos con pt reducido
+  // Sin scroll de página: overflow-hidden (inicio: overflow-visible por portales/dropdowns)
+  const contentPadding = isNovedadesRoute
+    ? ''
+    : isProyectosRoute
+      ? 'pt-2 pl-8 pr-8 pb-8'
+      : 'pt-8 pl-8 pr-8 pb-8';
   const contentOverflow =
-    isNovedadesRoute ? '' : isInicioRoute ? 'overflow-visible' : 'overflow-y-auto';
+    isNovedadesRoute ? '' : isInicioRoute ? 'overflow-visible' : 'overflow-hidden';
   const contentBg = isInicioRoute ? 'bg-gray-100' : '';
 
   const contentClassName = `flex flex-col flex-1 h-full min-h-0 overflow-x-hidden ${contentPadding} ${contentOverflow} ${contentBg}`.trim();
@@ -86,7 +94,13 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           <SidebarNav />
           <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
             <div className={contentClassName}>
-              {children}
+              {isNovedadesRoute ? (
+                children
+              ) : (
+                <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col overflow-hidden">
+                  {children}
+                </div>
+              )}
             </div>
           </ResponsiveMain>
         </SidebarProvider>

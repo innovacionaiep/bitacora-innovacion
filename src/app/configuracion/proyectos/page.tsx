@@ -21,10 +21,19 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   listProyectosConfig,
   deleteProyectoConfig,
+  updateProyectoFondoConfig,
   type ProyectoListRow,
 } from '@/lib/actions/configuracion-proyectos';
+import { getFondos } from '@/lib/actions/configuracion';
 import { verifyConfigUnlock } from '@/lib/actions/configuracion-usuarios';
 import { Lock, Unlock, Trash2 } from 'lucide-react';
 
@@ -37,6 +46,7 @@ function formatDate(d: Date): string {
 
 export default function ConfiguracionProyectosPage() {
   const [proyectos, setProyectos] = useState<ProyectoListRow[]>([]);
+  const [fondos, setFondos] = useState<{ id: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
@@ -47,6 +57,7 @@ export default function ConfiguracionProyectosPage() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [updatingFondoId, setUpdatingFondoId] = useState<string | null>(null);
   const unlockPasswordRef = useRef<string | null>(null);
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -55,12 +66,16 @@ export default function ConfiguracionProyectosPage() {
   const load = async () => {
     setLoading(true);
     setError(null);
-    const res = await listProyectosConfig();
+    const [res, fondosList] = await Promise.all([
+      listProyectosConfig(),
+      getFondos(),
+    ]);
     if (res.success && res.data) {
       setProyectos(res.data);
     } else {
       setError(res.error ?? 'Error al cargar proyectos');
     }
+    setFondos(fondosList ?? []);
     setLoading(false);
   };
 
@@ -102,6 +117,25 @@ export default function ConfiguracionProyectosPage() {
     setDeleting(false);
   };
 
+  const handleFondoChange = async (proyectoId: string, fondo: string) => {
+    const prev = proyectos.find((p) => p.id === proyectoId)?.fondo;
+    if (prev === fondo) return;
+    setUpdatingFondoId(proyectoId);
+    setProyectos((rows) =>
+      rows.map((p) => (p.id === proyectoId ? { ...p, fondo } : p))
+    );
+    const res = await updateProyectoFondoConfig(proyectoId, fondo);
+    if (!res.success) {
+      setProyectos((rows) =>
+        rows.map((p) =>
+          p.id === proyectoId ? { ...p, fondo: prev ?? '' } : p
+        )
+      );
+      setError(res.error ?? 'Error al actualizar el fondo');
+    }
+    setUpdatingFondoId(null);
+  };
+
   return (
     <div ref={pageRootRef} className="h-full flex flex-col min-h-0 gap-6">
       <div className="sticky top-0 bg-white z-10 px-6 pt-6 pb-0">
@@ -109,7 +143,8 @@ export default function ConfiguracionProyectosPage() {
           <div>
             <CardTitle>Proyectos</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Listado de proyectos registrados. Desbloquea con la contraseña de
+              Listado de proyectos registrados. Puedes asignar el fondo desde el
+              catálogo de validación. Desbloquea con la contraseña de
               administración para poder eliminar proyectos y todo su contenido.
             </p>
           </div>
@@ -189,34 +224,71 @@ export default function ConfiguracionProyectosPage() {
                   {unlocked && <col style={{ width: '10%' }} />}
                 </colgroup>
                 <TableBody>
-                  {proyectos.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.proyecto}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {p.fondo}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {p.sede}
-                      </TableCell>
-                      <TableCell>{p.participantes}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(p.createdAt)}
-                      </TableCell>
-                      {unlocked && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDeleteConfirm(p)}
-                            className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Eliminar
-                          </Button>
+                  {proyectos.map((p) => {
+                    const fondoEnCatalogo = fondos.some(
+                      (f) => f.nombre === p.fondo
+                    );
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">
+                          {p.proyecto}
                         </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
+                        <TableCell>
+                          <Select
+                            value={p.fondo || undefined}
+                            onValueChange={(value) =>
+                              handleFondoChange(p.id, value)
+                            }
+                            disabled={
+                              updatingFondoId === p.id || fondos.length === 0
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-full max-w-[180px]">
+                              <SelectValue
+                                placeholder={
+                                  fondos.length === 0
+                                    ? 'Sin fondos en catálogo'
+                                    : 'Seleccionar fondo'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {!fondoEnCatalogo && p.fondo ? (
+                                <SelectItem value={p.fondo}>
+                                  {p.fondo} (actual)
+                                </SelectItem>
+                              ) : null}
+                              {fondos.map((f) => (
+                                <SelectItem key={f.id} value={f.nombre}>
+                                  {f.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {p.sede}
+                        </TableCell>
+                        <TableCell>{p.participantes}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(p.createdAt)}
+                        </TableCell>
+                        {unlocked && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteConfirm(p)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

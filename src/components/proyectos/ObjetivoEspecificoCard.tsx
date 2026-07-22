@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { ListChecks, Search, Trash2, Check, Loader2 } from 'lucide-react';
+import { ListChecks, Search, Trash2 } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
 import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
 import {
@@ -10,9 +9,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { toggleIndicadorValidation } from '@/lib/actions/indicadores';
-
 interface ObjetivoEspecificoCardProps {
   objetivoEspecifico: {
     id: string;
@@ -31,12 +27,6 @@ interface ObjetivoEspecificoCardProps {
       fechaInicio?: string | null;
       fechaFin?: string | null;
       comentariosCount: number;
-      validadoPorCoordinador?: boolean;
-      validadoPorCoordinadorPor?: {
-        id: string;
-        name: string | null;
-        image: string | null;
-      } | null;
     }>;
   };
   onIndicadorClick: (indicador: {
@@ -49,17 +39,9 @@ interface ObjetivoEspecificoCardProps {
     formatoNumero?: string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    validadoPorCoordinador?: boolean;
-    validadoPorCoordinadorPor?: {
-      id: string;
-      name: string | null;
-      image: string | null;
-    } | null;
   }) => void;
   deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
-  canValidateAsCoordinator?: boolean;
-  onIndicadorValidationToggle?: () => void;
 }
 
 export function ObjetivoEspecificoCard({
@@ -67,12 +49,7 @@ export function ObjetivoEspecificoCard({
   onIndicadorClick,
   deleteMode,
   onDeleteIndicador,
-  canValidateAsCoordinator = false,
-  onIndicadorValidationToggle,
 }: ObjetivoEspecificoCardProps) {
-  const [togglingValidationId, setTogglingValidationId] = useState<
-    string | null
-  >(null);
   const canDelete = objetivoEspecifico.indicadores.length > 1;
   // Calcular el progreso del objetivo específico basado en sus indicadores
   const progresoObjetivo =
@@ -189,7 +166,7 @@ export function ObjetivoEspecificoCard({
                 orden={1}
               />
 
-              {/* Botón Ver Detalles + estado validación + opcionalmente Eliminar */}
+              {/* Botón Ver Detalles + opcionalmente Eliminar */}
               <div className="flex-shrink-0 flex items-center gap-2">
                 <div className="relative">
                   <button
@@ -207,86 +184,6 @@ export function ObjetivoEspecificoCard({
                     </span>
                   )}
                 </div>
-                {objetivoEspecifico.indicadores[0].porcentajeCumplimiento >=
-                  100 && (
-                  <div className="flex items-center gap-1.5">
-                    {objetivoEspecifico.indicadores[0].validadoPorCoordinador &&
-                    objetivoEspecifico.indicadores[0]
-                      .validadoPorCoordinadorPor ? (
-                      <label
-                        className={`flex items-center gap-1.5 text-emerald-700 text-xs ${
-                          canValidateAsCoordinator &&
-                          togglingValidationId !==
-                            objetivoEspecifico.indicadores[0].id
-                            ? 'cursor-pointer'
-                            : 'cursor-default'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked
-                          disabled={
-                            !canValidateAsCoordinator ||
-                            togglingValidationId ===
-                              objetivoEspecifico.indicadores[0].id
-                          }
-                          className="sr-only"
-                          onChange={async () => {
-                            if (
-                              !canValidateAsCoordinator ||
-                              togglingValidationId
-                            )
-                              return;
-                            setTogglingValidationId(
-                              objetivoEspecifico.indicadores[0].id
-                            );
-                            const result = await toggleIndicadorValidation(
-                              objetivoEspecifico.indicadores[0].id
-                            );
-                            setTogglingValidationId(null);
-                            if (result.success) onIndicadorValidationToggle?.();
-                            else alert(result.error ?? 'Error al actualizar');
-                          }}
-                        />
-                        <div className="w-4 h-4 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                          {togglingValidationId ===
-                          objetivoEspecifico.indicadores[0].id ? (
-                            <Loader2 className="h-2.5 w-2.5 animate-spin text-white" />
-                          ) : (
-                            <Check className="h-2.5 w-2.5 text-white" />
-                          )}
-                        </div>
-                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                          Validado{' '}
-                          <Avatar className="h-7 w-7 flex-shrink-0">
-                            <AvatarImage
-                              src={
-                                objetivoEspecifico.indicadores[0]
-                                  .validadoPorCoordinadorPor?.image ?? undefined
-                              }
-                            />
-                            <AvatarFallback className="text-xs">
-                              {(
-                                objetivoEspecifico.indicadores[0]
-                                  .validadoPorCoordinadorPor?.name ?? 'U'
-                              )
-                                .slice(0, 1)
-                                .toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>
-                            {objetivoEspecifico.indicadores[0]
-                              .validadoPorCoordinadorPor?.name ?? 'Coordinador'}
-                          </span>
-                        </span>
-                      </label>
-                    ) : (
-                      <span className="text-xs text-red-600 font-medium whitespace-nowrap">
-                        Validación pendiente
-                      </span>
-                    )}
-                  </div>
-                )}
                 {deleteMode && (
                   <TooltipProvider>
                     <Tooltip>
@@ -340,7 +237,7 @@ export function ObjetivoEspecificoCard({
                 />
               </div>
 
-              {/* Botones Ver Detalles + estado validación + opcionalmente Eliminar - uno por cada indicador */}
+              {/* Botones Ver Detalles + opcionalmente Eliminar - uno por cada indicador */}
               <div className="flex flex-col gap-3 justify-center">
                 {objetivoEspecifico.indicadores.map((indicador) => (
                   <div
@@ -361,81 +258,6 @@ export function ObjetivoEspecificoCard({
                         </span>
                       )}
                     </div>
-                    {indicador.porcentajeCumplimiento >= 100 && (
-                      <div className="flex items-center gap-1.5">
-                        {indicador.validadoPorCoordinador &&
-                        indicador.validadoPorCoordinadorPor ? (
-                          <label
-                            className={`flex items-center gap-1.5 text-emerald-700 text-xs ${
-                              canValidateAsCoordinator &&
-                              togglingValidationId !== indicador.id
-                                ? 'cursor-pointer'
-                                : 'cursor-default'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked
-                              disabled={
-                                !canValidateAsCoordinator ||
-                                togglingValidationId === indicador.id
-                              }
-                              className="sr-only"
-                              onChange={async () => {
-                                if (
-                                  !canValidateAsCoordinator ||
-                                  togglingValidationId
-                                )
-                                  return;
-                                setTogglingValidationId(indicador.id);
-                                const result = await toggleIndicadorValidation(
-                                  indicador.id
-                                );
-                                setTogglingValidationId(null);
-                                if (result.success)
-                                  onIndicadorValidationToggle?.();
-                                else
-                                  alert(result.error ?? 'Error al actualizar');
-                              }}
-                            />
-                            <div className="w-4 h-4 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                              {togglingValidationId === indicador.id ? (
-                                <Loader2 className="h-2.5 w-2.5 animate-spin text-white" />
-                              ) : (
-                                <Check className="h-2.5 w-2.5 text-white" />
-                              )}
-                            </div>
-                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                              Validado{' '}
-                              <Avatar className="h-7 w-7 flex-shrink-0">
-                                <AvatarImage
-                                  src={
-                                    indicador.validadoPorCoordinadorPor
-                                      ?.image ?? undefined
-                                  }
-                                />
-                                <AvatarFallback className="text-xs">
-                                  {(
-                                    indicador.validadoPorCoordinadorPor?.name ??
-                                    'U'
-                                  )
-                                    .slice(0, 1)
-                                    .toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>
-                                {indicador.validadoPorCoordinadorPor?.name ??
-                                  'Coordinador'}
-                              </span>
-                            </span>
-                          </label>
-                        ) : (
-                          <span className="text-xs text-red-600 font-medium whitespace-nowrap">
-                            Validación pendiente
-                          </span>
-                        )}
-                      </div>
-                    )}
                     {deleteMode && (
                       <TooltipProvider>
                         <Tooltip>

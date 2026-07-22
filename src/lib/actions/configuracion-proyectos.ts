@@ -60,3 +60,28 @@ export async function deleteProyectoConfig(
   }
   return result;
 }
+
+/**
+ * Actualizar el fondo de un proyecto desde el panel de configuración.
+ */
+export async function updateProyectoFondoConfig(
+  proyectoId: string,
+  fondo: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const nombre = fondo.trim();
+    if (!nombre) {
+      return { success: false, error: 'El fondo es obligatorio' };
+    }
+    await prisma.proyecto.update({
+      where: { id: proyectoId },
+      data: { fondo: nombre },
+    });
+    revalidatePath('/configuracion/proyectos');
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error('updateProyectoFondoConfig:', e);
+    return { success: false, error: 'Error al actualizar el fondo' };
+  }
+}

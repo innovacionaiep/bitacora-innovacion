@@ -4,27 +4,18 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
 import { createHistorialEntry } from './historial';
-import { getSession } from '@/lib/auth-utils';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
-export type CreateActivityInput = Omit<
-  ActivityData,
-  'validadoPorCoordinador' | 'validadoPorCoordinadorId'
->;
+export type CreateActivityInput = ActivityData;
 export type TaskData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
 export type ActivityWithTasks = Activity & {
   tasks: Task[];
-  validadoPorCoordinadorPor?: {
-    id: string;
-    name: string | null;
-    image: string | null;
-  } | null;
   _count?: { evidencias: number };
 };
 
 /**
- * Obtener una actividad por ID (con tareas y validación)
+ * Obtener una actividad por ID (con tareas)
  */
 export async function getActivityById(actividadId: string) {
   try {
@@ -33,9 +24,6 @@ export async function getActivityById(actividadId: string) {
       include: {
         tasks: {
           orderBy: { createdAt: 'asc' },
-        },
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
         },
       },
     });
@@ -61,9 +49,6 @@ export async function getActivities(projectId: string) {
           orderBy: {
             createdAt: 'asc',
           },
-        },
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
         },
         _count: { select: { evidencias: true } },
       },
@@ -203,103 +188,6 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
   } catch (error) {
     console.error('Error updating activity:', error);
     return { success: false, error: 'Error al actualizar actividad' };
-  }
-}
-
-/**
- * Verificar si el usuario es coordinador del proyecto
- */
-async function isCoordinatorOfProject(
-  userId: string,
-  projectId: string
-): Promise<boolean> {
-  const participante = await prisma.proyectoParticipante.findFirst({
-    where: {
-      proyectoId: projectId,
-      userId,
-      rol: 'Coordinador',
-    },
-  });
-  return !!participante;
-}
-
-/**
- * Marcar o desmarcar validación de coordinador en una actividad.
- * Solo coordinadores del proyecto pueden validar. La actividad debe tener todas las tareas completadas para poder validar.
- */
-export async function toggleActivityValidation(activityId: string) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return { success: false, error: 'Debes iniciar sesión' };
-    }
-
-    const activity = await prisma.activity.findUnique({
-      where: { id: activityId },
-      include: {
-        tasks: true,
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    if (!activity) {
-      return { success: false, error: 'Actividad no encontrada' };
-    }
-
-    const isCoordinator = await isCoordinatorOfProject(
-      session.user.id,
-      activity.projectId
-    );
-    if (!isCoordinator) {
-      return {
-        success: false,
-        error: 'Solo los coordinadores del proyecto pueden validar actividades',
-      };
-    }
-
-    const allTasksCompleted =
-      activity.tasks.length > 0 && activity.tasks.every((t) => t.completed);
-    if (!allTasksCompleted && !activity.validadoPorCoordinador) {
-      return {
-        success: false,
-        error:
-          'La actividad debe tener todas las tareas completadas para poder validar',
-      };
-    }
-
-    const newValidado = !activity.validadoPorCoordinador;
-    const updated = await prisma.activity.update({
-      where: { id: activityId },
-      data: {
-        validadoPorCoordinador: newValidado,
-        validadoPorCoordinadorId: newValidado ? session.user.id : null,
-      },
-      include: {
-        tasks: true,
-        validadoPorCoordinadorPor: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    if (newValidado) {
-      await createHistorialEntry({
-        proyectoId: activity.projectId,
-        accion: 'Validar',
-        tabProyecto: 'Actividades',
-        elementoEspecifico: `la finalización de la actividad "${activity.name}"`,
-        cambioGenerado: '',
-      });
-    }
-
-    revalidatePath('/proyectos');
-    revalidatePath('/gantt');
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error('Error toggling activity validation:', error);
-    return { success: false, error: 'Error al validar actividad' };
   }
 }
 

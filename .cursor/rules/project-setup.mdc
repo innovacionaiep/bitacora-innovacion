@@ -46,9 +46,9 @@ src/
 
 prisma/
 ├── schema.prisma         # Schema de base de datos
-├── migrations/           # Migraciones de Prisma
-└── seed*.ts             # Scripts de seed
+└── migrations/           # Migraciones de Prisma
 ```
+
 
 ## Convenciones de Código
 
@@ -71,7 +71,8 @@ prisma/
 - Usar Prisma para todas las operaciones de BD
 - Ejecutar migraciones con: `npx prisma migrate dev --name <nombre>`
 - Generar cliente después de cambios: `npx prisma generate`
-- Seed data disponible en múltiples archivos según necesidad
+- **PROHIBIDO**: eliminar datos de BD, ejecutar/crear seeds, o insertar datos ficticios (ver regla `no-db-destructive-or-seed`)
+
 
 ### Estilos
 

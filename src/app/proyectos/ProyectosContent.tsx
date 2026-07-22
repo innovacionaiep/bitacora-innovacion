@@ -12,12 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -29,13 +23,15 @@ import {
   Plus,
   Save,
   X,
-  ArrowLeftRight,
+  ChevronLeft,
   Users,
   HandCoins,
   Target,
-  Handshake,
-  ChevronDown,
   Check,
+  Pencil,
+  GitBranch,
+  MapPin,
+  GraduationCap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -55,72 +51,40 @@ import {
 import { GeneralTab, GeneralTabHeader } from '@/app/proyectos/tabs/GeneralTab';
 import { ParticipantesTab } from '@/app/proyectos/tabs/ParticipantesTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
-import { getProyecto } from '@/lib/actions/proyectos';
-import { usePrefetchProyecto } from '@/hooks/useProyectoQuery';
-import { getRolesConProyectosVigentes } from '@/lib/actions/portal-inicio';
-import { updateUserProfile } from '@/lib/auth-actions';
+import {
+  usePrefetchProyecto,
+  useFetchProyectoBase,
+  setProyectoBaseCache,
+} from '@/hooks/useProyectoQuery';
+import { useQueryClient } from '@tanstack/react-query';
+import { proyectoBaseKey } from '@/lib/query-keys';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
-// Helper para truncar títulos de proyectos
-const truncateTitle = (title: string, maxLength: number = 58): string => {
-  if (title.length <= maxLength) {
-    return title;
-  }
-  return title.substring(0, maxLength) + '...';
-};
+type ProyectoTab =
+  | 'Resumen'
+  | 'General'
+  | 'Participantes'
+  | 'Gantt'
+  | 'Indicadores'
+  | 'Presupuesto'
+  | 'Historial'
+  | 'Seguimiento';
 
-function getRoleColors(role: string): string {
-  switch (role.toLowerCase()) {
-    case 'admin':
-      return 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200';
-    case 'coordinador':
-      return 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200';
-    case 'colaborador':
-      return 'bg-violet-100 text-violet-700 border-violet-300 hover:bg-violet-200';
-    case 'encargado':
-      return 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200';
-    case 'docente':
-      return 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200';
-    case 'estudiante':
-      return 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200';
-    case 'beneficiario':
-      return 'bg-cyan-100 text-cyan-700 border-cyan-300 hover:bg-cyan-200';
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200';
-  }
-}
-
-function getRoleCircleColor(role: string): string {
-  switch (role.toLowerCase()) {
-    case 'admin':
-      return 'bg-yellow-500';
-    case 'coordinador':
-      return 'bg-blue-500';
-    case 'colaborador':
-      return 'bg-violet-500';
-    case 'encargado':
-      return 'bg-orange-500';
-    case 'docente':
-      return 'bg-green-500';
-    case 'estudiante':
-      return 'bg-red-500';
-    case 'beneficiario':
-      return 'bg-cyan-500';
-    default:
-      return 'bg-gray-500';
-  }
-}
+const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
+  { id: 'Resumen', label: 'Resumen' },
+  { id: 'General', label: 'General' },
+  { id: 'Participantes', label: 'Participantes' },
+  { id: 'Gantt', label: 'Actividades' },
+  { id: 'Indicadores', label: 'Indicadores' },
+  { id: 'Presupuesto', label: 'Presupuesto' },
+  { id: 'Seguimiento', label: 'Seguimiento' },
+  { id: 'Historial', label: 'Historial' },
+];
 
 export function ProyectosContent() {
   const searchParams = useSearchParams();
-  const { data: session, status, update: updateSession } = useSession();
+  const { data: session } = useSession();
   const {
     proyectos: proyectosIniciales,
     loading,
@@ -131,27 +95,15 @@ export function ProyectosContent() {
     deleteProyecto,
   } = useProyectosParaUsuario();
   const hasAppliedIdFromUrlRef = useRef(false);
-  const initialSessionFetchDoneRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
+  const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
-
-  type ProyectoTab =
-    | 'Resumen'
-    | 'General'
-    | 'Participantes'
-    | 'Gantt'
-    | 'Indicadores'
-    | 'Presupuesto'
-    | 'Historial'
-    | 'Seguimiento';
+  const fetchProyectoBase = useFetchProyectoBase();
 
   const [mountedTabs, setMountedTabs] = useState<Set<ProyectoTab>>(
     () => new Set(['General'])
   );
 
-  const [rolesVigentes, setRolesVigentes] = useState<string[]>([]);
-  const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
-  const skipRoleChangeRefetchRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] =
     useState<ProyectoWithRelations | null>(null);
@@ -159,18 +111,8 @@ export function ProyectosContent() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
-  const [selectedTab, setSelectedTab] = useState<
-    | 'Resumen'
-    | 'General'
-    | 'Participantes'
-    | 'Gantt'
-    | 'Indicadores'
-    | 'Presupuesto'
-    | 'Historial'
-    | 'Seguimiento'
-  >('General');
+  const [selectedTab, setSelectedTab] = useState<ProyectoTab>('General');
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -179,22 +121,34 @@ export function ProyectosContent() {
 
   const [showGeneralSaveToast, setShowGeneralSaveToast] = useState(false);
 
+  const setSelectedProjectAndCache = useCallback(
+    (update: React.SetStateAction<ProyectoWithRelations | null>) => {
+      setSelectedProject((prev) => {
+        const next = typeof update === 'function' ? update(prev) : update;
+        if (next) {
+          setProyectoBaseCache(queryClient, next);
+        }
+        return next;
+      });
+    },
+    [queryClient]
+  );
+
   const {
     catalogosGeneral,
-    isGeneralEditMode,
+    catalogosLoading,
+    editingField,
     generalDraft,
     setGeneralDraft,
     isGeneralSaving,
-    handleToggleGeneralEditMode,
+    handleStartEditField,
     handleSaveGeneralTab,
     handleCancelGeneralEdit,
     tempVideoUrl,
     setTempVideoUrl,
-    activeDesarrolloTecnicoTab,
-    setActiveDesarrolloTecnicoTab,
   } = useGeneralTab({
     project: selectedProject,
-    setProject: setSelectedProject,
+    setProject: setSelectedProjectAndCache,
     fetchProyectos,
     selectedTab,
     projectVideos,
@@ -207,6 +161,7 @@ export function ProyectosContent() {
   const [formData, setFormData] = useState({
     proyecto: '',
     fondo: '',
+    linea: '',
     sede: '',
     escuela: '',
     avanceGantt: 0,
@@ -215,6 +170,37 @@ export function ProyectosContent() {
     presupuestoTotal: 0,
     participantes: 0,
   });
+
+  const lineasForSelectedFondo = useMemo(() => {
+    const fondoNombre = showAddForm
+      ? formData.fondo
+      : editingField === 'fondo' || editingField === 'linea'
+        ? generalDraft?.fondo || selectedProject?.fondo || ''
+        : selectedProject?.fondo || formData.fondo || '';
+    if (!fondoNombre) return [];
+    return catalogosGeneral.lineas.filter((l) => l.fondoNombre === fondoNombre);
+  }, [
+    catalogosGeneral.lineas,
+    editingField,
+    formData.fondo,
+    generalDraft?.fondo,
+    selectedProject?.fondo,
+    showAddForm,
+  ]);
+
+  const selectedProjectSedeNames = useMemo(() => {
+    return (selectedProject?.sede ?? '')
+      .split(/\s*\|\s*|\s*,\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [selectedProject?.sede]);
+
+  const selectedProjectEscuelaNames = useMemo(() => {
+    return (
+      selectedProject?.escuelas?.map((e) => e.escuela.nombre).filter(Boolean) ??
+      []
+    );
+  }, [selectedProject?.escuelas]);
 
   const filteredProjects = useMemo(
     () =>
@@ -231,33 +217,6 @@ export function ProyectosContent() {
       ),
     [proyectosIniciales, searchTerm]
   );
-
-  const coordinadorIdsForProject = useMemo(() => {
-    if (!selectedProject) return [];
-    const fromParticipantes =
-      selectedProject.participantes_rel
-        ?.filter((p) => p.rol === 'Coordinador' && p.userId)
-        .map((p) => p.userId as string) ?? [];
-    const currentUserIdSession = session?.user?.id;
-    const userEmail = session?.user?.email?.trim().toLowerCase() ?? '';
-    const participantes = selectedProject.participantes_rel ?? [];
-    const isMe = (p: { userId?: string | null; email?: string | null }) =>
-      p.userId === currentUserIdSession ||
-      (!!userEmail &&
-        (p.email?.trim().toLowerCase() ?? '') === userEmail);
-    const isCoordinatorByEmail = participantes.some(
-      (p) =>
-        isMe(p) && (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
-    );
-    if (
-      isCoordinatorByEmail &&
-      currentUserIdSession &&
-      !fromParticipantes.includes(currentUserIdSession)
-    ) {
-      return [...fromParticipantes, currentUserIdSession];
-    }
-    return fromParticipantes;
-  }, [selectedProject, session?.user?.id, session?.user?.email]);
 
   const rolEnProyectoSeguimiento = useMemo(() => {
     if (!selectedProject) return null;
@@ -295,25 +254,31 @@ export function ProyectosContent() {
     hasAppliedIdFromUrlRef.current = true;
     const tabToSelect = tabFromUrl === 'Seguimiento' ? ('Seguimiento' as const) : null;
     (async () => {
-      setSelectingProjectId(project.id);
+      const cached = queryClient.getQueryData<ProyectoWithRelations>(
+        proyectoBaseKey(project.id)
+      );
+      if (!cached) setSelectingProjectId(project.id);
       try {
-        const result = await getProyecto(project.id);
-        if (result.success && result.data) {
-          setSelectedProject(result.data);
-          if (tabToSelect) setSelectedTab(tabToSelect);
-          const videoUrl = (result.data as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
-          setTempVideoUrl(videoUrl);
-        }
+        const data = cached ?? (await fetchProyectoBase(project.id));
+        setSelectedProject(data);
+        if (tabToSelect) setSelectedTab(tabToSelect);
+        const videoUrl =
+          (data as ProyectoWithRelations & { youtubeUrl?: string | null })
+            .youtubeUrl ??
+          projectVideos[project.id] ??
+          '';
+        setTempVideoUrl(videoUrl);
       } finally {
         setSelectingProjectId(null);
       }
     })();
-  }, [proyectosIniciales, searchParams]);
+  }, [proyectosIniciales, searchParams, fetchProyectoBase, queryClient]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
+      ...(field === 'fondo' ? { linea: '' } : {}),
     }));
   };
 
@@ -323,17 +288,23 @@ export function ProyectosContent() {
 
     try {
       if (showEditForm && selectedProject) {
-        const { error } = await updateProyecto(selectedProject.id, formData);
+        const { data, error } = await updateProyecto(
+          selectedProject.id,
+          formData
+        );
         if (error) {
           alert('Error al actualizar el proyecto: ' + error);
         } else {
+          if (data) setSelectedProject(data as typeof selectedProject);
           setShowEditForm(false);
+          fetchProyectos({ silent: true });
           alert('Proyecto actualizado exitosamente');
         }
       } else {
-        const { error } = await createProyecto({
+        const { data, error } = await createProyecto({
           proyecto: formData.proyecto,
           fondo: formData.fondo,
+          linea: formData.linea || null,
           sede: formData.sede,
           focalizacion: null,
           objetivoGeneral: '',
@@ -345,6 +316,7 @@ export function ProyectosContent() {
           participantes: formData.participantes,
           escuelasIds: formData.escuela ? [formData.escuela] : [],
           carrerasIds: [],
+          asignaturasIds: [],
           comunasIds: [],
           gruposInteresIds: [],
           sociosComunitariosIds: [],
@@ -356,6 +328,7 @@ export function ProyectosContent() {
           setFormData({
             proyecto: '',
             fondo: '',
+            linea: '',
             sede: '',
             escuela: '',
             avanceGantt: 0,
@@ -365,6 +338,8 @@ export function ProyectosContent() {
             participantes: 0,
           });
           setShowAddForm(false);
+          if (data) setSelectedProject(data as typeof selectedProject);
+          fetchProyectos({ silent: true });
           alert('Proyecto creado exitosamente');
         }
       }
@@ -408,6 +383,7 @@ export function ProyectosContent() {
     setFormData({
       proyecto: selectedProject.proyecto,
       fondo: selectedProject.fondo,
+      linea: selectedProject.linea ?? '',
       sede: selectedProject.sede,
       escuela: '', // No direct escuela field in model
       avanceGantt: selectedProject.avanceGantt,
@@ -424,6 +400,7 @@ export function ProyectosContent() {
     setFormData({
       proyecto: '',
       fondo: '',
+      linea: '',
       sede: '',
       escuela: '',
       avanceGantt: 0,
@@ -434,18 +411,34 @@ export function ProyectosContent() {
     });
   };
 
+  const handleClearProjectSelection = () => {
+    setSelectedProject(null);
+  };
+
   const handleSelectProject = async (project: ProyectoListadoItem) => {
-    setIsSheetOpen(false);
+    const cached = queryClient.getQueryData<ProyectoWithRelations>(
+      proyectoBaseKey(project.id)
+    );
+    if (cached) {
+      setSelectedProject(cached);
+      const videoUrl =
+        (cached as ProyectoWithRelations & { youtubeUrl?: string | null })
+          .youtubeUrl ??
+        projectVideos[project.id] ??
+        '';
+      setTempVideoUrl(videoUrl);
+      return;
+    }
     setSelectingProjectId(project.id);
     try {
-      const includeActivities =
-        selectedTab === 'Gantt' || selectedTab === 'Resumen';
-      const result = await getProyecto(project.id, { includeActivities });
-      if (result.success && result.data) {
-        setSelectedProject(result.data);
-        const videoUrl = (result.data as ProyectoWithRelations & { youtubeUrl?: string | null }).youtubeUrl ?? projectVideos[project.id] ?? '';
-        setTempVideoUrl(videoUrl);
-      }
+      const data = await fetchProyectoBase(project.id);
+      setSelectedProject(data);
+      const videoUrl =
+        (data as ProyectoWithRelations & { youtubeUrl?: string | null })
+          .youtubeUrl ??
+        projectVideos[project.id] ??
+        '';
+      setTempVideoUrl(videoUrl);
     } finally {
       setSelectingProjectId(null);
     }
@@ -480,29 +473,6 @@ export function ProyectosContent() {
     return () => clearTimeout(t);
   }, [showGeneralSaveToast]);
 
-  // Recargar proyectos cuando cambie el rol activo (ej. desde el sidebar).
-  // Se omite si el cambio vino del selector (handleRoleChange ya recargó).
-  useEffect(() => {
-    if (status !== 'authenticated' || skipRoleChangeRefetchRef.current) return;
-    if (!initialSessionFetchDoneRef.current) {
-      initialSessionFetchDoneRef.current = true;
-      return;
-    }
-    fetchProyectos({ silent: true });
-  }, [session?.user?.activeRole, status]);
-
-  const loadRoles = useCallback(async () => {
-    const res = await getRolesConProyectosVigentes();
-    if (res.success && res.data) {
-      setRolesVigentes(res.data);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isSheetOpen || rolesVigentes.length > 0) return;
-    void loadRoles();
-  }, [isSheetOpen, rolesVigentes.length, loadRoles]);
-
   useEffect(() => {
     setMountedTabs((prev) => {
       if (prev.has(selectedTab as ProyectoTab)) return prev;
@@ -511,51 +481,6 @@ export function ProyectosContent() {
       return next;
     });
   }, [selectedTab]);
-
-  useEffect(() => {
-    if (!selectedProject) return;
-    if (selectedTab !== 'Gantt' && selectedTab !== 'Resumen') return;
-    if (selectedProject.activities && selectedProject.activities.length > 0) return;
-    let cancelled = false;
-    void getProyecto(selectedProject.id, { includeActivities: true }).then(
-      (result) => {
-        if (!cancelled && result.success && result.data) {
-          setSelectedProject(result.data);
-        }
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTab, selectedProject?.id, selectedProject?.activities?.length]);
-
-  const currentRole =
-    optimisticRole ?? session?.user?.activeRole ?? rolesVigentes[0] ?? 'Sin rol';
-
-  const handleRoleChange = async (newRole: string) => {
-    if (!session?.user?.id) return;
-    const previousRole = session.user.activeRole ?? null;
-    setOptimisticRole(newRole);
-    skipRoleChangeRefetchRef.current = true;
-    try {
-      const result = await updateUserProfile(session.user.id, {
-        activeRole: newRole,
-      });
-      if (!result.success) throw new Error(result.error);
-      await Promise.all([
-        updateSession({ activeRole: newRole }),
-        fetchProyectos({ silent: true, activeRole: newRole }),
-      ]);
-      setTimeout(() => updateSession(), 100);
-    } catch {
-      setOptimisticRole(null);
-      await updateSession({ activeRole: previousRole });
-    } finally {
-      setTimeout(() => {
-        skipRoleChangeRefetchRef.current = false;
-      }, 500);
-    }
-  };
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
@@ -623,116 +548,11 @@ export function ProyectosContent() {
         </div>
       )}
 
-      {/* Sheet Panel - Project Selector */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="w-full sm:w-[400px] p-0">
-          <div className="flex flex-col h-full">
-            <SheetHeader className="px-6 py-4 border-b">
-              <SheetTitle className="text-xl font-bold text-gray-900">
-                Seleccionar Proyecto
-              </SheetTitle>
-            </SheetHeader>
-
-            {/* Selector de rol activo - arriba del selector de proyectos */}
-            {session?.user && rolesVigentes.length > 0 && (
-              <div className="px-6 py-4 border-b">
-                <Label className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">
-                  Rol activo
-                </Label>
-                <DropdownMenu onOpenChange={(open) => open && void loadRoles()}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={`w-full justify-between min-w-0 ${getRoleColors(currentRole)}`}
-                    >
-                      <span className="truncate">{currentRole}</span>
-                      <ChevronDown className="h-4 w-4 ml-1 opacity-70 shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-[160px]">
-                    {rolesVigentes.map((role) => {
-                      const isActive = role === currentRole;
-                      return (
-                        <DropdownMenuItem
-                          key={role}
-                          className={`cursor-pointer flex items-center gap-2 ${
-                            isActive ? 'bg-accent font-semibold' : ''
-                          }`}
-                          onClick={() => handleRoleChange(role)}
-                        >
-                          <div
-                            className={`w-3 h-3 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
-                          />
-                          <span className="flex-1">{role}</span>
-                          {isActive && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
-
-            {/* Search Input */}
-            <div className="px-6 py-4 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por nombre, sede o escuela..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-2 border-gray-300 rounded-lg focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Project List */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-              {filteredProjects.length > 0 ? (
-                filteredProjects.map((project, index) => (
-                  <Card
-                    key={index}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                      selectedProject?.id === project.id
-                        ? 'ring-2 ring-blue-500 bg-blue-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => handleSelectProject(project)}
-                    onMouseEnter={() => prefetchProyecto(project.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-sm text-gray-900 truncate">
-                            {project.proyecto}
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {project.sede} •{' '}
-                            {project.escuelas
-                              ?.map((e) => e.escuela.nombre)
-                              .join(', ') || 'Sin escuela'}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <FolderKanban className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No se encontraron proyectos</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Main Content - Full Width */}
-      <div className="h-full flex flex-col">
+      <div className="h-full min-h-0 flex flex-col overflow-hidden">
         {showAddForm || showEditForm ? (
-          /* Formulario de agregar/editar proyecto */
+          /* Formulario de agregar/editar proyecto — scroll en la zona del form */
+          <div className="flex-1 min-h-0 overflow-y-auto">
           <Card className="border-2 border-gray-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -793,11 +613,59 @@ export function ProyectosContent() {
                           <SelectValue placeholder="Selecciona el fondo" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="IMPULSA">IMPULSA</SelectItem>
-                          <SelectItem value="FONDART">FONDART</SelectItem>
-                          <SelectItem value="CORFO">CORFO</SelectItem>
-                          <SelectItem value="SENCE">SENCE</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
+                          {catalogosLoading &&
+                          catalogosGeneral.fondos.length === 0 ? (
+                            <SelectItem value="__loading" disabled>
+                              Cargando opciones…
+                            </SelectItem>
+                          ) : (
+                            catalogosGeneral.fondos.map((f) => (
+                              <SelectItem key={f.id} value={f.nombre}>
+                                {f.nombre}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="linea"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Línea
+                      </Label>
+                      <Select
+                        value={formData.linea || undefined}
+                        onValueChange={(value) =>
+                          handleInputChange('linea', value)
+                        }
+                        disabled={!formData.fondo}
+                      >
+                        <SelectTrigger className="mt-1 border-2 border-gray-300 rounded-lg focus:border-blue-500">
+                          <SelectValue
+                            placeholder={
+                              formData.fondo
+                                ? 'Selecciona la línea'
+                                : 'Selecciona un fondo primero'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {lineasForSelectedFondo.length === 0 ? (
+                            <SelectItem value="__empty" disabled>
+                              {formData.fondo
+                                ? 'Sin líneas para este fondo'
+                                : 'Selecciona un fondo primero'}
+                            </SelectItem>
+                          ) : (
+                            lineasForSelectedFondo.map((l) => (
+                              <SelectItem key={l.id} value={l.nombre}>
+                                {l.nombre}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -819,11 +687,18 @@ export function ProyectosContent() {
                           <SelectValue placeholder="Selecciona la sede" />
                         </SelectTrigger>
                         <SelectContent>
-                          {catalogosGeneral.sedes.map((s) => (
-                            <SelectItem key={s.id} value={s.nombre}>
-                              {s.nombre}
+                          {catalogosLoading &&
+                          catalogosGeneral.sedes.length === 0 ? (
+                            <SelectItem value="__loading" disabled>
+                              Cargando opciones…
                             </SelectItem>
-                          ))}
+                          ) : (
+                            catalogosGeneral.sedes.map((s) => (
+                              <SelectItem key={s.id} value={s.nombre}>
+                                {s.nombre}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1027,6 +902,7 @@ export function ProyectosContent() {
               </form>
             </CardContent>
           </Card>
+          </div>
         ) : selectingProjectId ? (
           <div className="flex items-center justify-center h-full min-h-[300px]">
             <div className="text-center">
@@ -1035,194 +911,362 @@ export function ProyectosContent() {
             </div>
           </div>
         ) : selectedProject ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            {/* Navegación del proyecto: arriba de todo, centrada */}
+            <nav
+              aria-label="Secciones del proyecto"
+              className="flex-shrink-0 mb-5 overflow-x-auto"
+            >
+              <div className="flex items-stretch justify-center gap-1 sm:gap-2 min-w-max mx-auto px-2">
+                {PROJECT_NAV_TABS.map((tab) => {
+                  const isActive = selectedTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setSelectedTab(tab.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`group relative px-3 py-2 text-[13px] tracking-wide whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 ${
+                        isActive
+                          ? 'text-gray-900 font-medium'
+                          : 'text-gray-500 font-normal hover:text-gray-800'
+                      }`}
+                    >
+                      {tab.label}
+                      <span
+                        aria-hidden
+                        className={`absolute inset-x-2.5 bottom-0 h-0.5 rounded-full transition-colors ${
+                          isActive
+                            ? 'bg-emerald-600'
+                            : 'bg-transparent group-hover:bg-gray-300'
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
             {/* Header del proyecto - Fixed, no scroll */}
             <div className="flex-shrink-0">
-              <div className="flex items-start justify-between gap-4">
-                {/* Columna izquierda: título + línea de información juntos */}
-                <div className="flex flex-col gap-[5px] min-w-0 flex-1">
-                  <div className="flex items-center gap-3 min-w-0">
+              <div className="flex flex-col gap-[5px] min-w-0">
+                <div className="relative flex items-center justify-center min-w-0 overflow-visible">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => setIsSheetOpen(true)}
-                            className="h-10 w-10 rounded-full shadow-lg bg-gray-800 hover:bg-gray-900 text-white transition-all duration-200 hover:scale-105 flex-shrink-0"
+                          <button
+                            type="button"
+                            onClick={handleClearProjectSelection}
+                            className="inline-flex items-center gap-0.5 text-[13px] font-medium text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            aria-label="Volver al selector de proyectos"
                           >
-                            <ArrowLeftRight size={20} strokeWidth={2.5} />
-                          </Button>
+                            <ChevronLeft className="h-5 w-5 shrink-0" strokeWidth={2} />
+                            <span>Proyectos</span>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>Cambiar proyecto</p>
+                          <p>Volver al selector de proyectos</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <GeneralTabHeader
-                      project={selectedProject}
-                      selectedTab={selectedTab}
-                      truncateTitle={truncateTitle}
-                      isGeneralEditMode={isGeneralEditMode}
-                      generalDraft={generalDraft}
-                      setGeneralDraft={setGeneralDraft}
-                      isGeneralSaving={isGeneralSaving}
-                      handleToggleGeneralEditMode={handleToggleGeneralEditMode}
-                      handleSaveGeneralTab={handleSaveGeneralTab}
-                      handleCancelGeneralEdit={handleCancelGeneralEdit}
-                    />
                   </div>
-                  <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                      <HandCoins className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        Fondo {selectedProject.fondo}
-                      </span>
-                    </div>
-                    {selectedProject.focalizacion && (
-                      <div className="flex items-center space-x-1.5 pr-3 border-r border-gray-200">
-                        <Target className="h-4 w-4 text-gray-600" />
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-medium ${
-                            selectedProject.focalizacion === 'Ambiental'
-                              ? 'bg-green-100 text-green-700'
-                              : selectedProject.focalizacion === 'Social'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : selectedProject.focalizacion === 'Productiva'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          Foco {selectedProject.focalizacion}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
-                      <Users className="h-4 w-4 text-gray-600" />
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-medium">
-                        {selectedProject.participantes_rel?.length || 0}{' '}
-                        participantes
-                      </span>
-                    </div>
-                    {selectedProject.sociosComunitarios &&
-                      selectedProject.sociosComunitarios.length > 0 && (
-                        <div className="flex items-center space-x-1.5">
-                          <Handshake className="h-4 w-4 text-gray-600" />
-                          <span className="text-xs text-gray-600 font-medium">
-                            Socios Comunitarios:
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProject.sociosComunitarios.map(
-                              (socioRel, idx) => (
-                                <span
-                                  key={idx}
-                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium"
-                                >
-                                  {socioRel.socioComunitario.nombre}
-                                </span>
+                  <GeneralTabHeader
+                    project={selectedProject}
+                    selectedTab={selectedTab}
+                    editingField={editingField}
+                    generalDraft={generalDraft}
+                    setGeneralDraft={setGeneralDraft}
+                    isGeneralSaving={isGeneralSaving}
+                    handleStartEditField={handleStartEditField}
+                    handleSaveGeneralTab={handleSaveGeneralTab}
+                    handleCancelGeneralEdit={handleCancelGeneralEdit}
+                  />
+                </div>
+                  <div className="flex items-center justify-center flex-wrap gap-x-5 gap-y-1.5">
+                    <div className="group/field relative inline-flex items-center gap-1.5">
+                      <HandCoins className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      {editingField === 'fondo' ? (
+                        <div className="flex items-center gap-1.5">
+                          <Select
+                            value={generalDraft?.fondo || undefined}
+                            onValueChange={(value) =>
+                              setGeneralDraft((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      fondo: value,
+                                      linea:
+                                        prev.fondo === value ? prev.linea : '',
+                                    }
+                                  : prev
                               )
-                            )}
+                            }
+                          >
+                            <SelectTrigger className="h-7 w-[160px] text-[13px] border-gray-200 focus:ring-gray-400">
+                              <SelectValue placeholder="Seleccionar fondo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {catalogosLoading &&
+                              catalogosGeneral.fondos.length === 0 ? (
+                                <SelectItem value="__loading" disabled>
+                                  Cargando opciones…
+                                </SelectItem>
+                              ) : (
+                                catalogosGeneral.fondos.map((f) => (
+                                  <SelectItem key={f.id} value={f.nombre}>
+                                    {f.nombre}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={handleSaveGeneralTab}
+                              disabled={isGeneralSaving}
+                              className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <Save className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelGeneralEdit}
+                              className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <X className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                              Cancelar
+                            </button>
                           </div>
                         </div>
+                      ) : (
+                        <>
+                          <div className="relative inline-flex items-center">
+                            <span className="text-[13px] font-normal text-gray-500 tracking-wide">
+                              {selectedProject.fondo
+                                ? selectedProject.fondo
+                                : 'Fondo...'}
+                            </span>
+                            {selectedProject.fondo && (
+                              <div className="absolute left-full top-1/2 z-10 -translate-y-1/2 ml-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        onClick={() =>
+                                          handleStartEditField('fondo')
+                                        }
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 shrink-0 rounded-sm opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Editar fondo</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )}
+                          </div>
+                          {!selectedProject.fondo && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    onClick={() =>
+                                      handleStartEditField('fondo')
+                                    }
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 shrink-0 rounded-sm flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Añadir fondo</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </>
                       )}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Botones de navegación - Dos filas */}
-                <div className="flex flex-col gap-[6px] w-[450px] flex-shrink-0">
-                  {/* Primera fila: Resumen, General, Equipo, Historial */}
-                  <div className="flex items-center gap-1.5 w-full">
-                    <Button
-                      onClick={() => setSelectedTab('Resumen')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Resumen'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Resumen
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('General')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'General'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      General
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('Participantes')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Participantes'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Participantes
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('Historial')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Historial'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Historial
-                    </Button>
+                    <span aria-hidden className="text-gray-300 select-none">
+                      ·
+                    </span>
+                    <div className="group/field relative inline-flex items-center gap-1.5">
+                      <GitBranch className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      {editingField === 'linea' ? (
+                        <div className="flex items-center gap-1.5">
+                          <Select
+                            value={generalDraft?.linea || undefined}
+                            onValueChange={(value) =>
+                              setGeneralDraft((prev) =>
+                                prev ? { ...prev, linea: value } : prev
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-7 w-[160px] text-[13px] border-gray-200 focus:ring-gray-400">
+                              <SelectValue placeholder="Seleccionar línea" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {lineasForSelectedFondo.length === 0 ? (
+                                <SelectItem value="__empty" disabled>
+                                  {generalDraft?.fondo || selectedProject.fondo
+                                    ? 'Sin líneas para este fondo'
+                                    : 'Selecciona un fondo primero'}
+                                </SelectItem>
+                              ) : (
+                                lineasForSelectedFondo.map((l) => (
+                                  <SelectItem key={l.id} value={l.nombre}>
+                                    {l.nombre}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={handleSaveGeneralTab}
+                              disabled={isGeneralSaving}
+                              className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <Save className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelGeneralEdit}
+                              className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                            >
+                              <X className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="relative inline-flex items-center">
+                            <span className="text-[13px] font-normal text-gray-500 tracking-wide">
+                              {selectedProject.linea
+                                ? selectedProject.linea
+                                : 'Línea...'}
+                            </span>
+                            {selectedProject.linea && (
+                              <div className="absolute left-full top-1/2 z-10 -translate-y-1/2 ml-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        onClick={() =>
+                                          handleStartEditField('linea')
+                                        }
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 shrink-0 rounded-sm opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Editar línea</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )}
+                          </div>
+                          {!selectedProject.linea && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    onClick={() =>
+                                      handleStartEditField('linea')
+                                    }
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 shrink-0 rounded-sm flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Añadir línea</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {selectedProjectSedeNames.length > 0 && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="text-gray-300 select-none"
+                        >
+                          ·
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          {selectedProjectSedeNames.join(' · ')}
+                        </span>
+                      </>
+                    )}
+
+                    {selectedProjectEscuelaNames.length > 0 && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="text-gray-300 select-none"
+                        >
+                          ·
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
+                          <GraduationCap className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          {selectedProjectEscuelaNames.join(' · ')}
+                        </span>
+                      </>
+                    )}
+
+                    <span aria-hidden className="text-gray-300 select-none">
+                      ·
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
+                      <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      {selectedProject.participantes_rel?.length || 0}{' '}
+                      participantes
+                    </span>
+
+                    {selectedProject.focalizacion && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="text-gray-300 select-none"
+                        >
+                          ·
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
+                          <Target className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          Foco {selectedProject.focalizacion}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  {/* Segunda fila: Actividades, Indicadores, Presupuesto, Seguimiento */}
-                  <div className="flex items-center gap-1.5 w-full">
-                    <Button
-                      onClick={() => setSelectedTab('Gantt')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Gantt'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Actividades
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('Indicadores')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Indicadores'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Indicadores
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('Presupuesto')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Presupuesto'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Presupuesto
-                    </Button>
-                    <Button
-                      onClick={() => setSelectedTab('Seguimiento')}
-                      size="sm"
-                      className={`flex-1 h-7 min-w-0 px-2 text-sm font-medium ${
-                        selectedTab === 'Seguimiento'
-                          ? 'bg-gray-800 text-white hover:bg-gray-800'
-                          : 'text-gray-700 bg-white hover:bg-gray-200 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      Seguimiento
-                    </Button>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -1237,15 +1281,21 @@ export function ProyectosContent() {
                 <div className={selectedTab === 'General' ? 'h-full' : 'hidden'}>
                   <GeneralTab
                     project={selectedProject}
+                    setProject={setSelectedProjectAndCache}
+                    fetchProyectos={fetchProyectos}
+                    onSaveSuccess={() => setShowGeneralSaveToast(true)}
                     projectVideos={projectVideos}
-                    isGeneralEditMode={isGeneralEditMode}
+                    editingField={editingField}
                     generalDraft={generalDraft}
                     setGeneralDraft={setGeneralDraft}
                     catalogosGeneral={catalogosGeneral}
+                    catalogosLoading={catalogosLoading}
                     tempVideoUrl={tempVideoUrl}
                     setTempVideoUrl={setTempVideoUrl}
-                    activeDesarrolloTecnicoTab={activeDesarrolloTecnicoTab}
-                    setActiveDesarrolloTecnicoTab={setActiveDesarrolloTecnicoTab}
+                    isGeneralSaving={isGeneralSaving}
+                    handleStartEditField={handleStartEditField}
+                    handleSaveGeneralTab={handleSaveGeneralTab}
+                    handleCancelGeneralEdit={handleCancelGeneralEdit}
                   />
                 </div>
               )}
@@ -1255,7 +1305,7 @@ export function ProyectosContent() {
                 >
                   <ParticipantesTab
                     project={selectedProject}
-                    setProject={setSelectedProject}
+                    setProject={setSelectedProjectAndCache}
                     fetchProyectos={fetchProyectos}
                     selectedTab={selectedTab}
                     onSaveSuccess={() => setShowGeneralSaveToast(true)}
@@ -1263,12 +1313,10 @@ export function ProyectosContent() {
                 </div>
               )}
               {selectedProject && mountedTabs.has('Gantt') && (
-                <div className={selectedTab === 'Gantt' ? 'h-full' : 'hidden'}>
+                <div className={selectedTab === 'Gantt' ? 'h-full min-h-0 overflow-hidden' : 'hidden'}>
                   <GanttTab
                     project={selectedProject}
-                    coordinadorIds={coordinadorIdsForProject}
-                    currentUserId={session?.user?.id}
-                    onProjectChange={() => setIsSheetOpen(true)}
+                    onProjectChange={handleClearProjectSelection}
                   />
                 </div>
               )}
@@ -1278,8 +1326,6 @@ export function ProyectosContent() {
                 >
                   <IndicadoresTab
                     projectId={selectedProject.id}
-                    coordinadorIds={coordinadorIdsForProject}
-                    currentUserId={session?.user?.id}
                   />
                 </div>
               )}
@@ -1312,33 +1358,80 @@ export function ProyectosContent() {
           </div>
         ) : (
           /* Pantalla principal / Landing - al entrar o cuando el proyecto seleccionado ya no aplica (ej. cambio de rol) */
-          <div className="flex items-center justify-center h-full min-h-[400px]">
-            <div className="text-center max-w-md">
-              <FolderKanban className="h-20 w-20 mx-auto mb-6 text-gray-300" />
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                Gestión de Proyectos
-              </h2>
-              <p className="text-gray-500 mb-8">
-                Selecciona un proyecto para ver sus detalles o crea uno nuevo
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden py-6 px-4">
+            <div className="mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="shrink-0 text-center mb-8">
+                <FolderKanban className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                  Selección de Proyectos
+                </h2>
+                <p className="text-gray-500 mb-6">
+                  Selecciona un proyecto para ver sus detalles o crea uno nuevo
+                </p>
                 <Button
-                  onClick={() => setIsSheetOpen(true)}
-                  className="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                  variant="outline"
+                  asChild
+                  className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200"
                 >
-                  <Search className="h-4 w-4" />
-                  <span>Seleccionar proyecto</span>
-                </Button>
-                <Button variant="outline" asChild className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2">
-                  <Link href="/proyectos/nuevo" className="inline-flex items-center justify-center gap-2">
+                  <Link
+                    href="/proyectos/nuevo"
+                    className="inline-flex items-center justify-center gap-2"
+                  >
                     <Plus className="h-4 w-4" />
                     <span>Crear proyecto</span>
                   </Link>
                 </Button>
               </div>
+
+              <div className="relative mb-4 shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar por nombre, sede o escuela..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                />
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {filteredProjects.length > 0 ? (
+                  filteredProjects.map((project) => (
+                    <Card
+                      key={project.id}
+                      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-gray-50"
+                      onClick={() => handleSelectProject(project)}
+                      onMouseEnter={() => prefetchProyecto(project.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-3">
+                          <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                          <div className="flex-1 min-w-0 text-left">
+                            <h3 className="font-medium text-sm text-gray-900 truncate">
+                              {project.proyecto}
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {project.sede} •{' '}
+                              {project.escuelas
+                                ?.map((e) => e.escuela.nombre)
+                                .join(', ') || 'Sin escuela'}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <FolderKanban className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No se encontraron proyectos</p>
+                  </div>
+                )}
+
               {borradores.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Borradores</h3>
+                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">
+                    Borradores
+                  </h3>
                   <ul className="space-y-2">
                     {borradores.map((b) => (
                       <li key={b.id}>
@@ -1353,6 +1446,7 @@ export function ProyectosContent() {
                   </ul>
                 </div>
               )}
+              </div>
             </div>
           </div>
         )}

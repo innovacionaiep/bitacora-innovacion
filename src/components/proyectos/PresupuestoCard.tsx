@@ -249,6 +249,16 @@ export function PresupuestoCard({
 }: PresupuestoCardProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    cuenta: CuentaPresupuesto;
+    item: string;
+    detalle: string;
+    monto: number;
+    idSolicitud: string;
+    idPedido: string;
+    idRecepcion: string;
+    estado: EstadoGastoPresupuesto;
+  } | null>(null);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [presupuestoAdjudicado, setPresupuestoAdjudicado] = useState(
@@ -278,7 +288,7 @@ export function PresupuestoCard({
   });
   const [selectedGastoForModal, setSelectedGastoForModal] =
     useState<ItemPresupuestoItem | null>(null);
-  const { items, resumenPorCuenta, loading, error, refetch } = usePresupuesto(
+  const { items, resumenPorCuenta, loading, error, refetch, patchItem, addItemOptimistic, removeItemOptimistic, replaceItemId } = usePresupuesto(
     projectId,
     presupuestoTotal
   );
@@ -327,6 +337,7 @@ export function PresupuestoCard({
   }, [adjudicadoDraft, isSavingAdjudicado, projectId]);
   const startAddingRow = () => {
     setEditingItemId(null);
+    setEditDraft(null);
     setIsAddingRow(true);
   };
   const cancelAddingRow = () => {
@@ -342,10 +353,71 @@ export function PresupuestoCard({
       idRecepcion: '',
     });
   };
-  const toggleEditItem = (itemId: string) => {
-    setEditingItemId((current) => (current === itemId ? null : itemId));
+  const startEditItem = (itemId: string) => {
+    const row = items.find((i) => i.id === itemId);
+    if (!row) return;
     setIsAddingRow(false);
+    setEditingItemId(itemId);
+    setEditDraft({
+      cuenta: row.cuenta,
+      item: row.item,
+      detalle: row.detalle ?? '',
+      monto: row.monto,
+      idSolicitud: row.idSolicitud ?? '',
+      idPedido: row.idPedido ?? '',
+      idRecepcion: row.idRecepcion ?? '',
+      estado: row.estado,
+    });
   };
+  const cancelEditItem = () => {
+    setEditingItemId(null);
+    setEditDraft(null);
+  };
+  const handleSaveEditItem = useCallback(async () => {
+    if (!editingItemId || !editDraft) return;
+    if (!editDraft.item.trim()) {
+      alert('El ítem es obligatorio.');
+      return;
+    }
+    if (Number.isNaN(editDraft.monto) || editDraft.monto < 0) {
+      alert('Ingrese un monto válido mayor o igual a 0.');
+      return;
+    }
+
+    const itemId = editingItemId;
+    const previous = items.find((i) => i.id === itemId);
+    if (!previous) return;
+
+    const data: UpdateItemPresupuestoData = {
+      cuenta: editDraft.cuenta,
+      item: editDraft.item.trim(),
+      detalle: editDraft.detalle.trim() || null,
+      monto: editDraft.monto,
+      idSolicitud: editDraft.idSolicitud.trim() || null,
+      idPedido: editDraft.idPedido.trim() || null,
+      idRecepcion: editDraft.idRecepcion.trim() || null,
+      estado: editDraft.estado,
+    };
+
+    patchItem(itemId, data);
+    setEditingItemId(null);
+    setEditDraft(null);
+
+    const result = await updateItemPresupuesto(itemId, data);
+    if (!result.success) {
+      patchItem(itemId, {
+        cuenta: previous.cuenta,
+        item: previous.item,
+        detalle: previous.detalle,
+        monto: previous.monto,
+        estado: previous.estado,
+        idSolicitud: previous.idSolicitud,
+        idPedido: previous.idPedido,
+        idRecepcion: previous.idRecepcion,
+      });
+      alert(result.error ?? 'Error al actualizar el ítem');
+    }
+  }, [editingItemId, editDraft, items, patchItem]);
 
   const handleSaveNewItem = useCallback(async () => {
     if (isSubmitting) return;
@@ -362,68 +434,103 @@ export function PresupuestoCard({
       setIsSubmitting(false);
       return;
     }
+
+    const snapshot = { ...newItemData };
+    const tempId = `temp-item-${Date.now()}`;
+    const optimisticItem: ItemPresupuestoItem = {
+      id: tempId,
+      proyectoId: projectId,
+      cuenta: snapshot.cuenta as CuentaPresupuesto,
+      item: snapshot.item.trim(),
+      detalle: snapshot.detalle?.trim() || null,
+      monto: snapshot.monto,
+      estado: 'PENDIENTE',
+      idSolicitud: snapshot.idSolicitud.trim() || null,
+      idPedido: snapshot.idPedido.trim() || null,
+      idRecepcion: snapshot.idRecepcion.trim() || null,
+      orden: items.length,
+      proyecciones: [],
+      comentariosCount: 0,
+    };
+
+    addItemOptimistic(optimisticItem);
+    cancelAddingRow();
+    setIsSubmitting(false);
+
     const data: CreateItemPresupuestoData = {
-      cuenta: newItemData.cuenta,
-      item: newItemData.item.trim(),
-      detalle: newItemData.detalle?.trim() || null,
-      monto: newItemData.monto,
+      cuenta: snapshot.cuenta,
+      item: snapshot.item.trim(),
+      detalle: snapshot.detalle?.trim() || null,
+      monto: snapshot.monto,
     };
     const result = await createItemPresupuesto(projectId, data);
     if (result.success && result.data?.id) {
       const itemId = result.data.id;
+      replaceItemId(tempId, itemId);
       const updatePromises: Promise<unknown>[] = [];
       const updateData: UpdateItemPresupuestoData = {};
-      if (newItemData.idSolicitud.trim())
-        updateData.idSolicitud = newItemData.idSolicitud.trim();
-      if (newItemData.idPedido.trim())
-        updateData.idPedido = newItemData.idPedido.trim();
-      if (newItemData.idRecepcion.trim())
-        updateData.idRecepcion = newItemData.idRecepcion.trim();
+      if (snapshot.idSolicitud.trim())
+        updateData.idSolicitud = snapshot.idSolicitud.trim();
+      if (snapshot.idPedido.trim())
+        updateData.idPedido = snapshot.idPedido.trim();
+      if (snapshot.idRecepcion.trim())
+        updateData.idRecepcion = snapshot.idRecepcion.trim();
       if (Object.keys(updateData).length > 0)
         updatePromises.push(updateItemPresupuesto(itemId, updateData));
-      if (newItemData.selectedMeses.size > 0) {
-        const meses = Array.from(newItemData.selectedMeses).sort(
-          (a, b) => a - b
-        );
+      if (snapshot.selectedMeses.size > 0) {
+        const meses = Array.from(snapshot.selectedMeses).sort((a, b) => a - b);
         updatePromises.push(
           setProyeccionMensualMultiple(
             itemId,
             meses,
             anio,
-            Math.round(newItemData.monto / newItemData.selectedMeses.size)
+            Math.round(snapshot.monto / snapshot.selectedMeses.size)
           )
         );
       }
       if (updatePromises.length > 0) await Promise.all(updatePromises);
-      cancelAddingRow();
-      await refetch(false);
-    } else alert(`Error al crear el ítem: ${result.error}`);
-    setIsSubmitting(false);
-  }, [refetch, isSubmitting, newItemData, projectId, anio]);
-
-  const handleUpdateItem = useCallback(
-    async (itemId: string, data: UpdateItemPresupuestoData) => {
-      const result = await updateItemPresupuesto(itemId, data);
-      if (result.success) await refetch(false);
-    },
-    [refetch]
-  );
+      void refetch(false);
+    } else {
+      removeItemOptimistic(tempId);
+      alert(`Error al crear el ítem: ${result.error}`);
+    }
+  }, [
+    refetch,
+    isSubmitting,
+    newItemData,
+    projectId,
+    anio,
+    items.length,
+    addItemOptimistic,
+    removeItemOptimistic,
+    replaceItemId,
+  ]);
 
   const handleDeleteItem = useCallback(
     async (itemId: string) => {
       if (
-        confirm(
+        !confirm(
           '¿Está seguro de que desea eliminar este ítem de presupuesto? Esta acción no se puede deshacer.'
         )
       ) {
-        const result = await deleteItemPresupuesto(itemId);
-        if (result.success) {
-          setEditingItemId((current) => (current === itemId ? null : current));
-          await refetch(false);
-        } else alert(`Error al eliminar el ítem: ${result.error}`);
+        return;
+      }
+      const previous = items.find((i) => i.id === itemId);
+      if (!previous) return;
+
+      setEditingItemId((current) => (current === itemId ? null : current));
+      setEditDraft((current) =>
+        editingItemId === itemId ? null : current
+      );
+      removeItemOptimistic(itemId);
+
+      const result = await deleteItemPresupuesto(itemId);
+      if (!result.success) {
+        addItemOptimistic(previous);
+        alert(`Error al eliminar el ítem: ${result.error}`);
       }
     },
-    [refetch]
+    [items, removeItemOptimistic, addItemOptimistic]
   );
 
   if (loading)
@@ -853,6 +960,7 @@ export function PresupuestoCard({
                               .join(', ')
                           : '—';
                       const isRowEditing = editingItemId === row.id;
+                      const draft = isRowEditing ? editDraft : null;
                       return (
                         <TableRow
                           key={row.id}
@@ -860,38 +968,60 @@ export function PresupuestoCard({
                         >
                           <TableCell className="text-center align-middle w-[100px] min-w-[100px] max-w-[100px] whitespace-normal border-r border-gray-200">
                             <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleEditItem(row.id)}
-                                className={`p-2 rounded-full transition-colors cursor-pointer ${isRowEditing ? 'bg-blue-100 hover:bg-blue-200' : 'bg-gray-100 hover:bg-gray-200'}`}
-                                title={
-                                  isRowEditing
-                                    ? 'Cancelar edición'
-                                    : 'Editar gasto'
-                                }
-                              >
-                                <Pencil
-                                  className={`h-4 w-4 ${isRowEditing ? 'text-blue-700' : 'text-gray-700'}`}
-                                />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteItem(row.id)}
-                                className="p-2 bg-gray-100 rounded-full hover:bg-red-100 transition-colors cursor-pointer"
-                                title="Eliminar gasto"
-                              >
-                                <Trash2 className="h-4 w-4 text-gray-700" />
-                              </button>
+                              {isRowEditing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveEditItem}
+                                    className="p-2 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer"
+                                    title="Guardar cambios"
+                                  >
+                                    <Check className="h-4 w-4 text-gray-700" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={cancelEditItem}
+                                    className="p-2 bg-gray-100 rounded-full hover:bg-red-100 transition-colors cursor-pointer"
+                                    title="Cancelar edición"
+                                  >
+                                    <X className="h-4 w-4 text-gray-700" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditItem(row.id)}
+                                    className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                                    title="Editar gasto"
+                                  >
+                                    <Pencil className="h-4 w-4 text-gray-700" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(row.id)}
+                                    className="p-2 bg-gray-100 rounded-full hover:bg-red-100 transition-colors cursor-pointer"
+                                    title="Eliminar gasto"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-gray-700" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Select
-                                value={row.cuenta}
+                                value={draft.cuenta}
                                 onValueChange={(v) =>
-                                  handleUpdateItem(row.id, {
-                                    cuenta: v as CuentaPresupuesto,
-                                  })
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          cuenta: v as CuentaPresupuesto,
+                                        }
+                                      : prev
+                                  )
                                 }
                               >
                                 <SelectTrigger className="h-8 text-sm">
@@ -919,10 +1049,17 @@ export function PresupuestoCard({
                               wordWrap: 'break-word',
                             }}
                           >
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <div className="relative">
                                 <textarea
-                                  defaultValue={row.item}
+                                  value={draft.item}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) =>
+                                      prev
+                                        ? { ...prev, item: e.target.value }
+                                        : prev
+                                    )
+                                  }
                                   className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
                                   rows={1}
                                   style={{
@@ -949,11 +1086,6 @@ export function PresupuestoCard({
                                       target.style.height = prevHeight;
                                     }
                                   }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim();
-                                    if (v && v !== row.item)
-                                      handleUpdateItem(row.id, { item: v });
-                                  }}
                                 />
                               </div>
                             ) : (
@@ -969,11 +1101,18 @@ export function PresupuestoCard({
                               wordWrap: 'break-word',
                             }}
                           >
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <div className="relative">
                                 <textarea
-                                  defaultValue={row.detalle ?? ''}
+                                  value={draft.detalle}
                                   placeholder="—"
+                                  onChange={(e) =>
+                                    setEditDraft((prev) =>
+                                      prev
+                                        ? { ...prev, detalle: e.target.value }
+                                        : prev
+                                    )
+                                  }
                                   className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
                                   rows={1}
                                   style={{
@@ -1002,11 +1141,6 @@ export function PresupuestoCard({
                                       target.style.height = prevHeight;
                                     }
                                   }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim() || null;
-                                    if (v !== (row.detalle ?? ''))
-                                      handleUpdateItem(row.id, { detalle: v });
-                                  }}
                                 />
                               </div>
                             ) : (
@@ -1019,15 +1153,21 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Input
                                 type="number"
-                                defaultValue={row.monto}
+                                value={draft.monto}
                                 className="h-8 text-sm w-24"
-                                onBlur={(e) => {
+                                onChange={(e) => {
                                   const v = parseInt(e.target.value, 10);
-                                  if (!isNaN(v) && v >= 0 && v !== row.monto)
-                                    handleUpdateItem(row.id, { monto: v });
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          monto: Number.isNaN(v) ? 0 : v,
+                                        }
+                                      : prev
+                                  );
                                 }}
                               />
                             ) : (
@@ -1051,65 +1191,78 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Input
-                                defaultValue={row.idSolicitud ?? ''}
+                                value={draft.idSolicitud}
                                 placeholder="—"
                                 className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idSolicitud ?? ''))
-                                    handleUpdateItem(row.id, {
-                                      idSolicitud: v,
-                                    });
-                                }}
+                                onChange={(e) =>
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          idSolicitud: e.target.value,
+                                        }
+                                      : prev
+                                  )
+                                }
                               />
                             ) : (
                               (row.idSolicitud ?? '—')
                             )}
                           </TableCell>
                           <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Input
-                                defaultValue={row.idPedido ?? ''}
+                                value={draft.idPedido}
                                 placeholder="—"
                                 className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idPedido ?? ''))
-                                    handleUpdateItem(row.id, { idPedido: v });
-                                }}
+                                onChange={(e) =>
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? { ...prev, idPedido: e.target.value }
+                                      : prev
+                                  )
+                                }
                               />
                             ) : (
                               (row.idPedido ?? '—')
                             )}
                           </TableCell>
                           <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Input
-                                defaultValue={row.idRecepcion ?? ''}
+                                value={draft.idRecepcion}
                                 placeholder="—"
                                 className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  const v = e.target.value.trim() || null;
-                                  if (v !== (row.idRecepcion ?? ''))
-                                    handleUpdateItem(row.id, {
-                                      idRecepcion: v,
-                                    });
-                                }}
+                                onChange={(e) =>
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          idRecepcion: e.target.value,
+                                        }
+                                      : prev
+                                  )
+                                }
                               />
                             ) : (
                               (row.idRecepcion ?? '—')
                             )}
                           </TableCell>
                           <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
-                            {isRowEditing ? (
+                            {isRowEditing && draft ? (
                               <Select
-                                value={row.estado}
+                                value={draft.estado}
                                 onValueChange={(v) =>
-                                  handleUpdateItem(row.id, {
-                                    estado: v as EstadoGastoPresupuesto,
-                                  })
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          estado: v as EstadoGastoPresupuesto,
+                                        }
+                                      : prev
+                                  )
                                 }
                               >
                                 <SelectTrigger className="h-8 text-sm w-full">

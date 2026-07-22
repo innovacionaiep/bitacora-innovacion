@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -15,14 +15,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   toggleCompromiso,
-  toggleValidacionCompromiso,
   updateCompromiso,
 } from '@/lib/actions/seguimiento';
 import {
   ClipboardCheck,
   CircleAlert,
   CheckCircle,
-  BadgeCheck,
   Loader2,
 } from 'lucide-react';
 
@@ -31,20 +29,15 @@ type CompromisoPortal = Awaited<
 >['data'][number];
 
 const POST_IT_ROJO = 'bg-red-100 border-red-300 shadow-red-200/50';
-const POST_IT_AMARILLO = 'bg-amber-100 border-amber-300 shadow-amber-200/50';
 const POST_IT_VERDE = 'bg-emerald-100 border-emerald-400 shadow-emerald-300/50';
 
 function getPostItClass(c: CompromisoPortal): string {
-  if (c.validadoPorCoordinador) return POST_IT_VERDE;
-  if (c.completado) return POST_IT_AMARILLO;
-  return POST_IT_ROJO;
+  return c.completado ? POST_IT_VERDE : POST_IT_ROJO;
 }
 
 function EstadoIcon({ compromiso }: { compromiso: CompromisoPortal }) {
-  if (compromiso.validadoPorCoordinador)
-    return <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />;
   if (compromiso.completado)
-    return <CheckCircle className="h-5 w-5 text-amber-600 shrink-0" />;
+    return <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />;
   return <CircleAlert className="h-5 w-5 text-red-600 shrink-0" />;
 }
 
@@ -71,11 +64,12 @@ export interface PortalCompromisosPendientesProps {
 }
 
 export function PortalCompromisosPendientes({
-  compromisos,
+  compromisos: compromisosProp,
   activeRole,
   onSuccess,
   loading = false,
 }: PortalCompromisosPendientesProps) {
+  const [compromisos, setCompromisos] = useState(compromisosProp);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectedCompromiso, setSelectedCompromiso] =
     useState<CompromisoPortal | null>(null);
@@ -85,6 +79,10 @@ export function PortalCompromisosPendientes({
   const [editDescripcion, setEditDescripcion] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  useEffect(() => {
+    setCompromisos(compromisosProp);
+  }, [compromisosProp]);
+
   const isCoordinadorOrAdmin =
     activeRole === 'Coordinador' || activeRole === 'Admin';
   const canMarkRealizado =
@@ -92,29 +90,34 @@ export function PortalCompromisosPendientes({
 
   const handleToggleRealizado = async (id: string) => {
     if (!canMarkRealizado) return;
+    const current = compromisos.find((c) => c.id === id);
+    if (!current) return;
+
+    setCompromisos((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, completado: !c.completado } : c
+      )
+    );
+    setSelectedCompromiso((prev) =>
+      prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+    );
+
     setTogglingId(id);
     const result = await toggleCompromiso(id);
     setTogglingId(null);
     if (result.success) {
-      setSelectedCompromiso((prev) =>
-        prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+      void onSuccess();
+    } else {
+      setCompromisos((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, completado: current.completado } : c
+        )
       );
-      await onSuccess();
-    }
-  };
-
-  const handleToggleValidacion = async (id: string) => {
-    if (!isCoordinadorOrAdmin) return;
-    setTogglingId(id);
-    const result = await toggleValidacionCompromiso(id);
-    setTogglingId(null);
-    if (result.success) {
       setSelectedCompromiso((prev) =>
         prev?.id === id
-          ? { ...prev, validadoPorCoordinador: !prev.validadoPorCoordinador }
+          ? { ...prev, completado: current.completado }
           : prev
       );
-      await onSuccess();
     }
   };
 
@@ -128,20 +131,39 @@ export function PortalCompromisosPendientes({
 
   const handleSaveEdit = async () => {
     if (!selectedCompromiso) return;
+    const previous = selectedCompromiso;
+    const nextTitulo = editTitulo.trim() || null;
+    const nextDescripcion = editDescripcion.trim();
+
+    setCompromisos((prev) =>
+      prev.map((c) =>
+        c.id === previous.id
+          ? { ...c, titulo: nextTitulo, descripcion: nextDescripcion }
+          : c
+      )
+    );
+    setSelectedCompromiso({
+      ...previous,
+      titulo: nextTitulo,
+      descripcion: nextDescripcion,
+    });
+    setIsEditingCompromiso(false);
+
     setSavingEdit(true);
-    const result = await updateCompromiso(selectedCompromiso.id, {
-      titulo: editTitulo.trim() || null,
-      descripcion: editDescripcion.trim(),
+    const result = await updateCompromiso(previous.id, {
+      titulo: nextTitulo,
+      descripcion: nextDescripcion,
     });
     setSavingEdit(false);
-    if (result.success && result.data) {
-      setSelectedCompromiso({
-        ...selectedCompromiso,
-        titulo: result.data.titulo ?? null,
-        descripcion: result.data.descripcion,
-      });
-      setIsEditingCompromiso(false);
-      await onSuccess();
+    if (result.success) {
+      void onSuccess();
+    } else {
+      setCompromisos((prev) =>
+        prev.map((c) => (c.id === previous.id ? previous : c))
+      );
+      setSelectedCompromiso(previous);
+      setIsEditingCompromiso(true);
+      alert(result.error ?? 'Error al guardar compromiso');
     }
   };
 
@@ -210,7 +232,11 @@ export function PortalCompromisosPendientes({
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p
-                      className="text-sm font-medium flex-1 min-w-0 line-clamp-2 break-words"
+                      className={`text-sm font-medium flex-1 min-w-0 line-clamp-2 break-words ${
+                        c.completado
+                          ? 'line-through text-gray-600'
+                          : 'text-gray-900'
+                      }`}
                       title={c.descripcion}
                     >
                       {titulo}
@@ -237,23 +263,10 @@ export function PortalCompromisosPendientes({
                           checked={c.completado}
                           onCheckedChange={() => handleToggleRealizado(c.id)}
                           disabled={!canMarkRealizado}
-                          className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-600"
+                          className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
                         />
                       )}
                       Realizado
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs">
-                      {togglingId === c.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Checkbox
-                          checked={c.validadoPorCoordinador}
-                          onCheckedChange={() => handleToggleValidacion(c.id)}
-                          disabled={!isCoordinadorOrAdmin}
-                          className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-700"
-                        />
-                      )}
-                      Validado
                     </label>
                   </div>
                 </div>
@@ -277,11 +290,9 @@ export function PortalCompromisosPendientes({
                 <div className="flex items-center gap-2">
                   <ClipboardCheck
                     className={
-                      selectedCompromiso.validadoPorCoordinador
+                      selectedCompromiso.completado
                         ? 'h-5 w-5 text-emerald-600'
-                        : selectedCompromiso.completado
-                          ? 'h-5 w-5 text-amber-600'
-                          : 'h-5 w-5 text-red-600'
+                        : 'h-5 w-5 text-red-600'
                     }
                   />
                   {isEditingCompromiso ? (
@@ -290,11 +301,9 @@ export function PortalCompromisosPendientes({
                       onChange={(e) => setEditTitulo(e.target.value)}
                       placeholder="Título del compromiso"
                       className={`flex-1 h-8 text-sm font-semibold border-2 rounded-lg focus:border-blue-500 ${
-                        selectedCompromiso.validadoPorCoordinador
+                        selectedCompromiso.completado
                           ? 'bg-emerald-100 border-emerald-400'
-                          : selectedCompromiso.completado
-                            ? 'bg-amber-100 border-amber-300'
-                            : 'bg-red-100 border-red-300'
+                          : 'bg-red-100 border-red-300'
                       }`}
                     />
                   ) : (
@@ -360,29 +369,11 @@ export function PortalCompromisosPendientes({
                         handleToggleRealizado(selectedCompromiso.id)
                       }
                       disabled={!canMarkRealizado}
-                      className="border-gray-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black data-[state=checked]:border-amber-600"
-                    />
-                  )}
-                  <span className="font-medium text-gray-700">
-                    Realizado (Encargado)
-                  </span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  {togglingId === selectedCompromiso.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                  ) : (
-                    <Checkbox
-                      checked={selectedCompromiso.validadoPorCoordinador}
-                      onCheckedChange={() =>
-                        isCoordinadorOrAdmin &&
-                        handleToggleValidacion(selectedCompromiso.id)
-                      }
-                      disabled={!isCoordinadorOrAdmin}
                       className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
                     />
                   )}
                   <span className="font-medium text-gray-700">
-                    Validado (Coordinador)
+                    Realizado (Encargado)
                   </span>
                 </label>
               </div>

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { User, Mail, Briefcase, Crown, Users, Calendar } from 'lucide-react';
+import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { ProyectoParticipante } from '@prisma/client';
 import { User as UserType } from '@prisma/client';
 
@@ -69,8 +70,6 @@ export function ModalParticipante({
   const email =
     participante.user?.email ?? participante.email ?? 'No disponible';
   const cargo = participante.cargo || 'No especificado';
-  const imagen =
-    participante.displayImage ?? participante.user?.image ?? null;
   const rol = participante.rol;
 
   return (
@@ -85,17 +84,11 @@ export function ModalParticipante({
         <div className="space-y-6 py-4">
           {/* Avatar y Nombre */}
           <div className="flex flex-col items-center space-y-4">
-            {imagen ? (
-              <img
-                src={imagen}
-                alt={nombre}
-                className="h-24 w-24 rounded-full ring-4 ring-gray-200 object-cover"
-              />
-            ) : (
-              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center ring-4 ring-gray-200">
-                <User className="h-12 w-12 text-gray-600" />
-              </div>
-            )}
+            <img
+              src={DEFAULT_AVATAR}
+              alt={nombre}
+              className="h-24 w-24 rounded-full ring-4 ring-gray-200 object-cover"
+            />
             <div className="text-center">
               <h3 className="text-2xl font-bold text-gray-900">{nombre}</h3>
               <Badge
