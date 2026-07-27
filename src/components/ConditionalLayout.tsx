@@ -22,7 +22,9 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
   const { can, loading: permsLoading } = useActiveRolePermissions();
 
   const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
-  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isAuthRoute =
+    authRoutes.some((route) => pathname.startsWith(route)) ||
+    pathname === '/mantenimiento';
 
   const viewKey = viewPermissionForPath(pathname);
   const faltaPermisoVista =
