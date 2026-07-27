@@ -51,6 +51,7 @@ import {
 } from '@/app/proyectos/tabs/ProyectoTabs';
 import { GeneralTab, GeneralTabHeader } from '@/app/proyectos/tabs/GeneralTab';
 import { ParticipantesTab } from '@/app/proyectos/tabs/ParticipantesTab';
+import { ConvenioTab } from '@/app/proyectos/tabs/ConvenioTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
 import {
   usePrefetchProyecto,
@@ -61,8 +62,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { proyectoBaseKey } from '@/lib/query-keys';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
+import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
+import { cn } from '@/lib/utils';
 
 type ProyectoTab =
+  | 'Convenio'
   | 'Resumen'
   | 'General'
   | 'Participantes'
@@ -73,6 +77,7 @@ type ProyectoTab =
   | 'Seguimiento';
 
 const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
+  { id: 'Convenio', label: 'Convenio' },
   { id: 'Resumen', label: 'Resumen' },
   { id: 'General', label: 'General' },
   { id: 'Participantes', label: 'Participantes' },
@@ -116,6 +121,7 @@ export function ProyectosContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
   const [selectedTab, setSelectedTab] = useState<ProyectoTab>('General');
+  const [fondosConConvenios, setFondosConConvenios] = useState<string[]>([]);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -497,6 +503,35 @@ export function ProyectosContent() {
       return next;
     });
   }, [selectedTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getNombresFondosConConvenios().then((res) => {
+      if (!cancelled && res.success) {
+        setFondosConConvenios(res.data);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const proyectoTieneTabConvenio = useMemo(() => {
+    if (!selectedProject?.fondo) return false;
+    return fondosConConvenios.includes(selectedProject.fondo);
+  }, [selectedProject?.fondo, fondosConConvenios]);
+
+  const visibleProjectTabs = useMemo(() => {
+    return PROJECT_NAV_TABS.filter(
+      (tab) => tab.id !== 'Convenio' || proyectoTieneTabConvenio
+    );
+  }, [proyectoTieneTabConvenio]);
+
+  useEffect(() => {
+    if (selectedTab === 'Convenio' && !proyectoTieneTabConvenio) {
+      setSelectedTab('General');
+    }
+  }, [selectedTab, proyectoTieneTabConvenio]);
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
@@ -934,28 +969,40 @@ export function ProyectosContent() {
               className="flex-shrink-0 mb-5 overflow-x-auto"
             >
               <div className="flex items-stretch justify-center gap-1 sm:gap-2 min-w-max mx-auto px-2">
-                {PROJECT_NAV_TABS.map((tab) => {
+                {visibleProjectTabs.map((tab) => {
                   const isActive = selectedTab === tab.id;
+                  const convenioPendiente =
+                    tab.id === 'Convenio' &&
+                    !selectedProject.convenioFirmadoUrl;
                   return (
                     <button
                       key={tab.id}
                       type="button"
                       onClick={() => setSelectedTab(tab.id)}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`group relative px-3 py-2 text-[13px] tracking-wide whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 ${
-                        isActive
-                          ? 'text-gray-900 font-medium'
-                          : 'text-gray-500 font-normal hover:text-gray-800'
-                      }`}
+                      className={cn(
+                        'group relative px-3 text-[13px] tracking-wide whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm',
+                        convenioPendiente
+                          ? 'convenio-tab-pendiente font-medium self-center py-1'
+                          : cn(
+                              'py-2 transition-colors',
+                              isActive
+                                ? 'text-gray-900 font-medium'
+                                : 'text-gray-500 font-normal hover:text-gray-800'
+                            )
+                      )}
                     >
                       {tab.label}
                       <span
                         aria-hidden
-                        className={`absolute inset-x-2.5 bottom-0 h-0.5 rounded-full transition-colors ${
-                          isActive
-                            ? 'bg-emerald-600'
-                            : 'bg-transparent group-hover:bg-gray-300'
-                        }`}
+                        className={cn(
+                          'absolute inset-x-2.5 bottom-0 h-0.5 rounded-full transition-colors',
+                          convenioPendiente
+                            ? 'bg-transparent'
+                            : isActive
+                              ? 'bg-emerald-600'
+                              : 'bg-transparent group-hover:bg-gray-300'
+                        )}
                       />
                     </button>
                   );
@@ -1288,6 +1335,22 @@ export function ProyectosContent() {
 
             {/* Contenido por tab (keep-alive tras primera visita) */}
             <div className="flex-1 overflow-hidden mt-6">
+              {selectedProject &&
+                proyectoTieneTabConvenio &&
+                mountedTabs.has('Convenio') && (
+                  <div
+                    className={
+                      selectedTab === 'Convenio'
+                        ? 'h-full overflow-y-auto custom-scrollbar'
+                        : 'hidden'
+                    }
+                  >
+                    <ConvenioTab
+                      project={selectedProject}
+                      setProject={setSelectedProjectAndCache}
+                    />
+                  </div>
+                )}
               {selectedProject && mountedTabs.has('Resumen') && (
                 <div className={selectedTab === 'Resumen' ? 'h-full' : 'hidden'}>
                   <ResumenTab project={selectedProject} />

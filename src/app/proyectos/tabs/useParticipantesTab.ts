@@ -28,6 +28,7 @@ import {
 import { useEditarSociosComunitarios } from './useEditarSociosComunitarios';
 
 type ProyectoTabName =
+  | 'Convenio'
   | 'Resumen'
   | 'General'
   | 'Participantes'

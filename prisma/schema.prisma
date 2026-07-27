@@ -79,6 +79,9 @@ model User {
   // Chat de soporte (un hilo por usuario)
   supportMessages SupportMessage[]
 
+  // Convenios firmados subidos por este usuario
+  conveniosFirmados Proyecto[] @relation("ConvenioFirmadoBy")
+
   @@map("users")
 }
 
@@ -133,6 +136,12 @@ model Proyecto {
   presupuestoTotal Int      @default(0) @map("presupuesto_total")
   presupuestoAdjudicado Int @default(0) @map("presupuesto_adjudicado")
   participantes    Int      @default(0)
+  /** Convenio firmado (PDF/DOCX en Cloudinary carpeta convenios) */
+  convenioFirmadoUrl      String?   @map("convenio_firmado_url")
+  convenioFirmadoPublicId String?   @map("convenio_firmado_public_id")
+  convenioFirmadoNombre   String?   @map("convenio_firmado_nombre")
+  convenioFirmadoAt       DateTime? @map("convenio_firmado_at")
+  convenioFirmadoByUserId String?   @map("convenio_firmado_by_user_id")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -158,6 +167,7 @@ model Proyecto {
   // Módulo de Seguimiento
   compromisos            CompromisoProyecto[]
   itemsPresupuesto       ItemPresupuesto[]
+  convenioFirmadoByUser  User? @relation("ConvenioFirmadoBy", fields: [convenioFirmadoByUserId], references: [id], onDelete: SetNull)
 
   @@map("proyectos")
 }
@@ -245,10 +255,12 @@ model ProyectoParticipante {
 
 // Fondos (catálogo para listas desplegables; Proyecto.fondo sigue siendo String)
 model Fondo {
-  id     String  @id @default(cuid())
-  nombre String
-  orden  Int     @default(0)
-  lineas Linea[]
+  id                String  @id @default(cuid())
+  nombre            String
+  orden             Int     @default(0)
+  /** Si true, proyectos de este fondo ven tab Convenio y aparecen en Dashboard → Convenios */
+  conveniosEnabled  Boolean @default(false) @map("convenios_enabled")
+  lineas            Linea[]
 
   @@map("fondos")
 }

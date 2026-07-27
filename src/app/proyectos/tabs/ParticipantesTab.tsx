@@ -62,6 +62,7 @@ import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSoc
 import { cn } from '@/lib/utils';
 
 type ProyectoTabName =
+  | 'Convenio'
   | 'Resumen'
   | 'General'
   | 'Participantes'

@@ -20,6 +20,7 @@ import {
 } from './general-tab-utils';
 
 type ProyectoTabName =
+  | 'Convenio'
   | 'Resumen'
   | 'General'
   | 'Participantes'

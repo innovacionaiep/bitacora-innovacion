@@ -7,6 +7,7 @@ import {
   ListChecks,
   FileCode,
   Shield,
+  FileSignature,
 } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
 import { roleHasPermission } from '@/lib/permissions/check';
@@ -41,6 +42,11 @@ export default async function ConfiguracionLayout({
       href: '/configuracion/desarrollo-tecnico',
       label: 'Desarrollo técnico',
       icon: FileCode,
+    },
+    {
+      href: '/configuracion/convenios',
+      label: 'Convenios',
+      icon: FileSignature,
     },
   ];
 

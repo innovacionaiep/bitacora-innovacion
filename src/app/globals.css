@@ -230,3 +230,24 @@
     background: #9ca3af;
   }
 }
+
+/* Tab Convenio pendiente: una sola animación para fondo + texto (no se desincronizan).
+   Tiempos equilibrados: ~45% letras rojas / fondo claro, ~45% rectángulo rojo / letras blancas,
+   con transición corta al medio. Fuera de @layer para que no lo anulen las utilities. */
+@keyframes convenio-tab-pendiente {
+  0%,
+  45% {
+    background-color: rgba(220, 38, 38, 0);
+    color: #dc2626;
+  }
+  55%,
+  100% {
+    background-color: rgba(220, 38, 38, 1);
+    color: #ffffff;
+  }
+}
+
+.convenio-tab-pendiente {
+  animation: convenio-tab-pendiente 0.65s ease-in-out infinite alternate;
+}
+

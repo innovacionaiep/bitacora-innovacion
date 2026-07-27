@@ -122,6 +122,7 @@ const TOC_PREFIX: TocItem[] = [
 ];
 
 type ProyectoTabName =
+  | 'Convenio'
   | 'Resumen'
   | 'General'
   | 'Participantes'
