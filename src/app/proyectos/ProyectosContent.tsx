@@ -32,6 +32,7 @@ import {
   GitBranch,
   MapPin,
   GraduationCap,
+  FileSpreadsheet,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -64,6 +65,9 @@ import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
 import { cn } from '@/lib/utils';
+import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
+import { useTopLoader } from 'nextjs-toploader';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type ProyectoTab =
   | 'Convenio'
@@ -93,6 +97,8 @@ export function ProyectosContent() {
   const { data: session } = useSession();
   const { can } = useActiveRolePermissions();
   const canCreateProject = can('projects.create');
+  const canBulkCreate = can('projects.bulk_create');
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const {
     proyectos: proyectosIniciales,
     loading,
@@ -107,7 +113,9 @@ export function ProyectosContent() {
   const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
   const fetchProyectoBase = useFetchProyectoBase();
-
+  const topLoader = useTopLoader();
+  const tabLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  usePageTopLoader(loading);
   const [mountedTabs, setMountedTabs] = useState<Set<ProyectoTab>>(
     () => new Set(['General'])
   );
@@ -115,7 +123,6 @@ export function ProyectosContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] =
     useState<ProyectoWithRelations | null>(null);
-  const [selectingProjectId, setSelectingProjectId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -279,7 +286,7 @@ export function ProyectosContent() {
       const cached = queryClient.getQueryData<ProyectoWithRelations>(
         proyectoBaseKey(project.id)
       );
-      if (!cached) setSelectingProjectId(project.id);
+      if (!cached) topLoader.start();
       try {
         const data = cached ?? (await fetchProyectoBase(project.id));
         setSelectedProject(data);
@@ -291,10 +298,10 @@ export function ProyectosContent() {
           '';
         setTempVideoUrl(videoUrl);
       } finally {
-        setSelectingProjectId(null);
+        if (!cached) topLoader.done(true);
       }
     })();
-  }, [proyectosIniciales, searchParams, fetchProyectoBase, queryClient]);
+  }, [proyectosIniciales, searchParams, fetchProyectoBase, queryClient, topLoader]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
@@ -451,7 +458,7 @@ export function ProyectosContent() {
       setTempVideoUrl(videoUrl);
       return;
     }
-    setSelectingProjectId(project.id);
+    topLoader.start();
     try {
       const data = await fetchProyectoBase(project.id);
       setSelectedProject(data);
@@ -462,8 +469,34 @@ export function ProyectosContent() {
         '';
       setTempVideoUrl(videoUrl);
     } finally {
-      setSelectingProjectId(null);
+      topLoader.done(true);
     }
+  };
+
+  const clearTabLoader = useCallback(() => {
+    if (tabLoaderTimeoutRef.current != null) {
+      clearTimeout(tabLoaderTimeoutRef.current);
+      tabLoaderTimeoutRef.current = null;
+    }
+    topLoader.done(true);
+  }, [topLoader]);
+
+  const handleSelectTab = (tab: ProyectoTab) => {
+    clearTabLoader();
+    if (!mountedTabs.has(tab)) {
+      const instantTabs: ProyectoTab[] = ['Convenio', 'General', 'Participantes'];
+      topLoader.start();
+      if (instantTabs.includes(tab)) {
+        requestAnimationFrame(() => topLoader.done(true));
+      } else {
+        // Seguridad: no dejar la barra pegada si el tab async no completa
+        tabLoaderTimeoutRef.current = setTimeout(() => {
+          topLoader.done(true);
+          tabLoaderTimeoutRef.current = null;
+        }, 4000);
+      }
+    }
+    setSelectedTab(tab);
   };
 
   // Cargar borradores en landing (diferido para no competir con el listado inicial)
@@ -503,6 +536,18 @@ export function ProyectosContent() {
       return next;
     });
   }, [selectedTab]);
+
+  // Tabs sin fetch propio: cerrar cualquier barra residual (p. ej. keep-alive previo)
+  useEffect(() => {
+    if (!selectedProject) return;
+    if (
+      selectedTab === 'General' ||
+      selectedTab === 'Participantes' ||
+      selectedTab === 'Convenio'
+    ) {
+      clearTabLoader();
+    }
+  }, [selectedProject, selectedTab, clearTabLoader]);
 
   useEffect(() => {
     let cancelled = false;
@@ -557,16 +602,7 @@ export function ProyectosContent() {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-full">
-        <div className="flex items-center justify-center w-full h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Cargando proyectos...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="h-full min-h-[200px]" />;
   }
 
   if (error) {
@@ -954,13 +990,6 @@ export function ProyectosContent() {
             </CardContent>
           </Card>
           </div>
-        ) : selectingProjectId ? (
-          <div className="flex items-center justify-center h-full min-h-[300px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mx-auto mb-3" />
-              <p className="text-gray-500">Cargando proyecto...</p>
-            </div>
-          </div>
         ) : selectedProject ? (
           <div className="flex flex-col h-full min-h-0 overflow-hidden">
             {/* Navegación del proyecto: arriba de todo, centrada */}
@@ -978,7 +1007,7 @@ export function ProyectosContent() {
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setSelectedTab(tab.id)}
+                      onClick={() => handleSelectTab(tab.id)}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
                         'group relative px-3 text-[13px] tracking-wide whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm',
@@ -1353,7 +1382,10 @@ export function ProyectosContent() {
                 )}
               {selectedProject && mountedTabs.has('Resumen') && (
                 <div className={selectedTab === 'Resumen' ? 'h-full' : 'hidden'}>
-                  <ResumenTab project={selectedProject} />
+                  <ResumenTab
+                    project={selectedProject}
+                    topLoaderEnabled={selectedTab === 'Resumen'}
+                  />
                 </div>
               )}
               {selectedProject && mountedTabs.has('General') && (
@@ -1396,6 +1428,7 @@ export function ProyectosContent() {
                   <GanttTab
                     project={selectedProject}
                     onProjectChange={handleClearProjectSelection}
+                    topLoaderEnabled={selectedTab === 'Gantt'}
                   />
                 </div>
               )}
@@ -1404,7 +1437,8 @@ export function ProyectosContent() {
                   className={selectedTab === 'Indicadores' ? 'h-full' : 'hidden'}
                 >
                   <IndicadoresTab
-                    projectId={selectedProject.id}
+                    project={selectedProject}
+                    topLoaderEnabled={selectedTab === 'Indicadores'}
                   />
                 </div>
               )}
@@ -1412,14 +1446,20 @@ export function ProyectosContent() {
                 <div
                   className={selectedTab === 'Presupuesto' ? 'h-full' : 'hidden'}
                 >
-                  <PresupuestoTab project={selectedProject} />
+                  <PresupuestoTab
+                    project={selectedProject}
+                    topLoaderEnabled={selectedTab === 'Presupuesto'}
+                  />
                 </div>
               )}
               {selectedProject && mountedTabs.has('Historial') && (
                 <div
                   className={selectedTab === 'Historial' ? 'h-full' : 'hidden'}
                 >
-                  <HistorialTab projectId={selectedProject.id} />
+                  <HistorialTab
+                    projectId={selectedProject.id}
+                    topLoaderEnabled={selectedTab === 'Historial'}
+                  />
                 </div>
               )}
               {selectedProject && mountedTabs.has('Seguimiento') && (
@@ -1430,6 +1470,7 @@ export function ProyectosContent() {
                     project={selectedProject}
                     rolEnProyecto={rolEnProyectoSeguimiento}
                     activeRole={session?.user?.activeRole ?? null}
+                    topLoaderEnabled={selectedTab === 'Seguimiento'}
                   />
                 </div>
               )}
@@ -1447,21 +1488,42 @@ export function ProyectosContent() {
                 <p className="text-gray-500 mb-6">
                   Selecciona un proyecto para ver sus detalles o crea uno nuevo
                 </p>
-                {canCreateProject && (
-                <Button
-                  variant="outline"
-                  asChild
-                  className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200"
-                >
-                  <Link
-                    href="/proyectos/nuevo"
-                    className="inline-flex items-center justify-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Crear proyecto</span>
-                  </Link>
-                </Button>
-                )}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {canCreateProject && (
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                    >
+                      <Link
+                        href="/proyectos/nuevo"
+                        className="inline-flex items-center justify-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Crear proyecto</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {canBulkCreate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setBulkImportOpen(true)}
+                      className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center gap-2"
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                      <span>Carga masiva</span>
+                    </Button>
+                  )}
+                </div>
+                <ImportExcelDialog
+                  open={bulkImportOpen}
+                  onOpenChange={setBulkImportOpen}
+                  tipo="proyectos"
+                  onSuccess={() => {
+                    void fetchProyectos();
+                  }}
+                />
               </div>
 
               <div className="relative mb-4 shrink-0">

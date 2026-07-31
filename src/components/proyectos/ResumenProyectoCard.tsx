@@ -16,7 +16,6 @@ import {
   Calendar,
   ListTodo,
   History,
-  Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +45,7 @@ import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { CuentaPresupuesto } from '@/types/presupuesto';
 import { ActivityStatus } from '@prisma/client';
 import { compromisosKey, historialKey } from '@/lib/query-keys';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
   RRHH: 'RRHH',
@@ -85,6 +85,7 @@ interface ResumenProyectoCardProps {
   presupuestoTotal?: number;
   presupuestoAdjudicado?: number;
   initialActivities?: ProyectoWithRelations['activities'];
+  topLoaderEnabled?: boolean;
 }
 
 export function ResumenProyectoCard({
@@ -93,6 +94,7 @@ export function ResumenProyectoCard({
   presupuestoTotal = 0,
   presupuestoAdjudicado = 0,
   initialActivities,
+  topLoaderEnabled = true,
 }: ResumenProyectoCardProps) {
   const { activities, loading: loadingGantt } = useGantt(
     projectId,
@@ -142,6 +144,10 @@ export function ResumenProyectoCard({
     (historialQuery.isLoading && !historialQuery.data);
 
   const loadingAvances = loadingGantt || loadingPresupuesto;
+  usePageTopLoader(loadingAvances || loadingSeguimiento, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
   const pctActividades = useMemo(() => {
     if (!activities.length) return 0;
     const sum = activities.reduce((s, a) => s + a.progress, 0);
@@ -392,9 +398,7 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-3">
                 {loadingAvances ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
+                  <div className="py-6" />
                 ) : (
                   <SimpleBarChart data={barChartData} height={100} />
                 )}
@@ -411,9 +415,7 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4 overflow-x-auto">
                 {loadingAvances ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
+                  <div className="py-8" />
                 ) : (
                   <div className="space-y-3">
                     {presupuestoAdjudicado > 0 && (
@@ -503,9 +505,7 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4">
                 {loadingAvances ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
+                  <div className="py-8" />
                 ) : indicadoresFlat.length === 0 ? (
                   <p className="text-sm text-gray-500 py-2">
                     No hay indicadores
@@ -553,9 +553,7 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4">
                 {loadingAvances ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
+                  <div className="py-8" />
                 ) : activities.length === 0 ? (
                   <p className="text-sm text-gray-500 py-2">
                     No hay actividades
@@ -626,9 +624,7 @@ export function ResumenProyectoCard({
               </div>
               <CardContent className="p-4 space-y-4">
                 {loadingSeguimiento ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
+                  <div className="py-6" />
                 ) : (
                   <div>
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">

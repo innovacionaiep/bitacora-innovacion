@@ -201,9 +201,7 @@ export function PortalCompromisosPendientes({
         <div className={PANEL_HEADER}>
           <PanelTitle />
         </div>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-        </div>
+        <div className="flex-1 min-h-[80px]" />
       </div>
     );
   }

@@ -2,13 +2,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertCircle,
-  ImagePlus,
-  BarChart3,
-  Loader2,
-  Wallet,
-} from 'lucide-react';
+import { AlertCircle, ImagePlus, BarChart3, Wallet } from 'lucide-react';
 import type { AlertasPortal } from '@/lib/actions/portal-inicio';
 import { ActividadDetalleModal } from './ActividadDetalleModal';
 import { IndicadorDetalleModal } from './IndicadorDetalleModal';
@@ -70,9 +64,7 @@ export function PortalAlertasPendientes({
         <div className={PANEL_HEADER}>
           <PanelTitle />
         </div>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-        </div>
+        <div className="flex-1 min-h-[80px]" />
       </div>
     );
   }

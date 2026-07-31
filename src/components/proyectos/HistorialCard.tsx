@@ -25,9 +25,11 @@ import { History, Filter, CalendarIcon } from 'lucide-react';
 import { parse, format, subMonths } from 'date-fns';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { historialKey, historialFiltrosKey } from '@/lib/query-keys';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 interface HistorialCardProps {
   projectId: string;
+  topLoaderEnabled?: boolean;
 }
 
 interface HistorialEntry {
@@ -45,7 +47,10 @@ interface HistorialEntry {
   };
 }
 
-export function HistorialCard({ projectId }: HistorialCardProps) {
+export function HistorialCard({
+  projectId,
+  topLoaderEnabled = true,
+}: HistorialCardProps) {
   const [filtros, setFiltros] = useState({
     personaId: 'all',
     accion: 'all',
@@ -125,6 +130,10 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
 
   const historial = historialQuery.data ?? [];
   const loading = historialQuery.isLoading && !historialQuery.data;
+  usePageTopLoader(loading, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
   const opcionesFiltros = filtrosQuery.data ?? {
     personas: [] as Array<{ id: string; name: string | null; email: string }>,
     acciones: [] as string[],
@@ -445,12 +454,7 @@ export function HistorialCard({ projectId }: HistorialCardProps) {
 
       <CardContent className="flex-1 overflow-auto p-0">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-emerald-600 mx-auto mb-3" />
-              <p className="text-[13px] text-gray-400">Cargando historial...</p>
-            </div>
-          </div>
+          <div className="h-64" />
         ) : historial.length === 0 ? (
           <div className="text-center py-12">
             <History className="h-10 w-10 mx-auto mb-3 text-gray-300" />

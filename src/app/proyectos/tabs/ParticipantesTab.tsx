@@ -47,6 +47,7 @@ import {
   Crown,
   UserCog,
   FileDown,
+  FileSpreadsheet,
   Check,
   X,
   ChevronDown,
@@ -59,6 +60,8 @@ import {
 } from './participantes-tab-utils';
 import { useParticipantesTab } from './useParticipantesTab';
 import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSociosComunitariosDialog';
+import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
+import { useCanProjectImport } from '@/hooks/useCanProjectImport';
 import { cn } from '@/lib/utils';
 
 type ProyectoTabName =
@@ -200,6 +203,12 @@ export function ParticipantesTab({
     selectedTab,
     onSaveSuccess,
   });
+
+  const [importOpen, setImportOpen] = useState(false);
+  const canImport = useCanProjectImport(
+    'projects.import_participantes',
+    project
+  );
 
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'asc' });
 
@@ -599,9 +608,38 @@ export function ParticipantesTab({
                   <p>Exportar tabla de participantes a Excel (XLSX)</p>
                 </TooltipContent>
               </Tooltip>
+              {canImport && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      onClick={() => setImportOpen(true)}
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 rounded-md transition-colors flex items-center justify-center border ml-1 bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-blue-700 gap-1.5 px-3"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                      <span className="text-[13px] font-medium tracking-wide">
+                        Carga masiva
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Importar participantes desde Excel (solo altas)</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </TooltipProvider>
           </div>
         </div>
+
+        <ImportExcelDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          tipo="participantes"
+          proyectoId={project.id}
+          onSuccess={() => fetchProyectos({ silent: true })}
+        />
 
         {/* Tabla */}
         <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white">

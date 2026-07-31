@@ -1,0 +1,74 @@
+Attribute VB_Name = "ThisWorkbook"
+Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+    On Error GoTo CleanExit
+    If Target Is Nothing Then GoTo CleanExit
+    If Target.CountLarge <> 1 Then GoTo CleanExit
+    If Target.Row < 2 Then GoTo CleanExit
+    If Sh Is Nothing Then GoTo CleanExit
+
+    Dim sheetName As String
+    sheetName = CStr(Sh.Name)
+    If StrComp(sheetName, "Proyectos", vbTextCompare) <> 0 _
+       And StrComp(sheetName, "Participantes", vbTextCompare) <> 0 Then
+        GoTo CleanExit
+    End If
+
+    Dim hdr As String
+    hdr = Trim$(CStr(Sh.Cells(1, Target.Column).Value2))
+    If hdr = "" Then GoTo CleanExit
+
+    Dim multi As Boolean
+    multi = False
+    Select Case LCase$(hdr)
+        Case "sedes", "comunas", "escuelas", "carreras", "asignaturas", "gruposinteres"
+            multi = True
+    End Select
+    If Not multi Then GoTo CleanExit
+
+    Dim newVal As String
+    Dim oldVal As String
+    newVal = Trim$(CStr(Target.Value2))
+
+    Application.EnableEvents = False
+    Application.Undo
+    oldVal = Trim$(CStr(Target.Value2))
+
+    If newVal = "" Then
+        Target.Value = oldVal
+        GoTo CleanExit
+    End If
+
+    If oldVal = "" Then
+        Target.Value = newVal
+        GoTo CleanExit
+    End If
+
+    Dim parts() As String
+    parts = Split(oldVal, ";")
+    Dim found As Boolean
+    Dim out As String
+    Dim i As Long
+    Dim token As String
+    found = False
+    out = ""
+    For i = LBound(parts) To UBound(parts)
+        token = Trim$(CStr(parts(i)))
+        If token <> "" Then
+            If StrComp(token, newVal, vbTextCompare) = 0 Then
+                found = True
+            Else
+                If out <> "" Then out = out & "; "
+                out = out & token
+            End If
+        End If
+    Next i
+
+    If found Then
+        Target.Value = out
+    Else
+        Target.Value = oldVal & "; " & newVal
+    End If
+
+CleanExit:
+    Application.EnableEvents = True
+End Sub

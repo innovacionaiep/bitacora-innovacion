@@ -1,5 +1,5 @@
 import { MULTI_VALUE_SEP } from '@/components/ui/multi-select-nombres';
-import { parseYouTubeUrl } from '@/lib/youtube';
+import { isValidVideoUrl, parseVideoUrl } from '@/lib/video-url';
 import {
   type AsignaturaItem,
   type CarreraItem,
@@ -116,8 +116,8 @@ export type CatalogosGeneral = {
   }[];
 };
 
-export const extractYouTubeVideoId = (url: string): string | null =>
-  parseYouTubeUrl(url)?.videoId ?? null;
+export const parseProjectVideoUrl = parseVideoUrl;
+export const isValidProjectVideoUrl = isValidVideoUrl;
 
 export const buildGeneralDraft = (project: ProyectoWithRelations): GeneralDraft => {
   const objetivoGeneral = project.objetivos_rel?.find(

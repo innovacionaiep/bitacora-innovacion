@@ -296,7 +296,7 @@ export function ListaProyectosTab({ proyectos }: ListaProyectosTabProps) {
   ) => (
     <TableHead
       className={cn(
-        'whitespace-nowrap text-[11px] font-medium tracking-wide text-gray-600 bg-gray-50/95',
+        'sticky top-0 z-20 whitespace-nowrap text-[11px] font-medium tracking-wide text-gray-600 bg-gray-50',
         className
       )}
     >
@@ -340,8 +340,8 @@ export function ListaProyectosTab({ proyectos }: ListaProyectosTabProps) {
     (filters.focalizacion?.length ?? 0) > 0;
 
   return (
-    <div className="space-y-5 pb-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-5 pb-2">
+      <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         <div className="space-y-1.5">
           <label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
             Nombre de proyecto
@@ -395,7 +395,7 @@ export function ListaProyectosTab({ proyectos }: ListaProyectosTabProps) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="shrink-0 flex items-center justify-between gap-3">
         <p className="text-[12px] text-gray-400 tabular-nums">
           {filteredProjects.length} de {proyectos.length} proyectos
         </p>
@@ -425,8 +425,8 @@ export function ListaProyectosTab({ proyectos }: ListaProyectosTabProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-none">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="min-h-0 flex-1 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-none flex flex-col">
+        <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">
           <div style={{ minWidth: '2100px' }}>
             <Table>
               <TableHeader>
@@ -434,7 +434,7 @@ export function ListaProyectosTab({ proyectos }: ListaProyectosTabProps) {
                   {renderHead(
                     'Nombre del proyecto',
                     'proyecto',
-                    'pl-4 sticky left-0 z-10 min-w-[280px]',
+                    'pl-4 sticky left-0 top-0 z-30 min-w-[280px]',
                     'start'
                   )}
                   {renderHead('Estado', 'estado', 'text-center min-w-[120px]')}

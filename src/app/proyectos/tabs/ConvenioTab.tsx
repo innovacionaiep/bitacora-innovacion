@@ -123,6 +123,19 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
     }
   };
 
+  /** Abre el PDF vía proxy (inline); la URL pública de Cloudinary suele dar 401 si PDF delivery está bloqueado. */
+  const handleVisualizarFirmado = () => {
+    setError(null);
+    if (!project.convenioFirmadoUrl) return;
+    const filename = project.convenioFirmadoNombre || 'convenio-firmado.pdf';
+    const apiUrl = buildCloudinaryDownloadUrl(
+      project.convenioFirmadoUrl,
+      filename,
+      { disposition: 'inline' }
+    );
+    window.open(apiUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const handleEliminar = async () => {
     setError(null);
     setSuccessMsg(null);
@@ -257,19 +270,15 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
               <div className="flex flex-wrap gap-2">
                 {project.convenioFirmadoUrl ? (
                   <Button
+                    type="button"
                     variant="outline"
-                    asChild
+                    onClick={handleVisualizarFirmado}
+                    disabled={busy}
+                    title="Abrir documento firmado"
                     className="border-gray-200 text-[13px] shadow-none"
                   >
-                    <a
-                      href={project.convenioFirmadoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Abrir documento en Cloudinary"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Visualizar
-                    </a>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Visualizar
                   </Button>
                 ) : null}
                 <Button

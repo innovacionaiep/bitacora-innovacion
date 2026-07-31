@@ -27,15 +27,17 @@ import {
   Crosshair,
   Target,
   Video,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import {
-  extractYouTubeVideoId,
   isLegacyDtFieldKey,
+  parseProjectVideoUrl,
   type DesarrolloTecnicoFieldKey,
   type GeneralFieldId,
 } from './general-tab-utils';
-import { isYouTubeShortsUrl } from '@/lib/youtube';
 import { GeneralTabTextarea } from './GeneralTabTextarea';
 import type { UseGeneralTabReturn } from './useGeneralTab';
 import { IconByName } from '@/components/config/IconByName';
@@ -197,29 +199,196 @@ function HoverEditButton({
   );
 }
 
-function ProjectVideoEmbed({ url }: { url: string }) {
-  const videoId = extractYouTubeVideoId(url);
-  if (!videoId) return null;
+function ProjectVideoExternalLink({
+  url,
+  title,
+  providerLabel,
+}: {
+  url: string;
+  title?: string;
+  providerLabel: string;
+}) {
+  return (
+    <div className="w-full max-w-[80%] mx-auto rounded-md border border-gray-200 bg-gray-50/80 px-5 py-6">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-2 text-gray-800">
+            <Video className="h-4 w-4 shrink-0 text-gray-500" strokeWidth={1.75} />
+            <p className="text-[14px] font-medium truncate">
+              {title?.trim() || `Video en ${providerLabel}`}
+            </p>
+          </div>
+          <p className="text-[12px] text-gray-500 leading-relaxed">
+            {providerLabel} no permite reproducir este video dentro de la app
+            (requiere inicio de sesión de Microsoft). Ábrelo en una pestaña
+            nueva.
+          </p>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-[13px] font-medium text-white hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        >
+          Abrir video
+          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+        </a>
+      </div>
+    </div>
+  );
+}
 
-  const isShort = isYouTubeShortsUrl(url);
+function ProjectVideoEmbed({ url }: { url: string }) {
+  const parsed = parseProjectVideoUrl(url);
+  const [isVertical, setIsVertical] = useState(Boolean(parsed?.isShort));
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!parsed) {
+      setIsVertical(false);
+      return;
+    }
+    if (parsed.isShort) {
+      setIsVertical(true);
+      return;
+    }
+    if (
+      parsed.provider !== 'vimeo' &&
+      parsed.provider !== 'google-drive'
+    ) {
+      setIsVertical(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsVertical(false);
+
+    const params = new URLSearchParams({ url });
+    void fetch(`/api/video-orientation?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { vertical?: boolean } | null) => {
+        if (!cancelled && data?.vertical) setIsVertical(true);
+      })
+      .catch(() => {
+        /* landscape por defecto */
+      });
+
+    // Solo confiar en Image() si la miniatura ya es portrait (Drive a menudo
+    // entrega thumbs landscape con letterbox; eso lo resuelve la API).
+    if (parsed.provider === 'google-drive' && parsed.videoId) {
+      const img = new Image();
+      img.onload = () => {
+        if (
+          !cancelled &&
+          img.naturalHeight > img.naturalWidth &&
+          img.naturalWidth > 0
+        ) {
+          setIsVertical(true);
+        }
+      };
+      img.src = `https://drive.google.com/thumbnail?id=${encodeURIComponent(parsed.videoId)}&sz=w1000`;
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url, parsed?.provider, parsed?.isShort, parsed?.videoId]);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(document.fullscreenElement === stageRef.current);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    if (document.fullscreenElement === el) {
+      void document.exitFullscreen();
+    } else {
+      void el.requestFullscreen().catch(() => {
+        /* navegador puede bloquear fullscreen */
+      });
+    }
+  }, []);
+
+  if (!parsed) return null;
+
+  if (parsed.externalOnly) {
+    const openUrl = parsed.pageUrl || parsed.embedUrl || url;
+    const providerLabel =
+      parsed.provider === 'sharepoint' ? 'SharePoint / Stream' : 'el proveedor';
+    return (
+      <ProjectVideoExternalLink
+        url={openUrl}
+        title={parsed.title}
+        providerLabel={providerLabel}
+      />
+    );
+  }
+
+  const isDriveVertical =
+    isVertical && parsed.provider === 'google-drive';
+  const openUrl = parsed.pageUrl || parsed.embedUrl || url;
 
   return (
-    <div
-      className={
-        isShort
-          ? 'relative w-full max-w-[280px] mx-auto aspect-[9/16] bg-black rounded-md overflow-hidden'
-          : 'relative w-full max-w-[60%] mx-auto aspect-[100/35] bg-black rounded-md overflow-hidden'
-      }
-    >
-      <iframe
-        className="absolute top-0 left-0 w-full h-full"
-        src={`https://www.youtube.com/embed/${videoId}?playsinline=1`}
-        title="Video del Proyecto"
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-      />
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <div
+        ref={stageRef}
+        className={
+          isVertical
+            ? 'relative w-full max-w-[240px] mx-auto aspect-[9/16] bg-black rounded-md overflow-hidden isolate'
+            : 'relative w-full max-w-full sm:max-w-[min(100%,36rem)] mx-auto aspect-video bg-black rounded-md overflow-hidden isolate'
+        }
+      >
+        <iframe
+          className={
+            isDriveVertical
+              ? // Preview Drive 16:9 con vertical al centro: ensanchar y subir un poco
+                // para llenar 9:16 y ocultar la barra nativa (queda cortada al recortar).
+                'absolute -top-[2%] left-1/2 h-[108%] w-[320%] max-w-none -translate-x-1/2 border-0'
+              : 'absolute inset-0 h-full w-full max-w-full border-0'
+          }
+          src={parsed.embedUrl}
+          title="Video del Proyecto"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+
+        {isDriveVertical ? (
+          <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-end gap-1 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-8 pointer-events-none">
+            <a
+              href={openUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir en Google Drive"
+              className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-white/90 hover:bg-white/15 hover:text-white transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" strokeWidth={2} />
+            </a>
+            <button
+              type="button"
+              title={
+                isFullscreen
+                  ? 'Salir de pantalla completa'
+                  : 'Pantalla completa'
+              }
+              onClick={toggleFullscreen}
+              className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-white/90 hover:bg-white/15 hover:text-white transition-colors"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" strokeWidth={2} />
+              ) : (
+                <Maximize2 className="h-4 w-4" strokeWidth={2} />
+              )}
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -904,7 +1073,7 @@ export function GeneralTab({
       .youtubeUrl ??
     projectVideos[project.id] ??
     '';
-  const hasVideo = Boolean(extractYouTubeVideoId(projVideo));
+  const hasVideo = Boolean(parseProjectVideoUrl(projVideo));
 
   const desarrolloTecnico =
     editingField?.startsWith('dt.') && generalDraft
@@ -1142,11 +1311,11 @@ export function GeneralTab({
   }, []);
 
   return (
-    <div ref={rootRef} className="h-full overflow-hidden pt-4">
+    <div ref={rootRef} className="h-full min-w-0 overflow-hidden overflow-x-hidden pt-4">
       {/* Índice | Lectura centrada | Metadatos de contexto */}
-      <div className="grid h-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
-        <aside className="hidden lg:flex justify-end pr-6 xl:pr-8 pl-2 h-full min-h-0 overflow-hidden">
-          <div className="w-[15.5rem] shrink-0">
+      <div className="grid h-full w-full min-w-0 max-w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
+        <aside className="hidden lg:flex justify-end pr-6 xl:pr-8 pl-2 h-full min-h-0 min-w-0 overflow-hidden">
+          <div className="w-[15.5rem] max-w-full shrink-0">
             <BookIndex
               activeId={activeSectionId}
               onNavigate={navigateToSection}
@@ -1157,7 +1326,7 @@ export function GeneralTab({
 
         <div
           ref={scrollRef}
-          className="h-full overflow-y-auto min-h-0 min-w-0 custom-scrollbar px-2 sm:px-4"
+          className="h-full overflow-y-auto overflow-x-hidden min-h-0 min-w-0 custom-scrollbar px-2 sm:px-4"
         >
           {/* Índice compacto en pantallas pequeñas */}
           <div className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2">
@@ -1369,15 +1538,15 @@ export function GeneralTab({
                 {isEditing('video') ? (
                   <div className="space-y-3">
                     <Label className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-400">
-                      URL del video (YouTube)
+                      URL del video (YouTube, Vimeo, Drive o SharePoint)
                     </Label>
                     <Input
                       value={tempVideoUrl}
                       onChange={(e) => setTempVideoUrl(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
+                      placeholder="https://youtube.com/... · vimeo.com/... · drive.google.com/... · sharepoint.com/..."
                       className="border-0 border-b border-gray-200 rounded-none focus:border-gray-400 shadow-none bg-transparent px-0 focus-visible:ring-0"
                     />
-                  {tempVideoUrl && extractYouTubeVideoId(tempVideoUrl) ? (
+                  {tempVideoUrl && parseProjectVideoUrl(tempVideoUrl) ? (
                     <ProjectVideoEmbed url={tempVideoUrl} />
                   ) : null}
                   <FieldSaveCancel
@@ -1501,8 +1670,8 @@ export function GeneralTab({
           </div>
         </div>
 
-        <aside className="hidden lg:flex justify-start pl-8 xl:pl-12 pr-3 h-full min-h-0 overflow-y-auto custom-scrollbar">
-          <div className="w-[13.5rem] shrink-0 sticky top-0 pt-3">
+        <aside className="hidden lg:flex justify-start pl-8 xl:pl-12 pr-3 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div className="w-[13.5rem] max-w-full shrink-0 sticky top-0 pt-3">
             <ProjectMetaRail
               project={project}
               sedeNames={sedeNames}

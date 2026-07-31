@@ -32,6 +32,11 @@ type MiradaGeneralTabProps = {
   proyectos: Project[];
 };
 
+const distributionPanelClass =
+  'min-h-0 h-full flex flex-col';
+const distributionBodyClass =
+  'flex-1 min-h-0 overflow-y-auto custom-scrollbar';
+
 export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
   const metrics = useMemo(
     () => computePortfolioMetrics(proyectos),
@@ -47,9 +52,9 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
   );
 
   return (
-    <div className="space-y-8 pb-4">
-      {/* KPI strip */}
-      <div className="flex flex-wrap gap-2.5">
+    <div className="flex h-full min-h-0 flex-col gap-5 pb-2">
+      {/* KPI strip — fixed */}
+      <div className="shrink-0 flex flex-wrap gap-2.5">
         <MetricChip
           label="Total proyectos"
           value={metrics.totalProyectos}
@@ -77,8 +82,12 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
         />
       </div>
 
-      {/* Roles breakdown */}
-      <SectionPanel title="Participantes por rol" icon={Users}>
+      {/* Roles breakdown — fixed */}
+      <SectionPanel
+        className="shrink-0"
+        title="Participantes por rol"
+        icon={Users}
+      >
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {metrics.desgloseRoles.map(({ rol, cantidad }) => (
             <div key={rol} className="min-w-[5.5rem]">
@@ -93,8 +102,8 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
         </div>
       </SectionPanel>
 
-      {/* Progress macro */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Progress macro — fixed */}
+      <div className="shrink-0 grid gap-4 md:grid-cols-3">
         <SectionPanel title="Avance Gantt promedio" icon={LineChart}>
           <p className="text-[28px] font-semibold tabular-nums text-gray-800 leading-none mb-3">
             {metrics.avanceGanttProm}%
@@ -142,30 +151,46 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
         </SectionPanel>
       </div>
 
-      {/* Portfolio distribution */}
-      <div>
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
+      {/* Portfolio distribution — fills remaining height; lists scroll inside cards */}
+      <div className="min-h-0 flex-1 flex flex-col gap-3">
+        <p className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">
           Distribución del portafolio
         </p>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SectionPanel title="Por fondo" icon={DollarSign}>
+        <div className="min-h-0 flex-1 grid gap-4 md:grid-cols-2 xl:grid-cols-4 md:grid-rows-2 xl:grid-rows-1 auto-rows-fr">
+          <SectionPanel
+            title="Por fondo"
+            icon={DollarSign}
+            className={distributionPanelClass}
+            bodyClassName={distributionBodyClass}
+          >
             <DistributionList data={porFondo} barMode="ofMax" />
           </SectionPanel>
-          <SectionPanel title="Por sede" icon={Building2}>
+          <SectionPanel
+            title="Por sede"
+            icon={Building2}
+            className={distributionPanelClass}
+            bodyClassName={distributionBodyClass}
+          >
             <DistributionList data={porSede} barMode="ofMax" />
           </SectionPanel>
-          <SectionPanel title="Por escuela" icon={GraduationCap}>
-            <DistributionList
-              data={porEscuela}
-              barMode="ofMax"
-              maxItems={10}
-            />
+          <SectionPanel
+            title="Por escuela"
+            icon={GraduationCap}
+            className={distributionPanelClass}
+            bodyClassName={distributionBodyClass}
+          >
+            <DistributionList data={porEscuela} barMode="ofMax" />
           </SectionPanel>
-          <SectionPanel title="Por focalización" icon={BarChart3}>
+          <SectionPanel
+            title="Por focalización"
+            icon={BarChart3}
+            className={distributionPanelClass}
+            bodyClassName={distributionBodyClass}
+          >
             <SimpleDonutChart data={porFocalizacion} size={130} />
           </SectionPanel>
         </div>
-        <p className="text-[11px] text-gray-400 mt-3">
+        <p className="shrink-0 text-[11px] text-gray-400">
           Un proyecto puede figurar en más de una categoría (sede u escuela). El
           porcentaje es sobre el total de proyectos.
         </p>

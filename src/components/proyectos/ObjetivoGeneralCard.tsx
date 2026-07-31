@@ -23,13 +23,16 @@ interface ObjetivoGeneralCardProps {
     fechaInicio?: string | null;
     fechaFin?: string | null;
   }) => void;
-  /** Botones o acciones a la derecha del objetivo general (ej. Agregar / Eliminar indicador) */
+  /** Botones o acciones a la derecha del objetivo general (ej. Eliminar indicador) */
   actions?: ReactNode;
   /** Si está activo el modo eliminar, se muestra botón papelera en cada indicador */
   deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
   /** Callback para agregar un objetivo específico (cuando no hay ninguno) */
   onAddObjetivoEspecifico?: (descripcion: string) => Promise<void>;
+  onAddIndicador?: (objetivoEspecificoId: string) => void;
+  onCargaMasiva?: () => void;
+  canImport?: boolean;
 }
 
 export function ObjetivoGeneralCard({
@@ -40,6 +43,9 @@ export function ObjetivoGeneralCard({
   deleteMode,
   onDeleteIndicador,
   onAddObjetivoEspecifico,
+  onAddIndicador,
+  onCargaMasiva,
+  canImport,
 }: ObjetivoGeneralCardProps) {
   const [nuevoObjetivoTexto, setNuevoObjetivoTexto] = useState('');
   const [addingObjetivo, setAddingObjetivo] = useState(false);
@@ -110,11 +116,11 @@ export function ObjetivoGeneralCard({
 
             {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores (80px a la derecha respecto al Objetivo General) */}
             <div
-              className="flex flex-col gap-16 relative"
+              className="relative isolate flex flex-col gap-16"
               style={{ marginLeft: '80px' }}
             >
-              {/* Línea conectora vertical que conecta desde el objetivo general hasta el último objetivo específico */}
-              <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0"></div>
+              {/* Línea conectora vertical detrás de las tarjetas de objetivos específicos */}
+              <div className="pointer-events-none absolute left-[28px] -top-16 bottom-0 z-0 w-0.5 bg-gray-300" />
               {objetivoGeneral.objetivosEspecificos.map(
                 (objetivoEspecifico, index) => (
                   <div key={objetivoEspecifico.id} className="relative z-10">
@@ -124,6 +130,13 @@ export function ObjetivoGeneralCard({
                       onIndicadorClick={onIndicadorClick}
                       deleteMode={deleteMode}
                       onDeleteIndicador={onDeleteIndicador}
+                      onAddIndicador={
+                        onAddIndicador
+                          ? () => onAddIndicador(objetivoEspecifico.id)
+                          : undefined
+                      }
+                      onCargaMasiva={onCargaMasiva}
+                      canImport={canImport}
                     />
                   </div>
                 )

@@ -19,6 +19,7 @@ import {
 } from '@/lib/actions/convenios';
 import { buildCloudinaryDownloadUrl } from '@/lib/convenios-upload';
 import { cn } from '@/lib/utils';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 function formatFecha(d: Date | string | null | undefined): string {
   if (!d) return '—';
@@ -134,15 +135,10 @@ export function ConveniosTab() {
     }
   };
 
+  usePageTopLoader(loading);
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mx-auto mb-4" />
-          <p className="text-[13px] text-gray-500">Cargando convenios…</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-[120px] py-16" />;
   }
 
   return (

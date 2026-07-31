@@ -13,6 +13,11 @@ export type PermissionKey =
   | 'view.soporte'
   | 'projects.view_all'
   | 'projects.create'
+  | 'projects.bulk_create'
+  | 'projects.import_participantes'
+  | 'projects.import_actividades'
+  | 'projects.import_indicadores'
+  | 'projects.import_presupuesto'
   | 'compromisos.create_edit'
   | 'compromisos.mark_done'
   | 'novedades.manage'
@@ -81,6 +86,36 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: 'Crear proyecto',
     group: 'atribuciones',
     defaultOn: [...AVAILABLE_ROLES],
+  },
+  {
+    key: 'projects.bulk_create',
+    label: 'Crear proyectos masivos (Excel)',
+    group: 'atribuciones',
+    defaultOn: ['Admin'],
+  },
+  {
+    key: 'projects.import_participantes',
+    label: 'Carga masiva participantes',
+    group: 'atribuciones',
+    defaultOn: ['Admin', 'Encargado', 'Coordinador'],
+  },
+  {
+    key: 'projects.import_actividades',
+    label: 'Carga masiva actividades',
+    group: 'atribuciones',
+    defaultOn: ['Admin', 'Encargado', 'Coordinador'],
+  },
+  {
+    key: 'projects.import_indicadores',
+    label: 'Carga masiva indicadores',
+    group: 'atribuciones',
+    defaultOn: ['Admin', 'Encargado', 'Coordinador'],
+  },
+  {
+    key: 'projects.import_presupuesto',
+    label: 'Carga masiva presupuesto',
+    group: 'atribuciones',
+    defaultOn: ['Admin', 'Encargado', 'Coordinador'],
   },
   {
     key: 'compromisos.create_edit',

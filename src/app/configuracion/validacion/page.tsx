@@ -644,6 +644,11 @@ export default function ConfiguracionValidacionPage() {
                 <Plus className="h-4 w-4 mr-1" /> Agregar
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Al editar el nombre de una asignatura, el cambio se aplica
+              automáticamente en todos los proyectos y participantes que la
+              tengan asociada.
+            </p>
             {importAsignaturasResult && (
               <p className="text-sm text-green-600 mb-2">{importAsignaturasResult}</p>
             )}

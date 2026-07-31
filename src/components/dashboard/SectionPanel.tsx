@@ -27,7 +27,7 @@ export function SectionPanel({
         className
       )}
     >
-      <header className="flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/90">
+      <header className="shrink-0 flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/90">
         {Icon ? (
           <span className="text-gray-500 [&_svg]:h-3.5 [&_svg]:w-3.5">
             <Icon strokeWidth={1.75} />
@@ -39,7 +39,7 @@ export function SectionPanel({
       </header>
       <div className={cn('px-5 py-4', bodyClassName)}>{children}</div>
       {footer ? (
-        <div className="px-5 py-2.5 border-t border-gray-100 bg-white">
+        <div className="shrink-0 px-5 py-2.5 border-t border-gray-100 bg-white">
           {footer}
         </div>
       ) : null}

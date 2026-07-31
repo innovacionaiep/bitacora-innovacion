@@ -11,7 +11,7 @@ import { catalogosGeneralKey } from '@/lib/query-keys';
 import {
   buildGeneralDraft,
   buildOptimisticRelationRows,
-  extractYouTubeVideoId,
+  isValidProjectVideoUrl,
   type CatalogosGeneral,
   type GeneralDraft,
   type GeneralFieldId,
@@ -269,8 +269,10 @@ export function useGeneralTab({
           .youtubeUrl ?? '';
       if (tempVideoUrl.trim() !== currentVideoUrl.trim()) {
         const videoTrimmed = tempVideoUrl.trim();
-        if (videoTrimmed && !extractYouTubeVideoId(videoTrimmed)) {
-          alert('Por favor ingresa una URL válida de YouTube');
+        if (videoTrimmed && !isValidProjectVideoUrl(videoTrimmed)) {
+          alert(
+            'Por favor ingresa una URL válida de YouTube, Vimeo, Google Drive o SharePoint'
+          );
           setIsGeneralSaving(false);
           return;
         }

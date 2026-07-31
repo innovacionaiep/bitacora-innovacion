@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { FolderKanban, ExternalLink, Loader2, Plus } from 'lucide-react';
+import { FolderKanban, ExternalLink, Plus } from 'lucide-react';
 
 export interface ProyectoConRol {
   id: string;
@@ -54,9 +54,7 @@ export function PortalMisProyectos({
     return (
       <div className={PANEL_SHELL}>
         <PanelHeader />
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-        </div>
+        <div className="flex-1 min-h-[80px]" />
       </div>
     );
   }

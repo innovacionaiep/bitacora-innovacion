@@ -37,6 +37,8 @@ interface AgregarIndicadorModalProps {
   }) => Promise<void>;
   proyectoId: string;
   objetivosEspecificos: ObjetivoEspecificoOption[];
+  /** Si se abre desde una tarjeta de OE, preselecciona ese objetivo */
+  initialObjetivoEspecificoId?: string | null;
 }
 
 const FORMATO_OPTIONS = ['Porcentaje', 'Número Entero', 'Número Decimal'];
@@ -47,6 +49,7 @@ export function AgregarIndicadorModal({
   onSuccess,
   proyectoId,
   objetivosEspecificos,
+  initialObjetivoEspecificoId = null,
 }: AgregarIndicadorModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -60,10 +63,19 @@ export function AgregarIndicadorModal({
     fechaFin: '',
   });
 
+  const resolveInitialObjetivoId = () => {
+    if (
+      initialObjetivoEspecificoId &&
+      objetivosEspecificos.some((oe) => oe.id === initialObjetivoEspecificoId)
+    ) {
+      return initialObjetivoEspecificoId;
+    }
+    return objetivosEspecificos.length > 0 ? objetivosEspecificos[0].id : '';
+  };
+
   const resetForm = () => {
     setForm({
-      objetivoEspecificoId:
-        objetivosEspecificos.length > 0 ? objetivosEspecificos[0].id : '',
+      objetivoEspecificoId: resolveInitialObjetivoId(),
       nombre: '',
       descripcion: '',
       formaCalculo: '',
@@ -78,7 +90,7 @@ export function AgregarIndicadorModal({
     if (open) {
       resetForm();
     }
-  }, [open]);
+  }, [open, initialObjetivoEspecificoId]);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {

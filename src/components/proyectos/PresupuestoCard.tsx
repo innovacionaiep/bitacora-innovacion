@@ -66,6 +66,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const MONTHS = [
   'Enero',
@@ -154,6 +155,7 @@ interface PresupuestoCardProps {
   presupuestoTotal?: number;
   presupuestoAdjudicado?: number;
   projectName?: string;
+  topLoaderEnabled?: boolean;
 }
 
 const CUENTA_OPTIONS: { value: CuentaPresupuesto; label: string }[] = [
@@ -246,6 +248,7 @@ export function PresupuestoCard({
   presupuestoTotal = 0,
   presupuestoAdjudicado: presupuestoAdjudicadoInitial = 0,
   projectName,
+  topLoaderEnabled = true,
 }: PresupuestoCardProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -533,15 +536,14 @@ export function PresupuestoCard({
     [items, removeItemOptimistic, addItemOptimistic]
   );
 
-  if (loading)
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
-          <p className="text-muted-foreground">Cargando presupuesto...</p>
-        </div>
-      </div>
-    );
+  usePageTopLoader(loading, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
+
+  if (loading) {
+    return <div className="h-full min-h-[120px]" />;
+  }
   if (error)
     return (
       <div className="h-full flex items-center justify-center">

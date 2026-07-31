@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 const CONFIG_PATH = '/configuracion/validacion';
 
@@ -329,11 +329,33 @@ export async function createAsignatura(nombre: string) {
 
 export async function updateAsignatura(id: string, nombre: string) {
   try {
+    const trimmed = nombre.trim();
+    if (!trimmed) {
+      return { success: false, error: 'El nombre es obligatorio' };
+    }
+    const duplicate = await prisma.asignatura.findFirst({
+      where: {
+        nombre: { equals: trimmed, mode: 'insensitive' },
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return {
+        success: false,
+        error: 'Ya existe otra asignatura con ese nombre',
+      };
+    }
     await prisma.asignatura.update({
       where: { id },
-      data: { nombre: nombre.trim() },
+      data: { nombre: trimmed },
     });
+    // Los proyectos referencian por ID; al cambiar el nombre se refleja en todos.
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/dashboard');
+    revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true };
   } catch (e) {
     console.error(e);

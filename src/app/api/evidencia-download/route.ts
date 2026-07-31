@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         errBody.slice(0, 300)
       );
       const msg =
-        res.status === 403
+        res.status === 401 || res.status === 403
           ? 'Cloudinary no permite la entrega de PDF. En el Dashboard: Security → activa "Allow delivery of PDF and ZIP files".'
           : 'No se pudo obtener el archivo desde el almacenamiento.';
       return new NextResponse(msg, {

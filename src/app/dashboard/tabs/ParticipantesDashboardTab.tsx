@@ -136,7 +136,7 @@ export function ParticipantesDashboardTab({
         <SectionPanel
           title={`Participantes por ${filtro}`}
           icon={Users}
-          className="lg:w-[36%] lg:min-w-[320px] shrink-0 flex flex-col"
+          className="w-full lg:w-[260px] xl:w-[280px] shrink-0 flex flex-col"
           bodyClassName="flex flex-col flex-1 min-h-0"
         >
           <div className="flex flex-wrap gap-1 mb-4 border-b border-gray-100 pb-2">

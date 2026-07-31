@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import NextTopLoader from 'nextjs-toploader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
@@ -10,6 +11,7 @@ import { ChatSoporteFloatingWidget } from '@/components/support-chat/ChatSoporte
 import { ActiveRolePermissionsProvider } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { viewPermissionForPath } from '@/lib/permissions/catalog';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -61,39 +63,43 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
     return <div className="h-full min-h-screen">{children}</div>;
   }
 
-  // Spinner solo en carga inicial de permisos o si falta permiso (y no estamos en /inicio)
-  if (
+  const showPermsGate =
     (status === 'authenticated' && permsLoading && viewKey) ||
-    (faltaPermisoVista && pathname !== '/inicio')
-  ) {
-    return (
-      <div className="flex h-full min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
+    (faltaPermisoVista && pathname !== '/inicio');
 
   return (
     <>
-      <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
-        <SidebarProvider expandOnHover>
-          <SidebarNav />
-          <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
-            <div className={contentClassName}>
-              {isNovedadesRoute ? (
-                children
-              ) : (
-                <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col overflow-hidden">
-                  {children}
+      <NextTopLoader color="#10b981" height={2} showSpinner={false} />
+      {showPermsGate ? (
+        <PermsGateLoading />
+      ) : (
+        <>
+          <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
+            <SidebarProvider expandOnHover>
+              <SidebarNav />
+              <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
+                <div className={contentClassName}>
+                  {isNovedadesRoute ? (
+                    children
+                  ) : (
+                    <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col overflow-hidden">
+                      {children}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </ResponsiveMain>
-        </SidebarProvider>
-      </div>
-      {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
+              </ResponsiveMain>
+            </SidebarProvider>
+          </div>
+          {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
+        </>
+      )}
     </>
   );
+}
+
+function PermsGateLoading() {
+  usePageTopLoader(true);
+  return <div className="h-full min-h-screen bg-background" />;
 }
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {

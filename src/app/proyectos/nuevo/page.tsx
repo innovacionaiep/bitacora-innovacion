@@ -21,6 +21,7 @@ import {
   MULTI_SELECT_SEP,
   type OptionItem,
 } from '@/components/ui/multi-select-options';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 function parseMultiValue(value: string): string[] {
   if (!value || typeof value !== 'string') return [];
@@ -61,26 +62,12 @@ type Catalogos = {
   escuelas: { id: string; nombre: string; codigo?: string }[];
 };
 
-function canCreateProject(p: ProyectoFormPayload, activeRole: string | null | undefined): boolean {
+function canCreateProject(p: ProyectoFormPayload, _activeRole: string | null | undefined): boolean {
   const nombreOk = Boolean(p.proyecto?.trim());
   const objetivoOk = Boolean(p.objetivoGeneral?.trim());
   const sedesOk = Array.isArray(p.sedesIds) && p.sedesIds.length > 0;
   const escuelasOk = Array.isArray(p.escuelasIds) && p.escuelasIds.length > 0;
-  const encargados = p.participantes_rel?.filter((r) => r.rol === 'Encargado') ?? [];
-  const encargadosOk =
-    encargados.length > 0 &&
-    encargados.every((e) => Boolean(e.nombre?.trim()) && Boolean(e.email?.trim()));
-  const coordinadores = p.participantes_rel?.filter((r) => r.rol === 'Coordinador') ?? [];
-  const coordinadoresOkCore =
-    coordinadores.length > 0 &&
-    coordinadores.every((c) => Boolean(c.nombre?.trim()) && Boolean(c.email?.trim()));
-
-  const coordinadoresOk =
-    activeRole === 'Encargado'
-      ? true
-      : coordinadoresOkCore;
-
-  return nombreOk && objetivoOk && sedesOk && escuelasOk && encargadosOk && coordinadoresOk;
+  return nombreOk && objetivoOk && sedesOk && escuelasOk;
 }
 
 function NuevoProyectoContent() {
@@ -106,6 +93,8 @@ function NuevoProyectoContent() {
   const hasPrefilledCoordinatorRef = useRef(false);
 
   const canCreate = canCreateProject(payload, activeRole);
+
+  usePageTopLoader(loadingDraft);
 
   useEffect(() => {
     if (sessionStatus === 'loading' || permsLoading) return;
@@ -215,7 +204,14 @@ function NuevoProyectoContent() {
       .filter((s) => (payload.sedesIds ?? []).includes(s.id))
       .map((s) => s.nombre)
       .join(', ');
-    const payloadToSend = { ...payload, sede: sedeNombres };
+    const participantesCompletos = (payload.participantes_rel ?? []).filter(
+      (p) => Boolean(p.nombre?.trim()) && Boolean(p.email?.trim())
+    );
+    const payloadToSend = {
+      ...payload,
+      sede: sedeNombres,
+      participantes_rel: participantesCompletos,
+    };
     const res = await createProyectoCompleto(payloadToSend);
     setCreating(false);
     if (res.success && res.data) {
@@ -263,8 +259,6 @@ function NuevoProyectoContent() {
   };
 
   const removeEncargado = (index: number) => {
-    const rel = (payload.participantes_rel ?? []).filter((r) => r.rol === 'Encargado');
-    if (rel.length <= 1) return;
     const newRel = payload.participantes_rel!.filter((r, i) => {
       if (r.rol !== 'Encargado') return true;
       const encIdx = payload.participantes_rel!.slice(0, i).filter((x) => x.rol === 'Encargado').length;
@@ -296,8 +290,6 @@ function NuevoProyectoContent() {
   };
 
   const removeCoordinator = (index: number) => {
-    const rel = (payload.participantes_rel ?? []).filter((r) => r.rol === 'Coordinador');
-    if (rel.length <= 1) return;
     const newRel = payload.participantes_rel!.filter((r, i) => {
       if (r.rol !== 'Coordinador') return true;
       const coordIdx = payload.participantes_rel!.slice(0, i).filter((x) => x.rol === 'Coordinador').length;
@@ -307,11 +299,7 @@ function NuevoProyectoContent() {
   };
 
   if (loadingDraft) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" />
-      </div>
-    );
+    return <div className="h-full min-h-[200px]" />;
   }
 
   return (
@@ -387,9 +375,10 @@ function NuevoProyectoContent() {
               />
             </div>
             <div>
-              <Label>Encargados * (al menos uno)</Label>
+              <Label>Encargados (opcional)</Label>
               <p className="text-sm text-gray-500 mb-2">
-                Indica nombre y correo de cada persona encargada del proyecto.
+                Puedes indicar nombre y correo ahora, o asignarlos después en el
+                proyecto.
               </p>
               <div className="space-y-3">
                 {encargados.map((enc, idx) => (
@@ -412,7 +401,6 @@ function NuevoProyectoContent() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeEncargado(idx)}
-                      disabled={encargados.length <= 1}
                       title="Quitar encargado"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -426,12 +414,10 @@ function NuevoProyectoContent() {
               </div>
             </div>
             <div>
-              <Label>
-                Coordinadores
-                {activeRole === 'Encargado' ? '' : ' * (al menos uno)'}
-              </Label>
+              <Label>Coordinadores (opcional)</Label>
               <p className="text-sm text-gray-500 mb-2">
-                Indica nombre y correo de cada coordinador del proyecto. Si creas el proyecto con rol de coordinador, aparecerás asignado por defecto.
+                Opcional. Si creas el proyecto con rol de coordinador, aparecerás
+                asignado por defecto.
               </p>
               <div className="space-y-3">
                 {coordinadores.map((coord, idx) => (
@@ -454,7 +440,6 @@ function NuevoProyectoContent() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeCoordinator(idx)}
-                      disabled={coordinadores.length <= 1}
                       title="Quitar coordinador"
                     >
                       <Trash2 className="h-4 w-4" />

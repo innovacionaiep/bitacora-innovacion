@@ -64,18 +64,23 @@ import {
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
-import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  memo,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { GanttActivityVirtualList } from '@/components/proyectos/gantt/GanttActivityList';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { ActivityStatus } from '@prisma/client';
 
 const KanbanBoard = dynamic(() => import('@/components/proyectos/KanbanBoard'), {
   ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center py-12 text-muted-foreground">
-      Cargando kanban...
-    </div>
-  ),
+  loading: () => <div className="min-h-[120px]" />,
 });
 import { reorderActivitiesKanban } from '@/lib/actions/gantt';
 import {
@@ -184,6 +189,9 @@ interface GanttChartProps {
   onProjectChange?: () => void;
   /** Actividades precargadas del proyecto (evita refetch al abrir tab Gantt) */
   initialActivities?: Activity[];
+  topLoaderEnabled?: boolean;
+  /** Acciones bajo la columna de actividades (ej. carga masiva) */
+  footerLeft?: ReactNode;
 }
 
 // Componente para actividad arrastrable
@@ -702,6 +710,8 @@ export default function GanttChart({
   showProjectSelector = false,
   onProjectChange,
   initialActivities,
+  topLoaderEnabled = true,
+  footerLeft,
 }: GanttChartProps) {
   const { data: session } = useSession();
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
@@ -763,10 +773,11 @@ export default function GanttChart({
     })()
   );
 
-  // Refs y estado para manejar el ancho del scrollbar
+  // Refs y estado para manejar el ancho del scrollbar y altura de la línea "hoy"
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const monthsHeaderRef = useRef<HTMLDivElement>(null);
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  const [todayLineHeight, setTodayLineHeight] = useState(0);
 
   // Configuración de sensores para drag and drop optimizada para trackpads
   const sensors = useSensors(
@@ -895,6 +906,11 @@ export default function GanttChart({
     updateActivitiesState, // ← Agregar
   } = useGantt(projectId, initialActivities);
 
+  usePageTopLoader(ganttLoading, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
+
   // Estado derivado para determinar si todas las actividades están expandidas
   const allExpanded =
     activities.length > 0 && expandedDescriptions.size === activities.length;
@@ -1001,33 +1017,26 @@ export default function GanttChart({
     };
   }, [tooltipTimer]);
 
-  // Calcular el ancho del scrollbar dinámicamente
+  // Medir scrollbar y altura del área de filas (línea "hoy" debe coincidir exactamente)
   useEffect(() => {
-    const calculateScrollbarWidth = () => {
-      if (scrollContainerRef.current) {
-        // Calcular el ancho del scrollbar (diferencia entre offsetWidth y clientWidth)
-        const scrollbarWidth =
-          scrollContainerRef.current.offsetWidth -
-          scrollContainerRef.current.clientWidth;
+    const el = scrollContainerRef.current;
+    if (!el) return;
 
-        setScrollbarWidth(scrollbarWidth);
-      }
+    const measure = () => {
+      setScrollbarWidth(el.offsetWidth - el.clientWidth);
+      setTodayLineHeight(el.clientHeight);
     };
 
-    // Calcular inmediatamente
-    calculateScrollbarWidth();
-
-    // Usar setTimeout para recalcular después del render (cuando el DOM esté completamente actualizado)
-    const timeoutId = setTimeout(calculateScrollbarWidth, 100);
-
-    // Recalcular cuando cambie el tamaño de la ventana
-    window.addEventListener('resize', calculateScrollbarWidth);
+    measure();
+    const timeoutId = setTimeout(measure, 100);
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
 
     return () => {
       clearTimeout(timeoutId);
-      window.removeEventListener('resize', calculateScrollbarWidth);
+      observer.disconnect();
     };
-  }, [activities, expandedDescriptions]);
+  }, [activities, expandedDescriptions, isFullscreen, viewMode]);
 
   // Cargar comentarios y evidencias en paralelo al abrir popup
   useEffect(() => {
@@ -2119,8 +2128,12 @@ export default function GanttChart({
                 </div>
               )}
 
-              {/* Gantt/Kanban: justo a la derecha del título */}
-              <div className="flex shrink-0 items-center space-x-2">
+              {/* Gantt/Kanban: a la derecha del título (más separación en fullscreen) */}
+              <div
+                className={`flex shrink-0 items-center space-x-2 ${
+                  isFullscreen ? 'ml-6' : ''
+                }`}
+              >
                 <Button
                   type="button"
                   onClick={() => setViewMode('gantt')}
@@ -2197,15 +2210,15 @@ export default function GanttChart({
 
         {/* Calendario Gantt - Siempre visible */}
         <div className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Card className="flex h-full min-h-0 flex-col overflow-hidden">
-            <CardContent className="p-0 h-full min-h-0 overflow-hidden">
-              <div className="gantt-container relative h-full min-h-0">
-                {/* Contenedor sin scroll horizontal: prohibido para evitar scroll lateral */}
-                <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto">
-                  <div className="w-full min-w-[800px] relative h-full min-h-0">
+          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <CardContent className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+              <div className="gantt-container relative flex h-full min-h-0 flex-col">
+                {/* Un solo scroll vertical: el de las filas de actividades (no el contenedor externo) */}
+                <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                  <div className="relative flex h-full min-h-0 w-full min-w-[800px] flex-col">
                     {/* Header del calendario - solo en vista Gantt */}
                     {viewMode === 'gantt' && (
-                      <div className="flex border-b border-white">
+                      <div className="flex shrink-0 border-b border-white">
                         <div
                           className="w-[500px] p-4 border-r border-gray-200 bg-gray-50 relative flex-shrink-0"
                           data-column="activities"
@@ -2269,58 +2282,56 @@ export default function GanttChart({
                                   ? 'Actividades'
                                   : 'Tablero Kanban'}
                               </h3>
-                              {ganttLoading && (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-                              )}
                             </div>
                           </div>
                         </div>
                         <div
                           ref={monthsHeaderRef}
-                          className="flex-1 flex relative bg-gray-50"
+                          className="flex flex-1 bg-gray-50"
                           style={{ paddingRight: `${scrollbarWidth}px` }}
                         >
-                          {getVisibleMonths().map((month, index) => (
-                            <div
-                              key={`${month.year}-${month.monthIndex}`}
-                              className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
-                            >
-                              <div className="text-sm font-medium text-gray-700">
-                                {month.name}
+                          {/* Misma caja que las columnas de meses (sin el hueco del scrollbar) */}
+                          <div className="relative flex min-w-0 flex-1">
+                            {getVisibleMonths().map((month, index) => (
+                              <div
+                                key={`${month.year}-${month.monthIndex}`}
+                                className="flex-1 p-2 text-center border-r border-gray-200 bg-gray-50 flex flex-col items-center justify-center"
+                              >
+                                <div className="text-sm font-medium text-gray-700">
+                                  {month.name}
+                                </div>
+                                <div className="text-xs text-gray-500 font-normal">
+                                  {month.year}
+                                </div>
                               </div>
-                              <div className="text-xs text-gray-500 font-normal">
-                                {month.year}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
 
-                          {/* Indicador de "Hoy" */}
-                          {todayPositionPercent >= 0 && (
-                            <div
-                              className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
-                              style={{
-                                left: `${todayPositionPercent}%`,
-                                transform: 'translateX(-45%) translateY(50%)',
-                                width: '14px',
-                                height: '14px',
-                                bottom: '0px',
-                              }}
-                            ></div>
-                          )}
+                            {/* Indicador de "Hoy" */}
+                            {todayPositionPercent >= 0 && (
+                              <div
+                                className="absolute bg-red-500 rounded-full z-50 shadow-lg pointer-events-none"
+                                style={{
+                                  left: `${todayPositionPercent}%`,
+                                  transform: 'translateX(-45%) translateY(50%)',
+                                  width: '14px',
+                                  height: '14px',
+                                  bottom: '0px',
+                                }}
+                              ></div>
+                            )}
 
-                          {/* Línea roja continua del día de hoy - superpuesta sobre todo el contenido */}
-                          {todayPositionPercent >= 0 && (
-                            <div
-                              className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
-                              style={{
-                                left: `${todayPositionPercent}%`,
-                                top: '100%',
-                                height: isFullscreen
-                                  ? 'calc(100vh - 230px + 5px)'
-                                  : 'calc(100vh - 375px)',
-                              }}
-                            ></div>
-                          )}
+                            {/* Línea roja continua del día de hoy — altura = área visible de filas */}
+                            {todayPositionPercent >= 0 && todayLineHeight > 0 && (
+                              <div
+                                className="absolute w-0.5 bg-red-500 z-40 pointer-events-none"
+                                style={{
+                                  left: `${todayPositionPercent}%`,
+                                  top: '100%',
+                                  height: `${todayLineHeight}px`,
+                                }}
+                              ></div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2349,15 +2360,10 @@ export default function GanttChart({
                     ) : (
                       /* Vista Gantt */
                       <>
-                        {/* Contenedor con scroll vertical para filas de actividades (sin scroll horizontal) */}
+                        {/* Único scroll vertical de filas (ocupa el espacio restante del card) */}
                         <div
                           ref={scrollContainerRef}
-                          className="overflow-y-auto overflow-x-hidden relative"
-                          style={{
-                            maxHeight: isFullscreen
-                              ? 'calc(100vh - 230px)'
-                              : 'calc(100vh - 375px)',
-                          }}
+                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
                         >
                           {/* Filas de actividades y tareas */}
                           {activities.length === 0 ? (
@@ -2471,85 +2477,96 @@ export default function GanttChart({
             </CardContent>
           </Card>
 
-          {/* Controles del timeline - solo en vista Gantt */}
-          {viewMode === 'gantt' && (
-            <div className="mt-4">
+          {/* Pie: carga masiva a la izquierda + controles del timeline (Gantt) */}
+          {(footerLeft || viewMode === 'gantt') && (
+            <div className="mt-4 shrink-0">
               <div className="flex items-center w-full">
-                {/* Espaciador reducido para mover controles hacia la izquierda */}
-                <div className="w-[300px] min-w-[150px] flex items-center justify-end pr-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Navegación:
-                  </span>
+                <div className="w-[500px] min-w-[200px] shrink-0 flex items-center pl-1">
+                  {footerLeft}
                 </div>
 
-                {/* Slider de navegación temporal */}
-                <div className="flex items-center space-x-4 flex-1 min-w-[500px] max-w-[600px]">
-                  <Slider
-                    value={[timelineOffset]}
-                    onValueChange={(value) => setTimelineOffset(value[0])}
-                    min={-24}
-                    max={24}
-                    step={1}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={() =>
-                      setTimelineOffset(getTodayCenteredOffset(visibleMonthsRange))
-                    }
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-3"
-                  >
-                    Hoy
-                  </Button>
-                </div>
+                {viewMode === 'gantt' && (
+                  <>
+                    <div className="flex items-center pr-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Navegación:
+                      </span>
+                    </div>
 
-                {/* Botones de rango de meses */}
-                <div className="flex items-center space-x-4 ml-50">
-                  <span className="text-sm font-medium text-gray-700">
-                    Rango:
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      onClick={() => setVisibleMonthsRange(6)}
-                      variant={visibleMonthsRange === 6 ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-8 px-3"
-                    >
-                      6 meses
-                    </Button>
-                    <Button
-                      onClick={() => setVisibleMonthsRange(12)}
-                      variant={
-                        visibleMonthsRange === 12 ? 'default' : 'outline'
-                      }
-                      size="sm"
-                      className="h-8 px-3"
-                    >
-                      12 meses
-                    </Button>
-                    <Button
-                      onClick={() => setVisibleMonthsRange(18)}
-                      variant={
-                        visibleMonthsRange === 18 ? 'default' : 'outline'
-                      }
-                      size="sm"
-                      className="h-8 px-3"
-                    >
-                      18 meses
-                    </Button>
-                    <Button
-                      onClick={() => setVisibleMonthsRange(24)}
-                      variant={
-                        visibleMonthsRange === 24 ? 'default' : 'outline'
-                      }
-                      size="sm"
-                      className="h-8 px-3"
-                    >
-                      24 meses
-                    </Button>
-                  </div>
-                </div>
+                    {/* Slider de navegación temporal */}
+                    <div className="flex items-center space-x-4 flex-1 min-w-[400px] max-w-[600px]">
+                      <Slider
+                        value={[timelineOffset]}
+                        onValueChange={(value) => setTimelineOffset(value[0])}
+                        min={-24}
+                        max={24}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={() =>
+                          setTimelineOffset(
+                            getTodayCenteredOffset(visibleMonthsRange)
+                          )
+                        }
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                      >
+                        Hoy
+                      </Button>
+                    </div>
+
+                    {/* Botones de rango de meses */}
+                    <div className="flex items-center space-x-4 ml-50">
+                      <span className="text-sm font-medium text-gray-700">
+                        Rango:
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          onClick={() => setVisibleMonthsRange(6)}
+                          variant={
+                            visibleMonthsRange === 6 ? 'default' : 'outline'
+                          }
+                          size="sm"
+                          className="h-8 px-3"
+                        >
+                          6 meses
+                        </Button>
+                        <Button
+                          onClick={() => setVisibleMonthsRange(12)}
+                          variant={
+                            visibleMonthsRange === 12 ? 'default' : 'outline'
+                          }
+                          size="sm"
+                          className="h-8 px-3"
+                        >
+                          12 meses
+                        </Button>
+                        <Button
+                          onClick={() => setVisibleMonthsRange(18)}
+                          variant={
+                            visibleMonthsRange === 18 ? 'default' : 'outline'
+                          }
+                          size="sm"
+                          className="h-8 px-3"
+                        >
+                          18 meses
+                        </Button>
+                        <Button
+                          onClick={() => setVisibleMonthsRange(24)}
+                          variant={
+                            visibleMonthsRange === 24 ? 'default' : 'outline'
+                          }
+                          size="sm"
+                          className="h-8 px-3"
+                        >
+                          24 meses
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

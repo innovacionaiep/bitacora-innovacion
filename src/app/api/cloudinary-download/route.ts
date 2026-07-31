@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
         errBody.slice(0, 300)
       );
       const msg =
-        res.status === 403
-          ? 'Cloudinary no permite la entrega del archivo. En el Dashboard: Security → activa "Allow delivery of PDF and ZIP files" si aplica.'
+        res.status === 401 || res.status === 403
+          ? 'Cloudinary bloquea la entrega de este PDF (Access control: Blocked for delivery). En Cloudinary Dashboard → Settings → Security → activa "Allow delivery of PDF and ZIP files", guarda y vuelve a intentar.'
           : 'No se pudo obtener el archivo desde el almacenamiento.';
       return new NextResponse(msg, {
         status: 502,

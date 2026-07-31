@@ -2,7 +2,7 @@
 
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -16,13 +16,20 @@ import { AgregarIndicadorModal } from './AgregarIndicadorModal';
 import { deleteIndicador } from '@/lib/actions/indicadores';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 interface IndicadoresCardProps {
   projectId: string;
+  topLoaderEnabled?: boolean;
+  canImport?: boolean;
+  onCargaMasiva?: () => void;
 }
 
 export function IndicadoresCard({
   projectId,
+  topLoaderEnabled = true,
+  canImport = false,
+  onCargaMasiva,
 }: IndicadoresCardProps) {
   const {
     data,
@@ -38,6 +45,8 @@ export function IndicadoresCard({
   } = useIndicadores(projectId);
   const [deleteMode, setDeleteMode] = useState(false);
   const [showAgregarModal, setShowAgregarModal] = useState(false);
+  const [objetivoEspecificoPreseleccionado, setObjetivoEspecificoPreseleccionado] =
+    useState<string | null>(null);
   const [selectedIndicador, setSelectedIndicador] = useState<{
     id: string;
     nombre: string;
@@ -175,6 +184,16 @@ export function IndicadoresCard({
 
   const tieneAlMenosUnObjetivoEspecifico = objetivosEspecificosForModal.length > 0;
 
+  const handleOpenAgregarIndicador = (objetivoEspecificoId: string) => {
+    setObjetivoEspecificoPreseleccionado(objetivoEspecificoId);
+    setShowAgregarModal(true);
+  };
+
+  const handleCloseAgregarModal = () => {
+    setShowAgregarModal(false);
+    setObjetivoEspecificoPreseleccionado(null);
+  };
+
   const tieneAlMenosUnIndicador = useMemo(() => {
     if (!data?.objetivosGenerales) return false;
     return data.objetivosGenerales.some((og) =>
@@ -232,15 +251,13 @@ export function IndicadoresCard({
     }
   }, [data, selectedIndicador?.id]);
 
+  usePageTopLoader(loading, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
+
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando indicadores...</p>
-        </div>
-      </div>
-    );
+    return <div className="h-full min-h-[120px]" />;
   }
 
   if (error) {
@@ -311,35 +328,6 @@ export function IndicadoresCard({
                               type="button"
                               variant="ghost"
                               size="sm"
-                              disabled={!tieneAlMenosUnObjetivoEspecifico}
-                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                                !tieneAlMenosUnObjetivoEspecifico
-                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                  : showAgregarModal
-                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                              }`}
-                              onClick={() => tieneAlMenosUnObjetivoEspecifico && setShowAgregarModal(true)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {tieneAlMenosUnObjetivoEspecifico
-                              ? 'Agregar indicador'
-                              : 'Agregue al menos un objetivo específico para poder agregar indicadores'}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-block">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
                               disabled={!tieneAlMenosUnIndicador}
                               className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
                                 !tieneAlMenosUnIndicador
@@ -367,6 +355,13 @@ export function IndicadoresCard({
                     </TooltipProvider>
                   ) : undefined
                 }
+                onAddIndicador={
+                  tieneAlMenosUnObjetivoEspecifico
+                    ? handleOpenAgregarIndicador
+                    : undefined
+                }
+                onCargaMasiva={onCargaMasiva}
+                canImport={canImport}
                 deleteMode={deleteMode}
                 onDeleteIndicador={handleDeleteIndicador}
               />
@@ -388,10 +383,11 @@ export function IndicadoresCard({
       {/* Modal para agregar indicador */}
       <AgregarIndicadorModal
         open={showAgregarModal}
-        onClose={() => setShowAgregarModal(false)}
+        onClose={handleCloseAgregarModal}
         onSuccess={handleAgregarIndicadorSuccess}
         proyectoId={projectId}
         objetivosEspecificos={objetivosEspecificosForModal}
+        initialObjetivoEspecificoId={objetivoEspecificoPreseleccionado}
       />
     </div>
   );

@@ -18,7 +18,7 @@ import {
 } from '@/lib/actions/portal-inicio';
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
-import { Loader2 } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 export function InicioClient({
   initialData,
@@ -154,14 +154,17 @@ export function InicioClient({
     loadPortalData(newRole, { isRoleChange: true });
   }, [status, session?.user?.activeRole, loadPortalData]);
 
-  // Spinner de pantalla completa solo en la carga inicial; si ya mostramos el portal,
-  // no volver al spinner cuando la sesión refetch (update()) para evitar parpadeos.
+  // Carga inicial de sesión o de datos del portal → barra superior
+  usePageTopLoader(
+    (status === 'loading' && displayRole == null) ||
+      loadingProyectos ||
+      loadingAlertas ||
+      loadingCompromisos ||
+      loadingHistorial
+  );
+
   if (status === 'loading' && displayRole == null) {
-    return (
-      <div className="h-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
+    return <div className="h-full min-h-[200px] bg-background" />;
   }
 
   if (status !== 'authenticated' || !session?.user) {

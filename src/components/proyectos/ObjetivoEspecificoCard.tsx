@@ -1,8 +1,9 @@
 'use client';
 
-import { ListChecks, Search, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, ListChecks, Plus, Search, Trash2 } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
 import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -44,6 +45,9 @@ interface ObjetivoEspecificoCardProps {
   }) => void;
   deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
+  onAddIndicador?: () => void;
+  onCargaMasiva?: () => void;
+  canImport?: boolean;
 }
 
 export function ObjetivoEspecificoCard({
@@ -52,6 +56,9 @@ export function ObjetivoEspecificoCard({
   onIndicadorClick,
   deleteMode,
   onDeleteIndicador,
+  onAddIndicador,
+  onCargaMasiva,
+  canImport,
 }: ObjetivoEspecificoCardProps) {
   const canDelete = objetivoEspecifico.indicadores.length > 1;
   // Calcular el progreso del objetivo específico basado en sus indicadores
@@ -97,43 +104,100 @@ export function ObjetivoEspecificoCard({
 
   return (
     <div className="flex items-stretch gap-6 relative">
-      {/* Tarjeta del Objetivo Específico */}
-      <div className="relative group flex-shrink-0 bg-white rounded-xl">
+      {/* Tarjeta del Objetivo Específico (+ zona hover arriba para acciones externas) */}
+      <div className="relative group z-10 flex-shrink-0 rounded-xl pt-10 -mt-10">
         <div
-          className="relative bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 border-2 border-gray-200 text-gray-900 px-6 py-3 rounded-xl shadow-md w-[560px] flex flex-col justify-center bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px] h-full"
+          className="relative z-10 w-[560px] rounded-xl bg-gray-200 shadow-md h-full"
           style={{ minHeight: `${alturaMinima}px` }}
         >
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-center min-w-0">
-              <div className="flex items-center space-x-2 flex-1 min-w-0">
-                <div className="p-1.5 bg-gray-400 rounded-md flex-shrink-0">
-                  <ListChecks className="h-4 w-4 text-white" />
+          <div className="relative h-full rounded-xl border-2 border-gray-200 text-gray-900 px-6 py-3 flex flex-col justify-center bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center min-w-0">
+                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  <div className="p-1.5 bg-gray-400 rounded-md flex-shrink-0">
+                    <ListChecks className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-xs font-semibold text-gray-700 truncate">
+                    Objetivo {numero}
+                  </div>
                 </div>
-                <div className="text-xs font-semibold text-gray-700 truncate">
-                  Objetivo {numero}
+                {/* Barra de progreso y porcentaje a la derecha con ancho fijo para alineación */}
+                <div
+                  className="flex items-center space-x-2 flex-shrink-0 ml-2 pr-1"
+                  style={{ width: '240px' }}
+                >
+                  <div className="w-44 bg-gray-200 rounded-full h-2 shadow-inner flex-shrink-0">
+                    <div
+                      className="bg-gray-500 h-2 rounded-full transition-all duration-300 shadow-sm"
+                      style={{ width: `${progresoObjetivo}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-xl font-bold text-gray-600 whitespace-nowrap">
+                    {progresoObjetivo}%
+                  </span>
                 </div>
               </div>
-              {/* Barra de progreso y porcentaje a la derecha con ancho fijo para alineación */}
-              <div
-                className="flex items-center space-x-2 flex-shrink-0 ml-2 pr-1"
-                style={{ width: '240px' }}
-              >
-                <div className="w-44 bg-gray-200 rounded-full h-2 shadow-inner flex-shrink-0">
-                  <div
-                    className="bg-gray-500 h-2 rounded-full transition-all duration-300 shadow-sm"
-                    style={{ width: `${progresoObjetivo}%` }}
-                  ></div>
-                </div>
-                <span className="text-xl font-bold text-gray-600 whitespace-nowrap">
-                  {progresoObjetivo}%
-                </span>
-              </div>
+              <h4 className="font-semibold text-[15px] leading-tight text-gray-900">
+                {objetivoEspecifico.descripcion}
+              </h4>
             </div>
-            <h4 className="font-semibold text-[15px] leading-tight text-gray-900">
-              {objetivoEspecifico.descripcion}
-            </h4>
           </div>
         </div>
+
+        {/* Acciones fuera de la tarjeta, arriba a la derecha */}
+        {(onAddIndicador || (canImport && onCargaMasiva)) && (
+          <div className="absolute top-0 right-0 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+            {canImport && onCargaMasiva && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCargaMasiva();
+                      }}
+                      className="h-8 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-blue-700 gap-1.5 px-2.5 shadow-sm"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                      <span className="text-[12px] font-medium tracking-wide">
+                        Carga masiva
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Carga masiva de indicadores</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {onAddIndicador && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddIndicador();
+                      }}
+                      className="h-8 w-8 shrink-0 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 shadow-sm flex items-center justify-center p-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Agregar indicador</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Indicadores - Se expanden hacia la derecha */}

@@ -16,12 +16,15 @@ import {
   type FondoConvenioConfig,
 } from '@/lib/actions/convenios';
 import { FileText } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 export default function ConfiguracionConveniosPage() {
   const [fondos, setFondos] = useState<FondoConvenioConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  usePageTopLoader(loading);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,10 +88,7 @@ export default function ConfiguracionConveniosPage() {
         </div>
 
         {loading ? (
-          <div className="py-10 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto mb-3" />
-            <p className="text-[13px] text-gray-500">Cargando fondos…</p>
-          </div>
+          <div className="py-10" />
         ) : fondos.length === 0 ? (
           <p className="text-[13px] text-gray-500">
             No hay fondos en el catálogo. Créalos en Validación de datos → Fondos.

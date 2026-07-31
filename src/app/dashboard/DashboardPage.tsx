@@ -11,6 +11,7 @@ import { EscuelasSedesTab } from './tabs/EscuelasSedesTab';
 import { ParticipantesDashboardTab } from './tabs/ParticipantesDashboardTab';
 import { AvancesTab } from './tabs/AvancesTab';
 import { ConveniosTab } from './tabs/ConveniosTab';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type DashboardPageProps = {
   initialProyectos?: ProyectoConVariaciones[];
@@ -35,15 +36,10 @@ export default function DashboardPage({
   const [currentView, setCurrentView] =
     useState<(typeof VIEWS)[number]['value']>('mirada-general');
 
+  usePageTopLoader(loading);
+
   if (loading) {
-    return (
-      <div className="flex h-full min-h-0 w-full items-center justify-center pt-6 pb-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mx-auto mb-4" />
-          <p className="text-[13px] text-gray-500">Cargando proyectos...</p>
-        </div>
-      </div>
-    );
+    return <div className="h-full min-h-[200px]" />;
   }
 
   if (error) {
@@ -94,7 +90,9 @@ export default function DashboardPage({
       <div
         className={cn(
           'min-h-0 flex-1',
-          currentView === 'analisis-participantes'
+          currentView === 'analisis-participantes' ||
+          currentView === 'lista' ||
+          currentView === 'mirada-general'
             ? 'flex flex-col overflow-hidden'
             : 'overflow-y-auto custom-scrollbar'
         )}

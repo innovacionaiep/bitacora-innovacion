@@ -4,8 +4,8 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCompromisosProyecto } from '@/lib/actions/seguimiento';
 import { CompromisosPostItWall } from './CompromisosPostItWall';
-import { Loader2 } from 'lucide-react';
 import { compromisosKey } from '@/lib/query-keys';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type CompromisosData = NonNullable<
   Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
@@ -17,12 +17,14 @@ interface SeguimientoCardProps {
   rolEnProyecto?: string | null;
   /** Rol activo del usuario (ej. Admin). Los Admin pueden crear compromisos aunque no sean coordinadores del proyecto. */
   activeRole?: string | null;
+  topLoaderEnabled?: boolean;
 }
 
 export function SeguimientoCard({
   projectId,
   rolEnProyecto,
   activeRole,
+  topLoaderEnabled = true,
 }: SeguimientoCardProps) {
   const queryClient = useQueryClient();
 
@@ -70,12 +72,13 @@ export function SeguimientoCard({
     });
   };
 
+  usePageTopLoader(query.isLoading && !query.data, {
+    completeOnReady: true,
+    enabled: topLoaderEnabled,
+  });
+
   if (query.isLoading && !query.data) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
+    return <div className="h-full min-h-[120px]" />;
   }
 
   return (

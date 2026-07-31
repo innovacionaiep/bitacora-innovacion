@@ -19,6 +19,7 @@ import {
 import type { PermissionKey } from '@/lib/permissions/catalog';
 import type { Role } from '@/lib/auth-utils';
 import { Check, Loader2, Save } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type CellState = Record<string, boolean>;
 
@@ -126,12 +127,10 @@ export default function ConfiguracionRolesPage() {
     return groups;
   }, [rows]);
 
+  usePageTopLoader(loading);
+
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
+    return <div className="h-full min-h-[200px] py-16" />;
   }
 
   return (
