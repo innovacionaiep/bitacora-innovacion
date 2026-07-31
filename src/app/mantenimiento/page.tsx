@@ -4,6 +4,7 @@ import {
   MAINTENANCE_MESSAGE,
   MAINTENANCE_TITLE,
 } from '@/lib/maintenance';
+import { MaintenanceAdminLink } from '@/components/MaintenanceAdminLink';
 
 export const metadata: Metadata = {
   title: 'Mantenimiento | Bitácora',
@@ -36,6 +37,7 @@ export default function MantenimientoPage() {
         <p className="mt-8 text-sm text-gray-400">
           No es necesario que intentes ingresar de nuevo por ahora.
         </p>
+        <MaintenanceAdminLink />
       </div>
     </div>
   );

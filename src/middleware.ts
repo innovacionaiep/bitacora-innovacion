@@ -1,7 +1,13 @@
 import { withAuth } from 'next-auth/middleware';
+import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import type { NextFetchEvent, NextRequest } from 'next/server';
-import { MAINTENANCE_MODE_ENABLED, MAINTENANCE_PATH } from '@/lib/maintenance';
+import {
+  MAINTENANCE_PATH,
+  MAINTENANCE_SETTINGS_PATH,
+  MAINTENANCE_STATUS_API,
+  isProductionRuntime,
+} from '@/lib/maintenance';
 
 const authMiddleware = withAuth({
   pages: {
@@ -18,38 +24,75 @@ function isStaticAsset(pathname: string) {
   );
 }
 
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
+function maintenanceOrigin(req: NextRequest) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return req.nextUrl.origin;
+}
+
+async function fetchMaintenanceEnabled(req: NextRequest): Promise<boolean> {
+  try {
+    const res = await fetch(`${maintenanceOrigin(req)}${MAINTENANCE_STATUS_API}`, {
+      headers: { 'x-maintenance-check': '1' },
+      // Evita martillar la BD en cada request; el apagado puede tardar ~5s
+      next: { revalidate: 5 },
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { enabled?: boolean };
+    return Boolean(data.enabled);
+  } catch {
+    return false;
+  }
+}
+
+export default async function middleware(req: NextRequest, event: NextFetchEvent) {
   const { pathname } = req.nextUrl;
 
-  if (MAINTENANCE_MODE_ENABLED) {
-    // Permitir NextAuth (SessionProvider) + assets + la propia página
-    if (
-      pathname === MAINTENANCE_PATH ||
-      pathname.startsWith('/api/auth') ||
-      isStaticAsset(pathname)
-    ) {
-      return NextResponse.next();
-    }
-
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: 'Servicio en mantenimiento' },
-        { status: 503, headers: { 'Retry-After': '3600' } },
-      );
-    }
-
-    const url = req.nextUrl.clone();
-    url.pathname = MAINTENANCE_PATH;
-    url.search = '';
-    return NextResponse.redirect(url);
-  }
-
-  // Fuera de mantenimiento: no exigir sesión en auth / NextAuth
-  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
+  // Salida temprana: no reentrar al chequear estado (evita bucle middleware → API → middleware)
+  if (pathname === MAINTENANCE_STATUS_API || isStaticAsset(pathname)) {
     return NextResponse.next();
   }
 
-  if (isStaticAsset(pathname)) {
+  // En local / preview nunca bloqueamos por mantenimiento
+  if (isProductionRuntime()) {
+    const enabled = await fetchMaintenanceEnabled(req);
+
+    if (enabled) {
+      if (
+        pathname === MAINTENANCE_PATH ||
+        pathname.startsWith('/api/auth') ||
+        pathname.startsWith('/auth')
+      ) {
+        return NextResponse.next();
+      }
+
+      const token = await getToken({
+        req,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+      const isAdmin = token?.activeRole === 'Admin';
+
+      // Admin puede entrar al tab para desactivar el modo
+      if (isAdmin && pathname.startsWith(MAINTENANCE_SETTINGS_PATH)) {
+        return NextResponse.next();
+      }
+
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Servicio en mantenimiento' },
+          { status: 503, headers: { 'Retry-After': '3600' } },
+        );
+      }
+
+      const url = req.nextUrl.clone();
+      url.pathname = MAINTENANCE_PATH;
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 

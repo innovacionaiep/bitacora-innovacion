@@ -878,3 +878,13 @@ model RolePermission {
   @@unique([role, permissionKey])
   @@map("role_permissions")
 }
+
+/// Configuración runtime de la app (key/value). Ej: maintenance_enabled=true|false
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
