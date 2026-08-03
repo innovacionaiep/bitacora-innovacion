@@ -51,6 +51,7 @@ import {
   Check,
   X,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import { getProyectoParticipantes } from '@/lib/actions/proyectos';
@@ -219,6 +220,7 @@ export function ParticipantesTab({
 
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'asc' });
 
+  const isLoadingParticipantes = project.participantes_rel === undefined;
   const list = project.participantes_rel ?? [];
   const rolesSelected = parseMultiFilter(filterParticipantesRol);
   const cargosSelected = parseMultiFilter(filterParticipantesCargo);
@@ -768,7 +770,22 @@ export function ParticipantesTab({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredParticipants.length === 0 && !isAddingParticipante ? (
+                {isLoadingParticipantes ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={COL_COUNT}
+                      className="text-center py-10"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-2 text-gray-400">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="text-[11px]">
+                          Cargando participantes…
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredParticipants.length === 0 &&
+                  !isAddingParticipante ? (
                   <TableRow>
                     <TableCell
                       colSpan={COL_COUNT}
@@ -1608,7 +1625,7 @@ export function ParticipantesTab({
                   </TableRow>
                 )}
 
-                {!isAddingParticipante && (
+                {!isLoadingParticipantes && !isAddingParticipante && (
                   <TableRow
                     className="hover:bg-green-50/70 transition-colors cursor-pointer border-t-2 border-dashed border-gray-200"
                     onClick={startAddingParticipante}

@@ -212,36 +212,37 @@ export function InicioClient({
         <PortalWelcomeHeader onRoleChange={handleRoleChange} />
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-[1.5fr_1fr] gap-4 mt-4 overflow-visible">
-        <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
-          <div className="h-[262px] shrink-0 p-2 overflow-visible">
+      <div className="flex-1 min-h-0 flex flex-col gap-4 mt-4 overflow-hidden">
+        <div className="h-[262px] shrink-0 grid grid-cols-[1.5fr_1fr] gap-4 min-h-0 overflow-hidden">
+          <div className="min-w-0 min-h-0 h-full p-2 overflow-hidden">
             <PortalMisProyectos proyectos={proyectos} loading={loadingProyectos} />
           </div>
-          <div className="flex-1 min-h-0 p-2 overflow-visible">
-            <PortalAlertasPendientes
-              alertas={alertas}
-              activeRole={displayRole ?? activeRole}
-              loading={loadingAlertas}
-              onSuccess={() =>
-                loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
-              }
-            />
-          </div>
-        </div>
-        <div className="min-w-0 min-h-0 flex flex-col gap-4 overflow-visible">
-          <div className="h-[262px] shrink-0 p-2 overflow-visible">
+          <div className="min-w-0 min-h-0 h-full p-2 overflow-hidden">
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
           </div>
-          <div className="flex-1 min-h-0 p-2 overflow-visible">
-            <PortalCompromisosPendientes
-              compromisos={compromisos}
-              activeRole={displayRole ?? activeRole}
-              onSuccess={() =>
-                loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
-              }
-              loading={loadingCompromisos}
-            />
-          </div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto p-2">
+          <PortalAlertasPendientes
+            alertas={alertas}
+            activeRole={displayRole ?? activeRole}
+            loading={loadingAlertas}
+            onSuccess={() =>
+              loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
+            }
+            extraColumn={
+              <PortalCompromisosPendientes
+                compromisos={compromisos}
+                activeRole={displayRole ?? activeRole}
+                onSuccess={() =>
+                  loadPortalData(displayRole ?? roleToLoad, {
+                    isRoleChange: true,
+                  })
+                }
+                loading={loadingCompromisos}
+                variant="column"
+              />
+            }
+          />
         </div>
       </div>
     </div>

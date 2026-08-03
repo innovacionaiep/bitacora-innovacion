@@ -1,38 +1,62 @@
 'use client';
 
-import { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, ImagePlus, BarChart3, Wallet } from 'lucide-react';
-import type { AlertasPortal } from '@/lib/actions/portal-inicio';
+import { useState, type ReactNode } from 'react';
+import {
+  ImagePlus,
+  BarChart3,
+  Wallet,
+  Clock,
+  type LucideIcon,
+} from 'lucide-react';
+import { type AlertasPortal } from '@/lib/actions/portal-inicio';
+import { ROLES_ALERTAS_PORTAL } from '@/lib/portal-constants';
 import { ActividadDetalleModal } from './ActividadDetalleModal';
 import { IndicadorDetalleModal } from './IndicadorDetalleModal';
 import { GastoPresupuestoDetalleModal } from './GastoPresupuestoDetalleModal';
-import { cn } from '@/lib/utils';
 
 export interface PortalAlertasPendientesProps {
   alertas: AlertasPortal | null;
   activeRole: string | null;
   loading?: boolean;
   onSuccess?: () => void | Promise<void>;
+  /** Columna extra (p. ej. compromisos) en el mismo grid. */
+  extraColumn?: ReactNode;
 }
 
-const PANEL_SHELL =
-  'h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none overflow-hidden';
-const PANEL_HEADER =
-  'flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50/90';
-const PANEL_TITLE =
-  'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2';
-
 const ALERT_ROW =
-  'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50/80 transition-colors group cursor-pointer text-left overflow-x-auto shadow-none';
+  'w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50/80 transition-colors group cursor-pointer text-left shadow-none';
 
-function PanelTitle() {
+const SECTION_TITLE =
+  'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2 mb-2';
+
+function isRolPortal(role: string | null): boolean {
   return (
-    <h3 className={PANEL_TITLE}>
-      <AlertCircle className="h-3.5 w-3.5 text-gray-500" strokeWidth={1.75} />
-      Alertas pendientes
-    </h3>
+    role != null && (ROLES_ALERTAS_PORTAL as readonly string[]).includes(role)
   );
+}
+
+function SectionColumn({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="min-w-0 flex flex-col">
+      <h3 className={SECTION_TITLE}>
+        <Icon className="h-3.5 w-3.5 text-gray-500 shrink-0" strokeWidth={1.75} />
+        <span className="truncate">{title}</span>
+      </h3>
+      <div className="min-h-0 flex-1 space-y-1.5">{children}</div>
+    </section>
+  );
+}
+
+function EmptyLabel({ text }: { text: string }) {
+  return <p className="text-[13px] text-gray-400 py-1">{text}</p>;
 }
 
 export function PortalAlertasPendientes({
@@ -40,12 +64,15 @@ export function PortalAlertasPendientes({
   activeRole,
   loading = false,
   onSuccess,
+  extraColumn,
 }: PortalAlertasPendientesProps) {
-  const isCoordinador = activeRole === 'Coordinador';
-  const isEncargado = activeRole === 'Encargado';
-  const [tab, setTab] = useState<'actividades' | 'indicadores' | 'presupuesto'>(
-    isCoordinador ? 'presupuesto' : 'actividades'
-  );
+  const rolPermitido = isRolPortal(activeRole);
+  /** Solo Encargado puede agregar evidencias desde el portal (atribución operativa). */
+  const canAddEvidencia = activeRole === 'Encargado';
+  const gridClass = extraColumn
+    ? 'h-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 px-1 content-start'
+    : 'h-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 px-1 content-start';
+
   const [actividadModal, setActividadModal] = useState<{
     actividadId: string;
     proyectoId: string;
@@ -60,137 +87,49 @@ export function PortalAlertasPendientes({
 
   if (loading) {
     return (
-      <div className={PANEL_SHELL}>
-        <div className={PANEL_HEADER}>
-          <PanelTitle />
-        </div>
-        <div className="flex-1 min-h-[80px]" />
+      <div className={gridClass}>
+        {(
+          [
+            ['Actividades por evidenciar', ImagePlus],
+            ['Indicadores por evidenciar', BarChart3],
+            ['Presupuesto por solicitar', Wallet],
+            ['Actividades atrasadas', Clock],
+          ] as const
+        ).map(([title, Icon]) => (
+          <SectionColumn key={title} icon={Icon} title={title}>
+            <div className="min-h-[48px]" />
+          </SectionColumn>
+        ))}
+        {extraColumn}
       </div>
     );
   }
 
-  if (!isCoordinador && !isEncargado) {
+  if (!rolPermitido) {
+    if (extraColumn) {
+      return <div className={gridClass}>{extraColumn}</div>;
+    }
     return (
-      <div className={PANEL_SHELL}>
-        <div className={PANEL_HEADER}>
-          <PanelTitle />
-        </div>
-        <div className="flex-1 flex items-center px-5 py-4">
-          <p className="text-[13px] text-gray-400">
-            Las alertas están disponibles para los roles Coordinador y Encargado.
-          </p>
-        </div>
-      </div>
+      <p className="text-[13px] text-gray-400 px-1 py-2">
+        Las alertas están disponibles para los roles Coordinador, Encargado,
+        Colaborador, Docente y Estudiante.
+      </p>
     );
   }
 
-  const presupuestoItems = isCoordinador
-    ? (alertas?.coordinador?.presupuestoPorSolicitar ?? [])
-    : (alertas?.encargado?.presupuestoPorSolicitar ?? []);
-  const actividades = alertas?.encargado?.actividadesPorEvidenciar ?? [];
-  const indicadores = alertas?.encargado?.indicadoresPorEvidenciar ?? [];
-
-  const presupuestoList = (
-    <div className="space-y-1.5">
-      {presupuestoItems.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          onClick={() => setPresupuestoModal({ itemId: p.id })}
-          className={ALERT_ROW}
-        >
-          <Wallet className="h-4 w-4 shrink-0 text-amber-600" strokeWidth={1.75} />
-          <div className="min-w-0 flex-1 flex items-center gap-2">
-            <span className="text-[11px] font-medium tracking-wide shrink-0 text-amber-700">
-              Presupuesto
-            </span>
-            <div className="text-[13px] text-gray-800 min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
-              <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">
-                {p.item}
-              </span>
-              <span
-                className="border-l border-gray-200 self-stretch min-h-[1em] shrink-0"
-                aria-hidden
-              />
-              <span className="text-[13px] text-red-600 shrink-0 whitespace-nowrap">
-                Solicitud pendiente
-              </span>
-            </div>
-            <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap ml-auto">
-              {p.proyectoNombre}
-            </span>
-          </div>
-        </button>
-      ))}
-      {presupuestoItems.length === 0 && (
-        <p className="text-[13px] text-gray-400 py-2">Ninguno</p>
-      )}
-    </div>
-  );
+  const presupuestoItems = alertas?.presupuestoPorSolicitar ?? [];
+  const actividades = alertas?.actividadesPorEvidenciar ?? [];
+  const indicadores = alertas?.indicadoresPorEvidenciar ?? [];
+  const atrasadas = alertas?.actividadesAtrasadas ?? [];
 
   return (
-    <div className={PANEL_SHELL}>
-      <div className={PANEL_HEADER}>
-        <PanelTitle />
-        {isEncargado && (
-          <Tabs
-            value={tab}
-            onValueChange={(v) =>
-              setTab(v as 'actividades' | 'indicadores' | 'presupuesto')
-            }
-            className="mt-3"
-          >
-            <TabsList className="w-full grid grid-cols-3 h-auto bg-transparent p-0 gap-0 rounded-none border-0 shadow-none">
-              {(
-                [
-                  {
-                    value: 'actividades' as const,
-                    icon: ImagePlus,
-                    label: 'Actividades por evidenciar',
-                  },
-                  {
-                    value: 'indicadores' as const,
-                    icon: BarChart3,
-                    label: 'Indicadores por evidenciar',
-                  },
-                  {
-                    value: 'presupuesto' as const,
-                    icon: Wallet,
-                    label: 'Presupuesto por solicitar',
-                  },
-                ] as const
-              ).map(({ value, icon: Icon, label }) => (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  className={cn(
-                    'group relative rounded-none border-0 bg-transparent shadow-none px-2 py-2 text-[13px] tracking-wide gap-1.5',
-                    'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
-                    'text-gray-500 hover:text-gray-800 data-[state=active]:text-gray-900 data-[state=active]:font-medium',
-                    'focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1'
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span className="truncate">{label}</span>
-                  <span
-                    className={cn(
-                      'absolute bottom-0 left-2 right-2 h-0.5 rounded-full transition-colors',
-                      tab === value ? 'bg-emerald-600' : 'bg-transparent group-hover:bg-gray-300'
-                    )}
-                    aria-hidden
-                  />
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
-      </div>
-      <div className="flex-1 min-h-0 overflow-auto px-5 py-3">
-        {isCoordinador ? (
-          presupuestoList
-        ) : tab === 'actividades' ? (
-          <div className="space-y-1.5">
-            {actividades.map((a) => (
+    <>
+      <div className={gridClass}>
+        <SectionColumn icon={ImagePlus} title="Actividades por evidenciar">
+          {actividades.length === 0 ? (
+            <EmptyLabel text="Ninguna" />
+          ) : (
+            actividades.map((a) => (
               <button
                 key={a.id}
                 type="button"
@@ -203,41 +142,33 @@ export function PortalAlertasPendientes({
                 className={ALERT_ROW}
               >
                 <ImagePlus
-                  className="h-4 w-4 shrink-0 text-emerald-600"
+                  className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5"
                   strokeWidth={1.75}
                 />
-                <div className="min-w-0 flex-1 flex items-center gap-2">
-                  <span className="text-[11px] font-medium tracking-wide shrink-0 text-emerald-700">
-                    Actividad
-                  </span>
-                  <div className="text-[13px] text-gray-800 min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
-                    <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">
-                      {a.name}
-                    </span>
-                    <span
-                      className="border-l border-gray-200 self-stretch min-h-[1em] shrink-0"
-                      aria-hidden
-                    />
-                    <span className="text-[13px] font-semibold tabular-nums text-emerald-700 shrink-0">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[13px] text-gray-800 truncate">{a.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-semibold tabular-nums text-emerald-700">
                       {a.porcentaje}%
                     </span>
-                    <span className="text-[13px] text-red-600 shrink-0 whitespace-nowrap">
+                    <span className="text-[12px] text-red-600">
                       Evidencias pendientes
                     </span>
                   </div>
-                  <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap ml-auto">
+                  <p className="text-[11px] text-gray-500 truncate">
                     {a.proyectoNombre}
-                  </span>
+                  </p>
                 </div>
               </button>
-            ))}
-            {actividades.length === 0 && (
-              <p className="text-[13px] text-gray-400 py-2">Ninguna</p>
-            )}
-          </div>
-        ) : tab === 'indicadores' ? (
-          <div className="space-y-1.5">
-            {indicadores.map((i) => (
+            ))
+          )}
+        </SectionColumn>
+
+        <SectionColumn icon={BarChart3} title="Indicadores por evidenciar">
+          {indicadores.length === 0 ? (
+            <EmptyLabel text="Ninguno" />
+          ) : (
+            indicadores.map((i) => (
               <button
                 key={i.id}
                 type="button"
@@ -250,41 +181,99 @@ export function PortalAlertasPendientes({
                 className={ALERT_ROW}
               >
                 <BarChart3
-                  className="h-4 w-4 shrink-0 text-blue-600"
+                  className="h-4 w-4 shrink-0 text-blue-600 mt-0.5"
                   strokeWidth={1.75}
                 />
-                <div className="min-w-0 flex-1 flex items-center gap-2">
-                  <span className="text-[11px] font-medium tracking-wide shrink-0 text-blue-700">
-                    Indicador
-                  </span>
-                  <div className="text-[13px] text-gray-800 min-w-0 flex-1 flex items-center justify-start overflow-hidden gap-2">
-                    <span className="truncate min-w-0 max-w-[calc(100%-3rem)] shrink">
-                      {i.nombre}
-                    </span>
-                    <span
-                      className="border-l border-gray-200 self-stretch min-h-[1em] shrink-0"
-                      aria-hidden
-                    />
-                    <span className="text-[13px] font-semibold tabular-nums text-blue-700 shrink-0">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[13px] text-gray-800 truncate">{i.nombre}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-semibold tabular-nums text-blue-700">
                       {i.porcentaje}%
                     </span>
-                    <span className="text-[13px] text-red-600 shrink-0 whitespace-nowrap">
+                    <span className="text-[12px] text-red-600">
                       Evidencias pendientes
                     </span>
                   </div>
-                  <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap ml-auto">
+                  <p className="text-[11px] text-gray-500 truncate">
                     {i.proyectoNombre}
-                  </span>
+                  </p>
                 </div>
               </button>
-            ))}
-            {indicadores.length === 0 && (
-              <p className="text-[13px] text-gray-400 py-2">Ninguno</p>
-            )}
-          </div>
-        ) : (
-          presupuestoList
-        )}
+            ))
+          )}
+        </SectionColumn>
+
+        <SectionColumn icon={Wallet} title="Presupuesto por solicitar">
+          {presupuestoItems.length === 0 ? (
+            <EmptyLabel text="Ninguno" />
+          ) : (
+            presupuestoItems.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPresupuestoModal({ itemId: p.id })}
+                className={ALERT_ROW}
+              >
+                <Wallet
+                  className="h-4 w-4 shrink-0 text-amber-600 mt-0.5"
+                  strokeWidth={1.75}
+                />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[13px] text-gray-800 truncate">{p.item}</p>
+                  <span className="text-[12px] text-red-600">
+                    Solicitud pendiente
+                  </span>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {p.proyectoNombre}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </SectionColumn>
+
+        <SectionColumn icon={Clock} title="Actividades atrasadas">
+          {atrasadas.length === 0 ? (
+            <EmptyLabel text="Ninguna" />
+          ) : (
+            atrasadas.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() =>
+                  setActividadModal({
+                    actividadId: a.id,
+                    proyectoId: a.proyectoId,
+                  })
+                }
+                className={ALERT_ROW}
+              >
+                <Clock
+                  className="h-4 w-4 shrink-0 text-red-600 mt-0.5"
+                  strokeWidth={1.75}
+                />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[13px] text-gray-800 truncate">{a.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-semibold tabular-nums text-red-700">
+                      {a.porcentaje}%
+                    </span>
+                    <span className="text-[12px] text-red-600">
+                      {a.tareasAtrasadas === 1
+                        ? '1 tarea vencida'
+                        : `${a.tareasAtrasadas} tareas vencidas`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {a.proyectoNombre}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </SectionColumn>
+
+        {extraColumn}
       </div>
 
       <ActividadDetalleModal
@@ -292,7 +281,7 @@ export function PortalAlertasPendientes({
         proyectoId={actividadModal?.proyectoId ?? null}
         open={!!actividadModal}
         onOpenChange={(open) => !open && setActividadModal(null)}
-        canAddEvidencia={isEncargado}
+        canAddEvidencia={canAddEvidencia}
         onSuccess={onSuccess}
       />
       <IndicadorDetalleModal
@@ -308,6 +297,6 @@ export function PortalAlertasPendientes({
         onOpenChange={(open) => !open && setPresupuestoModal(null)}
         onSuccess={onSuccess}
       />
-    </div>
+    </>
   );
 }

@@ -84,6 +84,8 @@ export interface PortalCompromisosPendientesProps {
   activeRole: string | null;
   onSuccess: () => void | Promise<void>;
   loading?: boolean;
+  /** `column`: solo título + lista, sin tarjeta contenedora (layout del portal). */
+  variant?: 'panel' | 'column';
 }
 
 export function PortalCompromisosPendientes({
@@ -91,7 +93,9 @@ export function PortalCompromisosPendientes({
   activeRole: _activeRole,
   onSuccess,
   loading = false,
+  variant = 'panel',
 }: PortalCompromisosPendientesProps) {
+  const isColumn = variant === 'column';
   const [compromisos, setCompromisos] = useState(compromisosProp);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectedCompromiso, setSelectedCompromiso] =
@@ -196,6 +200,14 @@ export function PortalCompromisosPendientes({
   };
 
   if (loading) {
+    if (isColumn) {
+      return (
+        <section className="min-w-0 flex flex-col gap-2">
+          <PanelTitle />
+          <div className="min-h-[48px]" />
+        </section>
+      );
+    }
     return (
       <div className={PANEL_SHELL}>
         <div className={PANEL_HEADER}>
@@ -210,86 +222,106 @@ export function PortalCompromisosPendientes({
     (c) => c.descripcion && c.descripcion.trim()
   );
 
+  const listContent =
+    list.length === 0 ? (
+      <p className="text-[13px] text-gray-400">
+        No hay compromisos pendientes.
+      </p>
+    ) : (
+      <div
+        className={
+          isColumn
+            ? 'flex flex-col gap-2'
+            : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'
+        }
+      >
+        {list.map((c) => {
+          const titulo =
+            c.titulo?.trim() || tituloDeDescripcion(c.descripcion);
+          const proyectoNombre =
+            (c as CompromisoPortal & { proyecto?: { proyecto?: string } })
+              .proyecto?.proyecto ?? '';
+
+          return (
+            <div
+              key={c.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleOpenDetail(c)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleOpenDetail(c);
+                }
+              }}
+              className={
+                isColumn
+                  ? `rounded-lg shadow-none p-2.5 flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`
+                  : `rounded-lg shadow-none p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`
+              }
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p
+                  className={`text-[13px] font-medium flex-1 min-w-0 line-clamp-2 break-words [overflow-wrap:anywhere] ${
+                    c.completado
+                      ? 'line-through text-gray-500'
+                      : 'text-gray-900'
+                  }`}
+                  title={c.descripcion}
+                >
+                  {titulo}
+                </p>
+                <EstadoIcon compromiso={c} />
+              </div>
+              {proyectoNombre && (
+                <p className="text-[11px] text-gray-500 tracking-wide mb-1">
+                  {proyectoNombre}
+                </p>
+              )}
+              <p className="text-[11px] text-gray-400 mb-2">
+                Creado: {formatFecha(c.createdAt)}
+              </p>
+              <div
+                className="flex flex-wrap gap-3 mt-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <label className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-600">
+                  {togglingId === c.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                  ) : (
+                    <Checkbox
+                      checked={c.completado}
+                      onCheckedChange={() => handleToggleRealizado(c.id)}
+                      disabled={!canMarkRealizado}
+                      className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
+                    />
+                  )}
+                  Realizado
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
   return (
     <>
-      <div className={PANEL_SHELL}>
-        <div className={PANEL_HEADER}>
+      {isColumn ? (
+        <section className="min-w-0 flex flex-col gap-2">
           <PanelTitle />
+          <div className="min-h-0 overflow-auto pr-1">{listContent}</div>
+        </section>
+      ) : (
+        <div className={PANEL_SHELL}>
+          <div className={PANEL_HEADER}>
+            <PanelTitle />
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto px-5 py-3">
+            {listContent}
+          </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto px-5 py-3">
-          {list.length === 0 ? (
-            <p className="text-[13px] text-gray-400">
-              No hay compromisos pendientes.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {list.map((c) => {
-                const titulo =
-                  c.titulo?.trim() || tituloDeDescripcion(c.descripcion);
-                const proyectoNombre =
-                  (c as CompromisoPortal & { proyecto?: { proyecto?: string } })
-                    .proyecto?.proyecto ?? '';
-
-                return (
-                  <div
-                    key={c.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleOpenDetail(c)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleOpenDetail(c);
-                      }
-                    }}
-                    className={`rounded-lg shadow-none p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p
-                        className={`text-[13px] font-medium flex-1 min-w-0 line-clamp-2 break-words [overflow-wrap:anywhere] ${
-                          c.completado
-                            ? 'line-through text-gray-500'
-                            : 'text-gray-900'
-                        }`}
-                        title={c.descripcion}
-                      >
-                        {titulo}
-                      </p>
-                      <EstadoIcon compromiso={c} />
-                    </div>
-                    {proyectoNombre && (
-                      <p className="text-[11px] text-gray-500 tracking-wide mb-1">
-                        {proyectoNombre}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-gray-400 mb-2">
-                      Creado: {formatFecha(c.createdAt)}
-                    </p>
-                    <div
-                      className="flex flex-wrap gap-3 mt-auto"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <label className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-600">
-                        {togglingId === c.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                        ) : (
-                          <Checkbox
-                            checked={c.completado}
-                            onCheckedChange={() => handleToggleRealizado(c.id)}
-                            disabled={!canMarkRealizado}
-                            className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
-                          />
-                        )}
-                        Realizado
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {selectedCompromiso && detailModalOpen && (
         <Dialog

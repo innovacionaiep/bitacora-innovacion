@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-utils';
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
 import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
+import { ROLES_ALERTAS_PORTAL } from '@/lib/portal-constants';
 
 /**
  * Obtener los roles para los que el usuario tiene al menos un proyecto (roles con proyectos vigentes).
@@ -191,19 +192,191 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
   }
 }
 
+export type AlertaPresupuestoItem = {
+  id: string;
+  item: string;
+  proyectoId: string;
+  proyectoNombre: string;
+};
+
+export type AlertaActividadItem = {
+  id: string;
+  name: string;
+  proyectoId: string;
+  proyectoNombre: string;
+  porcentaje: number;
+};
+
+export type AlertaIndicadorItem = {
+  id: string;
+  nombre: string;
+  proyectoId: string;
+  proyectoNombre: string;
+  porcentaje: number;
+};
+
+export type AlertaActividadAtrasadaItem = {
+  id: string;
+  name: string;
+  proyectoId: string;
+  proyectoNombre: string;
+  porcentaje: number;
+  tareasAtrasadas: number;
+};
+
+/** Payload plano de alertas del portal (mismas listas para todos los roles del portal). */
 export interface AlertasPortal {
-  coordinador?: {
-    presupuestoPorSolicitar: Array<{ id: string; item: string; proyectoId: string; proyectoNombre: string }>;
+  presupuestoPorSolicitar: AlertaPresupuestoItem[];
+  actividadesPorEvidenciar: AlertaActividadItem[];
+  indicadoresPorEvidenciar: AlertaIndicadorItem[];
+  actividadesAtrasadas: AlertaActividadAtrasadaItem[];
+}
+
+const LIMITE_ALERTAS_PORTAL = 100;
+const MIN_AVANCE_POR_EVIDENCIAR = 60;
+
+function emptyAlertasPortal(): AlertasPortal {
+  return {
+    presupuestoPorSolicitar: [],
+    actividadesPorEvidenciar: [],
+    indicadoresPorEvidenciar: [],
+    actividadesAtrasadas: [],
   };
-  encargado?: {
-    actividadesPorEvidenciar: Array<{ id: string; name: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
-    indicadoresPorEvidenciar: Array<{ id: string; nombre: string; proyectoId: string; proyectoNombre: string; porcentaje: number }>;
-    presupuestoPorSolicitar: Array<{ id: string; item: string; proyectoId: string; proyectoNombre: string }>;
+}
+
+/** YYYY-MM-DD local (evita shift UTC al comparar endDate de tareas). */
+function todayLocalYmd(): string {
+  const hoy = new Date();
+  const y = hoy.getFullYear();
+  const m = String(hoy.getMonth() + 1).padStart(2, '0');
+  const d = String(hoy.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function fetchPresupuestoPorSolicitar(proyectoIds: string[]) {
+  const presupuesto = await prisma.itemPresupuesto.findMany({
+    where: {
+      proyectoId: { in: proyectoIds },
+      idSolicitud: null,
+    },
+    select: {
+      id: true,
+      item: true,
+      proyectoId: true,
+      proyecto: { select: { proyecto: true } },
+    },
+    take: LIMITE_ALERTAS_PORTAL,
+  });
+  return presupuesto.map((p) => ({
+    id: p.id,
+    item: p.item,
+    proyectoId: p.proyectoId,
+    proyectoNombre: p.proyecto?.proyecto ?? '',
+  }));
+}
+
+/**
+ * Actividades con al menos una tarea cuya fecha fin ya pasó y aún no está completada.
+ */
+async function fetchActividadesAtrasadas(proyectoIds: string[]) {
+  const todayStr = todayLocalYmd();
+  const activities = await prisma.activity.findMany({
+    where: {
+      projectId: { in: proyectoIds },
+      tasks: {
+        some: {
+          completed: false,
+          endDate: { lt: todayStr },
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      projectId: true,
+      progress: true,
+      project: { select: { proyecto: true } },
+      tasks: {
+        where: {
+          completed: false,
+          endDate: { lt: todayStr },
+        },
+        select: { id: true },
+      },
+    },
+    take: LIMITE_ALERTAS_PORTAL,
+  });
+  return activities.map((a) => ({
+    id: a.id,
+    name: a.name,
+    proyectoId: a.projectId,
+    proyectoNombre: a.project?.proyecto ?? '',
+    porcentaje: a.progress ?? 0,
+    tareasAtrasadas: a.tasks.length,
+  }));
+}
+
+async function fetchAlertasPorEvidenciar(proyectoIds: string[]) {
+  const [actividades, indicadores] = await Promise.all([
+    prisma.activity.findMany({
+      where: {
+        projectId: { in: proyectoIds },
+        evidencias: { none: {} },
+      },
+      select: {
+        id: true,
+        name: true,
+        projectId: true,
+        progress: true,
+        project: { select: { proyecto: true } },
+      },
+      take: LIMITE_ALERTAS_PORTAL,
+    }),
+    prisma.indicador.findMany({
+      where: {
+        proyectoId: { in: proyectoIds },
+        evidencias: { none: {} },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        proyectoId: true,
+        porcentajeAvance: true,
+        porcentajeCumplimiento: true,
+        proyecto: { select: { proyecto: true } },
+      },
+      take: LIMITE_ALERTAS_PORTAL,
+    }),
+  ]);
+
+  return {
+    actividadesPorEvidenciar: actividades
+      .filter((a) => (a.progress ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        proyectoId: a.projectId,
+        proyectoNombre: a.project?.proyecto ?? '',
+        porcentaje: a.progress ?? 0,
+      })),
+    indicadoresPorEvidenciar: indicadores
+      .filter(
+        (i) => Number(i.porcentajeCumplimiento ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR
+      )
+      .map((i) => ({
+        id: i.id,
+        nombre: i.nombre,
+        proyectoId: i.proyectoId,
+        proyectoNombre: i.proyecto?.proyecto ?? '',
+        porcentaje: Number(i.porcentajeAvance ?? 0),
+      })),
   };
 }
 
 /**
- * Alertas del portal según rol activo: Coordinador → presupuesto; Encargado → por evidenciar.
+ * Alertas del portal según rol activo.
+ * Coordinador / Encargado / Colaborador / Docente / Estudiante →
+ * evidenciar actividades/indicadores + presupuesto + atrasadas.
  * Solo proyectos donde el usuario tiene ese rol.
  */
 export async function getAlertasPortalUsuario(activeRole: string | null) {
@@ -215,117 +388,32 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
 
     const proyectoIds = await getProyectoIdsPorRol(user, activeRole);
     if (proyectoIds.length === 0) {
-      return {
-        success: true,
-        data: { coordinador: undefined, encargado: undefined },
-      };
+      return { success: true, data: emptyAlertasPortal() };
     }
 
-    const result: AlertasPortal = {};
+    const rolPermitido =
+      activeRole != null &&
+      (ROLES_ALERTAS_PORTAL as readonly string[]).includes(activeRole);
 
-    const LIMITE_ALERTAS_PORTAL = 100;
-
-    if (activeRole === 'Coordinador') {
-      const presupuesto = await prisma.itemPresupuesto.findMany({
-        where: {
-          proyectoId: { in: proyectoIds },
-          idSolicitud: null,
-        },
-        select: {
-          id: true,
-          item: true,
-          proyectoId: true,
-          proyecto: { select: { proyecto: true } },
-        },
-        take: LIMITE_ALERTAS_PORTAL,
-      });
-
-      result.coordinador = {
-        presupuestoPorSolicitar: presupuesto.map((p) => ({
-          id: p.id,
-          item: p.item,
-          proyectoId: p.proyectoId,
-          proyectoNombre: p.proyecto?.proyecto ?? '',
-        })),
-      };
+    if (!rolPermitido) {
+      return { success: true, data: emptyAlertasPortal() };
     }
 
-    if (activeRole === 'Encargado') {
-      const [actividades, indicadores, presupuesto] = await Promise.all([
-        prisma.activity.findMany({
-          where: {
-            projectId: { in: proyectoIds },
-            evidencias: { none: {} },
-          },
-          select: {
-            id: true,
-            name: true,
-            projectId: true,
-            progress: true,
-            project: { select: { proyecto: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-        prisma.indicador.findMany({
-          where: {
-            proyectoId: { in: proyectoIds },
-            evidencias: { none: {} },
-          },
-          select: {
-            id: true,
-            nombre: true,
-            proyectoId: true,
-            porcentajeAvance: true,
-            porcentajeCumplimiento: true,
-            proyecto: { select: { proyecto: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-        prisma.itemPresupuesto.findMany({
-          where: {
-            proyectoId: { in: proyectoIds },
-            idSolicitud: null,
-          },
-          select: {
-            id: true,
-            item: true,
-            proyectoId: true,
-            proyecto: { select: { proyecto: true } },
-          },
-          take: LIMITE_ALERTAS_PORTAL,
-        }),
-      ]);
+    const [porEvidenciar, presupuesto, atrasadas] = await Promise.all([
+      fetchAlertasPorEvidenciar(proyectoIds),
+      fetchPresupuestoPorSolicitar(proyectoIds),
+      fetchActividadesAtrasadas(proyectoIds),
+    ]);
 
-      const MIN_AVANCE_POR_EVIDENCIAR = 60;
-      result.encargado = {
-        actividadesPorEvidenciar: actividades
-          .filter((a) => (a.progress ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
-          .map((a) => ({
-            id: a.id,
-            name: a.name,
-            proyectoId: a.projectId,
-            proyectoNombre: a.project?.proyecto ?? '',
-            porcentaje: a.progress ?? 0,
-          })),
-        indicadoresPorEvidenciar: indicadores
-          .filter((i) => Number(i.porcentajeCumplimiento ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
-          .map((i) => ({
-            id: i.id,
-            nombre: i.nombre,
-            proyectoId: i.proyectoId,
-            proyectoNombre: i.proyecto?.proyecto ?? '',
-            porcentaje: Number(i.porcentajeAvance ?? 0),
-          })),
-        presupuestoPorSolicitar: presupuesto.map((p) => ({
-          id: p.id,
-          item: p.item,
-          proyectoId: p.proyectoId,
-          proyectoNombre: p.proyecto?.proyecto ?? '',
-        })),
-      };
-    }
-
-    return { success: true, data: result };
+    return {
+      success: true,
+      data: {
+        actividadesPorEvidenciar: porEvidenciar.actividadesPorEvidenciar,
+        indicadoresPorEvidenciar: porEvidenciar.indicadoresPorEvidenciar,
+        presupuestoPorSolicitar: presupuesto,
+        actividadesAtrasadas: atrasadas,
+      },
+    };
   } catch (error) {
     console.error('Error al obtener alertas del portal:', error);
     return {
