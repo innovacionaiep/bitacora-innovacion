@@ -7,7 +7,7 @@ import {
   updateProyectoGeneralTab,
 } from '@/lib/actions/proyectos';
 import type { ProyectoWithRelations } from '@/types/proyecto';
-import { catalogosGeneralKey } from '@/lib/query-keys';
+import { catalogosGeneralKey, sedesKey, escuelasConfigKey, carrerasConfigKey, asignaturasConfigKey } from '@/lib/query-keys';
 import {
   buildGeneralDraft,
   buildOptimisticRelationRows,
@@ -67,7 +67,7 @@ function mapCatalogosResult(
 export function useGeneralTab({
   project,
   setProject,
-  fetchProyectos,
+  patchProyectoEnListado,
   selectedTab,
   projectVideos,
   setProjectVideos,
@@ -77,7 +77,12 @@ export function useGeneralTab({
 }: {
   project: ProyectoWithRelations | null;
   setProject: React.Dispatch<React.SetStateAction<ProyectoWithRelations | null>>;
-  fetchProyectos: (opts?: { silent?: boolean; activeRole?: string }) => void;
+  patchProyectoEnListado?: (item: {
+    id: string;
+    proyecto: string;
+    sede: string;
+    escuelas?: { escuela: { nombre: string } }[];
+  }) => void;
   selectedTab: ProyectoTabName;
   projectVideos: Record<string, string>;
   setProjectVideos: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -145,6 +150,12 @@ export function useGeneralTab({
         },
         staleTime: 10 * 60_000,
       });
+
+      // Sembrar keys de Participantes para evitar fetches duplicados
+      queryClient.setQueryData(sedesKey, next.sedes);
+      queryClient.setQueryData(escuelasConfigKey, next.escuelas);
+      queryClient.setQueryData(carrerasConfigKey, next.carreras);
+      queryClient.setQueryData(asignaturasConfigKey, next.asignaturas);
 
       catalogosRef.current = next;
       setCatalogosGeneral(next);
@@ -585,7 +596,14 @@ export function useGeneralTab({
         ...prev,
         [updated.id]: updated.youtubeUrl ?? '',
       }));
-      fetchProyectos({ silent: true });
+      patchProyectoEnListado?.({
+        id: updated.id,
+        proyecto: updated.proyecto,
+        sede: updated.sede,
+        escuelas: (updated.escuelas ?? []).map((e) => ({
+          escuela: { nombre: e.escuela.nombre },
+        })),
+      });
     } catch {
       setProject(previousProject);
       setGeneralDraft(buildGeneralDraft(previousProject));
@@ -605,7 +623,9 @@ export function useGeneralTab({
     setGeneralDraft(buildGeneralDraft(project));
     setTempVideoUrl(getProjectVideoUrl(project));
     setEditingField(null);
-  }, [project]);
+    // Solo al cambiar de proyecto (id). Saves/participantes actualizan draft o no lo tocan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   useEffect(() => {
     if (

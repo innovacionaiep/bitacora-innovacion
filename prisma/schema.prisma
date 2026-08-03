@@ -49,9 +49,13 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime? @map("email_verified")
-  password          String?   // Hashed password for credentials auth
+  password          String?   // Hashed password for credentials auth; null = cuenta pendiente
   passwordEncrypted String?   @db.Text // Encrypted for admin display (reversible)
   image             String?
+  rut           String?
+  cargo         String?
+  sedeId        String?   @map("sede_id")
+  escuelaId     String?   @map("escuela_id")
   activeRole    String?   @map("active_role") // Current active role
   lastActiveAt  DateTime? @map("last_active_at") // Última vez que el usuario estuvo activo en la plataforma
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -61,6 +65,8 @@ model User {
   sessions  Session[]
   roles     UserRole[]
   proyectos ProyectoParticipante[]
+  sede      Sede?     @relation(fields: [sedeId], references: [id], onDelete: SetNull)
+  escuela   Escuela?  @relation(fields: [escuelaId], references: [id], onDelete: SetNull)
   comentariosIndicador ComentarioIndicador[]
   comentariosItemPresupuesto ComentarioItemPresupuesto[]
   comentariosActividad ComentarioActividad[]
@@ -272,6 +278,7 @@ model Linea {
   orden   Int    @default(0)
   fondoId String @map("fondo_id")
   fondo   Fondo  @relation(fields: [fondoId], references: [id], onDelete: Restrict)
+  desarrolloTecnicoExclusiones DesarrolloTecnicoSubcategoriaLineaExcluida[]
 
   @@index([fondoId])
   @@map("lineas")
@@ -283,6 +290,7 @@ model Sede {
   nombre                String
   orden                 Int                    @default(0)
   proyectoParticipantes ProyectoParticipante[]
+  users                 User[]
 
   @@map("sedes")
 }
@@ -294,6 +302,7 @@ model Escuela {
   codigo                String                 @unique
   proyectos             ProyectoEscuela[]
   proyectoParticipantes ProyectoParticipante[]
+  users                 User[]
 
   @@map("escuelas")
 }
@@ -522,10 +531,26 @@ model DesarrolloTecnicoSubcategoria {
   orden       Int      @default(0)
   campoKey    String?  @map("campo_key") // mapeo a columna antigua para migración
 
-  categoria DesarrolloTecnicoCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
-  valores   DesarrolloTecnicoValor[]
+  categoria        DesarrolloTecnicoCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  valores          DesarrolloTecnicoValor[]
+  /** Líneas donde este elemento NO aplica (por defecto aplica a todas). */
+  lineasExcluidas  DesarrolloTecnicoSubcategoriaLineaExcluida[]
 
   @@map("desarrollo_tecnico_subcategorias")
+}
+
+/** Opt-out: subcategoría deshabilitada para una línea de fondo concreta. Sin filas = activa en todas. */
+model DesarrolloTecnicoSubcategoriaLineaExcluida {
+  id             String @id @default(cuid())
+  subcategoriaId String @map("subcategoria_id")
+  lineaId        String @map("linea_id")
+
+  subcategoria DesarrolloTecnicoSubcategoria @relation(fields: [subcategoriaId], references: [id], onDelete: Cascade)
+  linea        Linea                         @relation(fields: [lineaId], references: [id], onDelete: Cascade)
+
+  @@unique([subcategoriaId, lineaId])
+  @@index([lineaId])
+  @@map("desarrollo_tecnico_subcategoria_lineas_excluidas")
 }
 
 // Valores por proyecto y subcategoría (modelo flexible)

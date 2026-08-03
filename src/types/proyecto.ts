@@ -27,7 +27,8 @@ export type ProyectoWithRelations = Proyecto & {
   activities?: (Activity & {
     tasks: Task[];
   })[];
-  participantes_rel: (ProyectoParticipante & {
+  /** Opcional hasta hidratar vía getProyectoParticipantes. */
+  participantes_rel?: (ProyectoParticipante & {
     user?: User | null;
     socioComunitario?: SocioComunitario | null;
     sede?: { id: string; nombre: string } | null;
@@ -120,6 +121,9 @@ export type ProyectoFormData = {
     nombre?: string;
     email?: string;
     cargo?: string;
+    rut?: string;
+    sedeId?: string;
+    escuelaId?: string;
   }>;
 };
 

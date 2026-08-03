@@ -53,10 +53,13 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+import { getProyectoParticipantes } from '@/lib/actions/proyectos';
 import {
   ROLES,
   ROLE_COLORS,
   SELECT_NONE_VALUE,
+  NEW_PERSONA_VALUE,
+  isSyncableParticipanteRol,
 } from './participantes-tab-utils';
 import { useParticipantesTab } from './useParticipantesTab';
 import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSociosComunitariosDialog';
@@ -143,13 +146,11 @@ function toggleFilterValue(current: string, optionValue: string): string {
 export function ParticipantesTab({
   project,
   setProject,
-  fetchProyectos,
   selectedTab,
   onSaveSuccess,
 }: {
   project: ProyectoWithRelations;
   setProject: React.Dispatch<React.SetStateAction<ProyectoWithRelations | null>>;
-  fetchProyectos: (opts?: { silent?: boolean; activeRole?: string }) => void;
   selectedTab: ProyectoTabName;
   onSaveSuccess: () => void;
 }) {
@@ -178,6 +179,11 @@ export function ParticipantesTab({
     escuelasParticipantes,
     carrerasParticipantes,
     asignaturasParticipantes,
+    usuariosPorRolApp,
+    applyPersonaUserToForm,
+    clearPersonaFormFields,
+    handleNewParticipanteRolChange,
+    handleEditParticipanteRolChange,
     participanteSubmitting,
     isEditarSociosOpen,
     setIsEditarSociosOpen,
@@ -199,12 +205,13 @@ export function ParticipantesTab({
   } = useParticipantesTab({
     project,
     setProject,
-    fetchProyectos,
     selectedTab,
     onSaveSuccess,
   });
 
   const [importOpen, setImportOpen] = useState(false);
+  const [newPersonaIsManual, setNewPersonaIsManual] = useState(false);
+  const [editPersonaIsManual, setEditPersonaIsManual] = useState(false);
   const canImport = useCanProjectImport(
     'projects.import_participantes',
     project
@@ -333,6 +340,60 @@ export function ParticipantesTab({
     escuelasSelected,
     sort,
   ]);
+
+  /** Personas con el rol indicado aún no agregadas con ese rol en este proyecto. */
+  const getPersonaOptions = (
+    rol: string,
+    excludeParticipanteId?: string | null
+  ) => {
+    const pool = usuariosPorRolApp[rol] ?? [];
+    const already = new Set(
+      list
+        .filter(
+          (p) =>
+            p.rol === rol &&
+            (!excludeParticipanteId || p.id !== excludeParticipanteId)
+        )
+        .flatMap((p) => {
+          const keys: string[] = [];
+          if (p.userId) keys.push(`id:${p.userId}`);
+          const email = (p.user?.email ?? p.email)?.trim().toLowerCase();
+          if (email) keys.push(`email:${email}`);
+          return keys;
+        })
+    );
+    return pool.filter((u) => {
+      if (already.has(`id:${u.id}`)) return false;
+      if (already.has(`email:${u.email.trim().toLowerCase()}`)) return false;
+      return true;
+    });
+  };
+
+  const resolvePersonaSelectValue = (
+    rol: string,
+    email: string,
+    nombre: string,
+    isManual: boolean
+  ) => {
+    if (isManual) return NEW_PERSONA_VALUE;
+    const pool = usuariosPorRolApp[rol] ?? [];
+    const emailLower = email.trim().toLowerCase();
+    if (emailLower) {
+      const byEmail = pool.find(
+        (u) => u.email.trim().toLowerCase() === emailLower
+      );
+      if (byEmail) return byEmail.id;
+    }
+    return '';
+  };
+
+  const isPersonaFromList = (rol: string, email: string) => {
+    if (!isSyncableParticipanteRol(rol) || !email.trim()) return false;
+    const pool = usuariosPorRolApp[rol] ?? [];
+    return pool.some(
+      (u) => u.email.trim().toLowerCase() === email.trim().toLowerCase()
+    );
+  };
 
   const counts = useMemo(() => {
     const encargados = list.filter((p) => p.rol === 'Encargado').length;
@@ -638,7 +699,19 @@ export function ParticipantesTab({
           onOpenChange={setImportOpen}
           tipo="participantes"
           proyectoId={project.id}
-          onSuccess={() => fetchProyectos({ silent: true })}
+          onSuccess={async () => {
+            const result = await getProyectoParticipantes(project.id);
+            if (result.success && result.data) {
+              setProject(
+                (prev) =>
+                  ({
+                    ...prev,
+                    participantes_rel: result.data,
+                    participantes: result.data.length,
+                  }) as ProyectoWithRelations
+              );
+            }
+          }}
         />
 
         {/* Tabla */}
@@ -788,16 +861,12 @@ export function ParticipantesTab({
                           {isEditing && draft ? (
                             <Select
                               value={draft.rol}
-                              onValueChange={(v) =>
-                                setEditDraft((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        rol: v as typeof prev.rol,
-                                      }
-                                    : prev
-                                )
-                              }
+                              onValueChange={(v) => {
+                                handleEditParticipanteRolChange(
+                                  v as typeof draft.rol
+                                );
+                                setEditPersonaIsManual(false);
+                              }}
                             >
                               <SelectTrigger className={SELECT_TRIGGER}>
                                 <SelectValue />
@@ -820,17 +889,93 @@ export function ParticipantesTab({
                         </TableCell>
                         <TableCell className={cn(CELL_BASE, COL_W.nombre)}>
                           {isEditing && draft ? (
-                            <Input
-                              value={draft.nombre}
-                              onChange={(e) =>
-                                setEditDraft((prev) =>
-                                  prev
-                                    ? { ...prev, nombre: e.target.value }
-                                    : prev
-                                )
-                              }
-                              className={INPUT_CELL}
-                            />
+                            isSyncableParticipanteRol(draft.rol) ? (
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <Select
+                                  value={
+                                    resolvePersonaSelectValue(
+                                      draft.rol,
+                                      draft.email,
+                                      draft.nombre,
+                                      editPersonaIsManual
+                                    ) || SELECT_NONE_VALUE
+                                  }
+                                  onValueChange={(v) => {
+                                    if (v === SELECT_NONE_VALUE) {
+                                      setEditPersonaIsManual(false);
+                                      clearPersonaFormFields('edit');
+                                      return;
+                                    }
+                                    if (v === NEW_PERSONA_VALUE) {
+                                      setEditPersonaIsManual(true);
+                                      clearPersonaFormFields('edit');
+                                      return;
+                                    }
+                                    setEditPersonaIsManual(false);
+                                    applyPersonaUserToForm(
+                                      v,
+                                      'edit',
+                                      draft.rol
+                                    );
+                                  }}
+                                >
+                                  <SelectTrigger className={SELECT_TRIGGER}>
+                                    <SelectValue
+                                      placeholder={`Seleccionar ${draft.rol.toLowerCase()} *`}
+                                    />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={SELECT_NONE_VALUE}>
+                                      Seleccionar {draft.rol.toLowerCase()} *
+                                    </SelectItem>
+                                    <SelectItem value={NEW_PERSONA_VALUE}>
+                                      Nueva persona…
+                                    </SelectItem>
+                                    {getPersonaOptions(draft.rol, p.id).map(
+                                      (u) => (
+                                        <SelectItem key={u.id} value={u.id}>
+                                          {u.name?.trim()
+                                            ? `${u.name.trim()} (${u.email})`
+                                            : u.email}
+                                          {!u.hasAccount
+                                            ? ' · sin cuenta'
+                                            : ''}
+                                        </SelectItem>
+                                      )
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                {editPersonaIsManual && (
+                                  <Input
+                                    value={draft.nombre}
+                                    onChange={(e) =>
+                                      setEditDraft((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              nombre: e.target.value,
+                                            }
+                                          : prev
+                                      )
+                                    }
+                                    placeholder="Nombre *"
+                                    className={INPUT_CELL}
+                                  />
+                                )}
+                              </div>
+                            ) : (
+                              <Input
+                                value={draft.nombre}
+                                onChange={(e) =>
+                                  setEditDraft((prev) =>
+                                    prev
+                                      ? { ...prev, nombre: e.target.value }
+                                      : prev
+                                  )
+                                }
+                                className={INPUT_CELL}
+                              />
+                            )
                           ) : (
                             <div className="flex items-start gap-1.5 min-w-0">
                               <Avatar className="h-6 w-6 shrink-0 rounded-full ring-1 ring-gray-200">
@@ -883,6 +1028,15 @@ export function ParticipantesTab({
                               }
                               placeholder="Correo *"
                               className={INPUT_CELL}
+                              readOnly={isPersonaFromList(
+                                draft.rol,
+                                draft.email
+                              )}
+                              title={
+                                isPersonaFromList(draft.rol, draft.email)
+                                  ? 'Se completa al seleccionar la persona'
+                                  : undefined
+                              }
                             />
                           ) : (
                             email || '—'
@@ -1137,12 +1291,12 @@ export function ParticipantesTab({
                     <TableCell className={cn(CELL_BASE_CENTER, COL_W.rol)}>
                       <Select
                         value={newParticipanteData.rol}
-                        onValueChange={(v) =>
-                          setNewParticipanteData((prev) => ({
-                            ...prev,
-                            rol: v as typeof prev.rol,
-                          }))
-                        }
+                        onValueChange={(v) => {
+                          setNewPersonaIsManual(false);
+                          handleNewParticipanteRolChange(
+                            v as typeof newParticipanteData.rol
+                          );
+                        }}
                       >
                         <SelectTrigger className={SELECT_TRIGGER}>
                           <SelectValue />
@@ -1157,17 +1311,88 @@ export function ParticipantesTab({
                       </Select>
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.nombre)}>
-                      <Input
-                        value={newParticipanteData.nombre}
-                        onChange={(e) =>
-                          setNewParticipanteData((prev) => ({
-                            ...prev,
-                            nombre: e.target.value,
-                          }))
-                        }
-                        placeholder="Nombre *"
-                        className={INPUT_CELL}
-                      />
+                      {isSyncableParticipanteRol(newParticipanteData.rol) ? (
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <Select
+                            value={
+                              resolvePersonaSelectValue(
+                                newParticipanteData.rol,
+                                newParticipanteData.email,
+                                newParticipanteData.nombre,
+                                newPersonaIsManual
+                              ) || SELECT_NONE_VALUE
+                            }
+                            onValueChange={(v) => {
+                              if (v === SELECT_NONE_VALUE) {
+                                setNewPersonaIsManual(false);
+                                clearPersonaFormFields('new');
+                                return;
+                              }
+                              if (v === NEW_PERSONA_VALUE) {
+                                setNewPersonaIsManual(true);
+                                clearPersonaFormFields('new');
+                                return;
+                              }
+                              setNewPersonaIsManual(false);
+                              applyPersonaUserToForm(
+                                v,
+                                'new',
+                                newParticipanteData.rol
+                              );
+                            }}
+                          >
+                            <SelectTrigger className={SELECT_TRIGGER}>
+                              <SelectValue
+                                placeholder={`Seleccionar ${newParticipanteData.rol.toLowerCase()} *`}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SELECT_NONE_VALUE}>
+                                Seleccionar{' '}
+                                {newParticipanteData.rol.toLowerCase()} *
+                              </SelectItem>
+                              <SelectItem value={NEW_PERSONA_VALUE}>
+                                Nueva persona…
+                              </SelectItem>
+                              {getPersonaOptions(newParticipanteData.rol).map(
+                                (u) => (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    {u.name?.trim()
+                                      ? `${u.name.trim()} (${u.email})`
+                                      : u.email}
+                                    {!u.hasAccount ? ' · sin cuenta' : ''}
+                                  </SelectItem>
+                                )
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {newPersonaIsManual && (
+                            <Input
+                              value={newParticipanteData.nombre}
+                              onChange={(e) =>
+                                setNewParticipanteData((prev) => ({
+                                  ...prev,
+                                  nombre: e.target.value,
+                                }))
+                              }
+                              placeholder="Nombre *"
+                              className={INPUT_CELL}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <Input
+                          value={newParticipanteData.nombre}
+                          onChange={(e) =>
+                            setNewParticipanteData((prev) => ({
+                              ...prev,
+                              nombre: e.target.value,
+                            }))
+                          }
+                          placeholder="Nombre *"
+                          className={INPUT_CELL}
+                        />
+                      )}
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.rut)}>
                       <Input
@@ -1198,6 +1423,22 @@ export function ParticipantesTab({
                         }
                         placeholder="Correo *"
                         className={INPUT_CELL}
+                        readOnly={
+                          !newPersonaIsManual &&
+                          isPersonaFromList(
+                            newParticipanteData.rol,
+                            newParticipanteData.email
+                          )
+                        }
+                        title={
+                          !newPersonaIsManual &&
+                          isPersonaFromList(
+                            newParticipanteData.rol,
+                            newParticipanteData.email
+                          )
+                            ? 'Se completa al seleccionar la persona'
+                            : undefined
+                        }
                       />
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.cargo)}>

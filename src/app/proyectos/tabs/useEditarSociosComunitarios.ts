@@ -18,13 +18,11 @@ type SocioCatalogItem = {
 export function useEditarSociosComunitarios({
   project,
   setProject,
-  fetchProyectos,
   onSaveSuccess,
   onSocioCreated,
 }: {
   project: ProyectoWithRelations;
   setProject: React.Dispatch<React.SetStateAction<ProyectoWithRelations | null>>;
-  fetchProyectos: (opts?: { silent?: boolean; activeRole?: string }) => void;
   onSaveSuccess: () => void;
   onSocioCreated?: (socio: SocioCatalogItem) => void;
 }) {
@@ -116,7 +114,6 @@ export function useEditarSociosComunitarios({
             (result.data as ProyectoWithRelations).activities,
         }) as ProyectoWithRelations
       );
-      fetchProyectos({ silent: true });
     } else {
       setProject(previousProject);
       setIsEditarSociosOpen(true);

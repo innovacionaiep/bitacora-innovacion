@@ -62,161 +62,109 @@ export function ObjetivoGeneralCard({
     }
   };
 
+  const objetivoGeneralHeader = (
+    <div className="relative z-20 flex shrink-0 items-center gap-3">
+      <div
+        className="relative flex-shrink-0"
+        style={{ width: `${OBJETIVO_GENERAL_WIDTH_PX}px` }}
+      >
+        <div className="relative flex w-full items-center justify-center rounded-xl border-2 border-emerald-600/15 bg-gradient-to-r from-emerald-100 via-emerald-50 to-white p-6 text-emerald-900 shadow-xl bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+          <div className="absolute left-3 top-3 flex items-center space-x-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm">
+            <Target className="h-3.5 w-3.5" />
+            <span>Objetivo General</span>
+          </div>
+
+          <div className="absolute right-3 top-3 flex items-center space-x-2">
+            <span className="text-xs font-semibold text-gray-700">Progreso</span>
+            <div className="flex items-center space-x-2">
+              <div className="h-2 w-96 rounded-full bg-gray-200 shadow-inner">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-sm transition-all duration-300"
+                  style={{ width: `${progresoGeneral}%` }}
+                />
+              </div>
+              <span className="text-xl font-bold text-emerald-600">
+                {progresoGeneral}%
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-8 flex w-full items-center pl-2 pr-2">
+            <h3 className="min-w-0 flex-1 text-[16px] font-bold leading-tight text-emerald-900">
+              {objetivoGeneral.descripcion}
+            </h3>
+          </div>
+        </div>
+      </div>
+      {actions != null && (
+        <div className="flex flex-shrink-0 flex-col gap-2">{actions}</div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col">
+      {objetivoGeneralHeader}
+
       {objetivoGeneral.objetivosEspecificos.length > 0 ? (
-        <>
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div
-            className="flex flex-col gap-16 relative"
-            style={{ marginLeft: '-140px' }}
-          >
-            <div className="relative group z-20 flex items-center gap-3">
-              <div
-                className="relative flex-shrink-0"
-                style={{ width: `${OBJETIVO_GENERAL_WIDTH_PX}px` }}
-              >
-                <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center w-full bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
-                  {/* Badge en esquina superior izquierda con icono */}
-                  <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-sm flex items-center space-x-1.5">
-                    <Target className="h-3.5 w-3.5" />
-                    <span>Objetivo General</span>
-                  </div>
-
-                  {/* Barra de progreso en esquina superior derecha */}
-                  <div className="absolute top-3 right-3 flex items-center space-x-2">
-                    <span className="text-xs font-semibold text-gray-700">
-                      Progreso
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-96 bg-gray-200 rounded-full h-2 shadow-inner">
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-300 shadow-sm"
-                          style={{ width: `${progresoGeneral}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-xl font-bold text-emerald-600">
-                        {progresoGeneral}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center w-full mt-8 pl-2 pr-2">
-                    <h3 className="font-bold text-[16px] leading-tight flex-1 min-w-0 text-emerald-900">
-                      {objetivoGeneral.descripcion}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-              {actions != null && (
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  {actions}
-                </div>
-              )}
-            </div>
-
-            {/* Bloque enmarcado: objetivos específicos + líneas conectoras + indicadores (80px a la derecha respecto al Objetivo General) */}
-            <div
-              className="relative isolate flex flex-col gap-16"
-              style={{ marginLeft: '80px' }}
-            >
-              {/* Línea conectora vertical detrás de las tarjetas de objetivos específicos */}
-              <div className="pointer-events-none absolute left-[28px] -top-16 bottom-0 z-0 w-0.5 bg-gray-300" />
-              {objetivoGeneral.objetivosEspecificos.map(
-                (objetivoEspecifico, index) => (
-                  <div key={objetivoEspecifico.id} className="relative z-10">
-                    <ObjetivoEspecificoCard
-                      objetivoEspecifico={objetivoEspecifico}
-                      numero={index + 1}
-                      onIndicadorClick={onIndicadorClick}
-                      deleteMode={deleteMode}
-                      onDeleteIndicador={onDeleteIndicador}
-                      onAddIndicador={
-                        onAddIndicador
-                          ? () => onAddIndicador(objetivoEspecifico.id)
-                          : undefined
-                      }
-                      onCargaMasiva={onCargaMasiva}
-                      canImport={canImport}
-                    />
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <div
-          className="flex flex-col gap-16 relative"
-          style={{ marginLeft: '-140px' }}
-        >
-          {/* Fila: Objetivo General con ancho fijo + acciones */}
-          <div className="relative group flex items-center gap-3">
-            <div
-              className="relative flex-shrink-0"
-              style={{ width: `${OBJETIVO_GENERAL_WIDTH_PX}px` }}
-            >
-              <div className="relative bg-gradient-to-r from-emerald-100 via-emerald-50 to-white border-2 border-emerald-600/15 text-emerald-900 p-6 rounded-xl shadow-xl flex items-center justify-center w-full bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
-                <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-sm flex items-center space-x-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  <span>Objetivo General</span>
-                </div>
-                <div className="absolute top-3 right-3 flex items-center space-x-2">
-                  <span className="text-xs font-semibold text-gray-700">
-                    Progreso
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-96 bg-gray-200 rounded-full h-2 shadow-inner">
-                      <div
-                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-300 shadow-sm"
-                        style={{ width: `${progresoGeneral}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xl font-bold text-emerald-600">
-                      {progresoGeneral}%
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center w-full mt-8 pl-2 pr-2">
-                  <h3 className="font-bold text-[16px] leading-tight flex-1 min-w-0 text-emerald-900">
-                    {objetivoGeneral.descripcion}
-                  </h3>
-                </div>
-              </div>
-            </div>
-            {actions != null && (
-              <div className="flex flex-col gap-2 flex-shrink-0">{actions}</div>
-            )}
-          </div>
-
-          {/* Bloque: tarjeta vacía "Agregar objetivo específico" con input (misma estructura que objetivos específicos) */}
-          <div
-            className="flex flex-col gap-16 relative"
+            className="relative isolate flex min-w-max flex-col gap-16 pb-6 pt-16"
             style={{ marginLeft: '80px' }}
           >
-            <div className="absolute left-[28px] -top-16 bottom-0 w-0.5 bg-gray-300 z-0" />
+            <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
+            {objetivoGeneral.objetivosEspecificos.map(
+              (objetivoEspecifico, index) => (
+                <div key={objetivoEspecifico.id} className="relative z-10">
+                  <ObjetivoEspecificoCard
+                    objetivoEspecifico={objetivoEspecifico}
+                    numero={index + 1}
+                    onIndicadorClick={onIndicadorClick}
+                    deleteMode={deleteMode}
+                    onDeleteIndicador={onDeleteIndicador}
+                    onAddIndicador={
+                      onAddIndicador
+                        ? () => onAddIndicador(objetivoEspecifico.id)
+                        : undefined
+                    }
+                    onCargaMasiva={onCargaMasiva}
+                    canImport={canImport}
+                  />
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div
+            className="relative flex flex-col gap-16 pb-6 pt-16"
+            style={{ marginLeft: '80px' }}
+          >
+            <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
             <div className="relative z-10 flex items-stretch gap-6">
               <div
-                className="relative flex-shrink-0 bg-white rounded-xl w-[560px]"
-                style={{
-                  minHeight: '110px',
-                }}
+                className="relative w-[560px] flex-shrink-0 rounded-xl bg-white"
+                style={{ minHeight: '110px' }}
               >
-                <div className="relative h-full bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 border-2 border-gray-200 text-gray-900 px-6 py-4 rounded-xl shadow-md flex flex-col justify-center gap-3 bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+                <div className="relative flex h-full flex-col justify-center gap-3 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 px-6 py-4 text-gray-900 shadow-md bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
                   <textarea
                     placeholder="Escribe aquí el objetivo específico..."
                     value={nuevoObjetivoTexto}
                     onChange={(e) => setNuevoObjetivoTexto(e.target.value)}
-                    className="w-full min-h-[60px] text-[15px] leading-tight text-gray-900 placeholder:text-gray-500 bg-white/60 border border-gray-300 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="min-h-[60px] w-full resize-y rounded-lg border border-gray-300 bg-white/60 px-3 py-2 text-[15px] leading-tight text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     rows={2}
                   />
                   <Button
                     type="button"
                     onClick={handleAddObjetivo}
                     disabled={!nuevoObjetivoTexto?.trim() || addingObjetivo}
-                    className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
                   >
                     <Plus className="h-4 w-4" />
-                    {addingObjetivo ? 'Guardando...' : 'Agregar objetivo específico'}
+                    {addingObjetivo
+                      ? 'Guardando...'
+                      : 'Agregar objetivo específico'}
                   </Button>
                 </div>
               </div>

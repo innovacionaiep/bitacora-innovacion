@@ -291,83 +291,90 @@ export function IndicadoresCard({
   }
 
   return (
-    <div className="h-full flex flex-col overflow-x-hidden">
-      {/* Main Content - Sistema de tarjetas tipo mapa mental (sin scroll horizontal) */}
-      <div className="flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="pt-3 pb-6 pl-40 pr-6 min-w-max">
-          {data.objetivosGenerales.map((objetivoGeneral, index) => (
-            <div key={objetivoGeneral.id} className={index > 0 ? 'mt-12' : ''}>
-              <ObjetivoGeneralCard
-                objetivoGeneral={objetivoGeneral}
-                progresoGeneral={progresoGeneral}
-                onAddObjetivoEspecifico={
-                  objetivoGeneral.objetivosEspecificos.length === 0
-                    ? handleAddObjetivoEspecifico
-                    : undefined
-                }
-                onIndicadorClick={(indicador) => {
-                  setSelectedIndicador({
-                    id: indicador.id,
-                    nombre: indicador.nombre,
-                    descripcion: indicador.descripcion,
-                    formaCalculo: indicador.formaCalculo,
-                    resultadoEsperado: indicador.resultadoEsperado,
-                    resultadoAlcanzado: indicador.resultadoAlcanzado,
-                    formatoNumero: indicador.formatoNumero,
-                    fechaInicio: indicador.fechaInicio,
-                    fechaFin: indicador.fechaFin,
-                  });
-                }}
-                actions={
-                  index === 0 ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-block">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              disabled={!tieneAlMenosUnIndicador}
-                              className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                                !tieneAlMenosUnIndicador
-                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                  : deleteMode
-                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                              }`}
-                              onClick={() => tieneAlMenosUnIndicador && setDeleteMode((prev) => !prev)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {!tieneAlMenosUnIndicador
-                              ? 'No hay indicadores para eliminar'
-                              : deleteMode
-                                ? 'Salir del modo eliminación'
-                                : 'Eliminar indicador'}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : undefined
-                }
-                onAddIndicador={
-                  tieneAlMenosUnObjetivoEspecifico
-                    ? handleOpenAgregarIndicador
-                    : undefined
-                }
-                onCargaMasiva={onCargaMasiva}
-                canImport={canImport}
-                deleteMode={deleteMode}
-                onDeleteIndicador={handleDeleteIndicador}
-              />
-            </div>
-          ))}
-        </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-3 pl-5 pr-6">
+        {data.objetivosGenerales.map((objetivoGeneral, index) => (
+          <div
+            key={objetivoGeneral.id}
+            className={
+              index === 0
+                ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                : 'mt-12 shrink-0'
+            }
+          >
+            <ObjetivoGeneralCard
+              objetivoGeneral={objetivoGeneral}
+              progresoGeneral={progresoGeneral}
+              onAddObjetivoEspecifico={
+                objetivoGeneral.objetivosEspecificos.length === 0
+                  ? handleAddObjetivoEspecifico
+                  : undefined
+              }
+              onIndicadorClick={(indicador) => {
+                setSelectedIndicador({
+                  id: indicador.id,
+                  nombre: indicador.nombre,
+                  descripcion: indicador.descripcion,
+                  formaCalculo: indicador.formaCalculo,
+                  resultadoEsperado: indicador.resultadoEsperado,
+                  resultadoAlcanzado: indicador.resultadoAlcanzado,
+                  formatoNumero: indicador.formatoNumero,
+                  fechaInicio: indicador.fechaInicio,
+                  fechaFin: indicador.fechaFin,
+                });
+              }}
+              actions={
+                index === 0 ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-block">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={!tieneAlMenosUnIndicador}
+                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
+                              !tieneAlMenosUnIndicador
+                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                : deleteMode
+                                  ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                            }`}
+                            onClick={() =>
+                              tieneAlMenosUnIndicador &&
+                              setDeleteMode((prev) => !prev)
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {!tieneAlMenosUnIndicador
+                            ? 'No hay indicadores para eliminar'
+                            : deleteMode
+                              ? 'Salir del modo eliminación'
+                              : 'Eliminar indicador'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : undefined
+              }
+              onAddIndicador={
+                tieneAlMenosUnObjetivoEspecifico
+                  ? handleOpenAgregarIndicador
+                  : undefined
+              }
+              onCargaMasiva={onCargaMasiva}
+              canImport={canImport}
+              deleteMode={deleteMode}
+              onDeleteIndicador={handleDeleteIndicador}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Modal para mostrar descripción y forma de cálculo */}

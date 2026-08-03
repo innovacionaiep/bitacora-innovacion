@@ -14,12 +14,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  getConveniosDashboard,
+  getConveniosPorFondo,
   type ConvenioDashboardRow,
 } from '@/lib/actions/convenios';
 import { buildCloudinaryDownloadUrl } from '@/lib/convenios-upload';
 import { cn } from '@/lib/utils';
-import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 function formatFecha(d: Date | string | null | undefined): string {
   if (!d) return '—';
@@ -50,7 +49,11 @@ async function fetchAsBlob(url: string, filename: string): Promise<Blob> {
   return res.blob();
 }
 
-export function ConveniosTab() {
+type Props = {
+  fondoNombre: string;
+};
+
+export function FondoConveniosSection({ fondoNombre }: Props) {
   const [rows, setRows] = useState<ConvenioDashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export function ConveniosTab() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await getConveniosDashboard();
+    const res = await getConveniosPorFondo(fondoNombre);
     if (!res.success) {
       setError(res.error || 'Error al cargar convenios');
       setRows([]);
@@ -68,10 +71,10 @@ export function ConveniosTab() {
       setRows(res.data);
     }
     setLoading(false);
-  }, []);
+  }, [fondoNombre]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const firmados = useMemo(() => rows.filter((r) => r.firmado), [rows]);
@@ -119,7 +122,7 @@ export function ConveniosTab() {
       const content = await zip.generateAsync({ type: 'blob' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(content);
-      a.download = 'convenios-firmados.zip';
+      a.download = `convenios-${fondoNombre}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -135,39 +138,34 @@ export function ConveniosTab() {
     }
   };
 
-  usePageTopLoader(loading);
-
   if (loading) {
-    return <div className="min-h-[120px] py-16" />;
+    return <div className="min-h-[80px] py-8" />;
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[13px] text-gray-500">
-            {rows.length} proyecto{rows.length === 1 ? '' : 's'} con convenios
-            habilitados
-            {rows.length > 0 && (
-              <>
-                {' '}
-                ·{' '}
-                <span className="text-emerald-700 font-medium">
-                  {firmados.length} firmado{firmados.length === 1 ? '' : 's'}
-                </span>
-                {pendientes > 0 && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <span className="text-red-600 font-medium">
-                      {pendientes} pendiente{pendientes === 1 ? '' : 's'}
-                    </span>
-                  </>
-                )}
-              </>
-            )}
-          </p>
-        </div>
+        <p className="text-[13px] text-gray-500">
+          {rows.length} proyecto{rows.length === 1 ? '' : 's'}
+          {rows.length > 0 && (
+            <>
+              {' '}
+              ·{' '}
+              <span className="text-emerald-700 font-medium">
+                {firmados.length} firmado{firmados.length === 1 ? '' : 's'}
+              </span>
+              {pendientes > 0 && (
+                <>
+                  {' '}
+                  ·{' '}
+                  <span className="text-red-600 font-medium">
+                    {pendientes} pendiente{pendientes === 1 ? '' : 's'}
+                  </span>
+                </>
+              )}
+            </>
+          )}
+        </p>
         <Button
           type="button"
           variant="outline"
@@ -187,10 +185,9 @@ export function ConveniosTab() {
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed border-gray-200 px-4 py-12 text-center">
+        <div className="rounded-md border border-dashed border-gray-200 px-4 py-10 text-center">
           <p className="text-[13px] text-gray-500">
-            No hay proyectos con convenios habilitados. Activa fondos en
-            Configuración → Convenios.
+            No hay proyectos en este fondo.
           </p>
         </div>
       ) : (
@@ -200,9 +197,6 @@ export function ConveniosTab() {
               <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
                 <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide pl-4">
                   Proyecto
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
-                  Fondo
                 </TableHead>
                 <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
                   Estado
@@ -223,9 +217,6 @@ export function ConveniosTab() {
                 <TableRow key={row.id} className="hover:bg-gray-50/50">
                   <TableCell className="pl-4 text-[13px] text-gray-800 font-medium max-w-[280px] whitespace-normal break-words">
                     {row.proyecto}
-                  </TableCell>
-                  <TableCell className="text-[13px] text-gray-600">
-                    {row.fondo || '—'}
                   </TableCell>
                   <TableCell>
                     <Badge

@@ -10,7 +10,6 @@ import { ListaProyectosTab } from './tabs/ListaProyectosTab';
 import { EscuelasSedesTab } from './tabs/EscuelasSedesTab';
 import { ParticipantesDashboardTab } from './tabs/ParticipantesDashboardTab';
 import { AvancesTab } from './tabs/AvancesTab';
-import { ConveniosTab } from './tabs/ConveniosTab';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type DashboardPageProps = {
@@ -23,7 +22,6 @@ const VIEWS = [
   { value: 'analisis-escuela', label: 'Escuelas y Sedes' },
   { value: 'analisis-participantes', label: 'Participantes' },
   { value: 'analisis-avances', label: 'Avances' },
-  { value: 'convenios', label: 'Convenios' },
 ] as const;
 
 export default function DashboardPage({
@@ -112,7 +110,6 @@ export default function DashboardPage({
         {currentView === 'analisis-avances' && (
           <AvancesTab proyectos={proyectos} />
         )}
-        {currentView === 'convenios' && <ConveniosTab />}
       </div>
     </div>
   );

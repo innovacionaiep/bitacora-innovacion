@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,14 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import * as Config from '@/lib/actions/configuracion';
-import { Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 
 type CatalogKind =
   | 'sede'
@@ -81,6 +88,26 @@ export default function ConfiguracionValidacionPage() {
   const [uploadingAsignaturasXlsx, setUploadingAsignaturasXlsx] = useState(false);
   const [importAsignaturasResult, setImportAsignaturasResult] = useState<string | null>(null);
   const fileInputAsignaturasRef = useRef<HTMLInputElement>(null);
+  const [expandedFondos, setExpandedFondos] = useState<Set<string>>(new Set());
+
+  const lineasByFondoId = useMemo(() => {
+    const map = new Map<string, typeof lineas>();
+    for (const l of lineas) {
+      const list = map.get(l.fondoId) ?? [];
+      list.push(l);
+      map.set(l.fondoId, list);
+    }
+    return map;
+  }, [lineas]);
+
+  const toggleFondo = (fondoId: string) => {
+    setExpandedFondos((prev) => {
+      const next = new Set(prev);
+      if (next.has(fondoId)) next.delete(fondoId);
+      else next.add(fondoId);
+      return next;
+    });
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -103,6 +130,7 @@ export default function ConfiguracionValidacionPage() {
       setGrupos(g);
       setFondos(f);
       setLineas(lin);
+      setExpandedFondos(new Set(f.map((fondo) => fondo.id)));
     } catch (err) {
       setError('Error al cargar datos');
     }
@@ -113,7 +141,7 @@ export default function ConfiguracionValidacionPage() {
     loadAll();
   }, []);
 
-  const openAdd = (cat: CatalogKind) => {
+  const openAdd = (cat: CatalogKind, opts?: { fondoId?: string }) => {
     setCatalog(cat);
     setSheetMode('add');
     setEditId(null);
@@ -123,7 +151,7 @@ export default function ConfiguracionValidacionPage() {
     setFormCodigo('');
     setFormDescripcion('');
     setFormEscuelaId(null);
-    setFormFondoId('');
+    setFormFondoId(opts?.fondoId ?? '');
     setSheetOpen(true);
     setError(null);
   };
@@ -413,7 +441,6 @@ export default function ConfiguracionValidacionPage() {
             <TabsTrigger value="asignatura">Asignaturas</TabsTrigger>
             <TabsTrigger value="grupo">Grupos de interés</TabsTrigger>
             <TabsTrigger value="fondo">Fondos</TabsTrigger>
-            <TabsTrigger value="linea">Líneas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sede" className="mt-4">
@@ -753,93 +780,126 @@ export default function ConfiguracionValidacionPage() {
                 </Button>
               )}
               <Button size="sm" onClick={() => openAdd('fondo')}>
-                <Plus className="h-4 w-4 mr-1" /> Agregar
+                <Plus className="h-4 w-4 mr-1" /> Agregar fondo
               </Button>
             </div>
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Orden</TableHead>
-                  <TableHead className="w-[120px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fondos.map((f) => (
-                  <TableRow key={f.id}>
-                    <TableCell>{f.nombre}</TableCell>
-                    <TableCell>{f.orden}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit('fondo', f.id, f)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete('fondo', f.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-
-          <TabsContent value="linea" className="mt-4">
-            <div className="flex justify-end gap-2 mb-2">
-              <Button
-                size="sm"
-                onClick={() => openAdd('linea')}
-                disabled={fondos.length === 0}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Agregar
-              </Button>
-            </div>
-            {fondos.length === 0 && (
-              <p className="text-sm text-muted-foreground mb-3">
-                Primero crea al menos un fondo para poder agregar líneas.
+            <p className="text-sm text-muted-foreground mb-3">
+              Cada fondo agrupa sus líneas. Expande un fondo para ver y gestionar
+              las líneas asociadas.
+            </p>
+            {fondos.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No hay fondos. Crea uno para poder agregar líneas.
               </p>
+            ) : (
+              <div className="space-y-3">
+                {fondos.map((f) => {
+                  const lineasDelFondo = lineasByFondoId.get(f.id) ?? [];
+                  const expanded = expandedFondos.has(f.id);
+                  return (
+                    <div
+                      key={f.id}
+                      className="border border-gray-200 rounded-md overflow-hidden"
+                    >
+                      <div className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100">
+                        <button
+                          type="button"
+                          className="flex-1 flex items-center justify-between px-3 py-2.5 text-left min-w-0"
+                          onClick={() => toggleFondo(f.id)}
+                        >
+                          <span className="text-sm font-medium text-gray-800 truncate">
+                            {f.nombre}
+                          </span>
+                          <span className="flex items-center gap-2 text-xs text-gray-500 shrink-0 ml-2">
+                            Orden {f.orden} · {lineasDelFondo.length} línea
+                            {lineasDelFondo.length === 1 ? '' : 's'}
+                            {expanded ? (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+                        </button>
+                        <div className="flex items-center pr-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEdit('fondo', f.id, f)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete('fondo', f.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                      {expanded && (
+                        <div className="border-t border-gray-200">
+                          <div className="flex items-center justify-between px-3 py-2 bg-white">
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Líneas
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openAdd('linea', { fondoId: f.id })
+                              }
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Agregar línea
+                            </Button>
+                          </div>
+                          {lineasDelFondo.length === 0 ? (
+                            <p className="px-3 py-3 text-sm text-gray-400">
+                              Sin líneas en este fondo.
+                            </p>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nombre</TableHead>
+                                  <TableHead>Orden</TableHead>
+                                  <TableHead className="w-[80px]">
+                                    Acciones
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {lineasDelFondo.map((l) => (
+                                  <TableRow key={l.id}>
+                                    <TableCell>{l.nombre}</TableCell>
+                                    <TableCell>{l.orden}</TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                          openEdit('linea', l.id, {
+                                            nombre: l.nombre,
+                                            orden: l.orden,
+                                            fondoId: l.fondoId,
+                                          })
+                                        }
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Fondo</TableHead>
-                  <TableHead>Orden</TableHead>
-                  <TableHead className="w-[80px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lineas.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>{l.nombre}</TableCell>
-                    <TableCell>{l.fondo.nombre}</TableCell>
-                    <TableCell>{l.orden}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          openEdit('linea', l.id, {
-                            nombre: l.nombre,
-                            orden: l.orden,
-                            fondoId: l.fondoId,
-                          })
-                        }
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </TabsContent>
         </Tabs>
       </div>
@@ -881,18 +941,25 @@ export default function ConfiguracionValidacionPage() {
             {catalog === 'linea' && (
               <div className="space-y-2">
                 <Label>Fondo</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={formFondoId}
-                  onChange={(e) => setFormFondoId(e.target.value)}
-                >
-                  <option value="">Seleccionar fondo</option>
-                  {fondos.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nombre}
-                    </option>
-                  ))}
-                </select>
+                {sheetMode === 'add' && formFondoId ? (
+                  <p className="text-sm text-gray-700 py-2 px-3 rounded-md border border-input bg-muted/40">
+                    {fondos.find((f) => f.id === formFondoId)?.nombre ??
+                      'Fondo seleccionado'}
+                  </p>
+                ) : (
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formFondoId}
+                    onChange={(e) => setFormFondoId(e.target.value)}
+                  >
+                    <option value="">Seleccionar fondo</option>
+                    {fondos.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nombre}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
             {(catalog === 'sede' ||

@@ -14,6 +14,7 @@ import './sidebar-smooth.css';
 import {
   Home,
   LayoutDashboard,
+  Landmark,
   FolderKanban,
   AtSign,
   Settings,
@@ -42,6 +43,12 @@ const navItemsBase: {
     label: 'Dashboard',
     icon: LayoutDashboard,
     viewKey: 'view.dashboard',
+  },
+  {
+    href: '/fondos',
+    label: 'Fondos',
+    icon: Landmark,
+    viewKey: 'view.fondos',
   },
   {
     href: '/proyectos',

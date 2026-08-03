@@ -18,12 +18,17 @@ import { proyectosListadoKey } from '@/lib/query-keys';
 
 /**
  * Hook que carga un listado ligero de proyectos (solo id, nombre, sede, escuelas).
- * Cache React Query; la carga completa del proyecto se hace al seleccionar (getProyecto).
+ * Cache React Query; la carga completa del proyecto se hace al seleccionar (getProyectoBase).
+ * initialListado / initialActiveRole alinean la key con el prefetch RSC.
  */
-export function useProyectosParaUsuario() {
-  const { data: session } = useSession();
+export function useProyectosParaUsuario(opts?: {
+  initialListado?: ProyectoListadoItem[];
+  initialActiveRole?: string | null;
+}) {
+  const { data: session, status } = useSession();
   const activeRole =
     (session?.user as { activeRole?: string | null } | undefined)?.activeRole ??
+    opts?.initialActiveRole ??
     null;
   const queryClient = useQueryClient();
 
@@ -37,7 +42,8 @@ export function useProyectosParaUsuario() {
       return (result.data ?? []) as ProyectoListadoItem[];
     },
     staleTime: 60_000,
-    enabled: !!session?.user,
+    initialData: opts?.initialListado,
+    enabled: status !== 'loading' && (!!session?.user || !!opts?.initialListado),
   });
 
   const fetchProyectos = useCallback(
@@ -46,6 +52,34 @@ export function useProyectosParaUsuario() {
       await queryClient.invalidateQueries({
         queryKey: proyectosListadoKey(role),
       });
+    },
+    [activeRole, queryClient]
+  );
+
+  /** Actualiza un ítem del listado en cache sin refetch (nombre/sede/escuelas). */
+  const patchProyectoEnListado = useCallback(
+    (item: {
+      id: string;
+      proyecto: string;
+      sede: string;
+      escuelas?: { escuela: { nombre: string } }[];
+    }) => {
+      queryClient.setQueryData<ProyectoListadoItem[]>(
+        proyectosListadoKey(activeRole),
+        (prev) => {
+          if (!prev) return prev;
+          return prev.map((p) =>
+            p.id === item.id
+              ? {
+                  id: item.id,
+                  proyecto: item.proyecto,
+                  sede: item.sede,
+                  escuelas: item.escuelas ?? p.escuelas,
+                }
+              : p
+          );
+        }
+      );
     },
     [activeRole, queryClient]
   );
@@ -132,6 +166,7 @@ export function useProyectosParaUsuario() {
         : 'Error al cargar proyectos'
       : null,
     fetchProyectos,
+    patchProyectoEnListado,
     createProyecto: createProyectoHandler,
     updateProyecto: updateProyectoHandler,
     deleteProyecto: deleteProyectoHandler,

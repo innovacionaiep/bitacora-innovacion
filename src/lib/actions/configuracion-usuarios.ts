@@ -5,6 +5,11 @@ import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { Role } from '@/lib/auth-utils';
+import {
+  hasAccount,
+  updatePersonaProfile,
+  getRolesConParticipacionActivaAlQuitar,
+} from '@/lib/personas/sync-persona';
 
 const SALT_ROUNDS = 10;
 const CONFIG_UNLOCK_PASSWORD = process.env.CONFIG_UNLOCK_PASSWORD ?? 'bitacora';
@@ -18,6 +23,13 @@ export type UserListRow = {
   id: string;
   name: string | null;
   email: string;
+  rut: string | null;
+  cargo: string | null;
+  sedeId: string | null;
+  sedeNombre: string | null;
+  escuelaId: string | null;
+  escuelaNombre: string | null;
+  hasAccount: boolean;
   lastSessionExpires: Date | null;
   roles: string[];
   proyectos: { proyectoNombre: string; rol: string }[];
@@ -25,6 +37,11 @@ export type UserListRow = {
 
 export type UserListRowWithPassword = UserListRow & {
   passwordPlain: string | null;
+};
+
+export type RoleRemovalConflict = {
+  rol: string;
+  proyectos: { proyectoId: string; proyectoNombre: string }[];
 };
 
 function encryptPassword(plain: string): string {
@@ -79,6 +96,13 @@ export async function listUsersAdmin(): Promise<{
           id: true,
           name: true,
           email: true,
+          rut: true,
+          cargo: true,
+          sedeId: true,
+          escuelaId: true,
+          password: true,
+          sede: { select: { nombre: true } },
+          escuela: { select: { nombre: true } },
           roles: { select: { role: true } },
           proyectos: {
             orderBy: [
@@ -141,6 +165,13 @@ export async function listUsersAdmin(): Promise<{
         id: u.id,
         name: u.name,
         email: u.email,
+        rut: u.rut,
+        cargo: u.cargo,
+        sedeId: u.sedeId,
+        sedeNombre: u.sede?.nombre ?? null,
+        escuelaId: u.escuelaId,
+        escuelaNombre: u.escuela?.nombre ?? null,
+        hasAccount: hasAccount(u),
         lastSessionExpires:
           lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
         roles: u.roles.map((r) => r.role),
@@ -189,7 +220,14 @@ export async function listUsersAdminWithPasswords(
           id: true,
           name: true,
           email: true,
+          rut: true,
+          cargo: true,
+          sedeId: true,
+          escuelaId: true,
+          password: true,
           passwordEncrypted: true,
+          sede: { select: { nombre: true } },
+          escuela: { select: { nombre: true } },
           roles: { select: { role: true } },
           proyectos: {
             orderBy: [
@@ -252,6 +290,13 @@ export async function listUsersAdminWithPasswords(
         id: u.id,
         name: u.name,
         email: u.email,
+        rut: u.rut,
+        cargo: u.cargo,
+        sedeId: u.sedeId,
+        sedeNombre: u.sede?.nombre ?? null,
+        escuelaId: u.escuelaId,
+        escuelaNombre: u.escuela?.nombre ?? null,
+        hasAccount: hasAccount(u),
         lastSessionExpires:
           lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
         roles: u.roles.map((r) => r.role),
@@ -277,13 +322,62 @@ export async function createUserAdmin(data: {
   email: string;
   password: string;
   initialRole: Role;
+  rut?: string | null;
+  cargo?: string | null;
+  sedeId?: string | null;
+  escuelaId?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const email = data.email.trim().toLowerCase();
-    const existing = await prisma.user.findUnique({
-      where: { email },
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: {
+        id: true,
+        password: true,
+        rut: true,
+        cargo: true,
+        sedeId: true,
+        escuelaId: true,
+      },
     });
     if (existing) {
+      if (!hasAccount(existing)) {
+        // Activar cuenta pendiente existente
+        const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
+        const encrypted = encryptPassword(data.password);
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: { id: existing.id },
+            data: {
+              name: data.name,
+              password: hashed,
+              passwordEncrypted: encrypted,
+              rut: data.rut?.trim() || existing.rut,
+              cargo: data.cargo?.trim() || existing.cargo,
+              sedeId: data.sedeId || existing.sedeId,
+              escuelaId: data.escuelaId || existing.escuelaId,
+              activeRole: data.initialRole,
+            },
+          });
+          const hasRole = await tx.userRole.findFirst({
+            where: { userId: existing.id, role: data.initialRole },
+          });
+          if (!hasRole) {
+            await tx.userRole.create({
+              data: { userId: existing.id, role: data.initialRole },
+            });
+          }
+        });
+        await updatePersonaProfile(existing.id, {
+          name: data.name,
+          rut: data.rut?.trim() || existing.rut,
+          cargo: data.cargo?.trim() || existing.cargo,
+          sedeId: data.sedeId || existing.sedeId,
+          escuelaId: data.escuelaId || existing.escuelaId,
+        });
+        revalidatePath('/configuracion/usuarios');
+        return { success: true };
+      }
       return { success: false, error: 'Este email ya está registrado' };
     }
     const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
@@ -296,6 +390,10 @@ export async function createUserAdmin(data: {
           password: hashed,
           passwordEncrypted: encrypted,
           activeRole: data.initialRole,
+          rut: data.rut?.trim() || null,
+          cargo: data.cargo?.trim() || null,
+          sedeId: data.sedeId || null,
+          escuelaId: data.escuelaId || null,
         },
       });
       await tx.userRole.create({
@@ -311,35 +409,39 @@ export async function createUserAdmin(data: {
 }
 
 /**
- * Actualizar nombre y email de un usuario (Admin).
+ * Actualizar perfil centralizado de un usuario (Admin) y cascade a participantes.
  */
 export async function updateUserAdmin(
   userId: string,
-  data: { name?: string; email?: string }
+  data: {
+    name?: string;
+    email?: string;
+    rut?: string | null;
+    cargo?: string | null;
+    sedeId?: string | null;
+    escuelaId?: string | null;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (data.email !== undefined) {
       const email = data.email.trim().toLowerCase();
       const other = await prisma.user.findFirst({
-        where: { email, NOT: { id: userId } },
+        where: { email: { equals: email, mode: 'insensitive' }, NOT: { id: userId } },
       });
       if (other) {
         return { success: false, error: 'Este email ya está en uso' };
       }
-      await prisma.user.update({
-        where: { id: userId },
-        data: { ...(data.name !== undefined && { name: data.name }), email },
-      });
-      revalidatePath('/configuracion/usuarios');
-      return { success: true };
     }
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(data.name !== undefined && { name: data.name }),
-      },
+    await updatePersonaProfile(userId, {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.email !== undefined && { email: data.email }),
+      ...(data.rut !== undefined && { rut: data.rut }),
+      ...(data.cargo !== undefined && { cargo: data.cargo }),
+      ...(data.sedeId !== undefined && { sedeId: data.sedeId }),
+      ...(data.escuelaId !== undefined && { escuelaId: data.escuelaId }),
     });
     revalidatePath('/configuracion/usuarios');
+    revalidatePath('/proyectos');
     return { success: true };
   } catch (err) {
     console.error(err);
@@ -348,15 +450,68 @@ export async function updateUserAdmin(
 }
 
 /**
+ * Previsualiza conflictos al quitar roles con participación activa en proyectos.
+ */
+export async function previewUpdateUserRolesAdmin(
+  userId: string,
+  roles: Role[]
+): Promise<{
+  success: boolean;
+  conflicts?: RoleRemovalConflict[];
+  error?: string;
+}> {
+  try {
+    const current = await prisma.userRole.findMany({
+      where: { userId },
+      select: { role: true },
+    });
+    const conflicts = await getRolesConParticipacionActivaAlQuitar(
+      userId,
+      current.map((r) => r.role),
+      roles
+    );
+    return { success: true, conflicts };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: 'Error al verificar roles' };
+  }
+}
+
+/**
  * Actualizar roles habilitados de un usuario (Admin).
  * Reemplaza todos los roles actuales por la lista indicada.
- * Si activeRole ya no está en la nueva lista, se asigna el primer rol o null.
+ * Si confirmRemoveConflicts=false y hay participaciones activas, retorna requiresConfirm.
  */
 export async function updateUserRolesAdmin(
   userId: string,
-  roles: Role[]
-): Promise<{ success: boolean; error?: string }> {
+  roles: Role[],
+  options?: { confirmRemoveConflicts?: boolean }
+): Promise<{
+  success: boolean;
+  error?: string;
+  requiresConfirm?: boolean;
+  conflicts?: RoleRemovalConflict[];
+}> {
   try {
+    const current = await prisma.userRole.findMany({
+      where: { userId },
+      select: { role: true },
+    });
+    const conflicts = await getRolesConParticipacionActivaAlQuitar(
+      userId,
+      current.map((r) => r.role),
+      roles
+    );
+    if (conflicts.length > 0 && !options?.confirmRemoveConflicts) {
+      return {
+        success: false,
+        requiresConfirm: true,
+        conflicts,
+        error:
+          'Hay participaciones activas con roles que se van a deshabilitar. Confirma para continuar (no se eliminan de los proyectos).',
+      };
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.userRole.deleteMany({ where: { userId } });
       if (roles.length > 0) {
@@ -369,7 +524,8 @@ export async function updateUserRolesAdmin(
         select: { activeRole: true },
       });
       const newRoleSet = new Set(roles);
-      const activeStillValid = user?.activeRole && newRoleSet.has(user.activeRole as Role);
+      const activeStillValid =
+        user?.activeRole && newRoleSet.has(user.activeRole as Role);
       await tx.user.update({
         where: { id: userId },
         data: {
@@ -382,6 +538,41 @@ export async function updateUserRolesAdmin(
   } catch (err) {
     console.error(err);
     return { success: false, error: 'Error al actualizar roles' };
+  }
+}
+
+/**
+ * Activar cuenta pendiente: asigna contraseña a un User sin password.
+ */
+export async function activateUserAccountAdmin(
+  userId: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!password || password.length < 6) {
+      return { success: false, error: 'La contraseña debe tener al menos 6 caracteres' };
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
+    if (!user) {
+      return { success: false, error: 'Usuario no encontrado' };
+    }
+    if (hasAccount(user)) {
+      return { success: false, error: 'Este usuario ya tiene cuenta creada' };
+    }
+    const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+    const encrypted = encryptPassword(password);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed, passwordEncrypted: encrypted },
+    });
+    revalidatePath('/configuracion/usuarios');
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: 'Error al crear la cuenta' };
   }
 }
 

@@ -9,6 +9,7 @@ type SectionPanelProps = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  headerClassName?: string;
   bodyClassName?: string;
 };
 
@@ -18,6 +19,7 @@ export function SectionPanel({
   children,
   footer,
   className,
+  headerClassName,
   bodyClassName,
 }: SectionPanelProps) {
   return (
@@ -27,7 +29,12 @@ export function SectionPanel({
         className
       )}
     >
-      <header className="shrink-0 flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/90">
+      <header
+        className={cn(
+          'shrink-0 flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/90',
+          headerClassName
+        )}
+      >
         {Icon ? (
           <span className="text-gray-500 [&_svg]:h-3.5 [&_svg]:w-3.5">
             <Icon strokeWidth={1.75} />

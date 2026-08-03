@@ -1,4 +1,5 @@
 export const SELECT_NONE_VALUE = '__none__';
+export const NEW_PERSONA_VALUE = '__new_persona__';
 
 export const ROLES: { value: string; label: string }[] = [
   { value: 'Encargado', label: 'Encargado' },
@@ -8,6 +9,24 @@ export const ROLES: { value: string; label: string }[] = [
   { value: 'Estudiante', label: 'Estudiante' },
   { value: 'Beneficiario', label: 'Beneficiario' },
 ];
+
+/** Roles con selector de persona existente + sync a User (no Beneficiario). */
+export const SYNCABLE_PARTICIPANTE_ROLES = [
+  'Encargado',
+  'Coordinador',
+  'Colaborador',
+  'Docente',
+  'Estudiante',
+] as const;
+
+export type SyncableParticipanteRol =
+  (typeof SYNCABLE_PARTICIPANTE_ROLES)[number];
+
+export function isSyncableParticipanteRol(
+  rol: string
+): rol is SyncableParticipanteRol {
+  return (SYNCABLE_PARTICIPANTE_ROLES as readonly string[]).includes(rol);
+}
 
 /** Colores por rol según docs/SISTEMA-ROLES.md */
 export const ROLE_COLORS: Record<string, string> = {

@@ -23,7 +23,7 @@ export function useCanProjectImport(
     if (!can(key)) return false;
     if (activeRole === 'Admin') return true;
     if (!project || !activeRole) return false;
-    return project.participantes_rel.some((p) => {
+    return (project.participantes_rel ?? []).some((p) => {
       if (p.rol !== activeRole) return false;
       if (userId && p.userId === userId) return true;
       if (email && p.email?.trim().toLowerCase() === email) return true;

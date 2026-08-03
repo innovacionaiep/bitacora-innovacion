@@ -7,6 +7,7 @@ export type PermissionKey =
   | 'view.inicio'
   | 'view.proyectos'
   | 'view.dashboard'
+  | 'view.fondos'
   | 'view.reportes'
   | 'view.ajustes'
   | 'view.novedades'
@@ -50,6 +51,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: 'Dashboard',
     group: 'visualizacion',
     defaultOn: ['Admin', 'Coordinador', 'Beneficiario'],
+  },
+  {
+    key: 'view.fondos',
+    label: 'Fondos',
+    group: 'visualizacion',
+    defaultOn: ['Admin', 'Coordinador'],
   },
   {
     key: 'view.reportes',
@@ -198,6 +205,9 @@ export function viewPermissionForPath(
   if (pathname.startsWith('/proyectos')) return 'view.proyectos';
   if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
     return 'view.dashboard';
+  }
+  if (pathname === '/fondos' || pathname.startsWith('/fondos/')) {
+    return 'view.fondos';
   }
   if (pathname.startsWith('/reportes')) return 'view.reportes';
   if (pathname.startsWith('/configuracion')) return 'view.ajustes';

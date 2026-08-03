@@ -14,6 +14,7 @@ import {
   Search,
   Check,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   Table,
@@ -64,6 +65,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
@@ -156,6 +158,8 @@ interface PresupuestoCardProps {
   presupuestoAdjudicado?: number;
   projectName?: string;
   topLoaderEnabled?: boolean;
+  canImport?: boolean;
+  onCargaMasiva?: () => void;
 }
 
 const CUENTA_OPTIONS: { value: CuentaPresupuesto; label: string }[] = [
@@ -249,6 +253,8 @@ export function PresupuestoCard({
   presupuestoAdjudicado: presupuestoAdjudicadoInitial = 0,
   projectName,
   topLoaderEnabled = true,
+  canImport = false,
+  onCargaMasiva,
 }: PresupuestoCardProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1525,22 +1531,64 @@ export function PresupuestoCard({
                     <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal" />
                   </TableRow>
                   {!isAddingRow && (
-                    <TableRow
-                      className="hover:bg-green-50/70 transition-colors cursor-pointer border-t-2 border-dashed border-gray-200"
-                      onClick={startAddingRow}
-                    >
-                      <TableCell colSpan={11} className="text-center py-4">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startAddingRow();
-                          }}
-                          className="p-3 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer inline-flex items-center justify-center"
-                          title="Agregar gasto"
-                        >
-                          <Plus className="h-5 w-5 text-gray-700" />
-                        </button>
+                    <TableRow className="border-t-2 border-dashed border-gray-200">
+                      <TableCell colSpan={11} className="py-4">
+                        <div className="flex items-center justify-center px-2">
+                          {canImport && onCargaMasiva ? (
+                            <DropdownMenu>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="p-3 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                      >
+                                        <Plus className="h-5 w-5 text-gray-700" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Agregar línea de gasto</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <DropdownMenuContent align="center" className="w-52">
+                                <DropdownMenuItem
+                                  onClick={() => startAddingRow()}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Línea individual
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => onCargaMasiva()}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="h-4 w-4" />
+                                  Carga masiva
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => startAddingRow()}
+                                    className="p-3 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                  >
+                                    <Plus className="h-5 w-5 text-gray-700" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Agregar línea de gasto</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}

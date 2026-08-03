@@ -1,15 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { FileSpreadsheet, ListChecks, Plus, Search, Trash2 } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
 import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 interface ObjetivoEspecificoCardProps {
   objetivoEspecifico: {
     id: string;
@@ -60,6 +68,7 @@ export function ObjetivoEspecificoCard({
   onCargaMasiva,
   canImport,
 }: ObjetivoEspecificoCardProps) {
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const canDelete = objetivoEspecifico.indicadores.length > 1;
   // Calcular el progreso del objetivo específico basado en sus indicadores
   const progresoObjetivo =
@@ -107,7 +116,7 @@ export function ObjetivoEspecificoCard({
       {/* Tarjeta del Objetivo Específico (+ zona hover arriba para acciones externas) */}
       <div className="relative group z-10 flex-shrink-0 rounded-xl pt-10 -mt-10">
         <div
-          className="relative z-10 w-[560px] rounded-xl bg-gray-200 shadow-md h-full"
+          className="relative z-10 w-[560px] rounded-xl bg-white shadow-md h-full"
           style={{ minHeight: `${alturaMinima}px` }}
         >
           <div className="relative h-full rounded-xl border-2 border-gray-200 text-gray-900 px-6 py-3 flex flex-col justify-center bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
@@ -146,8 +155,75 @@ export function ObjetivoEspecificoCard({
 
         {/* Acciones fuera de la tarjeta, arriba a la derecha */}
         {(onAddIndicador || (canImport && onCargaMasiva)) && (
-          <div className="absolute top-0 right-0 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-            {canImport && onCargaMasiva && (
+          <div
+            className={cn(
+              'absolute top-0 right-0 z-20 flex items-center gap-1.5 transition-opacity duration-150',
+              addMenuOpen
+                ? 'opacity-100'
+                : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+            )}
+          >
+            {canImport && onCargaMasiva && onAddIndicador ? (
+              <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 shrink-0 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 shadow-sm flex items-center justify-center p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Agregar indicador</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() => onAddIndicador()}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Indicador individual
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onCargaMasiva()}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Carga masiva
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : onAddIndicador ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddIndicador();
+                      }}
+                      className="h-8 w-8 shrink-0 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 shadow-sm flex items-center justify-center p-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Agregar indicador</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : canImport && onCargaMasiva ? (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -172,30 +248,7 @@ export function ObjetivoEspecificoCard({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )}
-            {onAddIndicador && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddIndicador();
-                      }}
-                      className="h-8 w-8 shrink-0 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 shadow-sm flex items-center justify-center p-0"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Agregar indicador</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            ) : null}
           </div>
         )}
       </div>

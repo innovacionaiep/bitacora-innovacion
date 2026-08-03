@@ -479,3 +479,89 @@ export async function getConveniosDashboard() {
     };
   }
 }
+
+/** Convenios de proyectos de un fondo (panel Fondos). */
+export async function getConveniosPorFondo(fondoNombre: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return {
+        success: false,
+        error: 'No autenticado',
+        data: [] as ConvenioDashboardRow[],
+      };
+    }
+    const activeRole = (user as { activeRole?: string | null }).activeRole;
+    const userEmail = (user as { email?: string | null }).email;
+    const canFondos = await roleHasPermission(activeRole, 'view.fondos');
+    if (!canFondos) {
+      return {
+        success: false,
+        error: 'Sin permiso',
+        data: [] as ConvenioDashboardRow[],
+      };
+    }
+
+    const nombre = fondoNombre?.trim();
+    if (!nombre) {
+      return {
+        success: false,
+        error: 'Fondo requerido',
+        data: [] as ConvenioDashboardRow[],
+      };
+    }
+
+    const fondo = await prisma.fondo.findFirst({
+      where: { nombre },
+      select: { conveniosEnabled: true },
+    });
+    if (!fondo?.conveniosEnabled) {
+      return {
+        success: false,
+        error: 'Este fondo no tiene convenios habilitados',
+        data: [] as ConvenioDashboardRow[],
+      };
+    }
+
+    const accessible = await getAccessibleProyectoIds(
+      user.id,
+      userEmail,
+      activeRole
+    );
+
+    const proyectos = await prisma.proyecto.findMany({
+      where: {
+        fondo: nombre,
+        ...(accessible === 'all' ? {} : { id: { in: accessible } }),
+      },
+      select: {
+        id: true,
+        proyecto: true,
+        fondo: true,
+        convenioFirmadoUrl: true,
+        convenioFirmadoNombre: true,
+        convenioFirmadoAt: true,
+      },
+      orderBy: { proyecto: 'asc' },
+    });
+
+    const data: ConvenioDashboardRow[] = proyectos.map((p) => ({
+      id: p.id,
+      proyecto: p.proyecto,
+      fondo: p.fondo,
+      firmado: Boolean(p.convenioFirmadoUrl),
+      convenioFirmadoUrl: p.convenioFirmadoUrl,
+      convenioFirmadoNombre: p.convenioFirmadoNombre,
+      convenioFirmadoAt: p.convenioFirmadoAt,
+    }));
+
+    return { success: true, data };
+  } catch (e) {
+    console.error('[getConveniosPorFondo]', e);
+    return {
+      success: false,
+      error: 'Error al obtener convenios del fondo',
+      data: [] as ConvenioDashboardRow[],
+    };
+  }
+}

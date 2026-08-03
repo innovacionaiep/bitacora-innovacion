@@ -4,7 +4,6 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet } from 'lucide-react';
-import { ResumenProyectoCard } from '@/components/proyectos/ResumenProyectoCard';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
 import { Button } from '@/components/ui/button';
 import { useCanProjectImport } from '@/hooks/useCanProjectImport';
@@ -14,6 +13,16 @@ import type { ProyectoWithRelations } from '@/types/proyecto';
 function DynamicTabFallback() {
   return <div className="h-full min-h-[120px]" />;
 }
+
+const ResumenProyectoCard = dynamic(
+  () =>
+    import('@/components/proyectos/ResumenProyectoCard').then((m) => ({
+      default: m.ResumenProyectoCard,
+    })),
+  {
+    loading: () => <DynamicTabFallback />,
+  }
+);
 
 const GanttChart = dynamic(() => import('@/components/proyectos/GanttChart'), {
   ssr: false,
@@ -84,9 +93,13 @@ function ImportToolbarButton({
 export function ResumenTab({
   project,
   topLoaderEnabled = true,
+  onParticipantesLoaded,
 }: {
   project: ProyectoWithRelations;
   topLoaderEnabled?: boolean;
+  onParticipantesLoaded?: (
+    participantes: NonNullable<ProyectoWithRelations['participantes_rel']>
+  ) => void;
 }) {
   return (
     <div className="h-full overflow-hidden pt-4">
@@ -97,6 +110,7 @@ export function ResumenTab({
         presupuestoAdjudicado={project.presupuestoAdjudicado ?? 0}
         initialActivities={project.activities}
         topLoaderEnabled={topLoaderEnabled}
+        onParticipantesLoaded={onParticipantesLoaded}
       />
     </div>
   );
@@ -172,8 +186,8 @@ export function IndicadoresTab({
   );
 
   return (
-    <div className="h-full pt-2 overflow-x-hidden flex flex-col">
-      <div className="flex-1 min-h-0 overflow-x-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden pt-2">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <IndicadoresCard
           key={refreshKey}
           projectId={project.id}
@@ -209,11 +223,6 @@ export function PresupuestoTab({
 
   return (
     <div className="h-full pt-2 flex flex-col min-h-0">
-      {canImport && (
-        <div className="shrink-0 flex justify-end px-6 pb-1">
-          <ImportToolbarButton onClick={() => setImportOpen(true)} />
-        </div>
-      )}
       <div className="flex-1 min-h-0">
         <PresupuestoCard
           key={refreshKey}
@@ -222,6 +231,8 @@ export function PresupuestoTab({
           presupuestoAdjudicado={project.presupuestoAdjudicado ?? 0}
           projectName={project.proyecto}
           topLoaderEnabled={topLoaderEnabled}
+          canImport={canImport}
+          onCargaMasiva={() => setImportOpen(true)}
         />
       </div>
       <ImportExcelDialog

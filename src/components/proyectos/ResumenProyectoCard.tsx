@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Crosshair,
   MapPin,
@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -28,23 +27,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useGantt } from '@/hooks/useGantt';
-import { useIndicadores } from '@/hooks/useIndicadores';
-import { usePresupuesto } from '@/hooks/usePresupuesto';
-import {
-  computeDeltaSaldo,
-  mergeDeltaEnResumen,
-} from '@/lib/utils/presupuesto-calculos';
-import {
-  getCompromisosProyecto,
-} from '@/lib/actions/seguimiento';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
-import { getHistorialProyecto } from '@/lib/actions/historial';
 import { SimpleBarChart } from '@/components/dashboard/SimpleBarChart';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { CuentaPresupuesto } from '@/types/presupuesto';
 import { ActivityStatus } from '@prisma/client';
-import { compromisosKey, historialKey } from '@/lib/query-keys';
+import {
+  getResumenTabData,
+  type ResumenTabData,
+} from '@/lib/actions/resumen-tab';
+import {
+  compromisosKey,
+  historialKey,
+  indicadoresKey,
+  presupuestoKey,
+  proyectoActivitiesKey,
+  proyectoParticipantesKey,
+  resumenTabKey,
+} from '@/lib/query-keys';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
@@ -56,11 +56,10 @@ const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
 const ACTIVITY_STATUS_LABEL: Record<ActivityStatus, string> = {
   TODO: 'Por hacer',
   WAITING: 'En espera',
-  IN_PROGRESS: 'En proceso',
+  IN_PROGRESS: 'En progreso',
   DONE: 'Finalizada',
 };
 
-/** Clases de Badge por estado de actividad (tag de color) */
 const ACTIVITY_STATUS_BADGE: Record<
   ActivityStatus,
   { className: string }
@@ -79,6 +78,38 @@ const ACTIVITY_STATUS_BADGE: Record<
   },
 };
 
+function seedResumenCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: string,
+  data: ResumenTabData
+) {
+  queryClient.setQueryData(proyectoActivitiesKey(projectId), data.activities);
+  queryClient.setQueryData(indicadoresKey(projectId), data.indicadores);
+  queryClient.setQueryData(presupuestoKey(projectId), data.presupuestoItems);
+  queryClient.setQueryData(compromisosKey(projectId), data.compromisos);
+  queryClient.setQueryData(
+    historialKey(projectId, { limit: '10' }),
+    data.historial
+  );
+  queryClient.setQueryData(
+    proyectoParticipantesKey(projectId),
+    data.participantes
+  );
+}
+
+function calcIndicadoresProgress(data: ResumenTabData['indicadores']): number {
+  if (!data || data.objetivosGenerales.length === 0) return 0;
+  const allIndicators = data.objetivosGenerales.flatMap((og) =>
+    og.objetivosEspecificos.flatMap((oe) => oe.indicadores)
+  );
+  if (allIndicators.length === 0) return 0;
+  const totalProgress = allIndicators.reduce(
+    (sum, indicator) => sum + indicator.porcentajeAvance,
+    0
+  );
+  return Math.round(totalProgress / allIndicators.length);
+}
+
 interface ResumenProyectoCardProps {
   projectId: string;
   project: ProyectoWithRelations;
@@ -86,78 +117,63 @@ interface ResumenProyectoCardProps {
   presupuestoAdjudicado?: number;
   initialActivities?: ProyectoWithRelations['activities'];
   topLoaderEnabled?: boolean;
+  onParticipantesLoaded?: (
+    participantes: NonNullable<ProyectoWithRelations['participantes_rel']>
+  ) => void;
 }
 
 export function ResumenProyectoCard({
   projectId,
   project,
-  presupuestoTotal = 0,
-  presupuestoAdjudicado = 0,
-  initialActivities,
   topLoaderEnabled = true,
+  onParticipantesLoaded,
 }: ResumenProyectoCardProps) {
-  const { activities, loading: loadingGantt } = useGantt(
-    projectId,
-    initialActivities ?? null
-  );
-  const { data: dataIndicadores, calculateOverallProgress } =
-    useIndicadores(projectId);
-  const { items, resumenPorCuenta, loading: loadingPresupuesto } = usePresupuesto(
-    projectId,
-    presupuestoTotal
-  );
-  const resumenPresupuesto = useMemo(() => {
-    const delta = computeDeltaSaldo(presupuestoAdjudicado, items);
-    return mergeDeltaEnResumen(resumenPorCuenta, delta);
-  }, [presupuestoAdjudicado, items, resumenPorCuenta]);
+  const queryClient = useQueryClient();
 
-  const compromisosQuery = useQuery({
-    queryKey: compromisosKey(projectId),
+  const resumenQuery = useQuery({
+    queryKey: resumenTabKey(projectId),
     queryFn: async () => {
-      const cRes = await getCompromisosProyecto(projectId);
-      if (!cRes.success) {
-        throw new Error(cRes.error ?? 'Error al cargar compromisos');
+      const result = await getResumenTabData(projectId);
+      if (!result.success || !result.data) {
+        throw new Error(result.error ?? 'Error al cargar resumen');
       }
-      return cRes.data ?? [];
+      seedResumenCaches(queryClient, projectId, result.data);
+      return result.data;
     },
     enabled: !!projectId,
     staleTime: 60_000,
   });
 
-  const historialQuery = useQuery({
-    queryKey: historialKey(projectId, { limit: '10' }),
-    queryFn: async () => {
-      const hRes = await getHistorialProyecto(projectId, undefined, 10);
-      if (!hRes.success) {
-        throw new Error(hRes.error ?? 'Error al cargar historial');
-      }
-      return hRes.data ?? [];
-    },
-    enabled: !!projectId,
-    staleTime: 60_000,
-  });
+  const data = resumenQuery.data;
+  const activities = data?.activities ?? [];
+  const dataIndicadores = data?.indicadores ?? null;
+  const resumenPresupuesto = data?.resumenPresupuesto;
+  const compromisos = data?.compromisos ?? [];
+  const historial = data?.historial ?? [];
+  const participantes =
+    data?.participantes ?? project.participantes_rel ?? [];
 
-  const compromisos = compromisosQuery.data ?? [];
-  const historial = historialQuery.data ?? [];
-  const loadingSeguimiento =
-    (compromisosQuery.isLoading && !compromisosQuery.data) ||
-    (historialQuery.isLoading && !historialQuery.data);
+  useEffect(() => {
+    if (!data?.participantes || !onParticipantesLoaded) return;
+    onParticipantesLoaded(data.participantes);
+  }, [data?.participantes, onParticipantesLoaded]);
 
-  const loadingAvances = loadingGantt || loadingPresupuesto;
-  usePageTopLoader(loadingAvances || loadingSeguimiento, {
+  const loading = resumenQuery.isLoading && !resumenQuery.data;
+  usePageTopLoader(loading, {
     completeOnReady: true,
     enabled: topLoaderEnabled,
   });
+
   const pctActividades = useMemo(() => {
     if (!activities.length) return 0;
     const sum = activities.reduce((s, a) => s + a.progress, 0);
     return Math.round(sum / activities.length);
   }, [activities]);
   const pctIndicadores = useMemo(
-    () => calculateOverallProgress(),
-    [dataIndicadores, calculateOverallProgress]
+    () => (dataIndicadores ? calcIndicadoresProgress(dataIndicadores) : 0),
+    [dataIndicadores]
   );
-  const pctPresupuesto = resumenPresupuesto.pctGlobalAvance ?? 0;
+  const pctPresupuesto = resumenPresupuesto?.pctGlobalAvance ?? 0;
   const barChartData = useMemo(
     () => [
       { label: 'Actividades', value: pctActividades, color: '#10b981' },
@@ -200,10 +216,8 @@ export function ResumenProyectoCard({
   const objetivoGeneral = project.objetivos_rel?.find(
     (obj) => obj.tipo === 'General'
   );
-  const encargados =
-    project.participantes_rel?.filter((p) => p.rol === 'Encargado') ?? [];
-  const coordinadores =
-    project.participantes_rel?.filter((p) => p.rol === 'Coordinador') ?? [];
+  const encargados = participantes.filter((p) => p.rol === 'Encargado');
+  const coordinadores = participantes.filter((p) => p.rol === 'Coordinador');
 
   const formatFechaCorta = (fecha: Date | string) => {
     const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
@@ -397,7 +411,7 @@ export function ResumenProyectoCard({
                 </h3>
               </div>
               <CardContent className="p-3">
-                {loadingAvances ? (
+                {loading ? (
                   <div className="py-6" />
                 ) : (
                   <SimpleBarChart data={barChartData} height={100} />
@@ -414,17 +428,17 @@ export function ResumenProyectoCard({
                 </h3>
               </div>
               <CardContent className="p-4 overflow-x-auto">
-                {loadingAvances ? (
+                {loading ? (
                   <div className="py-8" />
                 ) : (
                   <div className="space-y-3">
-                    {presupuestoAdjudicado > 0 && (
+                    {(project.presupuestoAdjudicado ?? 0) > 0 && (
                       <div className="flex items-center justify-between gap-4 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
                         <span className="text-sm font-medium text-emerald-800">
                           Presupuesto adjudicado
                         </span>
                         <span className="text-sm font-bold text-emerald-900 tabular-nums">
-                          ${presupuestoAdjudicado.toLocaleString('es-CL')}
+                          ${(project.presupuestoAdjudicado ?? 0).toLocaleString('es-CL')}
                         </span>
                       </div>
                     )}
@@ -447,7 +461,7 @@ export function ResumenProyectoCard({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {resumenPresupuesto.porCuenta?.map((row) => (
+                        {(resumenPresupuesto?.porCuenta ?? []).map((row) => (
                           <TableRow
                             key={row.cuenta}
                             className="odd:bg-gray-50/50"
@@ -470,20 +484,20 @@ export function ResumenProyectoCard({
                           <TableCell className="text-sm">TOTALES</TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
-                            {(resumenPresupuesto.totalMonto ?? 0).toLocaleString(
+                            {(resumenPresupuesto?.totalMonto ?? 0).toLocaleString(
                               'es-CL'
                             )}
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
                             {(
-                              resumenPresupuesto.totalSolicitado ?? 0
+                              resumenPresupuesto?.totalSolicitado ?? 0
                             ).toLocaleString('es-CL')}
                           </TableCell>
                           <TableCell className="text-right text-sm tabular-nums">
                             $
                             {(
-                              resumenPresupuesto.totalEjecutado ?? 0
+                              resumenPresupuesto?.totalEjecutado ?? 0
                             ).toLocaleString('es-CL')}
                           </TableCell>
                         </TableRow>
@@ -504,7 +518,7 @@ export function ResumenProyectoCard({
                 </h3>
               </div>
               <CardContent className="p-4">
-                {loadingAvances ? (
+                {loading ? (
                   <div className="py-8" />
                 ) : indicadoresFlat.length === 0 ? (
                   <p className="text-sm text-gray-500 py-2">
@@ -552,7 +566,7 @@ export function ResumenProyectoCard({
                 </h3>
               </div>
               <CardContent className="p-4">
-                {loadingAvances ? (
+                {loading ? (
                   <div className="py-8" />
                 ) : activities.length === 0 ? (
                   <p className="text-sm text-gray-500 py-2">
@@ -623,7 +637,7 @@ export function ResumenProyectoCard({
                 </h3>
               </div>
               <CardContent className="p-4 space-y-4">
-                {loadingSeguimiento ? (
+                {loading ? (
                   <div className="py-6" />
                 ) : (
                   <div>

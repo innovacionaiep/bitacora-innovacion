@@ -9,6 +9,8 @@ type MetricChipProps = {
   icon?: LucideIcon;
   hint?: string;
   className?: string;
+  /** Si se define, el chip es un botón interactivo. */
+  onClick?: () => void;
 };
 
 export function MetricChip({
@@ -17,14 +19,18 @@ export function MetricChip({
   icon: Icon,
   hint,
   className,
+  onClick,
 }: MetricChipProps) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-none',
-        className
-      )}
-    >
+  const interactive = typeof onClick === 'function';
+  const classNames = cn(
+    'flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-none text-left w-full',
+    interactive &&
+      'cursor-pointer transition-colors hover:border-emerald-300/60 hover:bg-emerald-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+    className
+  );
+
+  const content = (
+    <>
       {Icon ? (
         <Icon
           className="h-4 w-4 shrink-0 text-gray-400"
@@ -42,6 +48,16 @@ export function MetricChip({
           <p className="text-[11px] text-gray-400 mt-0.5">{hint}</p>
         ) : null}
       </div>
-    </div>
+    </>
   );
+
+  if (interactive) {
+    return (
+      <button type="button" onClick={onClick} className={classNames}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={classNames}>{content}</div>;
 }

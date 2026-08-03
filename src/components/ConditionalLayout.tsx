@@ -47,10 +47,11 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
   const isNovedadesRoute = pathname === '/novedades';
   const isInicioRoute = pathname === '/inicio';
   const isProyectosRoute = pathname.startsWith('/proyectos');
+  const isFondosRoute = pathname.startsWith('/fondos');
 
   const contentPadding = isNovedadesRoute
     ? ''
-    : isProyectosRoute
+    : isProyectosRoute || isFondosRoute
       ? 'pt-2 pl-8 pr-8 pb-8'
       : 'pt-8 pl-8 pr-8 pb-8';
   const contentOverflow =

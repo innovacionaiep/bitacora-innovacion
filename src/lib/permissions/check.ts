@@ -14,36 +14,56 @@ import {
 /**
  * Ensure every role×permission cell exists in DB (upsert missing only).
  * Idempotent bootstrap — not a user/project seed.
+ * Cached in-process with TTL so hot paths (listado) no re-scan all cells.
  */
+let defaultsEnsuredAt = 0;
+const DEFAULTS_TTL_MS = 5 * 60_000;
+let ensureDefaultsPromise: Promise<void> | null = null;
+
 export async function ensureRolePermissionDefaults(): Promise<void> {
-  const existing = await prisma.rolePermission.findMany({
-    select: { role: true, permissionKey: true },
-  });
-  const have = new Set(existing.map((e) => `${e.role}::${e.permissionKey}`));
-  const missing: {
-    role: string;
-    permissionKey: string;
-    enabled: boolean;
-  }[] = [];
+  const now = Date.now();
+  if (now - defaultsEnsuredAt < DEFAULTS_TTL_MS) return;
+  if (ensureDefaultsPromise) return ensureDefaultsPromise;
 
-  for (const role of AVAILABLE_ROLES) {
-    for (const key of PERMISSION_KEYS) {
-      const id = `${role}::${key}`;
-      if (have.has(id)) continue;
-      missing.push({
-        role,
-        permissionKey: key,
-        enabled: getDefaultEnabled(role, key),
+  ensureDefaultsPromise = (async () => {
+    try {
+      const existing = await prisma.rolePermission.findMany({
+        select: { role: true, permissionKey: true },
       });
+      const have = new Set(
+        existing.map((e) => `${e.role}::${e.permissionKey}`)
+      );
+      const missing: {
+        role: string;
+        permissionKey: string;
+        enabled: boolean;
+      }[] = [];
+
+      for (const role of AVAILABLE_ROLES) {
+        for (const key of PERMISSION_KEYS) {
+          const id = `${role}::${key}`;
+          if (have.has(id)) continue;
+          missing.push({
+            role,
+            permissionKey: key,
+            enabled: getDefaultEnabled(role, key),
+          });
+        }
+      }
+
+      if (missing.length > 0) {
+        await prisma.rolePermission.createMany({
+          data: missing,
+          skipDuplicates: true,
+        });
+      }
+      defaultsEnsuredAt = Date.now();
+    } finally {
+      ensureDefaultsPromise = null;
     }
-  }
+  })();
 
-  if (missing.length === 0) return;
-
-  await prisma.rolePermission.createMany({
-    data: missing,
-    skipDuplicates: true,
-  });
+  return ensureDefaultsPromise;
 }
 
 export async function getPermissionsForRole(

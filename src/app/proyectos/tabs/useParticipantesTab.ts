@@ -6,6 +6,7 @@ import {
   addParticipanteProyecto,
   deleteParticipanteProyecto,
   updateParticipanteProyecto,
+  getProyectoParticipantes,
 } from '@/lib/actions/proyectos';
 import {
   getSedes,
@@ -13,18 +14,29 @@ import {
   getCarreras as getCarrerasConfig,
   getAsignaturas as getAsignaturasConfig,
 } from '@/lib/actions/configuracion';
+import {
+  listUsersByAppRole,
+  type UserByRoleOption,
+} from '@/lib/actions/usuarios';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import {
   sedesKey,
   escuelasConfigKey,
   carrerasConfigKey,
   asignaturasConfigKey,
+  usersByAppRoleKey,
+  proyectoParticipantesKey,
+  catalogosGeneralKey,
 } from '@/lib/query-keys';
+import type { CatalogosGeneral } from './general-tab-utils';
 import {
   emptyNewParticipanteData,
   validateParticipanteForm,
   type NewParticipanteForm,
+  isSyncableParticipanteRol,
+  SYNCABLE_PARTICIPANTE_ROLES,
 } from './participantes-tab-utils';
+import type { Role } from '@/lib/auth-utils';
 import { useEditarSociosComunitarios } from './useEditarSociosComunitarios';
 
 type ProyectoTabName =
@@ -41,13 +53,11 @@ type ProyectoTabName =
 export function useParticipantesTab({
   project,
   setProject,
-  fetchProyectos,
   selectedTab,
   onSaveSuccess,
 }: {
   project: ProyectoWithRelations;
   setProject: React.Dispatch<React.SetStateAction<ProyectoWithRelations | null>>;
-  fetchProyectos: (opts?: { silent?: boolean; activeRole?: string }) => void;
   selectedTab: ProyectoTabName;
   onSaveSuccess: () => void;
 }) {
@@ -78,6 +88,9 @@ export function useParticipantesTab({
   const [asignaturasParticipantes, setAsignaturasParticipantes] = useState<
     { id: string; nombre: string }[]
   >([]);
+  const [usuariosPorRolApp, setUsuariosPorRolApp] = useState<
+    Record<string, UserByRoleOption[]>
+  >({});
   const [participanteSubmitting, setParticipanteSubmitting] = useState(false);
 
   const {
@@ -98,7 +111,6 @@ export function useParticipantesTab({
   } = useEditarSociosComunitarios({
     project,
     setProject,
-    fetchProyectos,
     onSaveSuccess,
   });
 
@@ -111,6 +123,83 @@ export function useParticipantesTab({
   const cancelAddingParticipante = () => {
     setIsAddingParticipante(false);
     setNewParticipanteData(emptyNewParticipanteData());
+  };
+
+  /** Al elegir una persona existente, precarga perfil centralizado. */
+  const applyPersonaUserToForm = (
+    userId: string,
+    target: 'new' | 'edit',
+    rol: string
+  ) => {
+    const pool = usuariosPorRolApp[rol] ?? [];
+    const user = pool.find((u) => u.id === userId);
+    if (!user) return;
+    const patch: Partial<NewParticipanteForm> = {
+      nombre: user.name?.trim() || user.email,
+      email: user.email,
+      rut: user.rut ?? '',
+      cargo: user.cargo ?? '',
+      sedeId: user.sedeId ?? '',
+      escuelaId: user.escuelaId ?? '',
+    };
+    if (target === 'new') {
+      setNewParticipanteData((prev) => ({ ...prev, ...patch }));
+    } else {
+      setEditDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    }
+  };
+
+  const clearPersonaFormFields = (target: 'new' | 'edit') => {
+    const patch = {
+      nombre: '',
+      email: '',
+      rut: '',
+      cargo: '',
+      sedeId: '',
+      escuelaId: '',
+    };
+    if (target === 'new') {
+      setNewParticipanteData((prev) => ({ ...prev, ...patch }));
+    } else {
+      setEditDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    }
+  };
+
+  const handleNewParticipanteRolChange = (rol: NewParticipanteForm['rol']) => {
+    setNewParticipanteData((prev) => {
+      if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
+        return {
+          ...prev,
+          rol,
+          nombre: '',
+          email: '',
+          rut: '',
+          cargo: '',
+          sedeId: '',
+          escuelaId: '',
+        };
+      }
+      return { ...prev, rol };
+    });
+  };
+
+  const handleEditParticipanteRolChange = (rol: NewParticipanteForm['rol']) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
+        return {
+          ...prev,
+          rol,
+          nombre: '',
+          email: '',
+          rut: '',
+          cargo: '',
+          sedeId: '',
+          escuelaId: '',
+        };
+      }
+      return { ...prev, rol };
+    });
   };
 
   const startEditParticipante = (participanteId: string) => {
@@ -277,7 +366,20 @@ export function useParticipantesTab({
         }) as ProyectoWithRelations
       );
       onSaveSuccess();
-      fetchProyectos({ silent: true });
+      queryClient.setQueryData(
+        proyectoParticipantesKey(project.id),
+        (result.data as ProyectoWithRelations).participantes_rel
+      );
+      if (isSyncableParticipanteRol(rol)) {
+        void queryClient.invalidateQueries({
+          queryKey: usersByAppRoleKey(rol),
+        });
+        void listUsersByAppRole(rol as Role).then((res) => {
+          if (res.success && res.data) {
+            setUsuariosPorRolApp((prev) => ({ ...prev, [rol]: res.data! }));
+          }
+        });
+      }
     } else {
       setProject(previousProject);
       alert(result.error ?? 'Error al agregar participante');
@@ -411,7 +513,10 @@ export function useParticipantesTab({
         }) as ProyectoWithRelations
       );
       onSaveSuccess();
-      fetchProyectos({ silent: true });
+      queryClient.setQueryData(
+        proyectoParticipantesKey(project.id),
+        (result.data as ProyectoWithRelations).participantes_rel
+      );
     } else {
       setProject(previousProject);
       alert(result.error ?? 'Error al actualizar participante');
@@ -450,7 +555,10 @@ export function useParticipantesTab({
         }) as ProyectoWithRelations
       );
       onSaveSuccess();
-      fetchProyectos({ silent: true });
+      queryClient.setQueryData(
+        proyectoParticipantesKey(project.id),
+        (result.data as ProyectoWithRelations).participantes_rel
+      );
     } else {
       setProject(previousProject);
       alert(result.error ?? 'Error al eliminar participante');
@@ -461,28 +569,83 @@ export function useParticipantesTab({
     if (selectedTab !== 'Participantes') return;
     let cancelled = false;
     (async () => {
-      const [sedes, escuelas, carreras, asignaturas] = await Promise.all([
+      const catalogosCached =
+        queryClient.getQueryData<CatalogosGeneral>(catalogosGeneralKey);
+
+      const fetchSedes = catalogosCached
+        ? Promise.resolve(catalogosCached.sedes)
+        : queryClient.fetchQuery({
+            queryKey: sedesKey,
+            queryFn: getSedes,
+            staleTime: 10 * 60_000,
+          });
+      const fetchEscuelas = catalogosCached
+        ? Promise.resolve(catalogosCached.escuelas)
+        : queryClient.fetchQuery({
+            queryKey: escuelasConfigKey,
+            queryFn: getEscuelasConfig,
+            staleTime: 10 * 60_000,
+          });
+      const fetchCarreras = catalogosCached
+        ? Promise.resolve(catalogosCached.carreras)
+        : queryClient.fetchQuery({
+            queryKey: carrerasConfigKey,
+            queryFn: getCarrerasConfig,
+            staleTime: 10 * 60_000,
+          });
+      const fetchAsignaturas = catalogosCached
+        ? Promise.resolve(catalogosCached.asignaturas)
+        : queryClient.fetchQuery({
+            queryKey: asignaturasConfigKey,
+            queryFn: getAsignaturasConfig,
+            staleTime: 10 * 60_000,
+          });
+
+      const [
+        sedes,
+        escuelas,
+        carreras,
+        asignaturas,
+        ...roleUserResults
+      ] = await Promise.all([
+        fetchSedes,
+        fetchEscuelas,
+        fetchCarreras,
+        fetchAsignaturas,
+        ...SYNCABLE_PARTICIPANTE_ROLES.map((role) =>
+          queryClient.fetchQuery({
+            queryKey: usersByAppRoleKey(role),
+            queryFn: () => listUsersByAppRole(role as Role),
+            staleTime: 5 * 60_000,
+          })
+        ),
         queryClient.fetchQuery({
-          queryKey: sedesKey,
-          queryFn: getSedes,
-          staleTime: 10 * 60_000,
-        }),
-        queryClient.fetchQuery({
-          queryKey: escuelasConfigKey,
-          queryFn: getEscuelasConfig,
-          staleTime: 10 * 60_000,
-        }),
-        queryClient.fetchQuery({
-          queryKey: carrerasConfigKey,
-          queryFn: getCarrerasConfig,
-          staleTime: 10 * 60_000,
-        }),
-        queryClient.fetchQuery({
-          queryKey: asignaturasConfigKey,
-          queryFn: getAsignaturasConfig,
-          staleTime: 10 * 60_000,
+          queryKey: proyectoParticipantesKey(project.id),
+          queryFn: async () => {
+            const result = await getProyectoParticipantes(project.id);
+            if (!result.success) {
+              throw new Error(result.error ?? 'Error al cargar participantes');
+            }
+            return result.data ?? [];
+          },
+          staleTime: 60_000,
         }),
       ]);
+
+      const participantes = roleUserResults[
+        roleUserResults.length - 1
+      ] as Awaited<ReturnType<typeof getProyectoParticipantes>>['data'];
+      const roleResults = roleUserResults.slice(0, -1) as Awaited<
+        ReturnType<typeof listUsersByAppRole>
+      >[];
+
+      if (catalogosCached) {
+        queryClient.setQueryData(sedesKey, sedes);
+        queryClient.setQueryData(escuelasConfigKey, escuelas);
+        queryClient.setQueryData(carrerasConfigKey, carreras);
+        queryClient.setQueryData(asignaturasConfigKey, asignaturas);
+      }
+
       if (!cancelled) {
         setSedesParticipantes(
           sedes.map((s) => ({ id: s.id, nombre: s.nombre }))
@@ -496,12 +659,27 @@ export function useParticipantesTab({
         setAsignaturasParticipantes(
           asignaturas.map((a) => ({ id: a.id, nombre: a.nombre }))
         );
+        const byRol: Record<string, UserByRoleOption[]> = {};
+        SYNCABLE_PARTICIPANTE_ROLES.forEach((role, i) => {
+          const res = roleResults[i];
+          byRol[role] = res?.success && res.data ? res.data : [];
+        });
+        setUsuariosPorRolApp(byRol);
+        setProject((prev) => {
+          if (!prev || prev.id !== project.id) return prev;
+          if (prev.participantes_rel) return prev;
+          return {
+            ...prev,
+            participantes_rel: participantes ?? [],
+            participantes: (participantes ?? []).length,
+          } as ProyectoWithRelations;
+        });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [selectedTab, project.id, queryClient]);
+  }, [selectedTab, project.id, queryClient, setProject]);
 
   return {
     filterParticipantesRol,
@@ -530,6 +708,11 @@ export function useParticipantesTab({
     escuelasParticipantes,
     carrerasParticipantes,
     asignaturasParticipantes,
+    usuariosPorRolApp,
+    applyPersonaUserToForm,
+    clearPersonaFormFields,
+    handleNewParticipanteRolChange,
+    handleEditParticipanteRolChange,
     participanteSubmitting,
     isEditarSociosOpen,
     setIsEditarSociosOpen,

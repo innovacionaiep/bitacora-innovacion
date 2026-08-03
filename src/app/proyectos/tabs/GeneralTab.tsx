@@ -41,7 +41,7 @@ import {
 import { GeneralTabTextarea } from './GeneralTabTextarea';
 import type { UseGeneralTabReturn } from './useGeneralTab';
 import { IconByName } from '@/components/config/IconByName';
-import { getCategoriasWithSubcategorias } from '@/lib/actions/desarrollo-tecnico-config';
+import { useDesarrolloTecnicoConfigQuery } from '@/hooks/useDesarrolloTecnicoConfig';
 import { useEditarSociosComunitarios } from './useEditarSociosComunitarios';
 import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSociosComunitariosDialog';
 
@@ -894,7 +894,7 @@ export function GeneralTabHeader({
         </div>
       ) : (
         /* El lápiz es absolute (left-full): no reserva espacio ni desvía el centrado. */
-        <div className="group/title relative w-full min-w-0 max-w-[min(100%,60rem)] mx-auto overflow-visible">
+        <div className="group/title relative w-full min-w-0 max-w-[min(100%,75rem)] mx-auto overflow-visible">
           <h1
             className="text-4xl font-bold text-gray-900 truncate text-center leading-tight py-0"
             title={project.proyecto}
@@ -932,7 +932,6 @@ export function GeneralTabHeader({
 export function GeneralTab({
   project,
   setProject,
-  fetchProyectos,
   onSaveSuccess,
   projectVideos,
   editingField,
@@ -949,7 +948,6 @@ export function GeneralTab({
 }: {
   project: ProyectoWithRelations;
   setProject: React.Dispatch<React.SetStateAction<ProyectoWithRelations | null>>;
-  fetchProyectos: (opts?: { silent?: boolean; activeRole?: string }) => void;
   onSaveSuccess: () => void;
   projectVideos: Record<string, string>;
 } & Pick<
@@ -972,8 +970,11 @@ export function GeneralTab({
   const cancelWheelAnimRef = useRef<(() => void) | null>(null);
   const ignoreSpyUntilRef = useRef(0);
   const [activeSectionId, setActiveSectionId] = useState(TOC_PREFIX[0].id);
-  const [dtConfigSections, setDtConfigSections] =
-    useState<DtConfigSection[]>(FALLBACK_DT_SECTIONS);
+  const {
+    data: dtCategorias,
+    isPending: isDtConfigPending,
+    isError: isDtConfigError,
+  } = useDesarrolloTecnicoConfigQuery();
 
   const {
     isEditarSociosOpen,
@@ -993,53 +994,64 @@ export function GeneralTab({
   } = useEditarSociosComunitarios({
     project,
     setProject,
-    fetchProyectos,
     onSaveSuccess,
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const categorias = await getCategoriasWithSubcategorias();
-        if (cancelled) return;
-        const next: DtConfigSection[] = [];
-        for (const cat of categorias) {
-          for (const sub of cat.subcategorias) {
-            const campoKey = isLegacyDtFieldKey(sub.campoKey)
-              ? sub.campoKey
-              : null;
-            const sectionId = campoKey
-              ? DT_FIELD_SECTION_IDS[campoKey]
-              : `dt-sub-${sub.id}`;
-            const fieldId: GeneralFieldId = campoKey
-              ? `dt.${campoKey}`
-              : `dt.sub.${sub.id}`;
-            next.push({
-              subcategoriaId: sub.id,
-              sectionId,
-              title:
-                sub.nombre?.trim() ||
-                (campoKey ? DEFAULT_DT_LABELS[campoKey] : 'Sin nombre'),
-              icono:
-                sub.icono ||
-                (campoKey ? DEFAULT_DT_ICONS[campoKey] : 'FileText'),
-              campoKey,
-              fieldId,
-            });
-          }
+  /** Si el proyecto no tiene línea (o no matchea catálogo), se muestran todos los elementos. */
+  const proyectoLineaId = useMemo(() => {
+    const lineaNombre = project.linea?.trim();
+    if (!lineaNombre) return null;
+    const match = catalogosGeneral.lineas.find(
+      (l) =>
+        l.nombre === lineaNombre &&
+        (!project.fondo?.trim() || l.fondoNombre === project.fondo.trim())
+    );
+    return match?.id ?? null;
+  }, [project.linea, project.fondo, catalogosGeneral.lineas]);
+
+  const dtConfigSections = useMemo<DtConfigSection[]>(() => {
+    if (!dtCategorias?.length) {
+      return isDtConfigError ? FALLBACK_DT_SECTIONS : [];
+    }
+    const next: DtConfigSection[] = [];
+    let totalSubs = 0;
+    for (const cat of dtCategorias) {
+      for (const sub of cat.subcategorias) {
+        totalSubs += 1;
+        if (
+          proyectoLineaId &&
+          sub.lineasExcluidas?.some((e) => e.lineaId === proyectoLineaId)
+        ) {
+          continue;
         }
-        if (next.length > 0) {
-          setDtConfigSections(next);
-        }
-      } catch {
-        // Mantener fallback si falla la config
+        const campoKey = isLegacyDtFieldKey(sub.campoKey)
+          ? sub.campoKey
+          : null;
+        const sectionId = campoKey
+          ? DT_FIELD_SECTION_IDS[campoKey]
+          : `dt-sub-${sub.id}`;
+        const fieldId: GeneralFieldId = campoKey
+          ? `dt.${campoKey}`
+          : `dt.sub.${sub.id}`;
+        next.push({
+          subcategoriaId: sub.id,
+          sectionId,
+          title:
+            sub.nombre?.trim() ||
+            (campoKey ? DEFAULT_DT_LABELS[campoKey] : 'Sin nombre'),
+          icono:
+            sub.icono ||
+            (campoKey ? DEFAULT_DT_ICONS[campoKey] : 'FileText'),
+          campoKey,
+          fieldId,
+        });
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    }
+    if (next.length > 0) return next;
+    // Config cargada pero todo filtrado por línea → no usar fallback legacy
+    if (totalSubs > 0) return [];
+    return FALLBACK_DT_SECTIONS;
+  }, [dtCategorias, isDtConfigError, proyectoLineaId]);
 
   const tocItems = useMemo<TocItem[]>(
     () => [
@@ -1309,6 +1321,11 @@ export function GeneralTab({
       cancelWheelAnimRef.current = null;
     };
   }, []);
+
+  // Evitar paint parcial: fallback DT y luego campos custom (p.ej. Marco teórico).
+  if (isDtConfigPending && dtConfigSections.length === 0) {
+    return null;
+  }
 
   return (
     <div ref={rootRef} className="h-full min-w-0 overflow-hidden overflow-x-hidden pt-4">

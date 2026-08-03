@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,23 +43,20 @@ import {
   updateUserRolesAdmin,
   updateUserPasswordAdmin,
   deleteUserAdmin,
-  type UserListRow,
+  activateUserAccountAdmin,
   type UserListRowWithPassword,
+  type RoleRemovalConflict,
 } from '@/lib/actions/configuracion-usuarios';
+import { getSedes, getEscuelas } from '@/lib/actions/configuracion';
 import { AVAILABLE_ROLES, type Role } from '@/lib/auth-utils';
 import {
   MultiSelectOptions,
   MULTI_SELECT_SEP,
 } from '@/components/ui/multi-select-options';
-import { Lock, Unlock, Pencil, UserPlus, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Lock, Unlock, Pencil, UserPlus, Trash2, KeyRound } from 'lucide-react';
 
-function formatDate(d: Date | null): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('es-CL', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
-}
+const SELECT_NONE = '__none__';
 
 // Colores característicos por rol (ver docs/SISTEMA-ROLES.md)
 function getRolTagClasses(rol: string): string {
@@ -98,6 +95,10 @@ export default function ConfiguracionUsuariosPage() {
   );
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editRut, setEditRut] = useState('');
+  const [editCargo, setEditCargo] = useState('');
+  const [editSedeId, setEditSedeId] = useState('');
+  const [editEscuelaId, setEditEscuelaId] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editRoles, setEditRoles] = useState<Role[]>([]);
   const [editSaving, setEditSaving] = useState(false);
@@ -105,12 +106,23 @@ export default function ConfiguracionUsuariosPage() {
   const [addName, setAddName] = useState('');
   const [addEmail, setAddEmail] = useState('');
   const [addPassword, setAddPassword] = useState('');
+  const [addRut, setAddRut] = useState('');
+  const [addCargo, setAddCargo] = useState('');
+  const [addSedeId, setAddSedeId] = useState('');
+  const [addEscuelaId, setAddEscuelaId] = useState('');
   const [addRole, setAddRole] = useState<Role>('Colaborador');
   const [addSaving, setAddSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserListRowWithPassword | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [escuelas, setEscuelas] = useState<{ id: string; nombre: string }[]>([]);
+  const [activateTarget, setActivateTarget] = useState<UserListRowWithPassword | null>(null);
+  const [activatePassword, setActivatePassword] = useState('');
+  const [activateSaving, setActivateSaving] = useState(false);
+  const [roleConflicts, setRoleConflicts] = useState<RoleRemovalConflict[] | null>(null);
+  const [pendingRoleSave, setPendingRoleSave] = useState(false);
   const unlockPasswordRef = useRef<string | null>(null);
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -128,6 +140,10 @@ export default function ConfiguracionUsuariosPage() {
 
   useEffect(() => {
     load();
+    void Promise.all([getSedes(), getEscuelas()]).then(([s, e]) => {
+      setSedes(s.map((x) => ({ id: x.id, nombre: x.nombre })));
+      setEscuelas(e.map((x) => ({ id: x.id, nombre: x.nombre })));
+    });
   }, []);
 
   const handleUnlock = async () => {
@@ -144,32 +160,35 @@ export default function ConfiguracionUsuariosPage() {
     }
   };
 
+  const reloadUsers = async () => {
+    if (unlocked && unlockPasswordRef.current) {
+      const resList = await listUsersAdminWithPasswords(
+        unlockPasswordRef.current
+      );
+      if (resList.success && resList.data) setUsers(resList.data);
+      else await load();
+    } else {
+      await load();
+    }
+  };
+
   const openEdit = (u: UserListRowWithPassword) => {
     setEditUser(u);
     setEditName(u.name ?? '');
     setEditEmail(u.email);
+    setEditRut(u.rut ?? '');
+    setEditCargo(u.cargo ?? '');
+    setEditSedeId(u.sedeId ?? '');
+    setEditEscuelaId(u.escuelaId ?? '');
     setEditPassword('');
     setEditRoles(
       u.roles.filter((r): r is Role => AVAILABLE_ROLES.includes(r as Role))
     );
   };
 
-  const handleSaveEdit = async () => {
+  const finishSaveEdit = async () => {
     if (!editUser) return;
-    setEditSaving(true);
-    const res = await updateUserAdmin(editUser.id, {
-      name: editName || undefined,
-      email: editEmail || undefined,
-    });
-    if (res.success) {
-      const resRoles = await updateUserRolesAdmin(editUser.id, editRoles);
-      if (!resRoles.success) {
-        setError(resRoles.error ?? 'Error al actualizar roles');
-        setEditSaving(false);
-        return;
-      }
-    }
-    if (res.success && editPassword.trim() && unlocked) {
+    if (editPassword.trim() && unlocked) {
       const resPw = await updateUserPasswordAdmin(editUser.id, editPassword);
       if (!resPw.success) {
         setError(resPw.error ?? 'Error al actualizar contraseña');
@@ -177,26 +196,53 @@ export default function ConfiguracionUsuariosPage() {
         return;
       }
     }
-    if (res.success) {
-      const currentUserId = session?.user?.id ?? null;
-      const editingSelf = Boolean(currentUserId && editUser.id === currentUserId);
-      if (editingSelf) {
-        await updateSession({ name: (editName?.trim() || session?.user?.name || '').trim() || undefined });
-      }
-      setEditUser(null);
-      if (unlocked && unlockPasswordRef.current) {
-        const resList = await listUsersAdminWithPasswords(
-          unlockPasswordRef.current
-        );
-        if (resList.success && resList.data) setUsers(resList.data);
-        else await load();
-      } else {
-        await load();
-      }
-    } else {
-      setError(res.error ?? 'Error');
+    const currentUserId = session?.user?.id ?? null;
+    const editingSelf = Boolean(currentUserId && editUser.id === currentUserId);
+    if (editingSelf) {
+      await updateSession({
+        name:
+          (editName?.trim() || session?.user?.name || '').trim() || undefined,
+      });
     }
+    setEditUser(null);
+    setRoleConflicts(null);
+    setPendingRoleSave(false);
+    await reloadUsers();
     setEditSaving(false);
+  };
+
+  const handleSaveEdit = async (confirmRoles = false) => {
+    if (!editUser) return;
+    setEditSaving(true);
+    setError(null);
+    const res = await updateUserAdmin(editUser.id, {
+      name: editName || undefined,
+      email: editEmail || undefined,
+      rut: editRut.trim() || null,
+      cargo: editCargo.trim() || null,
+      sedeId: editSedeId || null,
+      escuelaId: editEscuelaId || null,
+    });
+    if (!res.success) {
+      setError(res.error ?? 'Error');
+      setEditSaving(false);
+      return;
+    }
+    const resRoles = await updateUserRolesAdmin(editUser.id, editRoles, {
+      confirmRemoveConflicts: confirmRoles,
+    });
+    if (resRoles.requiresConfirm && resRoles.conflicts) {
+      setRoleConflicts(resRoles.conflicts);
+      setPendingRoleSave(true);
+      setEditSaving(false);
+      return;
+    }
+    if (!resRoles.success) {
+      setError(resRoles.error ?? 'Error al actualizar roles');
+      setEditSaving(false);
+      return;
+    }
+    await finishSaveEdit();
   };
 
   const handleAddUser = async () => {
@@ -211,26 +257,44 @@ export default function ConfiguracionUsuariosPage() {
       email: addEmail.trim(),
       password: addPassword,
       initialRole: addRole,
+      rut: addRut.trim() || null,
+      cargo: addCargo.trim() || null,
+      sedeId: addSedeId || null,
+      escuelaId: addEscuelaId || null,
     });
     if (res.success) {
       setAddOpen(false);
       setAddName('');
       setAddEmail('');
       setAddPassword('');
+      setAddRut('');
+      setAddCargo('');
+      setAddSedeId('');
+      setAddEscuelaId('');
       setAddRole('Colaborador');
-      if (unlocked && unlockPasswordRef.current) {
-        const resList = await listUsersAdminWithPasswords(
-          unlockPasswordRef.current
-        );
-        if (resList.success && resList.data) setUsers(resList.data);
-        else await load();
-      } else {
-        await load();
-      }
+      await reloadUsers();
     } else {
       setError(res.error ?? 'Error');
     }
     setAddSaving(false);
+  };
+
+  const handleActivateAccount = async () => {
+    if (!activateTarget) return;
+    setActivateSaving(true);
+    setError(null);
+    const res = await activateUserAccountAdmin(
+      activateTarget.id,
+      activatePassword
+    );
+    if (res.success) {
+      setActivateTarget(null);
+      setActivatePassword('');
+      await reloadUsers();
+    } else {
+      setError(res.error ?? 'Error al crear cuenta');
+    }
+    setActivateSaving(false);
   };
 
   const openDeleteConfirm = (u: UserListRowWithPassword) => {
@@ -325,44 +389,25 @@ export default function ConfiguracionUsuariosPage() {
           <div className="flex-1 min-h-0 flex flex-col px-6 pt-0 pb-6">
             {/* Encabezados fuera del scroll: no se mueven */}
             <div className="rounded-t-md border border-b-0 overflow-hidden flex-shrink-0">
-              <Table className="table-fixed w-full">
-                <colgroup>
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '6%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: unlocked ? '38%' : '43%' }} />
-                  <col style={{ width: '8%' }} />
-                  {unlocked && <col style={{ width: '7%' }} />}
-                </colgroup>
+              <Table className="table-fixed w-full min-w-[1100px]">
                 <TableHeader ref={tableHeaderRef}>
                   <TableRow className="[&_th]:bg-muted/50 [&_th]:border-b [&_th]:font-medium [&_th]:text-muted-foreground [&_th]:h-10 [&_th]:px-2 [&_th]:text-left [&_th]:align-middle">
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Correo</TableHead>
-                    <TableHead>Contraseña</TableHead>
-                    <TableHead>Última actividad</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead>Proyectos (rol)</TableHead>
-                    <TableHead>Editar</TableHead>
-                    {unlocked && <TableHead>Eliminar</TableHead>}
+                    <TableHead className="w-[11%]">Nombre</TableHead>
+                    <TableHead className="w-[12%]">Correo</TableHead>
+                    <TableHead className="w-[8%]">RUT</TableHead>
+                    <TableHead className="w-[9%]">Cargo</TableHead>
+                    <TableHead className="w-[8%]">Sede</TableHead>
+                    <TableHead className="w-[9%]">Escuela</TableHead>
+                    <TableHead className="w-[6%]">Contraseña</TableHead>
+                    <TableHead className="w-[9%]">Roles</TableHead>
+                    <TableHead className="w-[16%]">Proyectos (rol)</TableHead>
+                    <TableHead className="w-[12%]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
               </Table>
             </div>
-            {/* Solo el cuerpo de la tabla hace scroll */}
             <div className="flex-1 min-h-0 overflow-auto rounded-b-md border">
-              <Table className="table-fixed w-full">
-                <colgroup>
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '6%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: unlocked ? '38%' : '43%' }} />
-                  <col style={{ width: '8%' }} />
-                  {unlocked && <col style={{ width: '7%' }} />}
-                </colgroup>
+              <Table className="table-fixed w-full min-w-[1100px]">
                 <TableBody>
                   {users.map((u) => {
                     const isEditing = editUser?.id === u.id;
@@ -371,7 +416,7 @@ export default function ConfiguracionUsuariosPage() {
                         key={u.id}
                         className={isEditing ? 'bg-muted/30' : undefined}
                       >
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium align-top">
                           {isEditing ? (
                             <Input
                               value={editName}
@@ -380,10 +425,20 @@ export default function ConfiguracionUsuariosPage() {
                               className="h-8 text-sm"
                             />
                           ) : (
-                            (u.name ?? '—')
+                            <div className="flex flex-col gap-1">
+                              <span>{u.name ?? '—'}</span>
+                              {!u.hasAccount && (
+                                <Badge
+                                  variant="outline"
+                                  className="w-fit text-[10px] border-amber-300 bg-amber-50 text-amber-800"
+                                >
+                                  Sin cuenta
+                                </Badge>
+                              )}
+                            </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           {isEditing ? (
                             <Input
                               type="email"
@@ -396,25 +451,94 @@ export default function ConfiguracionUsuariosPage() {
                             u.email
                           )}
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
+                        <TableCell className="align-top">
+                          {isEditing ? (
+                            <Input
+                              value={editRut}
+                              onChange={(e) => setEditRut(e.target.value)}
+                              placeholder="RUT"
+                              className="h-8 text-sm"
+                            />
+                          ) : (
+                            (u.rut ?? '—')
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {isEditing ? (
+                            <Input
+                              value={editCargo}
+                              onChange={(e) => setEditCargo(e.target.value)}
+                              placeholder="Cargo"
+                              className="h-8 text-sm"
+                            />
+                          ) : (
+                            (u.cargo ?? '—')
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {isEditing ? (
+                            <Select
+                              value={editSedeId || SELECT_NONE}
+                              onValueChange={(v) =>
+                                setEditSedeId(v === SELECT_NONE ? '' : v)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Sede" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={SELECT_NONE}>—</SelectItem>
+                                {sedes.map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            (u.sedeNombre ?? '—')
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {isEditing ? (
+                            <Select
+                              value={editEscuelaId || SELECT_NONE}
+                              onValueChange={(v) =>
+                                setEditEscuelaId(v === SELECT_NONE ? '' : v)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Escuela" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={SELECT_NONE}>—</SelectItem>
+                                {escuelas.map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            (u.escuelaNombre ?? '—')
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm align-top">
                           {isEditing && unlocked ? (
                             <Input
                               type="password"
                               value={editPassword}
                               onChange={(e) => setEditPassword(e.target.value)}
-                              placeholder="Dejar vacío para no cambiar"
+                              placeholder="Vacío = no cambiar"
                               className="h-8 text-sm font-mono"
                             />
                           ) : unlocked ? (
-                            (u.passwordPlain ?? '—')
+                            (u.passwordPlain ?? (u.hasAccount ? '—' : 'sin cuenta'))
                           ) : (
                             '****'
                           )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(u.lastSessionExpires)}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           {isEditing ? (
                             <MultiSelectOptions
                               options={AVAILABLE_ROLES.map((r) => ({
@@ -430,7 +554,7 @@ export default function ConfiguracionUsuariosPage() {
                                     .filter(Boolean) as Role[]
                                 )
                               }
-                              placeholder="Seleccionar roles..."
+                              placeholder="Roles..."
                               triggerClassName="h-8 text-sm min-h-8"
                             />
                           ) : (
@@ -439,7 +563,7 @@ export default function ConfiguracionUsuariosPage() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="min-w-0">
+                        <TableCell className="min-w-0 align-top">
                           <div className="text-sm text-muted-foreground">
                             {u.proyectos.length ? (
                               <ul className="list-disc list-inside space-y-0.5 my-0 pl-0">
@@ -462,9 +586,9 @@ export default function ConfiguracionUsuariosPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           {isEditing ? (
-                            <div className="flex items-center gap-1">
+                            <div className="flex flex-col gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -480,7 +604,7 @@ export default function ConfiguracionUsuariosPage() {
                               </Button>
                               <Button
                                 size="sm"
-                                onClick={handleSaveEdit}
+                                onClick={() => void handleSaveEdit(false)}
                                 disabled={editSaving}
                                 className="h-8 px-2"
                               >
@@ -488,30 +612,44 @@ export default function ConfiguracionUsuariosPage() {
                               </Button>
                             </div>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEdit(u)}
-                              className="flex items-center gap-1"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Editar
-                            </Button>
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEdit(u)}
+                                className="flex items-center gap-1 h-8 px-2"
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Editar
+                              </Button>
+                              {!u.hasAccount && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setActivateTarget(u);
+                                    setActivatePassword('');
+                                  }}
+                                  className="flex items-center gap-1 h-8 px-2 text-amber-800 border-amber-300"
+                                >
+                                  <KeyRound className="h-3.5 w-3.5" />
+                                  Crear cuenta
+                                </Button>
+                              )}
+                              {unlocked && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openDeleteConfirm(u)}
+                                  className="flex items-center gap-1 h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Eliminar
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </TableCell>
-                        {unlocked && (
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDeleteConfirm(u)}
-                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Eliminar
-                            </Button>
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })}
@@ -588,6 +726,64 @@ export default function ConfiguracionUsuariosPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label>RUT</Label>
+              <Input
+                value={addRut}
+                onChange={(e) => setAddRut(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cargo</Label>
+              <Input
+                value={addCargo}
+                onChange={(e) => setAddCargo(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sede</Label>
+              <Select
+                value={addSedeId || SELECT_NONE}
+                onValueChange={(v) =>
+                  setAddSedeId(v === SELECT_NONE ? '' : v)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sede" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                  {sedes.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Escuela</Label>
+              <Select
+                value={addEscuelaId || SELECT_NONE}
+                onValueChange={(v) =>
+                  setAddEscuelaId(v === SELECT_NONE ? '' : v)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Escuela" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                  {escuelas.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Rol inicial</Label>
               <Select
                 value={addRole}
@@ -654,6 +850,94 @@ export default function ConfiguracionUsuariosPage() {
               disabled={deleting}
             >
               {deleting ? 'Eliminando...' : 'Eliminar usuario'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Crear cuenta pendiente */}
+      <Dialog
+        open={!!activateTarget}
+        onOpenChange={(open) => !open && setActivateTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crear cuenta</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Asigna una contraseña a{' '}
+            <strong>{activateTarget?.email}</strong> para habilitar el acceso a
+            la app.
+          </p>
+          <div className="space-y-2 py-2">
+            <Label>Contraseña</Label>
+            <Input
+              type="password"
+              value={activatePassword}
+              onChange={(e) => setActivatePassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivateTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void handleActivateAccount()}
+              disabled={activateSaving || activatePassword.length < 6}
+            >
+              {activateSaving ? 'Creando...' : 'Crear cuenta'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog alerta al quitar roles con participación activa */}
+      <Dialog
+        open={!!roleConflicts && pendingRoleSave}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRoleConflicts(null);
+            setPendingRoleSave(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Roles con participación activa</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Vas a deshabilitar roles de la cuenta que todavía figuran en
+            proyectos. No se eliminarán de los listados de participantes; solo
+            se quitará la habilitación en la cuenta.
+          </p>
+          <ul className="text-sm space-y-2 max-h-48 overflow-auto">
+            {(roleConflicts ?? []).map((c) => (
+              <li key={c.rol}>
+                <span className="font-medium">{c.rol}</span>
+                <ul className="list-disc list-inside text-muted-foreground ml-1">
+                  {c.proyectos.map((p) => (
+                    <li key={p.proyectoId}>{p.proyectoNombre}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRoleConflicts(null);
+                setPendingRoleSave(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void handleSaveEdit(true)}
+              disabled={editSaving}
+            >
+              {editSaving ? '...' : 'Confirmar y guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>

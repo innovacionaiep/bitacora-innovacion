@@ -57,10 +57,18 @@ import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
 import {
   usePrefetchProyecto,
   useFetchProyectoBase,
+  useFetchProyectoParticipantes,
   setProyectoBaseCache,
 } from '@/hooks/useProyectoQuery';
+import {
+  usePrefetchDesarrolloTecnicoConfig,
+  useFetchDesarrolloTecnicoConfig,
+} from '@/hooks/useDesarrolloTecnicoConfig';
 import { useQueryClient } from '@tanstack/react-query';
-import { proyectoBaseKey } from '@/lib/query-keys';
+import {
+  proyectoBaseKey,
+  desarrolloTecnicoConfigKey,
+} from '@/lib/query-keys';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
@@ -92,7 +100,13 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Historial', label: 'Historial' },
 ];
 
-export function ProyectosContent() {
+export function ProyectosContent({
+  initialListado,
+  initialActiveRole,
+}: {
+  initialListado?: ProyectoListadoItem[];
+  initialActiveRole?: string | null;
+} = {}) {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { can } = useActiveRolePermissions();
@@ -104,15 +118,22 @@ export function ProyectosContent() {
     loading,
     error,
     fetchProyectos,
+    patchProyectoEnListado,
     createProyecto,
     updateProyecto,
     deleteProyecto,
-  } = useProyectosParaUsuario();
+  } = useProyectosParaUsuario({
+    initialListado,
+    initialActiveRole,
+  });
   const hasAppliedIdFromUrlRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
   const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
   const fetchProyectoBase = useFetchProyectoBase();
+  const fetchProyectoParticipantes = useFetchProyectoParticipantes();
+  const prefetchDesarrolloTecnicoConfig = usePrefetchDesarrolloTecnicoConfig();
+  const fetchDesarrolloTecnicoConfig = useFetchDesarrolloTecnicoConfig();
   const topLoader = useTopLoader();
   const tabLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   usePageTopLoader(loading);
@@ -165,7 +186,7 @@ export function ProyectosContent() {
   } = useGeneralTab({
     project: selectedProject,
     setProject: setSelectedProjectAndCache,
-    fetchProyectos,
+    patchProyectoEnListado,
     selectedTab,
     projectVideos,
     setProjectVideos,
@@ -273,6 +294,11 @@ export function ProyectosContent() {
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
+  // Prefetch config DT al entrar a /proyectos (compartida entre proyectos).
+  useEffect(() => {
+    prefetchDesarrolloTecnicoConfig();
+  }, [prefetchDesarrolloTecnicoConfig]);
+
   // Preseleccionar proyecto cuando se llega con ?id= (ej. desde Inicio "Ir"). Opcional: ?tab=Seguimiento para abrir ese tab.
   useEffect(() => {
     const idFromUrl = searchParams.get('id');
@@ -286,11 +312,22 @@ export function ProyectosContent() {
       const cached = queryClient.getQueryData<ProyectoWithRelations>(
         proyectoBaseKey(project.id)
       );
-      if (!cached) topLoader.start();
+      const dtCached = queryClient.getQueryData(desarrolloTecnicoConfigKey);
+      const needsLoader = !cached || !dtCached;
+      if (needsLoader) topLoader.start();
       try {
-        const data = cached ?? (await fetchProyectoBase(project.id));
+        const [data] = await Promise.all([
+          cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
+          fetchDesarrolloTecnicoConfig(),
+        ]);
         setSelectedProject(data);
-        if (tabToSelect) setSelectedTab(tabToSelect);
+        if (tabToSelect) {
+          setSelectedTab(tabToSelect);
+          setMountedTabs(new Set(['General', tabToSelect]));
+        } else {
+          setSelectedTab('General');
+          setMountedTabs(new Set(['General']));
+        }
         const videoUrl =
           (data as ProyectoWithRelations & { youtubeUrl?: string | null })
             .youtubeUrl ??
@@ -298,10 +335,17 @@ export function ProyectosContent() {
           '';
         setTempVideoUrl(videoUrl);
       } finally {
-        if (!cached) topLoader.done(true);
+        if (needsLoader) topLoader.done(true);
       }
     })();
-  }, [proyectosIniciales, searchParams, fetchProyectoBase, queryClient, topLoader]);
+  }, [
+    proyectosIniciales,
+    searchParams,
+    fetchProyectoBase,
+    fetchDesarrolloTecnicoConfig,
+    queryClient,
+    topLoader,
+  ]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
@@ -442,25 +486,24 @@ export function ProyectosContent() {
 
   const handleClearProjectSelection = () => {
     setSelectedProject(null);
+    setSelectedTab('General');
+    setMountedTabs(new Set(['General']));
   };
 
   const handleSelectProject = async (project: ProyectoListadoItem) => {
+    setSelectedTab('General');
+    setMountedTabs(new Set(['General']));
     const cached = queryClient.getQueryData<ProyectoWithRelations>(
       proyectoBaseKey(project.id)
     );
-    if (cached) {
-      setSelectedProject(cached);
-      const videoUrl =
-        (cached as ProyectoWithRelations & { youtubeUrl?: string | null })
-          .youtubeUrl ??
-        projectVideos[project.id] ??
-        '';
-      setTempVideoUrl(videoUrl);
-      return;
-    }
-    topLoader.start();
+    const dtCached = queryClient.getQueryData(desarrolloTecnicoConfigKey);
+    const needsLoader = !cached || !dtCached;
+    if (needsLoader) topLoader.start();
     try {
-      const data = await fetchProyectoBase(project.id);
+      const [data] = await Promise.all([
+        cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
+        fetchDesarrolloTecnicoConfig(),
+      ]);
       setSelectedProject(data);
       const videoUrl =
         (data as ProyectoWithRelations & { youtubeUrl?: string | null })
@@ -469,7 +512,7 @@ export function ProyectosContent() {
         '';
       setTempVideoUrl(videoUrl);
     } finally {
-      topLoader.done(true);
+      if (needsLoader) topLoader.done(true);
     }
   };
 
@@ -499,10 +542,49 @@ export function ProyectosContent() {
     setSelectedTab(tab);
   };
 
+  // Seguimiento necesita participantes_rel para rolEnProyecto
+  useEffect(() => {
+    if (!selectedProject) return;
+    if (selectedTab !== 'Seguimiento' && !mountedTabs.has('Seguimiento')) {
+      return;
+    }
+    if (selectedProject.participantes_rel) return;
+    const projectId = selectedProject.id;
+    let cancelled = false;
+    (async () => {
+      try {
+        const participantes = await fetchProyectoParticipantes(projectId);
+        if (cancelled) return;
+        setSelectedProjectAndCache((prev) => {
+          if (!prev || prev.id !== projectId) return prev;
+          if (prev.participantes_rel) return prev;
+          return {
+            ...prev,
+            participantes_rel: participantes,
+            participantes: participantes.length,
+          } as ProyectoWithRelations;
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // mountedTabs: solo nos importa si Seguimiento ya se visitó; no depender del Set entero
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mountedTabs.has leído al disparar
+  }, [
+    selectedProject?.id,
+    selectedProject?.participantes_rel,
+    selectedTab,
+    fetchProyectoParticipantes,
+    setSelectedProjectAndCache,
+  ]);
+
   // Cargar borradores en landing (diferido para no competir con el listado inicial)
   useEffect(() => {
     if (selectedProject || showAddForm || showEditForm || borradoresLoadedRef.current) {
-      if (selectedProject || showAddForm || showEditForm) {
+      if ((selectedProject || showAddForm || showEditForm) && borradores.length > 0) {
         setBorradores([]);
       }
       return;
@@ -520,7 +602,24 @@ export function ProyectosContent() {
     }
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
-  }, [selectedProject, showAddForm, showEditForm]);
+  }, [selectedProject?.id, showAddForm, showEditForm, borradores.length]);
+
+  const handleParticipantesFromResumen = useCallback(
+    (
+      participantes: NonNullable<ProyectoWithRelations['participantes_rel']>
+    ) => {
+      setSelectedProjectAndCache((prev) => {
+        if (!prev) return prev;
+        if (prev.participantes_rel) return prev;
+        return {
+          ...prev,
+          participantes_rel: participantes,
+          participantes: participantes.length,
+        } as ProyectoWithRelations;
+      });
+    },
+    [setSelectedProjectAndCache]
+  );
 
   useEffect(() => {
     if (!showGeneralSaveToast) return;
@@ -547,7 +646,9 @@ export function ProyectosContent() {
     ) {
       clearTabLoader();
     }
-  }, [selectedProject, selectedTab, clearTabLoader]);
+    // clearTabLoader / topLoader pueden cambiar de identidad tras done(); no re-disparar el efecto
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject?.id, selectedTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1340,7 +1441,9 @@ export function ProyectosContent() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
                       <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      {selectedProject.participantes_rel?.length || 0}{' '}
+                      {selectedProject.participantes_rel?.length ??
+                        selectedProject.participantes ??
+                        0}{' '}
                       participantes
                     </span>
 
@@ -1385,6 +1488,7 @@ export function ProyectosContent() {
                   <ResumenTab
                     project={selectedProject}
                     topLoaderEnabled={selectedTab === 'Resumen'}
+                    onParticipantesLoaded={handleParticipantesFromResumen}
                   />
                 </div>
               )}
@@ -1393,7 +1497,6 @@ export function ProyectosContent() {
                   <GeneralTab
                     project={selectedProject}
                     setProject={setSelectedProjectAndCache}
-                    fetchProyectos={fetchProyectos}
                     onSaveSuccess={() => setShowGeneralSaveToast(true)}
                     projectVideos={projectVideos}
                     editingField={editingField}
@@ -1417,7 +1520,6 @@ export function ProyectosContent() {
                   <ParticipantesTab
                     project={selectedProject}
                     setProject={setSelectedProjectAndCache}
-                    fetchProyectos={fetchProyectos}
                     selectedTab={selectedTab}
                     onSaveSuccess={() => setShowGeneralSaveToast(true)}
                   />
@@ -1434,7 +1536,11 @@ export function ProyectosContent() {
               )}
               {selectedProject && mountedTabs.has('Indicadores') && (
                 <div
-                  className={selectedTab === 'Indicadores' ? 'h-full' : 'hidden'}
+                  className={
+                    selectedTab === 'Indicadores'
+                      ? 'h-full min-h-0 overflow-hidden'
+                      : 'hidden'
+                  }
                 >
                   <IndicadoresTab
                     project={selectedProject}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ChevronDown,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { DesarrolloTecnico } from '@prisma/client';
 import { IconByName } from '@/components/config/IconByName';
-import { getCategoriasWithSubcategorias } from '@/lib/actions/desarrollo-tecnico-config';
+import { useDesarrolloTecnicoConfigQuery } from '@/hooks/useDesarrolloTecnicoConfig';
 import {
   isLegacyDtFieldKey,
   type DesarrolloTecnicoFieldKey,
@@ -159,36 +159,31 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({});
-  const [sectionMeta, setSectionMeta] = useState(DEFAULT_SECTIONS);
+  const {
+    data: categorias,
+    isPending,
+    isError,
+  } = useDesarrolloTecnicoConfigQuery();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const categorias = await getCategoriasWithSubcategorias();
-        if (cancelled) return;
-        const next = categorias.flatMap((cat) =>
-          cat.subcategorias.map((sub) => {
-            const campoKey = isLegacyDtFieldKey(sub.campoKey)
-              ? sub.campoKey
-              : null;
-            return {
-              key: sub.id,
-              campoKey,
-              title: sub.nombre?.trim() || 'Sin nombre',
-              icon: sub.icono || 'FileText',
-            };
-          })
-        );
-        if (next.length > 0) setSectionMeta(next);
-      } catch {
-        // Mantener defaults
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const sectionMeta = useMemo(() => {
+    if (!categorias?.length) {
+      return isError || !isPending ? DEFAULT_SECTIONS : [];
+    }
+    const next = categorias.flatMap((cat) =>
+      cat.subcategorias.map((sub) => {
+        const campoKey = isLegacyDtFieldKey(sub.campoKey)
+          ? sub.campoKey
+          : null;
+        return {
+          key: sub.id,
+          campoKey,
+          title: sub.nombre?.trim() || 'Sin nombre',
+          icon: sub.icono || 'FileText',
+        };
+      })
+    );
+    return next.length > 0 ? next : DEFAULT_SECTIONS;
+  }, [categorias, isError, isPending]);
 
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
@@ -262,6 +257,10 @@ export const DesarrolloTecnicoCard: React.FC<DesarrolloTecnicoCardProps> = ({
         </CardContent>
       </Card>
     );
+  }
+
+  if (isPending && sectionMeta.length === 0) {
+    return null;
   }
 
   return (

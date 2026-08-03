@@ -9,9 +9,76 @@ export async function getCategoriasWithSubcategorias() {
   return prisma.desarrolloTecnicoCategoria.findMany({
     orderBy: { orden: 'asc' },
     include: {
-      subcategorias: { orderBy: { orden: 'asc' } },
+      subcategorias: {
+        orderBy: { orden: 'asc' },
+        include: {
+          lineasExcluidas: { select: { lineaId: true } },
+        },
+      },
     },
   });
+}
+
+/** Fondos con sus líneas, para configurar aplicabilidad por elemento. */
+export async function getFondosConLineasParaDt() {
+  return prisma.fondo.findMany({
+    orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+    include: {
+      lineas: {
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+        select: { id: true, nombre: true, orden: true },
+      },
+    },
+  });
+}
+
+/**
+ * Activa o desactiva un elemento de DT para una línea.
+ * Activo = sin fila de exclusión; inactivo = crea exclusión.
+ */
+export async function setSubcategoriaLineaEnabled(
+  subcategoriaId: string,
+  lineaId: string,
+  enabled: boolean
+) {
+  try {
+    if (!subcategoriaId.trim() || !lineaId.trim()) {
+      return { success: false, error: 'Datos incompletos' };
+    }
+    const [sub, linea] = await Promise.all([
+      prisma.desarrolloTecnicoSubcategoria.findUnique({
+        where: { id: subcategoriaId },
+        select: { id: true },
+      }),
+      prisma.linea.findUnique({
+        where: { id: lineaId },
+        select: { id: true },
+      }),
+    ]);
+    if (!sub) return { success: false, error: 'Subcategoría no encontrada' };
+    if (!linea) return { success: false, error: 'Línea no encontrada' };
+
+    if (enabled) {
+      await prisma.desarrolloTecnicoSubcategoriaLineaExcluida.deleteMany({
+        where: { subcategoriaId, lineaId },
+      });
+    } else {
+      await prisma.desarrolloTecnicoSubcategoriaLineaExcluida.upsert({
+        where: {
+          subcategoriaId_lineaId: { subcategoriaId, lineaId },
+        },
+        create: { subcategoriaId, lineaId },
+        update: {},
+      });
+    }
+
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al actualizar aplicabilidad' };
+  }
 }
 
 export async function createCategoria(nombre: string, orden: number) {
