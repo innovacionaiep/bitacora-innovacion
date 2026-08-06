@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { driver, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import './inicio-tour.css';
+import '@/components/tours/bitacora-tour.css';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import {

@@ -2,19 +2,10 @@
 
 import { useIndicadores } from '@/hooks/useIndicadores';
 import { useState, useEffect, useMemo } from 'react';
-import { Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { ObjetivoGeneralCard } from './ObjetivoGeneralCard';
 import { IndicadorModal } from './IndicadorModal';
 import { AgregarIndicadorModal } from './AgregarIndicadorModal';
 import { deleteIndicador } from '@/lib/actions/indicadores';
-import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
@@ -43,7 +34,6 @@ export function IndicadoresCard({
     addObjetivoEspecificoOptimistic,
     setData,
   } = useIndicadores(projectId);
-  const [deleteMode, setDeleteMode] = useState(false);
   const [showAgregarModal, setShowAgregarModal] = useState(false);
   const [objetivoEspecificoPreseleccionado, setObjetivoEspecificoPreseleccionado] =
     useState<string | null>(null);
@@ -194,18 +184,6 @@ export function IndicadoresCard({
     setObjetivoEspecificoPreseleccionado(null);
   };
 
-  const tieneAlMenosUnIndicador = useMemo(() => {
-    if (!data?.objetivosGenerales) return false;
-    return data.objetivosGenerales.some((og) =>
-      og.objetivosEspecificos.some((oe) => oe.indicadores.length > 0)
-    );
-  }, [data]);
-
-  // Salir del modo eliminar si ya no hay indicadores
-  useEffect(() => {
-    if (!tieneAlMenosUnIndicador && deleteMode) setDeleteMode(false);
-  }, [tieneAlMenosUnIndicador, deleteMode]);
-
   // Actualizar el indicador seleccionado cuando cambian los datos
   useEffect(() => {
     if (selectedIndicador && data) {
@@ -323,46 +301,6 @@ export function IndicadoresCard({
                   fechaFin: indicador.fechaFin,
                 });
               }}
-              actions={
-                index === 0 ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-block">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={!tieneAlMenosUnIndicador}
-                            className={`h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center border shadow-sm ${
-                              !tieneAlMenosUnIndicador
-                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                : deleteMode
-                                  ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
-                            }`}
-                            onClick={() =>
-                              tieneAlMenosUnIndicador &&
-                              setDeleteMode((prev) => !prev)
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {!tieneAlMenosUnIndicador
-                            ? 'No hay indicadores para eliminar'
-                            : deleteMode
-                              ? 'Salir del modo eliminación'
-                              : 'Eliminar indicador'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : undefined
-              }
               onAddIndicador={
                 tieneAlMenosUnObjetivoEspecifico
                   ? handleOpenAgregarIndicador
@@ -370,7 +308,6 @@ export function IndicadoresCard({
               }
               onCargaMasiva={onCargaMasiva}
               canImport={canImport}
-              deleteMode={deleteMode}
               onDeleteIndicador={handleDeleteIndicador}
             />
           </div>

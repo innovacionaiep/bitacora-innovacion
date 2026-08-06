@@ -38,6 +38,9 @@ export const presupuestoKey = (projectId: string) =>
 export const compromisosKey = (projectId: string) =>
   ['compromisos', projectId] as const;
 
+export const reunionesKey = (projectId: string) =>
+  ['reuniones', projectId] as const;
+
 export const resumenTabKey = (projectId: string) =>
   ['resumen-tab', projectId] as const;
 

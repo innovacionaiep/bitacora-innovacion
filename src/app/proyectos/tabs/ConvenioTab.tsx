@@ -212,7 +212,7 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
   return (
     <div className="w-full max-w-2xl mx-auto px-2 py-2">
       <div className="space-y-8">
-        <div>
+        <div id="tour-convenio-intro">
           <h2 className="text-lg font-semibold text-gray-900 tracking-tight">
             Convenio
           </h2>
@@ -222,7 +222,7 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
           </p>
         </div>
 
-        <section className="space-y-3">
+        <section id="tour-convenio-formato" className="space-y-3">
           <h3 className="text-[13px] font-medium text-gray-700 uppercase tracking-wide">
             Formato
           </h3>
@@ -239,7 +239,10 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
           <p className="text-[12px] text-gray-400">{bruto.filename}</p>
         </section>
 
-        <section className="space-y-3 border-t border-gray-100 pt-6">
+        <section
+          id="tour-convenio-documento"
+          className="space-y-3 border-t border-gray-100 pt-6"
+        >
           <div className="flex items-center gap-2">
             <h3 className="text-[13px] font-medium text-gray-700 uppercase tracking-wide">
               Documento firmado
@@ -267,7 +270,7 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
                   Subido el {formatFecha(project.convenioFirmadoAt)}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div id="tour-convenio-acciones" className="flex flex-wrap gap-2">
                 {project.convenioFirmadoUrl ? (
                   <Button
                     type="button"
@@ -314,7 +317,10 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
               </div>
             </div>
           ) : (
-            <div className="rounded-md border border-dashed border-red-200 bg-red-50/40 px-4 py-6 flex flex-col items-start gap-3">
+            <div
+              id="tour-convenio-acciones"
+              className="rounded-md border border-dashed border-red-200 bg-red-50/40 px-4 py-6 flex flex-col items-start gap-3"
+            >
               <p className="text-[13px] text-gray-600">
                 Aún no hay convenio firmado para este proyecto. Sube un PDF o
                 Word (.docx), máximo 2 MB.

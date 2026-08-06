@@ -1,7 +1,12 @@
 import type { DriveStep } from 'driver.js';
 import type { PermissionKey } from '@/lib/permissions/catalog';
+import {
+  BITACORA_TOUR_BUTTONS,
+  BITACORA_TOUR_POPOVER_CLASS,
+} from '@/lib/tours/tour-shared';
 
-export const INICIO_TOUR_POPOVER_CLASS = 'bitacora-inicio-tour';
+export const INICIO_TOUR_POPOVER_CLASS = BITACORA_TOUR_POPOVER_CLASS;
+export const INICIO_TOUR_BUTTONS = BITACORA_TOUR_BUTTONS;
 
 type NavTourItem = {
   tourId: string;
@@ -58,15 +63,19 @@ const SIDEBAR_TOUR_ITEMS: NavTourItem[] = [
 function step(
   element: string,
   title: string,
-  description: string
+  description: string,
+  options?: {
+    side?: 'top' | 'right' | 'bottom' | 'left';
+    align?: 'start' | 'center' | 'end';
+  }
 ): DriveStep {
   return {
     element,
     popover: {
       title,
       description,
-      side: 'bottom',
-      align: 'start',
+      side: options?.side ?? 'bottom',
+      align: options?.align ?? 'start',
     },
   };
 }
@@ -89,6 +98,11 @@ export function buildInicioTourSteps(
 
   steps.push(
     step(
+      '#tour-roles-habilitados',
+      'Roles habilitados',
+      'Son los roles asignados a tu cuenta. Definen qué secciones y acciones puedes usar en la plataforma (menú, ajustes, reportes, etc.). Si necesitas otro rol, solicítalo a un administrador.'
+    ),
+    step(
       '#tour-mis-proyectos',
       'Mis proyectos',
       'Todos los proyectos en los que participas, con tu rol en cada uno. Desde aquí entras al detalle o creas uno nuevo.'
@@ -102,15 +116,14 @@ export function buildInicioTourSteps(
       '#tour-alertas',
       'Alertas y compromisos',
       'Pendientes de todos tus proyectos: evidencias, presupuesto, atrasos y compromisos (según tu rol en cada uno).'
+    ),
+    step(
+      '#tour-chat-soporte',
+      'Chat de soporte',
+      'Botón flotante para escribir al equipo de soporte si tienes dudas o problemas con la plataforma. Te responden por este mismo chat.',
+      { side: 'left', align: 'end' }
     )
   );
 
   return steps;
 }
-
-export const INICIO_TOUR_BUTTONS = {
-  nextBtnText: 'Siguiente',
-  prevBtnText: 'Anterior',
-  doneBtnText: 'Listo',
-  progressText: '{{current}} de {{total}}',
-} as const;

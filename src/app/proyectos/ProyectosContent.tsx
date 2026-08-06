@@ -33,6 +33,7 @@ import {
   MapPin,
   GraduationCap,
   FileSpreadsheet,
+  CircleHelp,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -74,6 +75,10 @@ import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
 import { cn } from '@/lib/utils';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
+import {
+  ProyectoTour,
+  type ProyectoTourHandle,
+} from '@/components/proyectos/ProyectoTour';
 import { useTopLoader } from 'nextjs-toploader';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
@@ -90,7 +95,8 @@ type ProyectoTab =
 
 const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Convenio', label: 'Convenio' },
-  { id: 'Resumen', label: 'Resumen' },
+  // Temporalmente oculto — reactivar descomentando la línea siguiente
+  // { id: 'Resumen', label: 'Resumen' },
   { id: 'General', label: 'General' },
   { id: 'Participantes', label: 'Participantes' },
   { id: 'Gantt', label: 'Actividades' },
@@ -135,7 +141,11 @@ export function ProyectosContent({
   const fetchDesarrolloTecnicoConfig = useFetchDesarrolloTecnicoConfig();
   const topLoader = useTopLoader();
   const tabLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  usePageTopLoader(loading);
+  // Evita flash de la lista al entrar con ?id= (p. ej. botón "Ir" desde Inicio)
+  const [isResolvingUrlProject, setIsResolvingUrlProject] = useState(
+    () => Boolean(searchParams.get('id'))
+  );
+  usePageTopLoader(loading || isResolvingUrlProject);
   const [mountedTabs, setMountedTabs] = useState<Set<ProyectoTab>>(
     () => new Set(['General'])
   );
@@ -149,6 +159,7 @@ export function ProyectosContent({
   const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
   const [selectedTab, setSelectedTab] = useState<ProyectoTab>('General');
   const [fondosConConvenios, setFondosConConvenios] = useState<string[]>([]);
+  const proyectoTourRef = useRef<ProyectoTourHandle>(null);
 
   // Estado para videos de YouTube por proyecto
   const [projectVideos, setProjectVideos] = useState<Record<string, string>>(
@@ -285,19 +296,29 @@ export function ProyectosContent({
   useEffect(() => {
     const idFromUrl = searchParams.get('id');
     const tabFromUrl = searchParams.get('tab');
-    if (!idFromUrl || hasAppliedIdFromUrlRef.current || proyectosIniciales.length === 0) return;
+    if (!idFromUrl) {
+      setIsResolvingUrlProject(false);
+      return;
+    }
+    if (hasAppliedIdFromUrlRef.current) return;
+    if (proyectosIniciales.length === 0) {
+      // Lista ya cargada y vacía → no hay proyecto que abrir
+      if (!loading) setIsResolvingUrlProject(false);
+      return;
+    }
     const project = proyectosIniciales.find((p) => p.id === idFromUrl);
-    if (!project) return;
+    if (!project) {
+      setIsResolvingUrlProject(false);
+      return;
+    }
     hasAppliedIdFromUrlRef.current = true;
+    setIsResolvingUrlProject(true);
     const tabToSelect = tabFromUrl === 'Seguimiento' ? ('Seguimiento' as const) : null;
     (async () => {
-      const cached = queryClient.getQueryData<ProyectoWithRelations>(
-        proyectoBaseKey(project.id)
-      );
-      const dtCached = queryClient.getQueryData(desarrolloTecnicoConfigKey);
-      const needsLoader = !cached || !dtCached;
-      if (needsLoader) topLoader.start();
       try {
+        const cached = queryClient.getQueryData<ProyectoWithRelations>(
+          proyectoBaseKey(project.id)
+        );
         const [data] = await Promise.all([
           cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
           fetchDesarrolloTecnicoConfig(),
@@ -317,16 +338,16 @@ export function ProyectosContent({
           '';
         setTempVideoUrl(videoUrl);
       } finally {
-        if (needsLoader) topLoader.done(true);
+        setIsResolvingUrlProject(false);
       }
     })();
   }, [
     proyectosIniciales,
     searchParams,
+    loading,
     fetchProyectoBase,
     fetchDesarrolloTecnicoConfig,
     queryClient,
-    topLoader,
   ]);
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -684,7 +705,7 @@ export function ProyectosContent({
     );
   };
 
-  if (loading) {
+  if (loading || isResolvingUrlProject) {
     return <div className="h-full min-h-[200px]" />;
   }
 
@@ -1075,9 +1096,21 @@ export function ProyectosContent({
           </div>
         ) : selectedProject ? (
           <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            <ProyectoTour ref={proyectoTourRef} selectedTab={selectedTab} />
+            <Button
+              type="button"
+              onClick={() => proyectoTourRef.current?.startTour()}
+              size="sm"
+              variant="outline"
+              className="fixed top-4 right-4 z-40 h-8 px-2.5 gap-1.5 text-[13px] font-medium tracking-wide text-gray-600 border-gray-200 bg-white shadow-md hover:bg-gray-50 hover:text-emerald-700"
+            >
+              <CircleHelp className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Tutorial
+            </Button>
             {/* Navegación del proyecto: arriba de todo, centrada */}
             <nav
               aria-label="Secciones del proyecto"
+              data-tour="proyecto-tabs-nav"
               className="flex-shrink-0 mb-5 overflow-x-auto"
             >
               <div className="flex items-stretch justify-center gap-1 sm:gap-2 min-w-max mx-auto px-2">
@@ -1090,6 +1123,7 @@ export function ProyectosContent({
                     <button
                       key={tab.id}
                       type="button"
+                      data-tour={`proyecto-tab-${tab.id}`}
                       onClick={() => handleSelectTab(tab.id)}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
@@ -1158,7 +1192,10 @@ export function ProyectosContent({
                     handleCancelGeneralEdit={handleCancelGeneralEdit}
                   />
                 </div>
-                  <div className="flex items-center justify-center flex-wrap gap-x-5 gap-y-1.5">
+                  <div
+                    id="tour-general-meta-linea"
+                    className="flex items-center justify-center flex-wrap gap-x-5 gap-y-1.5"
+                  >
                     <div className="group/field relative inline-flex items-center gap-1.5">
                       <HandCoins className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                       {editingField === 'fondo' ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileSpreadsheet, ListChecks, Plus, Search, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, ListChecks, Plus, Search } from 'lucide-react';
 import { IndicadorCard } from './IndicadorCard';
 import { IndicadoresAgrupadosCard } from './IndicadoresAgrupadosCard';
 import { Button } from '@/components/ui/button';
@@ -51,25 +51,25 @@ interface ObjetivoEspecificoCardProps {
     fechaInicio?: string | null;
     fechaFin?: string | null;
   }) => void;
-  deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
   onAddIndicador?: () => void;
   onCargaMasiva?: () => void;
   canImport?: boolean;
+  /** Si true, expone anclas del tour (solo el primer OE). */
+  tourAnchors?: boolean;
 }
 
 export function ObjetivoEspecificoCard({
   objetivoEspecifico,
   numero,
   onIndicadorClick,
-  deleteMode,
   onDeleteIndicador,
   onAddIndicador,
   onCargaMasiva,
   canImport,
+  tourAnchors = false,
 }: ObjetivoEspecificoCardProps) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const canDelete = objetivoEspecifico.indicadores.length > 1;
   // Calcular el progreso del objetivo específico basado en sus indicadores
   const progresoObjetivo =
     objetivoEspecifico.indicadores.length > 0
@@ -156,9 +156,10 @@ export function ObjetivoEspecificoCard({
         {/* Acciones fuera de la tarjeta, arriba a la derecha */}
         {(onAddIndicador || (canImport && onCargaMasiva)) && (
           <div
+            id={tourAnchors ? 'tour-indicadores-agregar-ind' : undefined}
             className={cn(
               'absolute top-0 right-0 z-20 flex items-center gap-1.5 transition-opacity duration-150',
-              addMenuOpen
+              addMenuOpen || tourAnchors
                 ? 'opacity-100'
                 : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
             )}
@@ -193,6 +194,7 @@ export function ObjetivoEspecificoCard({
                     Indicador individual
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    id={tourAnchors ? 'tour-indicadores-carga' : undefined}
                     onClick={() => onCargaMasiva()}
                     className="gap-2 cursor-pointer"
                   >
@@ -229,6 +231,7 @@ export function ObjetivoEspecificoCard({
                   <TooltipTrigger asChild>
                     <Button
                       type="button"
+                      id={tourAnchors ? 'tour-indicadores-carga' : undefined}
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
@@ -284,9 +287,10 @@ export function ObjetivoEspecificoCard({
                   fechaFin: objetivoEspecifico.indicadores[0].fechaFin,
                 }}
                 orden={1}
+                onDeleteIndicador={onDeleteIndicador}
               />
 
-              {/* Botón Ver Detalles + opcionalmente Eliminar */}
+              {/* Botón Ver Detalles */}
               <div className="flex-shrink-0 flex items-center gap-2">
                 <div className="relative">
                   <button
@@ -304,37 +308,6 @@ export function ObjetivoEspecificoCard({
                     </span>
                   )}
                 </div>
-                {deleteMode && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() =>
-                            canDelete &&
-                            onDeleteIndicador?.(
-                              objetivoEspecifico.indicadores[0].id
-                            )
-                          }
-                          disabled={!canDelete}
-                          className={`p-3 rounded-full transition-colors ${
-                            canDelete
-                              ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {canDelete
-                            ? 'Eliminar indicador'
-                            : 'No se puede eliminar'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
               </div>
             </div>
           ) : (
@@ -354,10 +327,11 @@ export function ObjetivoEspecificoCard({
                   )}
                   indicadoresCompletos={objetivoEspecifico.indicadores}
                   onIndicadorClick={onIndicadorClick}
+                  onDeleteIndicador={onDeleteIndicador}
                 />
               </div>
 
-              {/* Botones Ver Detalles + opcionalmente Eliminar - uno por cada indicador */}
+              {/* Botones Ver Detalles - uno por cada indicador */}
               <div className="flex flex-col gap-3 justify-center">
                 {objetivoEspecifico.indicadores.map((indicador) => (
                   <div
@@ -378,34 +352,6 @@ export function ObjetivoEspecificoCard({
                         </span>
                       )}
                     </div>
-                    {deleteMode && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() =>
-                                canDelete && onDeleteIndicador?.(indicador.id)
-                              }
-                              disabled={!canDelete}
-                              className={`p-3 rounded-full transition-colors ${
-                                canDelete
-                                  ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
-                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              }`}
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>
-                              {canDelete
-                                ? 'Eliminar indicador'
-                                : 'No se puede eliminar'}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
                   </div>
                 ))}
               </div>

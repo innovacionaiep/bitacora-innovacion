@@ -3,23 +3,9 @@
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  FileText,
-  Calculator,
-  Hash,
-  Edit2,
-  Check,
-  Calendar,
-  Info,
-  BarChart3,
-  TrendingUp,
-  Send,
-  MessageSquare,
-} from 'lucide-react';
+import { Send, MessageSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import {
   getComentariosItemPresupuesto,
@@ -137,12 +123,12 @@ export function GastoPresupuestoModal({
         {/* Layout de dos columnas con separador */}
         <div className="grid grid-cols-[1fr_auto_1fr] gap-6 px-5 py-4 flex-1 min-h-0">
           {/* COLUMNA IZQUIERDA: Información del gasto */}
-          <div className="space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="space-y-6 overflow-y-auto min-h-0 custom-scrollbar">
             {/* Sección: Información del gasto */}
             <div className="space-y-6">
               {/* Detalle */}
               <div>
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Detalle
                 </h3>
                 <p className="text-[15px] text-gray-800 leading-[1.75]">
@@ -153,10 +139,10 @@ export function GastoPresupuestoModal({
               {/* Cuenta y Monto */}
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Cuenta
                   </h3>
-                  <p className="text-[13px] text-gray-800">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
                     {gasto.cuenta === 'RRHH'
                       ? 'RRHH'
                       : gasto.cuenta === 'OPERACION'
@@ -165,10 +151,10 @@ export function GastoPresupuestoModal({
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Monto
                   </h3>
-                  <p className="text-xl font-semibold tabular-nums text-gray-800">
+                  <p className="text-[15px] leading-[1.75] font-semibold tabular-nums text-gray-800">
                     <span className="text-emerald-700">$</span>
                     {gasto.monto.toLocaleString('es-CL')}
                   </p>
@@ -177,7 +163,7 @@ export function GastoPresupuestoModal({
 
               {/* Estado */}
               <div>
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Estado
                 </h3>
                 <EstadoBadge estado={gasto.estado} />
@@ -185,35 +171,37 @@ export function GastoPresupuestoModal({
 
               {/* Mes de ejecución */}
               <div>
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Mes de ejecución
                 </h3>
-                <p className="text-[13px] text-gray-800">{mesesTexto}</p>
+                <p className="text-[15px] leading-[1.75] text-gray-800">
+                  {mesesTexto}
+                </p>
               </div>
 
               {/* IDs administrativos */}
               <div className="grid grid-cols-3 gap-6">
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     N° Solicitud
                   </h3>
-                  <p className="text-[13px] text-gray-800">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
                     {gasto.idSolicitud || 'No definido'}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     N° OC
                   </h3>
-                  <p className="text-[13px] text-gray-800">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
                     {gasto.idPedido || 'No definido'}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     N° Recepción
                   </h3>
-                  <p className="text-[13px] text-gray-800">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
                     {gasto.idRecepcion || 'No definido'}
                   </p>
                 </div>
@@ -227,20 +215,23 @@ export function GastoPresupuestoModal({
           {/* COLUMNA DERECHA: Comentarios */}
           <div
             ref={comentariosContainerRef}
-            className="flex flex-col pb-2 h-full min-h-0"
+            className="flex flex-col pb-2 h-full min-h-0 border-l border-gray-100 pl-6"
           >
             {/* Header de comentarios */}
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
-              <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
-              <h2 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+              <MessageSquare
+                className="h-3.5 w-3.5 text-gray-500"
+                strokeWidth={2}
+              />
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                 Comentarios
-              </h2>
+              </h3>
             </div>
 
             {/* Lista de comentarios */}
             <div
               ref={comentariosListRef}
-              className="space-y-3 flex-1 overflow-y-auto mb-4 custom-scrollbar"
+              className="space-y-3 flex-1 overflow-y-auto mb-4 min-h-0 custom-scrollbar"
               style={{ minHeight: 0, maxHeight: '100%' }}
             >
               {isLoadingComentarios ? (
@@ -257,7 +248,7 @@ export function GastoPresupuestoModal({
                 comentarios.map((comentario) => (
                   <div
                     key={comentario.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 bg-white"
+                    className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-white"
                   >
                     <div className="flex-shrink-0">
                       <img
@@ -267,7 +258,7 @@ export function GastoPresupuestoModal({
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center space-x-2 mb-2">
                         <span className="text-[13px] font-medium text-gray-800">
                           {comentario.user.name || 'Usuario'}
                         </span>
@@ -295,7 +286,7 @@ export function GastoPresupuestoModal({
 
             {/* Input para nuevo comentario */}
             {session?.user && (
-              <div className="flex items-start gap-3 pt-3 pb-1 border-t border-gray-100 flex-shrink-0">
+              <div className="flex gap-3 pt-3 pb-1 border-t border-gray-100 flex-shrink-0">
                 <div className="flex-shrink-0">
                   <img
                     src={DEFAULT_AVATAR}

@@ -1761,6 +1761,7 @@ export default function GanttChart({
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
+                    id="tour-gantt-fullscreen"
                     onClick={toggleFullscreen}
                     variant="ghost"
                     size="sm"
@@ -1798,6 +1799,7 @@ export default function GanttChart({
 
               {/* Gantt/Kanban: a la derecha del título (más separación en fullscreen) */}
               <div
+                id="tour-gantt-vista-toggle"
                 className={`flex shrink-0 items-center space-x-2 ${
                   isFullscreen ? 'ml-6' : ''
                 }`}
@@ -1836,7 +1838,10 @@ export default function GanttChart({
             </div>
 
             {/* Progreso del proyecto — alineado al borde derecho del Gantt (mismo contenedor) */}
-            <div className="flex shrink-0 items-center space-x-4">
+            <div
+              id="tour-gantt-progreso"
+              className="flex shrink-0 items-center space-x-4"
+            >
               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
@@ -1880,7 +1885,10 @@ export default function GanttChart({
         <div className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
           <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CardContent className="flex h-full min-h-0 flex-col overflow-hidden p-0">
-              <div className="gantt-container relative flex h-full min-h-0 flex-col">
+              <div
+                id="tour-gantt-board"
+                className="gantt-container relative flex h-full min-h-0 flex-col"
+              >
                 {/* Un solo scroll vertical: el de las filas de actividades (no el contenedor externo) */}
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
                   <div className="relative flex h-full min-h-0 w-full min-w-[800px] flex-col">
@@ -2006,8 +2014,8 @@ export default function GanttChart({
 
                     {/* Renderizado condicional: Vista Gantt o Kanban */}
                     {viewMode === 'kanban' ? (
-                      /* Vista Kanban */
-                      <div className="p-4 w-full">
+                      /* Vista Kanban: altura acotada para scroll vertical por columna */
+                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 w-full">
                         <KanbanBoard
                           activities={activities}
                           onStatusChange={handleStatusChange}
@@ -2123,6 +2131,7 @@ export default function GanttChart({
                             >
                               <button
                                 type="button"
+                                id="tour-gantt-agregar"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleAddActivityClick();
@@ -2147,7 +2156,7 @@ export default function GanttChart({
 
           {/* Pie: carga masiva a la izquierda + controles del timeline (Gantt) */}
           {(footerLeft || viewMode === 'gantt') && (
-            <div className="mt-4 shrink-0">
+            <div id="tour-gantt-footer" className="mt-4 shrink-0">
               <div className="flex items-center w-full">
                 <div className="w-[500px] min-w-[200px] shrink-0 flex items-center pl-1">
                   {footerLeft}

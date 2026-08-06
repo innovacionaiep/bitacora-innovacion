@@ -409,6 +409,7 @@ function AddInfoButton({ onClick }: { onClick: () => void }) {
 /** Sección de lectura: bloque tipográfico alineado al índice. */
 function ReadingSection({
   id,
+  tourId,
   title,
   icon,
   action,
@@ -416,6 +417,7 @@ function ReadingSection({
   className = '',
 }: {
   id?: string;
+  tourId?: string;
   title: string;
   icon?: ReactNode;
   action?: ReactNode;
@@ -424,7 +426,10 @@ function ReadingSection({
 }) {
   return (
     <section id={id} className={`min-w-0 scroll-mt-3 ${className}`}>
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div
+        id={tourId}
+        className="rounded-lg border border-gray-200 bg-white"
+      >
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/90 rounded-t-lg">
           <div className="flex items-center gap-2 min-w-0">
             {icon ? (
@@ -490,7 +495,10 @@ function BookIndex({
   items: TocItem[];
 }) {
   return (
-    <nav aria-label="Índice del proyecto" className="sticky top-0 pr-2">
+    <nav
+      aria-label="Índice del proyecto"
+      className="sticky top-0 pr-2"
+    >
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-4 pl-3">
         Índice
       </p>
@@ -893,36 +901,39 @@ export function GeneralTabHeader({
           />
         </div>
       ) : (
-        /* El lápiz es absolute (left-full): no reserva espacio ni desvía el centrado. */
-        <div className="group/title relative w-full min-w-0 max-w-[min(100%,75rem)] mx-auto overflow-visible">
-          <h1
-            className="text-4xl font-bold text-gray-900 truncate text-center leading-tight py-0"
-            title={project.proyecto}
-          >
-            {project.proyecto}
-          </h1>
-          {selectedTab === 'General' && (
-            <div className="absolute left-full top-1/2 z-10 -translate-y-1/2 ml-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      onClick={() => handleStartEditField('proyecto')}
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 shrink-0 rounded-sm opacity-0 group-hover/title:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Editar título del proyecto</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+        /* Contenedor shrink-to-fit centrado: el lápiz (absolute left-full) queda
+           junto al texto sin reservar espacio ni desviar el centrado. */
+        <div className="flex justify-center w-full min-w-0 max-w-[min(100%,75rem)] mx-auto overflow-visible">
+          <div className="group/title relative inline-flex max-w-full min-w-0 items-center overflow-visible">
+            <h1
+              className="text-4xl font-bold text-gray-900 truncate text-center leading-tight py-0"
+              title={project.proyecto}
+            >
+              {project.proyecto}
+            </h1>
+            {selectedTab === 'General' && (
+              <div className="absolute left-full top-1/2 z-10 -translate-y-1/2 ml-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        onClick={() => handleStartEditField('proyecto')}
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 shrink-0 rounded-sm opacity-0 group-hover/title:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-transparent"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Editar título del proyecto</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -1332,7 +1343,7 @@ export function GeneralTab({
       {/* Índice | Lectura centrada | Metadatos de contexto */}
       <div className="grid h-full w-full min-w-0 max-w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
         <aside className="hidden lg:flex justify-end pr-6 xl:pr-8 pl-2 h-full min-h-0 min-w-0 overflow-hidden">
-          <div className="w-[15.5rem] max-w-full shrink-0">
+          <div id="tour-general-indice" className="w-[15.5rem] max-w-full shrink-0">
             <BookIndex
               activeId={activeSectionId}
               onNavigate={navigateToSection}
@@ -1346,7 +1357,10 @@ export function GeneralTab({
           className="h-full overflow-y-auto overflow-x-hidden min-h-0 min-w-0 custom-scrollbar px-2 sm:px-4"
         >
           {/* Índice compacto en pantallas pequeñas */}
-          <div className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2">
+          <div
+            id="tour-general-indice"
+            className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2"
+          >
             <div className="flex gap-1 overflow-x-auto custom-scrollbar py-1 px-1">
               {tocItems.map((item) => {
                 const isActive = activeSectionId === item.id;
@@ -1371,6 +1385,7 @@ export function GeneralTab({
           <div className="space-y-8 min-w-0 pt-3 pb-[min(100vh,44rem)]">
             <ReadingSection
               id="objetivo-general"
+              tourId="tour-general-objetivo"
               title="Objetivo General"
               icon={<Crosshair />}
             >
@@ -1415,6 +1430,7 @@ export function GeneralTab({
 
             <ReadingSection
               id="objetivos-especificos"
+              tourId="tour-general-oes"
               title="Objetivos Específicos"
               icon={<Target />}
               action={
@@ -1549,6 +1565,7 @@ export function GeneralTab({
 
             <ReadingSection
               id="video"
+              tourId="tour-general-video"
               title="Video"
               icon={<Video />}
             >
@@ -1661,7 +1678,10 @@ export function GeneralTab({
             })}
 
             {/* Metadatos en móvil (en desktop van a la columna derecha) */}
-            <div className="lg:hidden pt-4 border-t border-gray-100">
+            <div
+              id="tour-general-meta-rail"
+              className="lg:hidden pt-4 border-t border-gray-100"
+            >
               <ProjectMetaRail
                 project={project}
                 sedeNames={sedeNames}
@@ -1688,7 +1708,10 @@ export function GeneralTab({
         </div>
 
         <aside className="hidden lg:flex justify-start pl-8 xl:pl-12 pr-3 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <div className="w-[13.5rem] max-w-full shrink-0 sticky top-0 pt-3">
+          <div
+            id="tour-general-meta-rail"
+            className="w-[13.5rem] max-w-full shrink-0 sticky top-0 pt-3"
+          >
             <ProjectMetaRail
               project={project}
               sedeNames={sedeNames}

@@ -1,6 +1,13 @@
 'use client';
 
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface IndicadorCardProps {
   indicador: {
@@ -14,9 +21,14 @@ interface IndicadorCardProps {
     fechaFin?: string | null;
   };
   orden: number;
+  onDeleteIndicador?: (indicadorId: string) => Promise<void>;
 }
 
-export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
+export function IndicadorCard({
+  indicador,
+  orden,
+  onDeleteIndicador,
+}: IndicadorCardProps) {
   // Parsear los valores numéricos de los resultados
   const parseValue = (value: string): number => {
     if (!value || value === '') return 0;
@@ -85,8 +97,10 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
   }
 
   return (
-    <div className="relative flex-shrink-0">
-      <div className="relative bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-lg shadow-sm w-[580px]">
+    <div className="relative group flex-shrink-0">
+      {/* Extiende el área hover hacia arriba sin afectar el layout */}
+      <div className="absolute -top-10 left-0 right-0 h-10" aria-hidden />
+      <div className="relative z-10 bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-lg shadow-sm w-[580px]">
         {/* Contenido - centrado verticalmente */}
         <div className="flex items-center gap-3 h-full">
           {/* Sección izquierda: ícono y título del indicador */}
@@ -126,6 +140,32 @@ export function IndicadorCard({ indicador, orden }: IndicadorCardProps) {
           </div>
         </div>
       </div>
+
+      {onDeleteIndicador && (
+        <div className="absolute -top-10 right-0 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onDeleteIndicador(indicador.id);
+                  }}
+                  className="h-8 w-8 shrink-0 rounded-md border bg-white text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm flex items-center justify-center p-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Eliminar indicador</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 }

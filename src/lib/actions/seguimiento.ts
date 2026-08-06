@@ -54,12 +54,13 @@ export async function getRolUsuarioEnProyecto(
 }
 
 /**
- * Crear compromiso (nivel proyecto; coordinador o admin)
+ * Crear compromiso asociado a una reunión (coordinador o admin)
  */
 export async function addCompromiso(
   proyectoId: string,
   descripcion: string,
-  opts?: {
+  opts: {
+    reunionId: string;
     titulo?: string | null;
     fechaLimite?: Date;
     asignadoA?: string;
@@ -69,6 +70,14 @@ export async function addCompromiso(
     const user = await getCurrentUser();
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    if (!opts.reunionId?.trim()) {
+      return {
+        success: false,
+        error: 'El compromiso debe estar asociado a una reunión',
+        data: null,
+      };
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
@@ -89,9 +98,22 @@ export async function addCompromiso(
       };
     }
 
+    const reunion = await prisma.reunionSeguimiento.findFirst({
+      where: { id: opts.reunionId, proyectoId },
+      select: { id: true },
+    });
+    if (!reunion) {
+      return {
+        success: false,
+        error: 'Reunión no encontrada en este proyecto',
+        data: null,
+      };
+    }
+
     const compromiso = await prisma.compromisoProyecto.create({
       data: {
         proyectoId,
+        reunionId: opts.reunionId,
         titulo: opts?.titulo?.trim() || null,
         descripcion,
         fechaLimite: opts?.fechaLimite ?? null,
@@ -377,6 +399,200 @@ export async function getCompromisosProyecto(proyectoId: string) {
       success: false,
       error: 'Error al obtener compromisos',
       data: [],
+    };
+  }
+}
+
+/**
+ * Obtener reuniones de seguimiento de un proyecto (con compromisos).
+ */
+export async function getReunionesProyecto(proyectoId: string) {
+  try {
+    const reuniones = await prisma.reunionSeguimiento.findMany({
+      where: { proyectoId },
+      include: {
+        compromisos: {
+          orderBy: [{ completado: 'asc' }, { createdAt: 'desc' }],
+        },
+      },
+      orderBy: { numero: 'asc' },
+    });
+
+    return { success: true, data: reuniones };
+  } catch (error) {
+    console.error('Error al obtener reuniones:', error);
+    return {
+      success: false,
+      error: 'Error al obtener reuniones',
+      data: [],
+    };
+  }
+}
+
+/**
+ * Crear reunión de seguimiento (coordinador o admin). N° correlativo por proyecto.
+ */
+export async function addReunion(
+  proyectoId: string,
+  data: { fecha: Date; resumen: string }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    const resumen = data.resumen?.trim();
+    if (!resumen) {
+      return {
+        success: false,
+        error: 'El resumen de la reunión es obligatorio',
+        data: null,
+      };
+    }
+    if (!data.fecha || Number.isNaN(data.fecha.getTime())) {
+      return {
+        success: false,
+        error: 'La fecha de la reunión es obligatoria',
+        data: null,
+      };
+    }
+
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
+    const puedeCrear = await userCanOnProject({
+      availableRoles,
+      email: userEmail,
+      userId: user.id,
+      proyectoId,
+      key: 'compromisos.create_edit',
+    });
+    if (!puedeCrear) {
+      return {
+        success: false,
+        error: 'No tienes permiso para agregar reuniones en este proyecto',
+        data: null,
+      };
+    }
+
+    const agg = await prisma.reunionSeguimiento.aggregate({
+      where: { proyectoId },
+      _max: { numero: true },
+    });
+    const numero = (agg._max.numero ?? 0) + 1;
+
+    const reunion = await prisma.reunionSeguimiento.create({
+      data: {
+        proyectoId,
+        numero,
+        fecha: data.fecha,
+        resumen,
+      },
+      include: {
+        compromisos: true,
+      },
+    });
+
+    await createHistorialEntry({
+      proyectoId,
+      accion: 'Agregar',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico: `Reunión N° ${numero}`,
+      cambioGenerado: resumen.substring(0, 200),
+    });
+
+    revalidatePath('/proyectos');
+    return { success: true, data: reunion };
+  } catch (error) {
+    console.error('Error al agregar reunión:', error);
+    return { success: false, error: 'Error al agregar reunión', data: null };
+  }
+}
+
+/**
+ * Actualizar fecha y/o resumen de una reunión (coordinador o admin).
+ */
+export async function updateReunion(
+  reunionId: string,
+  data: { fecha?: Date; resumen?: string }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    const reunion = await prisma.reunionSeguimiento.findUnique({
+      where: { id: reunionId },
+      select: { id: true, proyectoId: true, numero: true },
+    });
+    if (!reunion) {
+      return { success: false, error: 'Reunión no encontrada', data: null };
+    }
+
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
+    const puedeEditar = await userCanOnProject({
+      availableRoles,
+      email: userEmail,
+      userId: user.id,
+      proyectoId: reunion.proyectoId,
+      key: 'compromisos.create_edit',
+    });
+    if (!puedeEditar) {
+      return {
+        success: false,
+        error: 'No tienes permiso para editar reuniones en este proyecto',
+        data: null,
+      };
+    }
+
+    if (data.fecha !== undefined && Number.isNaN(data.fecha.getTime())) {
+      return {
+        success: false,
+        error: 'La fecha de la reunión no es válida',
+        data: null,
+      };
+    }
+    if (data.resumen !== undefined && !data.resumen.trim()) {
+      return {
+        success: false,
+        error: 'El resumen de la reunión es obligatorio',
+        data: null,
+      };
+    }
+
+    const updated = await prisma.reunionSeguimiento.update({
+      where: { id: reunionId },
+      data: {
+        ...(data.fecha !== undefined && { fecha: data.fecha }),
+        ...(data.resumen !== undefined && { resumen: data.resumen.trim() }),
+      },
+      include: {
+        compromisos: {
+          orderBy: [{ completado: 'asc' }, { createdAt: 'desc' }],
+        },
+      },
+    });
+
+    await createHistorialEntry({
+      proyectoId: reunion.proyectoId,
+      accion: 'Actualizar',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico: `Reunión N° ${reunion.numero}`,
+      cambioGenerado: 'Reunión actualizada',
+    });
+
+    revalidatePath('/proyectos');
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error('Error al actualizar reunión:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar reunión',
+      data: null,
     };
   }
 }

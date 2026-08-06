@@ -3,7 +3,7 @@
 import { Target, Plus } from 'lucide-react';
 import { ObjetivoEspecificoCard } from './ObjetivoEspecificoCard';
 import type { ObjetivoGeneralData } from '@/lib/actions/indicadores';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 /** Ancho fijo de la tarjeta Objetivo General */
@@ -23,10 +23,6 @@ interface ObjetivoGeneralCardProps {
     fechaInicio?: string | null;
     fechaFin?: string | null;
   }) => void;
-  /** Botones o acciones a la derecha del objetivo general (ej. Eliminar indicador) */
-  actions?: ReactNode;
-  /** Si está activo el modo eliminar, se muestra botón papelera en cada indicador */
-  deleteMode?: boolean;
   onDeleteIndicador?: (indicadorId: string) => Promise<void>;
   /** Callback para agregar un objetivo específico (cuando no hay ninguno) */
   onAddObjetivoEspecifico?: (descripcion: string) => Promise<void>;
@@ -39,8 +35,6 @@ export function ObjetivoGeneralCard({
   objetivoGeneral,
   progresoGeneral,
   onIndicadorClick,
-  actions,
-  deleteMode,
   onDeleteIndicador,
   onAddObjetivoEspecifico,
   onAddIndicador,
@@ -68,7 +62,10 @@ export function ObjetivoGeneralCard({
         className="relative flex-shrink-0"
         style={{ width: `${OBJETIVO_GENERAL_WIDTH_PX}px` }}
       >
-        <div className="relative flex w-full items-center justify-center rounded-xl border-2 border-emerald-600/15 bg-gradient-to-r from-emerald-100 via-emerald-50 to-white p-6 text-emerald-900 shadow-xl bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+        <div
+          id="tour-indicadores-og"
+          className="relative flex w-full items-center justify-center rounded-xl border-2 border-emerald-600/15 bg-gradient-to-r from-emerald-100 via-emerald-50 to-white p-6 text-emerald-900 shadow-xl bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(16,185,129,0.02)_25%,rgba(16,185,129,0.02)_50%,transparent_50%,transparent_75%,rgba(16,185,129,0.02)_75%,rgba(16,185,129,0.02)_100%)] bg-[length:100%_100%,20px_20px]"
+        >
           <div className="absolute left-3 top-3 flex items-center space-x-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm">
             <Target className="h-3.5 w-3.5" />
             <span>Objetivo General</span>
@@ -96,9 +93,6 @@ export function ObjetivoGeneralCard({
           </div>
         </div>
       </div>
-      {actions != null && (
-        <div className="flex flex-shrink-0 flex-col gap-2">{actions}</div>
-      )}
     </div>
   );
 
@@ -107,7 +101,10 @@ export function ObjetivoGeneralCard({
       {objetivoGeneralHeader}
 
       {objetivoGeneral.objetivosEspecificos.length > 0 ? (
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div
+          id="tour-indicadores-lista"
+          className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+        >
           <div
             className="relative isolate flex min-w-max flex-col gap-16 pb-6 pt-16"
             style={{ marginLeft: '80px' }}
@@ -119,8 +116,8 @@ export function ObjetivoGeneralCard({
                   <ObjetivoEspecificoCard
                     objetivoEspecifico={objetivoEspecifico}
                     numero={index + 1}
+                    tourAnchors={index === 0}
                     onIndicadorClick={onIndicadorClick}
-                    deleteMode={deleteMode}
                     onDeleteIndicador={onDeleteIndicador}
                     onAddIndicador={
                       onAddIndicador
@@ -136,7 +133,10 @@ export function ObjetivoGeneralCard({
           </div>
         </div>
       ) : (
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div
+          id="tour-indicadores-lista"
+          className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+        >
           <div
             className="relative flex flex-col gap-16 pb-6 pt-16"
             style={{ marginLeft: '80px' }}
@@ -157,6 +157,7 @@ export function ObjetivoGeneralCard({
                   />
                   <Button
                     type="button"
+                    id="tour-indicadores-agregar-oe"
                     onClick={handleAddObjetivo}
                     disabled={!nuevoObjetivoTexto?.trim() || addingObjetivo}
                     className="w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"

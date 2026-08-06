@@ -620,7 +620,7 @@ export function ParticipantesTab({
       <div className="h-full overflow-hidden flex flex-col pt-4 px-4">
         {/* Tarjetas compactas a la izquierda + botones a la derecha */}
         <div className="flex items-center justify-between gap-3 mb-4 flex-shrink-0">
-          <div className="flex flex-wrap gap-2">
+          <div id="tour-participantes-conteos" className="flex flex-wrap gap-2">
             {countCards.map(({ key, icon: Icon, value, label }) => (
               <Card
                 key={key}
@@ -641,7 +641,10 @@ export function ParticipantesTab({
               </Card>
             ))}
           </div>
-          <div className="flex items-center gap-1 shrink-0 self-center">
+          <div
+            id="tour-participantes-toolbar"
+            className="flex items-center gap-1 shrink-0 self-center"
+          >
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -727,7 +730,10 @@ export function ParticipantesTab({
         />
 
         {/* Tabla */}
-        <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white">
+        <div
+          id="tour-participantes-tabla"
+          className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white"
+        >
           <div className="overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar">
             <Table className="table-fixed w-full">
               <TableHeader>
@@ -1637,6 +1643,7 @@ export function ParticipantesTab({
 
                 {!isLoadingParticipantes && !isAddingParticipante && (
                   <TableRow
+                    id="tour-participantes-agregar"
                     className="hover:bg-green-50/70 transition-colors cursor-pointer border-t-2 border-dashed border-gray-200"
                     onClick={startAddingParticipante}
                   >

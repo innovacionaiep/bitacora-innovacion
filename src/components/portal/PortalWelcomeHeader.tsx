@@ -160,7 +160,10 @@ export function PortalWelcomeHeader({ onStartTour }: PortalWelcomeHeaderProps) {
             {session.user.email}
           </p>
           {availableRoles.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <div
+              id="tour-roles-habilitados"
+              className="mt-1.5 flex flex-wrap items-center gap-1.5"
+            >
               <span className="text-[11px] text-gray-500 shrink-0">
                 Roles habilitados:
               </span>

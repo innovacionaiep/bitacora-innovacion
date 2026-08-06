@@ -324,7 +324,10 @@ export function HistorialCard({
     <Card className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none">
       <CardHeader className="px-5 py-3 border-b border-gray-100 bg-gray-50/90 rounded-t-lg space-y-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-gray-800 shrink-0">
+          <CardTitle
+            id="tour-historial-titulo"
+            className="flex items-center gap-2 text-[13px] font-medium tracking-wide text-gray-800 shrink-0"
+          >
             <History className="h-3.5 w-3.5 text-gray-500" />
             Historial de actualizaciones del proyecto
           </CardTitle>
@@ -342,6 +345,7 @@ export function HistorialCard({
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  id="tour-historial-filtro-fechas"
                   variant="outline"
                   className={`w-[200px] justify-start text-left ${filterTriggerClass}`}
                 >
@@ -398,7 +402,10 @@ export function HistorialCard({
                 setFiltros((prev) => ({ ...prev, personaId: value }))
               }
             >
-              <SelectTrigger className={`w-[180px] ${filterTriggerClass}`}>
+              <SelectTrigger
+                id="tour-historial-filtro-persona"
+                className={`w-[180px] ${filterTriggerClass}`}
+              >
                 <SelectValue placeholder="Persona" />
               </SelectTrigger>
               <SelectContent>
@@ -417,7 +424,10 @@ export function HistorialCard({
                 setFiltros((prev) => ({ ...prev, accion: value }))
               }
             >
-              <SelectTrigger className={`w-[180px] ${filterTriggerClass}`}>
+              <SelectTrigger
+                id="tour-historial-filtro-tipo"
+                className={`w-[180px] ${filterTriggerClass}`}
+              >
                 <SelectValue placeholder="Acción" />
               </SelectTrigger>
               <SelectContent>
@@ -463,7 +473,7 @@ export function HistorialCard({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div id="tour-historial-lista" className="divide-y divide-gray-100">
             {historial.map((entry) => (
               <div
                 key={entry.id}

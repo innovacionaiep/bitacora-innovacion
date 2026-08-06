@@ -159,7 +159,10 @@ export function ChatSoporteFloatingWidget() {
 
   if (!open) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+      <div
+        id="tour-chat-soporte"
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2"
+      >
         {showHint && (
           <button
             type="button"
@@ -185,7 +188,10 @@ export function ChatSoporteFloatingWidget() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col w-full max-w-md rounded-xl border border-sidebar-border bg-white shadow-xl overflow-hidden">
+    <div
+      id="tour-chat-soporte"
+      className="fixed bottom-4 right-4 z-50 flex flex-col w-full max-w-md rounded-xl border border-sidebar-border bg-white shadow-xl overflow-hidden"
+    >
       <header className="flex items-center justify-between px-4 py-3 border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
         <span className="font-semibold text-sm">Chat de soporte</span>
         <Button

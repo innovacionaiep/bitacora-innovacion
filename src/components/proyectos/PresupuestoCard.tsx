@@ -563,6 +563,19 @@ export function PresupuestoCard({
   const totalPesoPct =
     baseTotal > 0 ? (resumenMacro.totalMonto / baseTotal) * 100 : 0;
 
+  // Modo normal: anchos solo vía <colgroup>.
+  // Item ~2/3 del ancho previo; el tercio liberado va a N° Solicitud/OC/Recepción.
+  // Pantalla completa: Item fijo 250px; Detalle absorbe el resto.
+  const itemColClass = isFullscreen
+    ? 'w-[250px] min-w-[250px] max-w-[250px]'
+    : 'overflow-hidden';
+  const detalleColClass = isFullscreen
+    ? 'min-w-[150px] overflow-hidden'
+    : 'overflow-hidden';
+  const mesColClass = isFullscreen
+    ? 'w-[220px] min-w-[220px] max-w-[220px]'
+    : 'overflow-hidden';
+
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 min-h-0 flex flex-col pt-2 px-6 pb-4">
@@ -574,6 +587,7 @@ export function PresupuestoCard({
                   <TooltipTrigger asChild>
                     <Button
                       type="button"
+                      id="tour-presupuesto-fullscreen"
                       onClick={toggleFullscreen}
                       variant="ghost"
                       size="sm"
@@ -595,13 +609,23 @@ export function PresupuestoCard({
                   </TooltipContent>
                 </Tooltip>
                 {isFullscreen && projectName && (
-                  <h1 className="text-2xl font-bold text-gray-900 shrink-0 ml-2 mr-2">
-                    {projectName}
-                  </h1>
+                  <div className="flex min-w-0 max-w-full shrink items-center ml-2 mr-2">
+                    <h1
+                      className="truncate text-2xl font-bold text-gray-900"
+                      title={projectName}
+                    >
+                      {projectName.length > 66
+                        ? `${projectName.slice(0, 66)}…`
+                        : projectName}
+                    </h1>
+                  </div>
                 )}
               </TooltipProvider>
             </div>
-            <div className="flex items-center space-x-4 shrink-0">
+            <div
+              id="tour-presupuesto-chips"
+              className="flex items-center space-x-4 shrink-0"
+            >
               <div className="flex items-center gap-2 h-10 px-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                 <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
                   {deltaSaldo >= 0 ? 'Saldo a favor' : 'Saldo en contra'}
@@ -692,7 +716,10 @@ export function PresupuestoCard({
               </div>
             </div>
           </div>
-          <div className="border rounded-lg overflow-hidden w-full">
+          <div
+            id="tour-presupuesto-cuentas"
+            className="border rounded-lg overflow-hidden w-full"
+          >
             <Table>
               <TableHeader>
                 <TableRow
@@ -840,7 +867,10 @@ export function PresupuestoCard({
           </div>
         </div>
         <div className="flex-1 min-h-0 flex flex-col space-y-2">
-          <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+          <div
+            id="tour-presupuesto-tabla"
+            className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col"
+          >
             <div
               className="flex-1 overflow-y-auto min-h-0"
               style={{ width: '100%' }}
@@ -849,20 +879,33 @@ export function PresupuestoCard({
                 className="table-fixed"
                 style={{ width: '100%', tableLayout: 'fixed' }}
               >
+                <colgroup>
+                  <col style={{ width: isFullscreen ? 100 : '5%' }} />
+                  <col style={{ width: isFullscreen ? 120 : '8%' }} />
+                  <col style={{ width: isFullscreen ? 250 : '13%' }} />
+                  <col style={{ width: isFullscreen ? undefined : '26%' }} />
+                  <col style={{ width: isFullscreen ? 140 : '8%' }} />
+                  <col style={{ width: isFullscreen ? 220 : '7%' }} />
+                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
+                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
+                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
+                  <col style={{ width: isFullscreen ? 150 : '8%' }} />
+                  <col style={{ width: isFullscreen ? 75 : '4%' }} />
+                </colgroup>
                 <TableHeader>
                   <TableRow
                     className="[&_th]:text-center [&_th]:align-middle [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:shadow-sm"
                     style={{ backgroundColor: TABLE_HEADER_BG }}
                   >
                     <TableHead
-                      className="font-semibold text-center w-[100px] min-w-[100px] max-w-[100px] border-r border-gray-200"
+                      className="font-semibold text-center border-r border-gray-200"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
                       }}
                     ></TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[120px] min-w-[120px] max-w-[120px] border-r border-gray-200"
+                      className="font-semibold text-center border-r border-gray-200"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -871,7 +914,7 @@ export function PresupuestoCard({
                       Cuenta
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200"
+                      className={`font-semibold text-center ${itemColClass} border-r border-gray-200`}
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -880,7 +923,7 @@ export function PresupuestoCard({
                       Item
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center flex-1 min-w-[150px] border-r border-gray-200"
+                      className={`font-semibold text-center ${detalleColClass} border-r border-gray-200`}
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -889,7 +932,7 @@ export function PresupuestoCard({
                       Detalle
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[140px] min-w-[140px] max-w-[140px] border-r border-gray-200"
+                      className="font-semibold text-center border-r border-gray-200"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -898,7 +941,7 @@ export function PresupuestoCard({
                       Monto
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200"
+                      className={`font-semibold text-center ${mesColClass} border-r border-gray-200`}
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -907,7 +950,7 @@ export function PresupuestoCard({
                       Mes de ejecución
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]"
+                      className="font-semibold text-center"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: '#991b1b',
@@ -916,7 +959,7 @@ export function PresupuestoCard({
                       N° Solicitud
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px]"
+                      className="font-semibold text-center"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: '#991b1b',
@@ -925,7 +968,7 @@ export function PresupuestoCard({
                       N° OC
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[130px] min-w-[130px] max-w-[130px] border-r border-gray-200"
+                      className="font-semibold text-center border-r border-gray-200"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: '#991b1b',
@@ -934,7 +977,7 @@ export function PresupuestoCard({
                       N° Recepción
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[150px] min-w-[150px] max-w-[150px] border-r border-gray-200"
+                      className="font-semibold text-center border-r border-gray-200"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -943,7 +986,7 @@ export function PresupuestoCard({
                       Estado
                     </TableHead>
                     <TableHead
-                      className="font-semibold text-center w-[75px] min-w-[75px] max-w-[75px]"
+                      className="font-semibold text-center"
                       style={{
                         backgroundColor: TABLE_HEADER_BG,
                         color: TABLE_HEADER_TEXT,
@@ -956,7 +999,7 @@ export function PresupuestoCard({
                     .sort(
                       (a, b) => CUENTA_ORDEN[a.cuenta] - CUENTA_ORDEN[b.cuenta]
                     )
-                    .map((row) => {
+                    .map((row, rowIndex) => {
                       const mesesEjecucion = row.proyecciones
                         .filter((p) => p.anio === anio)
                         .map((p) => p.mes)
@@ -974,7 +1017,7 @@ export function PresupuestoCard({
                           key={row.id}
                           className={`hover:bg-gray-50/80 ${isRowEditing ? 'bg-blue-50/50' : ''}`}
                         >
-                          <TableCell className="text-center align-middle w-[100px] min-w-[100px] max-w-[100px] whitespace-normal border-r border-gray-200">
+                          <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
                             <div className="flex items-center justify-center gap-1">
                               {isRowEditing ? (
                                 <>
@@ -1017,7 +1060,7 @@ export function PresupuestoCard({
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
+                          <TableCell className="font-medium text-center align-middle  whitespace-normal border-r border-gray-200">
                             {isRowEditing && draft ? (
                               <Select
                                 value={draft.cuenta}
@@ -1051,7 +1094,7 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell
-                            className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal"
+                            className={`align-middle ${itemColClass} border-r border-gray-200 whitespace-normal`}
                             style={{
                               verticalAlign: 'middle',
                               wordWrap: 'break-word',
@@ -1103,7 +1146,7 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell
-                            className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200"
+                            className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
                             style={{
                               verticalAlign: 'middle',
                               wordWrap: 'break-word',
@@ -1160,7 +1203,7 @@ export function PresupuestoCard({
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
+                          <TableCell className="text-center tabular-nums font-medium align-middle  whitespace-normal border-r border-gray-200">
                             {isRowEditing && draft ? (
                               <Input
                                 type="number"
@@ -1183,7 +1226,7 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell
-                            className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200"
+                            className={`text-center text-sm align-middle ${mesColClass} border-r border-gray-200`}
                             style={{ whiteSpace: 'pre-line' }}
                           >
                             {isRowEditing ? (
@@ -1198,7 +1241,7 @@ export function PresupuestoCard({
                               formatMesesEjecucion(mesesEjecucion)
                             )}
                           </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                          <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                             {isRowEditing && draft ? (
                               <Input
                                 value={draft.idSolicitud}
@@ -1219,7 +1262,7 @@ export function PresupuestoCard({
                               (row.idSolicitud ?? '—')
                             )}
                           </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                          <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                             {isRowEditing && draft ? (
                               <Input
                                 value={draft.idPedido}
@@ -1237,7 +1280,7 @@ export function PresupuestoCard({
                               (row.idPedido ?? '—')
                             )}
                           </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
+                          <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal border-r border-gray-200">
                             {isRowEditing && draft ? (
                               <Input
                                 value={draft.idRecepcion}
@@ -1258,7 +1301,7 @@ export function PresupuestoCard({
                               (row.idRecepcion ?? '—')
                             )}
                           </TableCell>
-                          <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
+                          <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
                             {isRowEditing && draft ? (
                               <Select
                                 value={draft.estado}
@@ -1291,9 +1334,14 @@ export function PresupuestoCard({
                               <EstadoBadge estado={row.estado} />
                             )}
                           </TableCell>
-                          <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal">
+                          <TableCell className="text-center align-middle  whitespace-normal">
                             <div className="relative">
                               <button
+                                id={
+                                  rowIndex === 0
+                                    ? 'tour-presupuesto-gasto'
+                                    : undefined
+                                }
                                 onClick={() => setSelectedGastoForModal(row)}
                                 className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
                                 title="Ver detalles"
@@ -1312,7 +1360,7 @@ export function PresupuestoCard({
                     })}
                   {isAddingRow && (
                     <TableRow className="bg-blue-50 border-2 border-blue-200">
-                      <TableCell className="text-center align-middle w-[100px] min-w-[100px] max-w-[100px] whitespace-normal border-r border-gray-200">
+                      <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
@@ -1336,7 +1384,7 @@ export function PresupuestoCard({
                           </button>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
+                      <TableCell className="font-medium text-center align-middle  whitespace-normal border-r border-gray-200">
                         <Select
                           value={newItemData.cuenta || 'RRHH'}
                           onValueChange={(value: CuentaPresupuesto) =>
@@ -1358,7 +1406,9 @@ export function PresupuestoCard({
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal">
+                      <TableCell
+                        className={`align-middle ${itemColClass} border-r border-gray-200 whitespace-normal`}
+                      >
                         <Input
                           value={newItemData.item || ''}
                           onChange={(e) =>
@@ -1372,7 +1422,9 @@ export function PresupuestoCard({
                           required
                         />
                       </TableCell>
-                      <TableCell className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200">
+                      <TableCell
+                        className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                      >
                         <Input
                           value={newItemData.detalle || ''}
                           onChange={(e) =>
@@ -1385,7 +1437,7 @@ export function PresupuestoCard({
                           className="h-8 text-sm w-full"
                         />
                       </TableCell>
-                      <TableCell className="text-center tabular-nums font-medium align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200">
+                      <TableCell className="text-center tabular-nums font-medium align-middle  whitespace-normal border-r border-gray-200">
                         <Input
                           type="number"
                           value={newItemData.monto || ''}
@@ -1401,7 +1453,9 @@ export function PresupuestoCard({
                           required
                         />
                       </TableCell>
-                      <TableCell className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200">
+                      <TableCell
+                        className={`text-center text-sm align-middle ${mesColClass} border-r border-gray-200`}
+                      >
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -1447,7 +1501,7 @@ export function PresupuestoCard({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                      <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                         <Input
                           value={newItemData.idSolicitud}
                           onChange={(e) =>
@@ -1460,7 +1514,7 @@ export function PresupuestoCard({
                           className="h-8 text-sm"
                         />
                       </TableCell>
-                      <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                         <Input
                           value={newItemData.idPedido}
                           onChange={(e) =>
@@ -1473,7 +1527,7 @@ export function PresupuestoCard({
                           className="h-8 text-sm"
                         />
                       </TableCell>
-                      <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal border-r border-gray-200">
                         <Input
                           value={newItemData.idRecepcion}
                           onChange={(e) =>
@@ -1486,41 +1540,47 @@ export function PresupuestoCard({
                           className="h-8 text-sm"
                         />
                       </TableCell>
-                      <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
+                      <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
                         <EstadoBadge estado="PENDIENTE" />
                       </TableCell>
-                      <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal"></TableCell>
+                      <TableCell className="text-center align-middle  whitespace-normal"></TableCell>
                     </TableRow>
                   )}
                   <TableRow className="bg-slate-50/90 border-t-2 border-gray-300">
-                    <TableCell className="text-center align-middle w-[100px] min-w-[100px] max-w-[100px] whitespace-normal border-r border-gray-200" />
-                    <TableCell className="font-medium text-center align-middle w-[120px] min-w-[120px] max-w-[120px] whitespace-normal border-r border-gray-200">
+                    <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200" />
+                    <TableCell className="font-medium text-center align-middle  whitespace-normal border-r border-gray-200">
                       {CUENTA_LABEL.OPERACION}
                     </TableCell>
-                    <TableCell className="align-middle w-[250px] min-w-[250px] max-w-[250px] border-r border-gray-200 whitespace-normal font-semibold">
+                    <TableCell
+                      className={`align-middle ${itemColClass} border-r border-gray-200 whitespace-normal font-semibold`}
+                    >
                       DELTA
                     </TableCell>
-                    <TableCell className="text-gray-600 align-middle flex-1 min-w-[150px] max-w-[400px] border-r border-gray-200">
+                    <TableCell
+                      className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                    >
                       {deltaSaldo >= 0 ? 'Saldo a favor' : 'Saldo en contra'}
                     </TableCell>
                     <TableCell
-                      className={`text-center tabular-nums font-semibold align-middle w-[140px] min-w-[140px] max-w-[140px] whitespace-normal border-r border-gray-200 ${deltaSaldo < 0 ? 'text-red-600' : 'text-emerald-700'}`}
+                      className={`text-center tabular-nums font-semibold align-middle  whitespace-normal border-r border-gray-200 ${deltaSaldo < 0 ? 'text-red-600' : 'text-emerald-700'}`}
                     >
                       {formatPresupuestoMonto(deltaSaldo)}
                     </TableCell>
-                    <TableCell className="text-center text-sm align-middle w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-200">
+                    <TableCell
+                      className={`text-center text-sm align-middle ${mesColClass} border-r border-gray-200`}
+                    >
                       —
                     </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                       —
                     </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal">
+                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
                       —
                     </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle w-[130px] min-w-[130px] max-w-[130px] whitespace-normal border-r border-gray-200">
+                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal border-r border-gray-200">
                       —
                     </TableCell>
-                    <TableCell className="text-center align-middle w-[150px] min-w-[150px] max-w-[150px] whitespace-normal border-r border-gray-200">
+                    <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
                       <Badge
                         variant="outline"
                         className="bg-red-100 text-red-800 border-red-200"
@@ -1528,10 +1588,13 @@ export function PresupuestoCard({
                         {ESTADO_LABEL.PENDIENTE}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center align-middle w-[75px] min-w-[75px] max-w-[75px] whitespace-normal" />
+                    <TableCell className="text-center align-middle  whitespace-normal" />
                   </TableRow>
                   {!isAddingRow && (
-                    <TableRow className="border-t-2 border-dashed border-gray-200">
+                    <TableRow
+                      id="tour-presupuesto-agregar"
+                      className="border-t-2 border-dashed border-gray-200"
+                    >
                       <TableCell colSpan={11} className="py-4">
                         <div className="flex items-center justify-center px-2">
                           {canImport && onCargaMasiva ? (
@@ -1562,6 +1625,7 @@ export function PresupuestoCard({
                                   Línea individual
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
+                                  id="tour-presupuesto-carga"
                                   onClick={() => onCargaMasiva()}
                                   className="gap-2 cursor-pointer"
                                 >

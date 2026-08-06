@@ -593,9 +593,7 @@ export default function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div
-        className={`flex gap-4 overflow-x-auto pb-4 w-full h-full min-h-0`}
-      >
+      <div className="flex h-full min-h-0 w-full flex-1 gap-4 overflow-x-auto overflow-y-hidden">
         {KANBAN_COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -661,7 +659,7 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[250px] h-full flex flex-col ${
+      className={`flex h-full min-h-0 min-w-[250px] flex-1 flex-col ${
         isOver
           ? 'bg-blue-50 border-2 border-blue-400 shadow-lg'
           : 'border-2 border-transparent'
@@ -705,7 +703,7 @@ function KanbanColumn({
 
       {/* Lista de tarjetas - Toda esta área es droppable */}
       <div
-        className={`p-4 space-y-3 flex-1 overflow-y-auto transition-all duration-200 ${
+        className={`custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4 transition-all duration-200 ${
           isOver
             ? 'bg-blue-50 border-2 border-dashed border-blue-300'
             : getColumnContentBgColor(column.id)
