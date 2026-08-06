@@ -15,13 +15,14 @@ description: Configuración general del proyecto y tecnologías principales
 
 ## Stack Tecnológico Principal
 
-- **Framework**: Next.js 15.5.3 (App Router)
-- **UI Framework**: React 19
-- **Base de datos**: PostgreSQL con Prisma ORM
-- **Autenticación**: NextAuth.js v5
-- **Estilos**: TailwindCSS 3.4
-- **Componentes UI**: shadcn/ui
+- **Framework**: Next.js 15.5.7 (App Router)
+- **UI Framework**: React 19.1
+- **Base de datos**: PostgreSQL con Prisma ORM 6
+- **Autenticación**: NextAuth.js v4 (Credentials + Prisma adapter)
+- **Estilos**: TailwindCSS 4
+- **Componentes UI**: shadcn/ui (new-york)
 - **Drag & Drop**: @dnd-kit
+- **Testing**: Vitest + Testing Library (Strict TDD vía OpenSpec)
 - **Deploy**: Supabase (PostgreSQL)
 
 ## Estructura del Proyecto
@@ -29,26 +30,32 @@ description: Configuración general del proyecto y tecnologías principales
 ```
 src/
 ├── app/                    # Next.js App Router
-│   ├── api/               # API routes
+│   ├── api/               # API routes (auth, downloads, maintenance…)
 │   ├── auth/              # Páginas de autenticación
+│   ├── inicio/            # Portal personal
 │   ├── dashboard/         # Dashboard principal
 │   ├── proyectos/         # Gestión de proyectos
-│   └── ...
+│   ├── fondos/            # Operaciones por fondo
+│   ├── novedades/         # Novedades / convocatorias
+│   └── configuracion/     # Ajustes (Admin)
 ├── components/            # Componentes React
 │   ├── ui/               # Componentes base de shadcn/ui
+│   ├── portal/           # Portal Inicio
 │   └── proyectos/        # Componentes específicos de proyectos
 ├── lib/                  # Utilidades y configuración
 │   ├── actions/          # Server Actions de Next.js
+│   ├── authz/            # Guards de autorización
+│   ├── permissions/      # Matriz de permisos
 │   ├── auth-actions.ts   # Acciones de autenticación
 │   └── prisma.ts         # Cliente de Prisma
 ├── hooks/                # Custom React hooks
 └── types/                # Definiciones de tipos TypeScript
 
+openspec/                 # Constitución SDD + changes
 prisma/
 ├── schema.prisma         # Schema de base de datos
 └── migrations/           # Migraciones de Prisma
 ```
-
 
 ## Convenciones de Código
 
@@ -63,16 +70,17 @@ prisma/
 
 - Ubicar en `src/lib/actions/`
 - Siempre incluir **'use server'** al inicio
+- Usar guards de `@/lib/authz` (`requireSession` / `requireAdmin` / `requirePermission` / `requireProjectAccess`)
 - Usar `revalidatePath()` después de mutaciones
 - Retornar objetos con formato `{ success: boolean, data?: T, error?: string }`
 
 ### Base de Datos
 
 - Usar Prisma para todas las operaciones de BD
-- Ejecutar migraciones con: `npx prisma migrate dev --name <nombre>`
-- Generar cliente después de cambios: `npx prisma generate`
+- Ejecutar migraciones con: `pnpm exec prisma migrate dev --name <nombre>`
+- Generar cliente después de cambios: `pnpm exec prisma generate`
 - **PROHIBIDO**: eliminar datos de BD, ejecutar/crear seeds, o insertar datos ficticios (ver regla `no-db-destructive-or-seed`)
-
+- Los archivos `prisma/seed*.ts` están en cuarentena: **nunca ejecutarlos**
 
 ### Estilos
 
@@ -85,11 +93,15 @@ prisma/
 - `pnpm dev` - Iniciar servidor de desarrollo
 - `pnpm build` - Construir para producción
 - `pnpm start` - Iniciar servidor de producción
-- `npx prisma studio` - Interfaz visual de base de datos
-- `npx prisma migrate dev` - Crear y aplicar migraciones
+- `pnpm test` - Tests Vitest (Strict TDD)
+- `pnpm test:coverage` - Cobertura
+- `pnpm exec prisma studio` - Interfaz visual de base de datos
+- `pnpm exec prisma migrate dev` - Crear y aplicar migraciones
 
 ## Variables de Entorno Requeridas
 
 - `DATABASE_URL` - URL de conexión a PostgreSQL
 - `NEXTAUTH_SECRET` - Secret para NextAuth
 - `NEXTAUTH_URL` - URL de la aplicación
+- `CONFIG_UNLOCK_PASSWORD` - Desbloqueo del panel Admin (usuarios/proyectos); sin default
+- `NOVEDADES_UNLOCK_PASSWORD` - Acceso a Novedades/Soporte; sin default

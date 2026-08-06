@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
 
 export default async function ReportesLayout({
   children,
@@ -8,8 +8,8 @@ export default async function ReportesLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const canView = await roleHasPermission(
-    session?.user?.activeRole,
+  const canView = await userHasPermission(
+    session?.user?.availableRoles ?? [],
     'view.reportes'
   );
   if (!canView) {

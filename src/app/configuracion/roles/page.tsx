@@ -146,9 +146,12 @@ export default function ConfiguracionRolesPage() {
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Roles</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Activa o desactiva visualización de páginas y atribuciones por rol
-            activo. La columna Admin permanece siempre activa. Ajustes solo
-            puede estar ON para Admin.
+            Define qué puede hacer cada tipo de rol. A nivel de cuenta, los
+            permisos de navegación y vistas son la unión de todos los roles
+            habilitados del usuario. Dentro de un proyecto solo aplican las
+            atribuciones del rol de participación asignado en ese proyecto. La
+            columna Admin permanece siempre activa. Ajustes solo puede estar ON
+            para Admin.
           </p>
         </div>
         <Button

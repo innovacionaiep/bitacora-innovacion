@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -25,7 +25,10 @@ import {
   CircleAlert,
   CheckCircle,
 } from 'lucide-react';
-import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
+import { useSession } from 'next-auth/react';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
+import { getPermissionsForRole } from '@/lib/permissions/check';
+import type { RolePermissionMap } from '@/lib/permissions/catalog';
 
 type CompromisoItem = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosProyecto>
@@ -77,7 +80,7 @@ interface CompromisosPostItWallProps {
   projectId: string;
   compromisos: CompromisoItem[];
   rolEnProyecto?: string | null;
-  /** Rol activo del usuario (ej. Admin). Los Admin pueden crear compromisos. */
+  /** @deprecated UI-only; authorization uses availableRoles + rolEnProyecto */
   activeRole?: string | null;
   onSuccess: () => void | Promise<void>;
   /** Actualización optimista del listado (toggle / edit). */
@@ -95,7 +98,7 @@ export function CompromisosPostItWall({
   projectId,
   compromisos,
   rolEnProyecto,
-  activeRole,
+  activeRole: _activeRole,
   onSuccess,
   onOptimisticCompromisoUpdate,
   onOptimisticCompromisoAdd,
@@ -114,13 +117,29 @@ export function CompromisosPostItWall({
   const [savingEdit, setSavingEdit] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
-  const { can } = useActiveRolePermissions();
+  const { data: session } = useSession();
+  const availableRoles = session?.user?.availableRoles ?? [];
+  const isAdmin = userHasAdminEnabled(availableRoles);
+  const [partPerms, setPartPerms] = useState<RolePermissionMap | null>(null);
+
+  useEffect(() => {
+    if (!rolEnProyecto) {
+      setPartPerms(null);
+      return;
+    }
+    let cancelled = false;
+    getPermissionsForRole(rolEnProyecto).then((map) => {
+      if (!cancelled) setPartPerms(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rolEnProyecto]);
+
   const isCoordinadorOrAdmin =
-    can('compromisos.create_edit') &&
-    (activeRole === 'Admin' || rolEnProyecto === activeRole);
+    isAdmin || partPerms?.['compromisos.create_edit'] === true;
   const canMarkRealizado =
-    can('compromisos.mark_done') &&
-    (activeRole === 'Admin' || rolEnProyecto === activeRole);
+    isAdmin || partPerms?.['compromisos.mark_done'] === true;
 
   const handleAdd = async () => {
     if (!addDescripcion.trim()) return;

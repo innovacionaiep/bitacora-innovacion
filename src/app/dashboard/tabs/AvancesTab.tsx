@@ -104,7 +104,7 @@ export function AvancesTab({ proyectos }: AvancesTabProps) {
     <div className="space-y-5 pb-4">
       <div className="grid gap-4 md:grid-cols-3">
         <SectionPanel title="Avance Gantt" icon={LineChart}>
-          <div className="flex flex-wrap gap-2.5 mb-3">
+          <div className="grid grid-cols-3 gap-2.5 mb-3">
             <MetricChip label="Promedio" value={`${metrics.avanceGanttProm}%`} />
             <MetricChip label="Mín" value={`${ganttStats.min}%`} />
             <MetricChip label="Máx" value={`${ganttStats.max}%`} />
@@ -126,7 +126,7 @@ export function AvancesTab({ proyectos }: AvancesTabProps) {
         </SectionPanel>
 
         <SectionPanel title="Avance de indicadores" icon={Target}>
-          <div className="flex flex-wrap gap-2.5 mb-3">
+          <div className="grid grid-cols-3 gap-2.5 mb-3">
             <MetricChip
               label="Promedio"
               value={`${metrics.indicadoresProm}%`}
@@ -143,8 +143,9 @@ export function AvancesTab({ proyectos }: AvancesTabProps) {
         </SectionPanel>
 
         <SectionPanel title="Presupuesto" icon={DollarSign}>
-          <div className="flex flex-wrap gap-2.5 mb-3">
+          <div className="mb-3">
             <MetricChip
+              className="w-full"
               label="% avance presupuesto (prom.)"
               value={`${metrics.presupuestoPercent}%`}
             />

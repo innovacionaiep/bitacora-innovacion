@@ -54,7 +54,15 @@ import {
   MULTI_SELECT_SEP,
 } from '@/components/ui/multi-select-options';
 import { Badge } from '@/components/ui/badge';
-import { Lock, Unlock, Pencil, UserPlus, Trash2, KeyRound } from 'lucide-react';
+import {
+  Lock,
+  Unlock,
+  Pencil,
+  UserPlus,
+  Trash2,
+  KeyRound,
+  FolderOpen,
+} from 'lucide-react';
 
 const SELECT_NONE = '__none__';
 
@@ -123,6 +131,8 @@ export default function ConfiguracionUsuariosPage() {
   const [activateSaving, setActivateSaving] = useState(false);
   const [roleConflicts, setRoleConflicts] = useState<RoleRemovalConflict[] | null>(null);
   const [pendingRoleSave, setPendingRoleSave] = useState(false);
+  const [proyectosModalUser, setProyectosModalUser] =
+    useState<UserListRowWithPassword | null>(null);
   const unlockPasswordRef = useRef<string | null>(null);
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -533,7 +543,7 @@ export default function ConfiguracionUsuariosPage() {
                               className="h-8 text-sm font-mono"
                             />
                           ) : unlocked ? (
-                            (u.passwordPlain ?? (u.hasAccount ? '—' : 'sin cuenta'))
+                            u.hasAccount ? '•••• (no visible)' : 'sin cuenta'
                           ) : (
                             '****'
                           )}
@@ -564,27 +574,21 @@ export default function ConfiguracionUsuariosPage() {
                           )}
                         </TableCell>
                         <TableCell className="min-w-0 align-top">
-                          <div className="text-sm text-muted-foreground">
-                            {u.proyectos.length ? (
-                              <ul className="list-disc list-inside space-y-0.5 my-0 pl-0">
-                                {u.proyectos.map((p, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex flex-wrap items-center gap-1"
-                                  >
-                                    <span>{p.proyectoNombre}</span>
-                                    <span
-                                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${getRolTagClasses(p.rol)}`}
-                                    >
-                                      #{p.rol}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              '—'
-                            )}
-                          </div>
+                          {u.proyectos.length ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setProyectosModalUser(u)}
+                              className="h-8 px-2 gap-1.5 text-sm"
+                            >
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              Ver ({u.proyectos.length})
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              —
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="align-top">
                           {isEditing ? (
@@ -659,6 +663,52 @@ export default function ConfiguracionUsuariosPage() {
           </div>
         )}
       </div>
+
+      {/* Dialog Proyectos del usuario */}
+      <Dialog
+        open={!!proyectosModalUser}
+        onOpenChange={(open) => !open && setProyectosModalUser(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Proyectos de{' '}
+              {proyectosModalUser?.name ?? proyectosModalUser?.email ?? 'usuario'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto pr-1">
+            {proyectosModalUser?.proyectos.length ? (
+              <ul className="space-y-2 text-sm">
+                {proyectosModalUser.proyectos.map((p, i) => (
+                  <li
+                    key={`${p.proyectoNombre}-${p.rol}-${i}`}
+                    className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1">{p.proyectoNombre}</span>
+                    <span
+                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${getRolTagClasses(p.rol)}`}
+                    >
+                      #{p.rol}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Sin proyectos asignados.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setProyectosModalUser(null)}
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Desbloquear */}
       <Dialog open={unlockOpen} onOpenChange={setUnlockOpen}>
@@ -834,7 +884,7 @@ export default function ConfiguracionUsuariosPage() {
               type="password"
               value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Contraseña (bitacora)"
+              placeholder="Contraseña de desbloqueo"
             />
             {deleteError && (
               <p className="text-sm text-red-600">{deleteError}</p>

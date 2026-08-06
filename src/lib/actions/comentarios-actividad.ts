@@ -1,8 +1,8 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 const ROLE_PRIORITY = [
@@ -139,14 +139,6 @@ export async function createComentarioActividad(
   contenido: string
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado',
-      };
-    }
-
     const actividad = await prisma.activity.findUnique({
       where: { id: actividadId },
       select: {
@@ -162,10 +154,16 @@ export async function createComentarioActividad(
       };
     }
 
+    const gate = await requireProjectAccess(
+      actividad.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const comentario = await prisma.comentarioActividad.create({
       data: {
         actividadId,
-        userId: user.id,
+        userId: gate.user.id,
         contenido,
       },
       include: {

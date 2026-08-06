@@ -102,9 +102,9 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
 
 export function ProyectosContent({
   initialListado,
-  initialActiveRole,
 }: {
   initialListado?: ProyectoListadoItem[];
+  /** @deprecated Ignored */
   initialActiveRole?: string | null;
 } = {}) {
   const searchParams = useSearchParams();
@@ -124,7 +124,6 @@ export function ProyectosContent({
     deleteProyecto,
   } = useProyectosParaUsuario({
     initialListado,
-    initialActiveRole,
   });
   const hasAppliedIdFromUrlRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
@@ -260,29 +259,12 @@ export function ProyectosContent({
     const participantes = selectedProject.participantes_rel ?? [];
     const userId = session?.user?.id;
     const userEmail = session?.user?.email?.trim().toLowerCase();
-    const activeRole = session?.user?.activeRole ?? null;
     const isMe = (p: { userId?: string | null; email?: string | null }) =>
       p.userId === userId ||
       (userEmail && p.email?.trim().toLowerCase() === userEmail);
-    // Preferir el rol que coincide con el rol activo (matriz de atribuciones)
-    if (activeRole) {
-      const matchActive = participantes.find(
-        (p) => isMe(p) && p.rol === activeRole
-      );
-      if (matchActive) return matchActive.rol;
-    }
-    const isCoord = participantes.some(
-      (p) => isMe(p) && (p.rol?.trim().toLowerCase() ?? '') === 'coordinador'
-    );
-    if (isCoord) return 'Coordinador';
-    const first = participantes.find(isMe);
-    return first?.rol ?? null;
-  }, [
-    selectedProject,
-    session?.user?.id,
-    session?.user?.email,
-    session?.user?.activeRole,
-  ]);
+    const mine = participantes.find(isMe);
+    return mine?.rol ?? null;
+  }, [selectedProject, session?.user?.id, session?.user?.email]);
 
   // Si el proyecto seleccionado ya no está en la lista (ej. cambió de rol), limpiar selección
   useEffect(() => {

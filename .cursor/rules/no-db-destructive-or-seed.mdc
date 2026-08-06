@@ -1,0 +1,54 @@
+---
+alwaysApply: true
+description: Prohibición estricta de eliminar datos de BD, seeds y datos ficticios
+---
+
+# Protección de datos — PROHIBICIÓN ESTRICTA
+
+Esta regla es **absoluta**. No hay excepciones por entorno (dev/staging/prod), por “solo de prueba”, ni por conveniencia.
+
+## 1. No eliminar datos de bases de datos
+
+**NUNCA** ejecutar, generar ni sugerir operaciones que borren o vacíen datos:
+
+- Prisma: `.delete()`, `.deleteMany()`, `$executeRaw` / `$executeRawUnsafe` con `DELETE`, `TRUNCATE`, `DROP`
+- CLI: `prisma migrate reset`, `prisma db push --force-reset`, `prisma db execute` destructivo
+- SQL: `DELETE`, `TRUNCATE`, `DROP TABLE`, `DROP SCHEMA`, `DROP DATABASE`
+- Scripts o migraciones cuyo propósito sea limpiar, vaciar o resetear tablas
+
+Si el usuario pide borrar datos de BD, **rechazar** y explicar esta política. No ofrecer workarounds que borren filas.
+
+> Nota: código de producto ya existente con borrado vía UI (CRUD de la app) no se debe ampliar ni invocar desde el agente. No crear nuevas acciones/scripts de borrado masivo ni ejecutar borrados en la BD.
+
+## 2. No generar ni ejecutar seeds
+
+**NUNCA**:
+
+- Crear, modificar o ejecutar archivos `prisma/seed*.ts` (ni equivalentes)
+- Configurar o usar `prisma db seed` / scripts `seed` en `package.json`
+- Proponer “poblar la base” con un script de seed
+
+Los seeds existentes en el repo **no se deben ejecutar ni ampliar**. Si hace falta catálogos reales, el usuario los carga por flujos de la aplicación o procesos autorizados fuera del alcance del agente.
+
+## 3. No inventar datos ficticios para la BD
+
+**NUNCA** insertar ni preparar datos inventados/mock/demo/fake para cualquier base de datos:
+
+- Nombres, emails, RUT, montos, proyectos, indicadores, usuarios, etc. de ejemplo
+- Factories, fixtures o generadores (Faker, etc.) orientados a persistir en BD
+- Migraciones o scripts que inserten filas de “prueba”
+
+Está permitido usar datos de ejemplo **solo en UI, documentación o tests unitarios en memoria** que **no escriban a la base de datos**.
+
+## Respuesta obligatoria ante pedidos que violen esta regla
+
+1. Rechazar de forma clara y breve.
+2. Citar esta regla.
+3. Ofrecer alternativas seguras (p. ej. leer/consultar datos existentes, migraciones de esquema sin DML destructivo, UI para que un usuario autorizado gestione datos reales).
+
+## Checklist rápido antes de tocar Prisma/SQL
+
+- [ ] ¿Borra o vacía filas/tablas? → **NO**
+- [ ] ¿Es o ejecuta un seed? → **NO**
+- [ ] ¿Inserta datos inventados? → **NO**
+- [ ] ¿Solo lee o cambia esquema sin DML destructivo? → OK

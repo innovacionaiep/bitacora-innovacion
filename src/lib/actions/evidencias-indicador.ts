@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 export interface EvidenciaIndicadorData {
@@ -47,6 +48,12 @@ export async function createEvidenciaIndicador(
     if (!indicador) {
       return { success: false, error: 'Indicador no encontrado' };
     }
+
+    const gate = await requireProjectAccess(
+      indicador.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const evidencia = await prisma.evidenciaIndicador.create({
       data: {
@@ -122,6 +129,13 @@ export async function deleteEvidenciaIndicador(id: string) {
     if (!evidencia) {
       return { success: false, error: 'Evidencia no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      evidencia.indicador.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const resourceType = evidencia.tipo === 'pdf' ? 'raw' : 'image';
     await deleteFromCloudinary(evidencia.publicId, resourceType);
     await prisma.evidenciaIndicador.delete({

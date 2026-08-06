@@ -239,14 +239,24 @@ export function ParticipantesTab({
     value: c,
     label: c,
   }));
-  const sedeOptions: FilterOption[] = sedesParticipantes.map((s) => ({
-    value: s.id,
-    label: s.nombre,
-  }));
-  const escuelaOptions: FilterOption[] = escuelasParticipantes.map((e) => ({
-    value: e.id,
-    label: e.nombre,
-  }));
+  const sedeOptions: FilterOption[] = useMemo(() => {
+    const map = new Map<string, string>();
+    list.forEach((p) => {
+      if (p.sede?.id) map.set(p.sede.id, p.sede.nombre);
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+  }, [list]);
+  const escuelaOptions: FilterOption[] = useMemo(() => {
+    const map = new Map<string, string>();
+    list.forEach((p) => {
+      if (p.escuela?.id) map.set(p.escuela.id, p.escuela.nombre);
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+  }, [list]);
   const sociosFromProject =
     project.sociosComunitarios?.map((sc) => ({
       value: sc.socioComunitario.id,

@@ -129,6 +129,14 @@ export type ProyectoFormData = {
 
 // Payload completo del formulario "Crear proyecto" (borrador + createProyectoCompleto)
 export type ProyectoFormPayload = ProyectoFormData & {
+  /** Rol de participación del creador en este proyecto (obligatorio). */
+  miRolEnProyecto?:
+    | 'Encargado'
+    | 'Coordinador'
+    | 'Colaborador'
+    | 'Docente'
+    | 'Estudiante'
+    | 'Beneficiario';
   youtubeUrl?: string | null;
   desarrolloTecnico?: {
     continuidadFasesAnteriores?: string | null;

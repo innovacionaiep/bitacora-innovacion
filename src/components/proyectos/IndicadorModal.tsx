@@ -3,21 +3,11 @@
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   FileText,
-  Calculator,
-  Hash,
-  Edit,
-  Save,
   Check,
-  Calendar,
-  Info,
-  BarChart3,
-  TrendingUp,
   Send,
   MessageSquare,
   Paperclip,
@@ -41,6 +31,30 @@ import {
 import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
+import {
+  ActivityFieldSaveCancel,
+  ActivityHoverEditButton,
+} from '@/components/proyectos/gantt/ActivityFieldControls';
+
+type IndicadorEditableField =
+  | 'nombre'
+  | 'fechas'
+  | 'descripcion'
+  | 'formaCalculo'
+  | 'formatoNumero'
+  | 'resultadoEsperado'
+  | 'resultadoAlcanzado';
+
+type IndicadorEditValues = {
+  nombre: string;
+  descripcion: string;
+  formaCalculo: string;
+  formatoNumero: string;
+  resultadoEsperado: string;
+  resultadoAlcanzado: string;
+  fechaInicio: string;
+  fechaFin: string;
+};
 
 interface IndicadorModalProps {
   indicador: {
@@ -69,20 +83,14 @@ interface IndicadorModalProps {
     }>;
   }) => Promise<void> | void;
   projectId?: string;
-  /** Oculta el botón Editar (ej. en el portal de inicio). El botón de cargar evidencias sigue visible. */
+  /** Oculta los botones de edición por campo (ej. en el portal de inicio). El botón de cargar evidencias sigue visible. */
   hideEditButton?: boolean;
 }
 
-export function IndicadorModal({
-  indicador,
-  onClose,
-  onUpdate,
-  projectId,
-  hideEditButton = false,
-}: IndicadorModalProps) {
-  const { data: session } = useSession();
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editValues, setEditValues] = useState({
+function valuesFromIndicador(
+  indicador: IndicadorModalProps['indicador']
+): IndicadorEditValues {
+  return {
     nombre: indicador.nombre,
     descripcion: indicador.descripcion,
     formaCalculo: indicador.formaCalculo,
@@ -91,8 +99,39 @@ export function IndicadorModal({
     resultadoAlcanzado: indicador.resultadoAlcanzado,
     fechaInicio: indicador.fechaInicio ?? '',
     fechaFin: indicador.fechaFin ?? '',
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  };
+}
+
+function formatDisplayDate(value: string): string {
+  if (!value) return 'No definida';
+  try {
+    const date = new Date(value);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}.${month}.${year}`;
+  } catch {
+    return 'No definida';
+  }
+}
+
+export function IndicadorModal({
+  indicador,
+  onClose,
+  onUpdate,
+  hideEditButton = false,
+}: IndicadorModalProps) {
+  const { data: session } = useSession();
+  const canEdit = !hideEditButton;
+  const [editingField, setEditingField] =
+    useState<IndicadorEditableField | null>(null);
+  const [values, setValues] = useState<IndicadorEditValues>(() =>
+    valuesFromIndicador(indicador)
+  );
+  const [fieldDraft, setFieldDraft] = useState<IndicadorEditValues>(() =>
+    valuesFromIndicador(indicador)
+  );
+  const [isSavingField, setIsSavingField] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [comentarios, setComentarios] = useState<ComentarioIndicadorData[]>([]);
   const [nuevoComentario, setNuevoComentario] = useState('');
@@ -108,98 +147,76 @@ export function IndicadorModal({
     timestamp: number;
   } | null>(null);
 
-  // Estado para evidencias del indicador
   const [evidenciasIndicador, setEvidenciasIndicador] = useState<
     EvidenciaIndicadorData[]
   >([]);
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
-  /** Ids de evidencias al entrar en modo edición, para detectar si se añadieron o eliminaron */
-  const evidenciasIdsAtEditStartRef = useRef<string[]>([]);
 
-  // Actualizar editValues solo cuando cambia el ID del indicador (nuevo indicador seleccionado)
   useEffect(() => {
-    // Solo actualizar si cambió el ID del indicador (nuevo indicador seleccionado)
     if (indicador.id !== lastIndicadorIdRef.current) {
       lastIndicadorIdRef.current = indicador.id;
-      setEditValues({
-        nombre: indicador.nombre,
-        descripcion: indicador.descripcion,
-        formaCalculo: indicador.formaCalculo,
-        formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
-        resultadoEsperado: indicador.resultadoEsperado,
-        resultadoAlcanzado: indicador.resultadoAlcanzado,
-        fechaInicio: indicador.fechaInicio ?? '',
-        fechaFin: indicador.fechaFin ?? '',
-      });
-      setIsEditMode(false);
+      const next = valuesFromIndicador(indicador);
+      setValues(next);
+      setFieldDraft(next);
+      setEditingField(null);
     }
-  }, [indicador.id]); // Solo dependemos del ID para evitar re-renders durante la edición
+  }, [indicador.id]);
 
-  // Actualizar valores después de guardar (cuando no está en modo edición)
   useEffect(() => {
-    // Solo actualizar si no está en modo edición y es el mismo indicador
-    // Esto evita actualizaciones mientras el usuario está escribiendo
-    if (!isEditMode && indicador.id === lastIndicadorIdRef.current) {
-      const newValues = {
-        nombre: indicador.nombre,
-        descripcion: indicador.descripcion,
-        formaCalculo: indicador.formaCalculo,
-        formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
-        resultadoEsperado: indicador.resultadoEsperado,
-        resultadoAlcanzado: indicador.resultadoAlcanzado,
-        fechaInicio: indicador.fechaInicio ?? '',
-        fechaFin: indicador.fechaFin ?? '',
-      };
+    if (editingField !== null || indicador.id !== lastIndicadorIdRef.current) {
+      return;
+    }
 
-      // Si acabamos de guardar, verificar si el prop ya tiene los valores nuevos
-      // Si los valores del prop coinciden con los valores locales, significa que el prop se actualizó
+    const newValues = valuesFromIndicador(indicador);
+
+    setValues((prev) => {
       if (justSavedRef.current) {
         const propMatchesLocal =
-          newValues.nombre === editValues.nombre &&
-          newValues.descripcion === editValues.descripcion &&
-          newValues.formaCalculo === editValues.formaCalculo &&
-          newValues.formatoNumero === editValues.formatoNumero &&
-          newValues.resultadoEsperado === editValues.resultadoEsperado &&
-          newValues.resultadoAlcanzado === editValues.resultadoAlcanzado &&
-          newValues.fechaInicio === editValues.fechaInicio &&
-          newValues.fechaFin === editValues.fechaFin;
+          newValues.nombre === prev.nombre &&
+          newValues.descripcion === prev.descripcion &&
+          newValues.formaCalculo === prev.formaCalculo &&
+          newValues.formatoNumero === prev.formatoNumero &&
+          newValues.resultadoEsperado === prev.resultadoEsperado &&
+          newValues.resultadoAlcanzado === prev.resultadoAlcanzado &&
+          newValues.fechaInicio === prev.fechaInicio &&
+          newValues.fechaFin === prev.fechaFin;
 
         if (propMatchesLocal) {
-          // El prop se actualizó correctamente, resetear la bandera
           justSavedRef.current = false;
         } else {
-          // El prop todavía tiene valores antiguos, no sobrescribir los valores locales
-          return;
+          return prev;
         }
       }
 
-      // Solo actualizar si los valores han cambiado para evitar re-renders innecesarios
       if (
-        editValues.nombre !== newValues.nombre ||
-        editValues.descripcion !== newValues.descripcion ||
-        editValues.formaCalculo !== newValues.formaCalculo ||
-        editValues.formatoNumero !== newValues.formatoNumero ||
-        editValues.resultadoEsperado !== newValues.resultadoEsperado ||
-        editValues.resultadoAlcanzado !== newValues.resultadoAlcanzado ||
-        editValues.fechaInicio !== newValues.fechaInicio ||
-        editValues.fechaFin !== newValues.fechaFin
+        prev.nombre === newValues.nombre &&
+        prev.descripcion === newValues.descripcion &&
+        prev.formaCalculo === newValues.formaCalculo &&
+        prev.formatoNumero === newValues.formatoNumero &&
+        prev.resultadoEsperado === newValues.resultadoEsperado &&
+        prev.resultadoAlcanzado === newValues.resultadoAlcanzado &&
+        prev.fechaInicio === newValues.fechaInicio &&
+        prev.fechaFin === newValues.fechaFin
       ) {
-        setEditValues(newValues);
+        return prev;
       }
-    }
+      return newValues;
+    });
   }, [
-    isEditMode,
+    editingField,
     indicador.nombre,
     indicador.resultadoAlcanzado,
     indicador.resultadoEsperado,
     indicador.descripcion,
     indicador.formaCalculo,
     indicador.formatoNumero,
-  ]); // Depender también de los valores del prop para detectar actualizaciones
+    indicador.fechaInicio,
+    indicador.fechaFin,
+    indicador.id,
+  ]);
 
-  // Ocultar toast después de 3 segundos
   useEffect(() => {
     if (showSuccessToast) {
       const timer = setTimeout(() => {
@@ -209,12 +226,10 @@ export function IndicadorModal({
     }
   }, [showSuccessToast]);
 
-  // Cargar comentarios cuando se abre el modal o cambia el indicador
   useEffect(() => {
     const currentIndicadorId = indicador.id;
     const requestTimestamp = Date.now();
 
-    // Verificar si ya hay una llamada en progreso para este indicador (dentro de 2 segundos)
     if (
       loadingComentariosRef.current &&
       loadingComentariosRef.current.indicadorId === currentIndicadorId &&
@@ -230,7 +245,6 @@ export function IndicadorModal({
     };
 
     const cargarComentarios = async () => {
-      // Verificar si el indicador cambió o fue cancelado antes de hacer la llamada
       if (
         isCancelled ||
         loadingComentariosRef.current?.indicadorId !== currentIndicadorId
@@ -241,7 +255,6 @@ export function IndicadorModal({
       setIsLoadingComentarios(true);
       const result = await getComentariosIndicador(currentIndicadorId);
 
-      // Verificar si el efecto fue cancelado antes de actualizar el estado
       if (
         isCancelled ||
         loadingComentariosRef.current?.indicadorId !== currentIndicadorId
@@ -258,7 +271,6 @@ export function IndicadorModal({
 
     cargarComentarios();
 
-    // Cleanup: marcar como cancelado y limpiar el ref si el componente se desmonta o cambia el indicador
     return () => {
       isCancelled = true;
       if (loadingComentariosRef.current?.indicadorId === currentIndicadorId) {
@@ -267,7 +279,6 @@ export function IndicadorModal({
     };
   }, [indicador.id]);
 
-  // Cargar evidencias cuando se abre el modal o cambia el indicador
   useEffect(() => {
     const currentIndicadorId = indicador.id;
     let isCancelled = false;
@@ -298,7 +309,6 @@ export function IndicadorModal({
       setComentarios([result.data, ...comentarios]);
       setNuevoComentario('');
 
-      // Llamar a onUpdate para actualizar el conteo de comentarios en las tarjetas
       if (onUpdate) {
         await onUpdate();
       }
@@ -308,157 +318,154 @@ export function IndicadorModal({
     setIsEnviandoComentario(false);
   };
 
-  const toggleEditMode = () => {
-    if (isEditMode) {
-      // Si está saliendo del modo edición, restaurar valores originales
-      setEditValues({
-        nombre: indicador.nombre,
-        descripcion: indicador.descripcion,
-        formaCalculo: indicador.formaCalculo,
-        formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
-        resultadoEsperado: indicador.resultadoEsperado,
-        resultadoAlcanzado: indicador.resultadoAlcanzado,
-        fechaInicio: indicador.fechaInicio ?? '',
-        fechaFin: indicador.fechaFin ?? '',
-      });
-    } else {
-      // Al entrar en modo edición, guardar snapshot de evidencias para detectar cambios
-      evidenciasIdsAtEditStartRef.current = evidenciasIndicador.map(
-        (e) => e.id
-      );
-    }
-    setIsEditMode(!isEditMode);
+  const handleStartFieldEdit = (field: IndicadorEditableField) => {
+    setFieldDraft({ ...values });
+    setEditingField(field);
   };
 
-  const handleSaveAll = async () => {
-    setIsSaving(true);
+  const handleCancelFieldEdit = () => {
+    setFieldDraft({ ...values });
+    setEditingField(null);
+  };
+
+  const buildFieldUpdate = (
+    field: IndicadorEditableField
+  ): Parameters<typeof updateIndicador>[1] | null => {
+    switch (field) {
+      case 'nombre': {
+        const nombre = fieldDraft.nombre.trim();
+        if (!nombre) {
+          alert('El nombre del indicador no puede estar vacío');
+          return null;
+        }
+        if (nombre === values.nombre) return {};
+        return { nombre };
+      }
+      case 'fechas': {
+        const update: Parameters<typeof updateIndicador>[1] = {};
+        if (fieldDraft.fechaInicio !== values.fechaInicio) {
+          update.fechaInicio = fieldDraft.fechaInicio || null;
+        }
+        if (fieldDraft.fechaFin !== values.fechaFin) {
+          update.fechaFin = fieldDraft.fechaFin || null;
+        }
+        return update;
+      }
+      case 'descripcion':
+        if (fieldDraft.descripcion === values.descripcion) return {};
+        return { descripcion: fieldDraft.descripcion };
+      case 'formaCalculo':
+        if (fieldDraft.formaCalculo === values.formaCalculo) return {};
+        return { formaCalculo: fieldDraft.formaCalculo };
+      case 'formatoNumero':
+        if (fieldDraft.formatoNumero === values.formatoNumero) return {};
+        return { formatoNumero: fieldDraft.formatoNumero };
+      case 'resultadoEsperado':
+        if (fieldDraft.resultadoEsperado === values.resultadoEsperado) return {};
+        return { resultadoEsperado: fieldDraft.resultadoEsperado };
+      case 'resultadoAlcanzado':
+        if (fieldDraft.resultadoAlcanzado === values.resultadoAlcanzado)
+          return {};
+        return { resultadoAlcanzado: fieldDraft.resultadoAlcanzado };
+      default:
+        return {};
+    }
+  };
+
+  const applyUpdateToValues = (
+    updateData: Parameters<typeof updateIndicador>[1]
+  ): IndicadorEditValues => ({
+    ...values,
+    ...(updateData.nombre !== undefined ? { nombre: updateData.nombre } : {}),
+    ...(updateData.descripcion !== undefined
+      ? { descripcion: updateData.descripcion }
+      : {}),
+    ...(updateData.formaCalculo !== undefined
+      ? { formaCalculo: updateData.formaCalculo }
+      : {}),
+    ...(updateData.formatoNumero !== undefined
+      ? { formatoNumero: updateData.formatoNumero ?? 'Porcentaje' }
+      : {}),
+    ...(updateData.resultadoEsperado !== undefined
+      ? { resultadoEsperado: updateData.resultadoEsperado }
+      : {}),
+    ...(updateData.resultadoAlcanzado !== undefined
+      ? { resultadoAlcanzado: updateData.resultadoAlcanzado }
+      : {}),
+    ...(updateData.fechaInicio !== undefined
+      ? { fechaInicio: updateData.fechaInicio ?? '' }
+      : {}),
+    ...(updateData.fechaFin !== undefined
+      ? { fechaFin: updateData.fechaFin ?? '' }
+      : {}),
+  });
+
+  const handleSaveField = async () => {
+    if (!editingField) return;
+
+    const updateData = buildFieldUpdate(editingField);
+    if (updateData === null) return;
+
+    if (Object.keys(updateData).length === 0) {
+      setEditingField(null);
+      return;
+    }
+
+    const previousValues = { ...values };
+    const nextValues = applyUpdateToValues(updateData);
+
+    justSavedRef.current = true;
+    setValues(nextValues);
+    setFieldDraft(nextValues);
+    setEditingField(null);
+    setShowSuccessToast(true);
+    setIsSavingField(true);
+
+    if (onUpdate) {
+      void onUpdate({
+        id: indicador.id,
+        patch: {
+          ...updateData,
+          formatoNumero:
+            updateData.formatoNumero !== undefined
+              ? updateData.formatoNumero
+              : nextValues.formatoNumero,
+          fechaInicio:
+            updateData.fechaInicio !== undefined
+              ? updateData.fechaInicio
+              : nextValues.fechaInicio || null,
+          fechaFin:
+            updateData.fechaFin !== undefined
+              ? updateData.fechaFin
+              : nextValues.fechaFin || null,
+        },
+      });
+    }
+
     try {
-      // Preparar los datos a actualizar (solo los campos que han sido editados)
-      const updateData: Parameters<typeof updateIndicador>[1] = {};
-
-      // Verificar qué campos han cambiado
-      if (editValues.nombre !== indicador.nombre) {
-        updateData.nombre = editValues.nombre;
-      }
-      if (editValues.descripcion !== indicador.descripcion) {
-        updateData.descripcion = editValues.descripcion;
-      }
-      if (editValues.formaCalculo !== indicador.formaCalculo) {
-        updateData.formaCalculo = editValues.formaCalculo;
-      }
-      if (
-        editValues.formatoNumero !== (indicador.formatoNumero ?? 'Porcentaje')
-      ) {
-        updateData.formatoNumero = editValues.formatoNumero;
-      }
-      if (editValues.resultadoEsperado !== indicador.resultadoEsperado) {
-        updateData.resultadoEsperado = editValues.resultadoEsperado;
-      }
-      if (editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado) {
-        updateData.resultadoAlcanzado = editValues.resultadoAlcanzado;
-      }
-      if (editValues.fechaInicio !== (indicador.fechaInicio ?? '')) {
-        updateData.fechaInicio = editValues.fechaInicio || null;
-      }
-      if (editValues.fechaFin !== (indicador.fechaFin ?? '')) {
-        updateData.fechaFin = editValues.fechaFin || null;
-      }
-
-      // Si no hay cambios, no hacer nada
-      if (Object.keys(updateData).length === 0) {
-        setIsSaving(false);
-        setIsEditMode(false);
-        return;
-      }
-
-      const previousEditValues = { ...editValues };
-      const newEditValues = {
-        ...editValues,
-        ...updateData,
-        formatoNumero:
-          updateData.formatoNumero ?? editValues.formatoNumero ?? '',
-        fechaInicio: updateData.fechaInicio ?? editValues.fechaInicio ?? '',
-        fechaFin: updateData.fechaFin ?? editValues.fechaFin ?? '',
-      };
-
-      justSavedRef.current = true;
-      setEditValues(newEditValues);
-      setIsEditMode(false);
-      setShowSuccessToast(true);
-      setIsSaving(false);
-
-      if (onUpdate) {
-        void onUpdate({
-          id: indicador.id,
-          patch: {
-            ...updateData,
-            formatoNumero:
-              updateData.formatoNumero !== undefined
-                ? updateData.formatoNumero
-                : editValues.formatoNumero,
-            fechaInicio:
-              updateData.fechaInicio !== undefined
-                ? updateData.fechaInicio
-                : editValues.fechaInicio || null,
-            fechaFin:
-              updateData.fechaFin !== undefined
-                ? updateData.fechaFin
-                : editValues.fechaFin || null,
-          },
-        });
-      }
-
       const result = await updateIndicador(indicador.id, updateData);
-
       if (!result.success) {
         justSavedRef.current = false;
-        setEditValues(previousEditValues);
-        setIsEditMode(true);
+        setValues(previousValues);
+        setFieldDraft(previousValues);
+        setEditingField(editingField);
         setShowSuccessToast(false);
         alert(`Error al guardar: ${result.error}`);
       }
     } catch (error) {
+      justSavedRef.current = false;
+      setValues(previousValues);
+      setFieldDraft(previousValues);
+      setEditingField(editingField);
+      setShowSuccessToast(false);
       alert(
         `Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`
       );
     } finally {
-      setIsSaving(false);
+      setIsSavingField(false);
     }
   };
 
-  const handleCancelAll = () => {
-    setEditValues({
-      nombre: indicador.nombre,
-      descripcion: indicador.descripcion,
-      formaCalculo: indicador.formaCalculo,
-      formatoNumero: indicador.formatoNumero ?? 'Porcentaje',
-      resultadoEsperado: indicador.resultadoEsperado,
-      resultadoAlcanzado: indicador.resultadoAlcanzado,
-      fechaInicio: indicador.fechaInicio ?? '',
-      fechaFin: indicador.fechaFin ?? '',
-    });
-    setIsEditMode(false);
-  };
-
-  const hasChanges = () => {
-    const formChanged =
-      editValues.nombre !== indicador.nombre ||
-      editValues.descripcion !== indicador.descripcion ||
-      editValues.formaCalculo !== indicador.formaCalculo ||
-      editValues.formatoNumero !== (indicador.formatoNumero ?? 'Porcentaje') ||
-      editValues.resultadoEsperado !== indicador.resultadoEsperado ||
-      editValues.resultadoAlcanzado !== indicador.resultadoAlcanzado ||
-      editValues.fechaInicio !== (indicador.fechaInicio ?? '') ||
-      editValues.fechaFin !== (indicador.fechaFin ?? '');
-    const idsNow = evidenciasIndicador.map((e) => e.id).sort();
-    const idsAtStart = [...evidenciasIdsAtEditStartRef.current].sort();
-    const evidenceChanged =
-      idsNow.length !== idsAtStart.length ||
-      idsNow.some((id, i) => id !== idsAtStart[i]);
-    return formChanged || evidenceChanged;
-  };
-
-  // Funciones para cálculo y formateo (igual que en IndicadorCard)
   const parseValue = (value: string): number => {
     if (!value || value === '') return 0;
     const cleaned = value
@@ -488,9 +495,8 @@ export function IndicadorModal({
     return Math.round(numValue).toString();
   };
 
-  // Calcular porcentaje de cumplimiento
-  const resultadoEsperadoNum = parseValue(editValues.resultadoEsperado);
-  const resultadoAlcanzadoNum = parseValue(editValues.resultadoAlcanzado);
+  const resultadoEsperadoNum = parseValue(values.resultadoEsperado);
+  const resultadoAlcanzadoNum = parseValue(values.resultadoAlcanzado);
 
   let porcentajeCumplimiento = 0;
   if (resultadoEsperadoNum > 0) {
@@ -500,31 +506,22 @@ export function IndicadorModal({
     porcentajeCumplimiento = 100;
   }
 
-  // Determinar color según porcentaje (igual que IndicadorCard)
   let colorEstado = '';
-  let badgeColor = '';
-  let badgeBg = '';
   if (porcentajeCumplimiento < 50) {
     colorEstado = 'text-red-600';
-    badgeColor = 'text-red-700';
-    badgeBg = 'bg-red-100';
   } else if (porcentajeCumplimiento >= 50 && porcentajeCumplimiento < 100) {
     colorEstado = 'text-yellow-600';
-    badgeColor = 'text-yellow-700';
-    badgeBg = 'bg-yellow-100';
   } else {
     colorEstado = 'text-emerald-600';
-    badgeColor = 'text-emerald-700';
-    badgeBg = 'bg-emerald-100';
   }
 
   const resultadoEsperadoFormateado = formatResultado(
-    editValues.resultadoEsperado,
-    editValues.formatoNumero
+    values.resultadoEsperado,
+    values.formatoNumero
   );
   const resultadoAlcanzadoFormateado = formatResultado(
-    editValues.resultadoAlcanzado,
-    editValues.formatoNumero
+    values.resultadoAlcanzado,
+    values.formatoNumero
   );
 
   return (
@@ -534,61 +531,42 @@ export function IndicadorModal({
         closeButtonPosition="outside-top-right"
         className="w-[65vw] max-w-[65vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
       >
-        {/* Header con título, nombre e indicador de cumplimiento */}
+        {/* Header con título e indicador de cumplimiento */}
         <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 flex items-center gap-2 min-w-0">
-              {isEditMode ? (
+              {editingField === 'nombre' ? (
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
                   <input
                     type="text"
-                    value={editValues.nombre}
+                    value={fieldDraft.nombre}
                     onChange={(e) =>
-                      setEditValues({ ...editValues, nombre: e.target.value })
+                      setFieldDraft({ ...fieldDraft, nombre: e.target.value })
                     }
                     className="h-auto border border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 rounded-md w-full min-w-0 px-3"
                     autoFocus
                   />
+                  <ActivityFieldSaveCancel
+                    isSaving={isSavingField}
+                    onSave={handleSaveField}
+                    onCancel={handleCancelFieldEdit}
+                  />
                 </div>
               ) : (
-                <>
+                <div className="group/field relative min-w-0 max-w-full pr-8">
                   <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
-                    {editValues.nombre}
+                    {values.nombre}
                   </DialogTitle>
-                  {!hideEditButton && (
-                    <button
-                      onClick={toggleEditMode}
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-gray-500 hover:text-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
-                      title="Editar indicador"
-                    >
-                      <Edit className="h-4 w-4" strokeWidth={2} />
-                    </button>
+                  {canEdit && (
+                    <ActivityHoverEditButton
+                      onClick={() => handleStartFieldEdit('nombre')}
+                      tooltip="Editar nombre"
+                    />
                   )}
-                </>
+                </div>
               )}
             </div>
-            {isEditMode ? (
-              <div className="flex h-7 shrink-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleSaveAll}
-                  disabled={isSaving || !hasChanges()}
-                  className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
-                >
-                  <Save className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                  {isSaving ? 'Guardando...' : 'Guardar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelAll}
-                  disabled={isSaving}
-                  className="inline-flex h-7 items-center gap-1.5 text-[13px] font-normal leading-none text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
-                >
-                  <X className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                  Cancelar
-                </button>
-              </div>
-            ) : (
+            {editingField !== 'nombre' && (
               <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
                 <span className="text-base font-medium text-gray-700">
                   Cumplimiento
@@ -602,7 +580,9 @@ export function IndicadorModal({
                           ? 'bg-yellow-500'
                           : 'bg-emerald-500'
                     }`}
-                    style={{ width: `${Math.min(porcentajeCumplimiento, 100)}%` }}
+                    style={{
+                      width: `${Math.min(porcentajeCumplimiento, 100)}%`,
+                    }}
                   />
                 </div>
                 <span
@@ -617,238 +597,313 @@ export function IndicadorModal({
 
         {/* Layout de dos columnas con separador */}
         <div className="grid grid-cols-[1fr_auto_1fr] gap-6 px-5 py-4 flex-1 min-h-0">
-          {/* COLUMNA IZQUIERDA: Fechas primero, luego información sin tarjetas */}
-          <div
-            className="space-y-6 overflow-y-auto min-h-0 custom-scrollbar"
-          >
-            {/* FECHAS (Primero) - Horizontal */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
-                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
-                  Inicio
-                </span>
-                {isEditMode ? (
-                  <input
-                    type="date"
-                    value={editValues.fechaInicio}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        fechaInicio: e.target.value,
-                      })
-                    }
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
+          {/* COLUMNA IZQUIERDA */}
+          <div className="space-y-6 overflow-y-auto min-h-0 custom-scrollbar">
+            {/* FECHAS */}
+            <div>
+              {editingField === 'fechas' ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center space-x-6">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
+                        Inicio
+                      </span>
+                      <input
+                        type="date"
+                        value={fieldDraft.fechaInicio}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            fechaInicio: e.target.value,
+                          })
+                        }
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
+                        Finalización
+                      </span>
+                      <input
+                        type="date"
+                        value={fieldDraft.fechaFin}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            fechaFin: e.target.value,
+                          })
+                        }
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
+                      />
+                    </div>
+                  </div>
+                  <ActivityFieldSaveCancel
+                    isSaving={isSavingField}
+                    onSave={handleSaveField}
+                    onCancel={handleCancelFieldEdit}
                   />
-                ) : (
-                  <span className="text-[15px] leading-[1.75] text-gray-800">
-                    {editValues.fechaInicio
-                      ? (() => {
-                          try {
-                            const date = new Date(editValues.fechaInicio);
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const month = String(date.getMonth() + 1).padStart(
-                              2,
-                              '0'
-                            );
-                            const year = String(date.getFullYear()).slice(-2);
-                            return `${day}.${month}.${year}`;
-                          } catch {
-                            return 'No definida';
-                          }
-                        })()
-                      : 'No definida'}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
-                  Finalización
-                </span>
-                {isEditMode ? (
-                  <input
-                    type="date"
-                    value={editValues.fechaFin}
-                    onChange={(e) =>
-                      setEditValues({ ...editValues, fechaFin: e.target.value })
-                    }
-                    className="px-4 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
-                  />
-                ) : (
-                  <span className="text-[15px] leading-[1.75] text-gray-800">
-                    {editValues.fechaFin
-                      ? (() => {
-                          try {
-                            const date = new Date(editValues.fechaFin);
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const month = String(date.getMonth() + 1).padStart(
-                              2,
-                              '0'
-                            );
-                            const year = String(date.getFullYear()).slice(-2);
-                            return `${day}.${month}.${year}`;
-                          } catch {
-                            return 'No definida';
-                          }
-                        })()
-                      : 'No definida'}
-                  </span>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="group/field relative inline-flex items-center space-x-6 pr-8">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
+                      Inicio
+                    </span>
+                    <span className="text-[15px] leading-[1.75] text-gray-800">
+                      {formatDisplayDate(values.fechaInicio)}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
+                      Finalización
+                    </span>
+                    <span className="text-[15px] leading-[1.75] text-gray-800">
+                      {formatDisplayDate(values.fechaFin)}
+                    </span>
+                  </div>
+                  {canEdit && (
+                    <ActivityHoverEditButton
+                      onClick={() => handleStartFieldEdit('fechas')}
+                      tooltip="Editar fechas"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* SECCIÓN: Descripción, Forma de Cálculo, Formato del número - SIN TARJETAS */}
             <div className="space-y-6">
               {/* Descripción */}
               <div>
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Descripción
                 </h3>
-                {isEditMode ? (
-                  <textarea
-                    value={editValues.descripcion}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        descripcion: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
-                    rows={3}
-                  />
+                {editingField === 'descripcion' ? (
+                  <div className="min-w-0">
+                    <textarea
+                      value={fieldDraft.descripcion}
+                      onChange={(e) =>
+                        setFieldDraft({
+                          ...fieldDraft,
+                          descripcion: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
+                      rows={3}
+                      autoFocus
+                    />
+                    <ActivityFieldSaveCancel
+                      isSaving={isSavingField}
+                      onSave={handleSaveField}
+                      onCancel={handleCancelFieldEdit}
+                    />
+                  </div>
                 ) : (
-                  <p className="text-[15px] leading-[1.75] text-gray-800">
-                    {editValues.descripcion}
-                  </p>
+                  <div className="group/field relative min-w-0 pr-8">
+                    <p className="text-[15px] leading-[1.75] text-gray-800">
+                      {values.descripcion}
+                    </p>
+                    {canEdit && (
+                      <ActivityHoverEditButton
+                        onClick={() => handleStartFieldEdit('descripcion')}
+                        tooltip="Editar descripción"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Forma de Cálculo y Formato del número en fila */}
+              {/* Forma de Cálculo y Formato del número */}
               <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-                {/* Forma de Cálculo */}
                 <div className="min-w-0">
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Forma de Cálculo
                   </h3>
-                  {isEditMode ? (
-                    <textarea
-                      value={editValues.formaCalculo}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          formaCalculo: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
-                      rows={3}
-                    />
+                  {editingField === 'formaCalculo' ? (
+                    <div className="min-w-0">
+                      <textarea
+                        value={fieldDraft.formaCalculo}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            formaCalculo: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
+                        rows={3}
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
                   ) : (
-                    <p className="text-[15px] leading-[1.75] text-gray-800">
-                      {editValues.formaCalculo}
-                    </p>
+                    <div className="group/field relative min-w-0 pr-8">
+                      <p className="text-[15px] leading-[1.75] text-gray-800">
+                        {values.formaCalculo}
+                      </p>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() => handleStartFieldEdit('formaCalculo')}
+                          tooltip="Editar forma de cálculo"
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
 
-                {/* Formato del Número */}
                 <div className="w-48 flex-shrink-0">
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Formato del número
                   </h3>
-                  {isEditMode ? (
-                    <select
-                      value={editValues.formatoNumero}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          formatoNumero: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
-                    >
-                      {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
-                        (option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        )
-                      )}
-                    </select>
+                  {editingField === 'formatoNumero' ? (
+                    <div className="min-w-0">
+                      <select
+                        value={fieldDraft.formatoNumero}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            formatoNumero: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
+                        autoFocus
+                      >
+                        {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
+                          (option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          )
+                        )}
+                      </select>
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
                   ) : (
-                    <p className="text-[15px] leading-[1.75] text-gray-800">
-                      {editValues.formatoNumero}
-                    </p>
+                    <div className="group/field relative min-w-0 pr-8">
+                      <p className="text-[15px] leading-[1.75] text-gray-800">
+                        {values.formatoNumero}
+                      </p>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() => handleStartFieldEdit('formatoNumero')}
+                          tooltip="Editar formato"
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Resultados */}
               <div className="mt-4">
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                   Resultados
                 </h3>
 
-                {/* Esperado y Actual con línea separadora vertical */}
                 <div className="flex items-center">
-                  {/* Resultado Esperado */}
                   <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1">
+                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1">
                       Esperado
                     </span>
-                    {isEditMode ? (
-                      <input
-                        type="text"
-                        value={editValues.resultadoEsperado}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            resultadoEsperado: e.target.value,
-                          })
-                        }
-                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
-                      />
+                    {editingField === 'resultadoEsperado' ? (
+                      <div className="w-full max-w-[200px] flex flex-col items-center">
+                        <input
+                          type="text"
+                          value={fieldDraft.resultadoEsperado}
+                          onChange={(e) =>
+                            setFieldDraft({
+                              ...fieldDraft,
+                              resultadoEsperado: e.target.value,
+                            })
+                          }
+                          className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
+                          autoFocus
+                        />
+                        <ActivityFieldSaveCancel
+                          isSaving={isSavingField}
+                          onSave={handleSaveField}
+                          onCancel={handleCancelFieldEdit}
+                        />
+                      </div>
                     ) : (
-                      <p className="text-[15px] font-semibold text-gray-800">
-                        {resultadoEsperadoFormateado}
-                      </p>
+                      <div className="group/field relative inline-flex items-center pr-8">
+                        <p className="text-[15px] font-semibold text-gray-800">
+                          {resultadoEsperadoFormateado}
+                        </p>
+                        {canEdit && (
+                          <ActivityHoverEditButton
+                            onClick={() =>
+                              handleStartFieldEdit('resultadoEsperado')
+                            }
+                            tooltip="Editar resultado esperado"
+                          />
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Línea separadora vertical */}
                   <div className="w-px h-10 bg-gray-100 self-center"></div>
 
-                  {/* Resultado Actual */}
                   <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span className={`text-[10px] font-medium uppercase tracking-[0.14em] mb-1 ${colorEstado}`}>
+                    <span
+                      className={`text-xs font-medium uppercase tracking-[0.14em] mb-1 ${colorEstado}`}
+                    >
                       Actual
                     </span>
-                    {isEditMode ? (
-                      <input
-                        type="text"
-                        value={editValues.resultadoAlcanzado}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            resultadoAlcanzado: e.target.value,
-                          })
-                        }
-                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
-                      />
+                    {editingField === 'resultadoAlcanzado' ? (
+                      <div className="w-full max-w-[200px] flex flex-col items-center">
+                        <input
+                          type="text"
+                          value={fieldDraft.resultadoAlcanzado}
+                          onChange={(e) =>
+                            setFieldDraft({
+                              ...fieldDraft,
+                              resultadoAlcanzado: e.target.value,
+                            })
+                          }
+                          className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
+                          autoFocus
+                        />
+                        <ActivityFieldSaveCancel
+                          isSaving={isSavingField}
+                          onSave={handleSaveField}
+                          onCancel={handleCancelFieldEdit}
+                        />
+                      </div>
                     ) : (
-                      <p className={`text-[15px] font-semibold ${colorEstado}`}>
-                        {resultadoAlcanzadoFormateado}
-                      </p>
+                      <div className="group/field relative inline-flex items-center pr-8">
+                        <p
+                          className={`text-[15px] font-semibold ${colorEstado}`}
+                        >
+                          {resultadoAlcanzadoFormateado}
+                        </p>
+                        {canEdit && (
+                          <ActivityHoverEditButton
+                            onClick={() =>
+                              handleStartFieldEdit('resultadoAlcanzado')
+                            }
+                            tooltip="Editar resultado actual"
+                          />
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Línea separadora horizontal debajo */}
                 <div className="w-full h-px bg-gray-100 mt-1.5"></div>
               </div>
             </div>
 
             {/* Evidencias */}
             <div>
-              <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                 Evidencias
               </h3>
               <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -858,7 +913,9 @@ export function IndicadorModal({
                   </p>
                 ) : evidenciasIndicador.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
-                    <p className="text-[13px] text-gray-400">No se han cargado evidencias</p>
+                    <p className="text-[13px] text-gray-400">
+                      No se han cargado evidencias
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
@@ -934,7 +991,7 @@ export function IndicadorModal({
                             </button>
                           </div>
                         )}
-                        {isEditMode && (
+                        {canEdit && (
                           <button
                             type="button"
                             onClick={async () => {
@@ -948,7 +1005,7 @@ export function IndicadorModal({
                                 alert(res.error ?? 'Error al eliminar');
                               }
                             }}
-                            className="absolute top-1 right-1 p-1 rounded-sm bg-white/90 border border-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-colors"
+                            className="absolute top-1 right-1 p-1 rounded-sm bg-white/90 border border-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity"
                             title="Eliminar evidencia"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -965,82 +1022,84 @@ export function IndicadorModal({
                     accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
                     className="hidden"
                     onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setIsUploadingEvidencia(true);
-                        const result = await uploadEvidenciaFile(file);
-                        if ('error' in result) {
-                          alert(result.error);
-                          setIsUploadingEvidencia(false);
-                          e.target.value = '';
-                          return;
-                        }
-                        const createResult = await createEvidenciaIndicador(
-                          indicador.id,
-                          {
-                            url: result.url,
-                            publicId: result.publicId,
-                            tipo: result.tipo,
-                            nombreArchivo: result.nombreArchivo,
-                          }
-                        );
-                        if (createResult.success && createResult.data) {
-                          setEvidenciasIndicador((prev) => [
-                            ...prev,
-                            createResult.data!,
-                          ]);
-                        } else {
-                          alert(
-                            createResult.error ?? 'Error al guardar evidencia'
-                          );
-                        }
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setIsUploadingEvidencia(true);
+                      const result = await uploadEvidenciaFile(file);
+                      if ('error' in result) {
+                        alert(result.error);
                         setIsUploadingEvidencia(false);
                         e.target.value = '';
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5 h-auto"
-                      disabled={isUploadingEvidencia}
-                      onClick={() => evidenciasFileInputRef.current?.click()}
-                    >
-                      {isUploadingEvidencia ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Subiendo...
-                        </>
-                      ) : (
-                        <>
-                          <Paperclip className="h-3.5 w-3.5" strokeWidth={2} />
-                          Agregar evidencia (JPG o PDF)
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-[12px] text-gray-400 mt-1">
-                      Imágenes máx. 250 KB (se comprimen automáticamente). PDF
-                      máx. 2 MB.
-                    </p>
+                        return;
+                      }
+                      const createResult = await createEvidenciaIndicador(
+                        indicador.id,
+                        {
+                          url: result.url,
+                          publicId: result.publicId,
+                          tipo: result.tipo,
+                          nombreArchivo: result.nombreArchivo,
+                        }
+                      );
+                      if (createResult.success && createResult.data) {
+                        setEvidenciasIndicador((prev) => [
+                          ...prev,
+                          createResult.data!,
+                        ]);
+                      } else {
+                        alert(
+                          createResult.error ?? 'Error al guardar evidencia'
+                        );
+                      }
+                      setIsUploadingEvidencia(false);
+                      e.target.value = '';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5 h-auto"
+                    disabled={isUploadingEvidencia}
+                    onClick={() => evidenciasFileInputRef.current?.click()}
+                  >
+                    {isUploadingEvidencia ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Paperclip className="h-3.5 w-3.5" strokeWidth={2} />
+                        Agregar evidencia (JPG o PDF)
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-[12px] text-gray-400 mt-1">
+                    Imágenes máx. 250 KB (se comprimen automáticamente). PDF
+                    máx. 2 MB.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* SEPARADOR VERTICAL SUTIL */}
           <div className="w-px bg-gray-100"></div>
 
-          {/* COLUMNA DERECHA: Solo Comentarios */}
+          {/* COLUMNA DERECHA: Comentarios */}
           <div
             ref={comentariosContainerRef}
             className="flex flex-col pb-2 h-full min-h-0 border-l border-gray-100 pl-6"
           >
-            {/* Header de comentarios - movido más arriba */}
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
-              <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
-              <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">Comentarios</h3>
+              <MessageSquare
+                className="h-3.5 w-3.5 text-gray-500"
+                strokeWidth={2}
+              />
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
+                Comentarios
+              </h3>
             </div>
 
-            {/* Lista de comentarios - con flex-1 para ocupar espacio disponible */}
             <div
               ref={comentariosListRef}
               className="space-y-3 flex-1 overflow-y-auto mb-4 min-h-0 custom-scrollbar"
@@ -1052,7 +1111,9 @@ export function IndicadorModal({
                 </p>
               ) : comentarios.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
-                  <p className="text-[13px] text-gray-400">No hay comentarios aún</p>
+                  <p className="text-[13px] text-gray-400">
+                    No hay comentarios aún
+                  </p>
                 </div>
               ) : (
                 comentarios.map((comentario) => (
@@ -1094,7 +1155,6 @@ export function IndicadorModal({
               )}
             </div>
 
-            {/* Input para nuevo comentario - posicionado al final */}
             {session?.user && (
               <div className="flex gap-3 pt-3 pb-1 border-t border-gray-100 flex-shrink-0">
                 <div className="flex-shrink-0">
@@ -1136,14 +1196,12 @@ export function IndicadorModal({
           </div>
         </div>
 
-        {/* Toast de éxito */}
         {showSuccessToast && (
           <div className="fixed bottom-6 right-6 border border-emerald-200 bg-white text-emerald-700 px-6 py-3 rounded-lg shadow-md flex items-center gap-2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
             <Check className="h-4 w-4" />
             <span className="text-[13px] font-medium">Guardado con éxito</span>
           </div>
         )}
-
       </DialogContent>
     </Dialog>
   );

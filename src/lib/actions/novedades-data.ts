@@ -1,6 +1,7 @@
 'use server';
 
 import { getSession } from '@/lib/auth-utils';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
 import {
   getPosts,
   getUpcomingEvents,
@@ -35,7 +36,7 @@ export async function getNovedadesPageData(): Promise<
   if (!session?.user) {
     return { success: false, error: 'No autenticado' };
   }
-  if (session.user.activeRole !== 'Admin') {
+  if (!userHasAdminEnabled(session.user.availableRoles ?? [])) {
     return { success: false, error: 'Sin permisos' };
   }
 

@@ -242,7 +242,7 @@ export function ActividadDetalleModal({
               {/* Columna Izq: Descripción, Período, Evidencias */}
               <div className="space-y-6 overflow-y-auto border-r border-gray-100 pr-6 custom-scrollbar">
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
                   </h3>
                   <p className="text-[15px] text-gray-800 leading-[1.75] break-words [overflow-wrap:anywhere]">
@@ -250,7 +250,7 @@ export function ActividadDetalleModal({
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Período
                   </h3>
                   <div className="rounded-lg border border-gray-200 bg-gray-50/40 p-4">
@@ -265,7 +265,7 @@ export function ActividadDetalleModal({
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Evidencias
                   </h3>
                   <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -357,7 +357,7 @@ export function ActividadDetalleModal({
 
               {/* Columna Centro: Tareas */}
               <div className="flex flex-col min-h-0 overflow-hidden">
-                <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-3 flex-shrink-0">
+                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-3 flex-shrink-0">
                   Tareas{' '}
                   <span className="normal-case tracking-normal text-gray-400">
                     ({tasks.length})
@@ -416,7 +416,7 @@ export function ActividadDetalleModal({
               <div className="flex flex-col min-h-0 border-l border-gray-100 pl-6">
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
                   <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                     Comentarios
                   </h3>
                 </div>
@@ -476,8 +476,8 @@ export function ActividadDetalleModal({
                       <p className="text-[12px] text-gray-400">
                         Comentas como{' '}
                         {session.user.name || session.user.email}
-                        {session.user.activeRole
-                          ? ` · ${session.user.activeRole}`
+                        {(session.user.availableRoles ?? []).length > 0
+                          ? ` · ${(session.user.availableRoles ?? []).join(', ')}`
                           : ''}
                       </p>
                       <div className="flex gap-2">

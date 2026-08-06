@@ -36,31 +36,42 @@ const navItemsBase: {
   label: string;
   icon: typeof Home;
   viewKey: PermissionKey;
+  tourId: string;
 }[] = [
-  { href: '/inicio', label: 'Inicio', icon: Home, viewKey: 'view.inicio' },
+  {
+    href: '/inicio',
+    label: 'Inicio',
+    icon: Home,
+    viewKey: 'view.inicio',
+    tourId: 'nav-inicio',
+  },
   {
     href: '/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
     viewKey: 'view.dashboard',
+    tourId: 'nav-dashboard',
   },
   {
     href: '/fondos',
     label: 'Fondos',
     icon: Landmark,
     viewKey: 'view.fondos',
+    tourId: 'nav-fondos',
   },
   {
     href: '/proyectos',
     label: 'Proyectos',
     icon: FolderKanban,
     viewKey: 'view.proyectos',
+    tourId: 'nav-proyectos',
   },
   {
     href: '/reportes',
     label: 'Reportes',
     icon: AtSign,
     viewKey: 'view.reportes',
+    tourId: 'nav-reportes',
   },
 ];
 
@@ -104,6 +115,7 @@ export default function SidebarNav() {
                 >
                   <Link
                     href={item.href}
+                    data-tour={item.tourId}
                     className={`flex items-center ${
                       isActive
                         ? 'bg-white text-gray-800 pointer-events-none'
@@ -134,6 +146,7 @@ export default function SidebarNav() {
               >
                 <Link
                   href="/configuracion"
+                  data-tour="nav-ajustes"
                   className={`flex items-center ${
                     pathname.startsWith('/configuracion')
                       ? 'bg-white text-gray-800 pointer-events-none'

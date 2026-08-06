@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -62,12 +62,13 @@ type Catalogos = {
   escuelas: { id: string; nombre: string; codigo?: string }[];
 };
 
-function canCreateProject(p: ProyectoFormPayload, _activeRole: string | null | undefined): boolean {
+function canCreateProject(p: ProyectoFormPayload): boolean {
   const nombreOk = Boolean(p.proyecto?.trim());
   const objetivoOk = Boolean(p.objetivoGeneral?.trim());
   const sedesOk = Array.isArray(p.sedesIds) && p.sedesIds.length > 0;
   const escuelasOk = Array.isArray(p.escuelasIds) && p.escuelasIds.length > 0;
-  return nombreOk && objetivoOk && sedesOk && escuelasOk;
+  const rolOk = Boolean(p.miRolEnProyecto);
+  return nombreOk && objetivoOk && sedesOk && escuelasOk && rolOk;
 }
 
 function NuevoProyectoContent() {
@@ -77,7 +78,16 @@ function NuevoProyectoContent() {
   const { can, loading: permsLoading } = useActiveRolePermissions();
   const hasCreatePermission = can('projects.create');
   const draftId = searchParams.get('borrador');
-  const activeRole = (session?.user as { activeRole?: string } | undefined)?.activeRole ?? null;
+  const availableRoles = (session?.user?.availableRoles ?? []).filter(
+    (r) => r !== 'Admin'
+  ) as Array<
+    | 'Encargado'
+    | 'Coordinador'
+    | 'Colaborador'
+    | 'Docente'
+    | 'Estudiante'
+    | 'Beneficiario'
+  >;
 
   const [payload, setPayload] = useState<ProyectoFormPayload>(defaultPayload);
   const [loadingDraft, setLoadingDraft] = useState(!!draftId);
@@ -89,10 +99,8 @@ function NuevoProyectoContent() {
     escuelas: [],
   });
   const [catalogosLoaded, setCatalogosLoaded] = useState(false);
-  const hasPrefilledEncargadoRef = useRef(false);
-  const hasPrefilledCoordinatorRef = useRef(false);
 
-  const canCreate = canCreateProject(payload, activeRole);
+  const canCreate = canCreateProject(payload);
 
   usePageTopLoader(loadingDraft);
 
@@ -126,44 +134,6 @@ function NuevoProyectoContent() {
       }
     });
   }, [draftId]);
-
-  // Si el usuario tiene rol activo Encargado, pre-rellenar el primer encargado con su nombre y correo (solo una vez, tras cargar sesión y opcionalmente borrador)
-  useEffect(() => {
-    if (loadingDraft || sessionStatus !== 'authenticated' || !session?.user || hasPrefilledEncargadoRef.current) return;
-    const activeRole = (session.user as { activeRole?: string }).activeRole;
-    if (activeRole !== 'Encargado') return;
-    const name = session.user.name ?? '';
-    const email = session.user.email ?? '';
-    if (!name && !email) return;
-    hasPrefilledEncargadoRef.current = true;
-    setPayload((prev) => {
-      const rel = [...(prev.participantes_rel ?? [])];
-      const firstEnc = rel.find((r) => r.rol === 'Encargado');
-      if (!firstEnc || (firstEnc.nombre?.trim() && firstEnc.email?.trim())) return prev;
-      const idx = rel.indexOf(firstEnc);
-      rel[idx] = { ...firstEnc, nombre: firstEnc.nombre?.trim() || name, email: firstEnc.email?.trim() || email };
-      return { ...prev, participantes_rel: rel };
-    });
-  }, [loadingDraft, sessionStatus, session]);
-
-  // Si el usuario tiene rol activo Coordinador, pre-rellenar el primer coordinador con su nombre y correo (solo una vez)
-  useEffect(() => {
-    if (loadingDraft || sessionStatus !== 'authenticated' || !session?.user || hasPrefilledCoordinatorRef.current) return;
-    const activeRole = (session.user as { activeRole?: string }).activeRole;
-    if (activeRole !== 'Coordinador') return;
-    const name = session.user.name ?? '';
-    const email = session.user.email ?? '';
-    if (!name && !email) return;
-    hasPrefilledCoordinatorRef.current = true;
-    setPayload((prev) => {
-      const rel = [...(prev.participantes_rel ?? [])];
-      const firstCoord = rel.find((r) => r.rol === 'Coordinador');
-      if (!firstCoord || (firstCoord.nombre?.trim() && firstCoord.email?.trim())) return prev;
-      const idx = rel.indexOf(firstCoord);
-      rel[idx] = { ...firstCoord, nombre: firstCoord.nombre?.trim() || name, email: firstCoord.email?.trim() || email };
-      return { ...prev, participantes_rel: rel };
-    });
-  }, [loadingDraft, sessionStatus, session]);
 
   useEffect(() => {
     if (catalogosLoaded) return;
@@ -334,6 +304,31 @@ function NuevoProyectoContent() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="miRolEnProyecto">Mi rol en este proyecto *</Label>
+              <select
+                id="miRolEnProyecto"
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={payload.miRolEnProyecto ?? ''}
+                onChange={(e) =>
+                  update(
+                    'miRolEnProyecto',
+                    (e.target.value || undefined) as ProyectoFormPayload['miRolEnProyecto']
+                  )
+                }
+              >
+                <option value="">Selecciona un rol</option>
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Solo puedes elegir entre tus roles habilitados. En este proyecto
+                actuarás únicamente con este rol.
+              </p>
+            </div>
             <div>
               <Label htmlFor="proyecto">Nombre del proyecto *</Label>
               <Input

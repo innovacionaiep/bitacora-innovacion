@@ -3,6 +3,8 @@
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
 import { getUserRoles, isValidActiveRole, type Role } from './auth-utils';
+import { isRegisterableRole, userHasAdminEnabled } from '@/lib/authz/pure';
+import { requireSelfOrAdmin } from '@/lib/authz/guards';
 import { revalidatePath } from 'next/cache';
 
 const SALT_ROUNDS = 10;
@@ -17,8 +19,14 @@ export async function signUp(data: {
   initialRole: Role;
 }) {
   try {
+    if (!isRegisterableRole(data.initialRole)) {
+      return {
+        success: false,
+        error: 'Rol de registro no permitido',
+      };
+    }
+
     const email = data.email.trim().toLowerCase();
-    // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -27,12 +35,9 @@ export async function signUp(data: {
       return { success: false, error: 'Este email ya está registrado' };
     }
 
-    // Hash del password
     const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
 
-    // Crear usuario y rol en una transacción
     const user = await prisma.$transaction(async (tx) => {
-      // Crear usuario
       const newUser = await tx.user.create({
         data: {
           email,
@@ -42,7 +47,6 @@ export async function signUp(data: {
         },
       });
 
-      // Crear rol inicial
       await tx.userRole.create({
         data: {
           userId: newUser.id,
@@ -61,11 +65,17 @@ export async function signUp(data: {
 }
 
 /**
- * Agregar un rol a un usuario
+ * Agregar un rol a un usuario (self or Admin)
  */
 export async function addUserRole(userId: string, role: Role) {
   try {
-    // Verificar si el usuario ya tiene el rol
+    const gate = await requireSelfOrAdmin(userId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
+    if (role === 'Admin' && !userHasAdminEnabled(gate.user.availableRoles)) {
+      return { success: false, error: 'No puedes asignarte el rol Admin' };
+    }
+
     const existingRole = await prisma.userRole.findFirst({
       where: {
         userId,
@@ -93,11 +103,13 @@ export async function addUserRole(userId: string, role: Role) {
 }
 
 /**
- * Remover un rol de un usuario
+ * Remover un rol de un usuario (self or Admin)
  */
 export async function removeUserRole(userId: string, role: Role) {
   try {
-    // Verificar que no sea el último rol
+    const gate = await requireSelfOrAdmin(userId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const userRoles = await getUserRoles(userId);
     if (userRoles.length <= 1) {
       return { success: false, error: 'No puedes eliminar tu último rol' };
@@ -110,7 +122,6 @@ export async function removeUserRole(userId: string, role: Role) {
       },
     });
 
-    // Si el rol activo era el que se eliminó, cambiar a otro rol
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { activeRole: true },
@@ -133,7 +144,7 @@ export async function removeUserRole(userId: string, role: Role) {
 }
 
 /**
- * Actualizar el perfil del usuario
+ * Actualizar el perfil del usuario (self or Admin)
  */
 export async function updateUserProfile(
   userId: string,
@@ -143,7 +154,9 @@ export async function updateUserProfile(
   }
 ) {
   try {
-    // Si se está actualizando el rol activo, verificar que el usuario lo tenga
+    const gate = await requireSelfOrAdmin(userId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     if (data.activeRole) {
       const isValid = await isValidActiveRole(userId, data.activeRole);
       if (!isValid) {
@@ -168,7 +181,7 @@ export async function updateUserProfile(
 }
 
 /**
- * Cambiar el password del usuario
+ * Cambiar el password del usuario (self or Admin)
  */
 export async function changePassword(
   userId: string,
@@ -176,6 +189,9 @@ export async function changePassword(
   newPassword: string
 ) {
   try {
+    const gate = await requireSelfOrAdmin(userId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { password: true },
@@ -185,13 +201,15 @@ export async function changePassword(
       return { success: false, error: 'Usuario no encontrado' };
     }
 
-    // Verificar password actual
-    const isValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isValid) {
-      return { success: false, error: 'Password actual incorrecto' };
+    // Admin resetting another user still needs current password of target —
+    // for self-service; Admin password resets go through configuracion-usuarios.
+    if (gate.user.id === userId || !userHasAdminEnabled(gate.user.availableRoles)) {
+      const isValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isValid) {
+        return { success: false, error: 'Password actual incorrecto' };
+      }
     }
 
-    // Hash del nuevo password
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     await prisma.user.update({
@@ -207,10 +225,13 @@ export async function changePassword(
 }
 
 /**
- * Obtener información completa del usuario
+ * Obtener información completa del usuario (self or Admin)
  */
 export async function getUserProfile(userId: string) {
   try {
+    const gate = await requireSelfOrAdmin(userId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {

@@ -2,16 +2,17 @@
 
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
 import { createActivity, createTask } from '@/lib/actions/gantt';
-import { addParticipanteProyecto } from '@/lib/actions/proyectos';
+import { addParticipanteProyecto } from '@/lib/actions/proyectos-participantes';
 import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 
 async function assertCanManageFondos() {
   const session = await getSession();
-  const activeRole = (session?.user as { activeRole?: string } | undefined)
-    ?.activeRole;
-  const can = await roleHasPermission(activeRole, 'view.fondos');
+  const availableRoles =
+    (session?.user as { availableRoles?: string[] } | undefined)
+      ?.availableRoles ?? [];
+  const can = await userHasPermission(availableRoles, 'view.fondos');
   if (!can) {
     return { ok: false as const, error: 'No tienes permiso para esta acción' };
   }

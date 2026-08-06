@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { requirePermission } from '@/lib/authz/guards';
 
 const CONFIG_PATH = '/configuracion/desarrollo-tecnico';
 
@@ -41,6 +42,9 @@ export async function setSubcategoriaLineaEnabled(
   lineaId: string,
   enabled: boolean
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     if (!subcategoriaId.trim() || !lineaId.trim()) {
       return { success: false, error: 'Datos incompletos' };
@@ -82,6 +86,9 @@ export async function setSubcategoriaLineaEnabled(
 }
 
 export async function createCategoria(nombre: string, orden: number) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoCategoria.create({
       data: { nombre: nombre.trim(), orden },
@@ -100,6 +107,9 @@ export async function updateCategoria(
   nombre: string,
   orden: number
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoCategoria.update({
       where: { id },
@@ -115,6 +125,9 @@ export async function updateCategoria(
 }
 
 export async function deleteCategoria(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoCategoria.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
@@ -132,6 +145,9 @@ export async function createSubcategoria(
   icono: string,
   orden: number
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoSubcategoria.create({
       data: {
@@ -159,6 +175,9 @@ export async function updateSubcategoria(
     orden?: number;
   }
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoSubcategoria.update({
       where: { id },
@@ -181,6 +200,9 @@ export async function updateSubcategoria(
 }
 
 export async function deleteSubcategoria(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.desarrolloTecnicoSubcategoria.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);

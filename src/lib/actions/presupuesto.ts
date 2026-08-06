@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 import {
   computeDeltaSaldo,
@@ -248,6 +249,9 @@ export async function createItemPresupuesto(
   data: CreateItemPresupuestoData
 ): Promise<{ success: boolean; data?: { id: string }; error?: string }> {
   try {
+    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const maxOrden = await prisma.itemPresupuesto
       .aggregate({
         where: { proyectoId: projectId },
@@ -299,6 +303,12 @@ export async function updateItemPresupuesto(
     if (!itemBefore) {
       return { success: false, error: 'Ítem no encontrado' };
     }
+
+    const gate = await requireProjectAccess(
+      itemBefore.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const updated = await prisma.itemPresupuesto.update({
       where: { id },
@@ -381,6 +391,10 @@ export async function deleteItemPresupuesto(
     if (!item) {
       return { success: false, error: 'Ítem no encontrado' };
     }
+
+    const gate = await requireProjectAccess(item.proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     await prisma.itemPresupuesto.delete({
       where: { id },
     });
@@ -413,6 +427,16 @@ export async function setProyeccionMensual(
   monto: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const item = await prisma.itemPresupuesto.findUnique({
+      where: { id: itemPresupuestoId },
+      select: { proyectoId: true },
+    });
+    if (!item) {
+      return { success: false, error: 'Ítem no encontrado' };
+    }
+    const gate = await requireProjectAccess(item.proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     await prisma.proyeccionPresupuesto.upsert({
       where: {
         itemPresupuestoId_mes_anio: { itemPresupuestoId, mes, anio },
@@ -438,6 +462,16 @@ export async function setProyeccionMensualMultiple(
   montoPorMes: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const item = await prisma.itemPresupuesto.findUnique({
+      where: { id: itemPresupuestoId },
+      select: { proyectoId: true },
+    });
+    if (!item) {
+      return { success: false, error: 'Ítem no encontrado' };
+    }
+    const gate = await requireProjectAccess(item.proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Obtener meses actuales para este item y año
     const proyeccionesActuales = await prisma.proyeccionPresupuesto.findMany({
       where: { itemPresupuestoId, anio },
@@ -487,6 +521,9 @@ export async function updatePresupuestoAdjudicado(
   presupuestoAdjudicado: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     if (!Number.isFinite(presupuestoAdjudicado) || presupuestoAdjudicado < 0) {
       return {
         success: false,

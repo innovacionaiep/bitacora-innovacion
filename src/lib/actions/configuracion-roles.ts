@@ -16,15 +16,16 @@ import {
 } from '@/lib/permissions/catalog';
 import {
   ensureRolePermissionDefaults,
-  getPermissionsForRole,
+  getMyEnabledRolesPermissions,
 } from '@/lib/permissions/check';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
 
 async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await getSession();
   if (!session?.user) {
     return { ok: false, error: 'No autenticado' };
   }
-  if (session.user.activeRole !== 'Admin') {
+  if (!userHasAdminEnabled(session.user.availableRoles ?? [])) {
     return { ok: false, error: 'Solo Admin puede gestionar roles' };
   }
   return { ok: true };
@@ -154,7 +155,7 @@ export async function saveRolePermissionsMatrix(
   }
 }
 
-/** Permissions for the current user's active role (client sidebar / guards). */
+/** Union of enabled roles' permissions (client sidebar / guards). */
 export async function getMyActiveRolePermissions(): Promise<{
   success: boolean;
   activeRole: string | null;
@@ -162,7 +163,7 @@ export async function getMyActiveRolePermissions(): Promise<{
   error?: string;
 }> {
   const session = await getSession();
-  const activeRole = session?.user?.activeRole ?? null;
+  const availableRoles = session?.user?.availableRoles ?? [];
   if (!session?.user) {
     return {
       success: false,
@@ -172,16 +173,18 @@ export async function getMyActiveRolePermissions(): Promise<{
     };
   }
   try {
-    const permissions = await getPermissionsForRole(activeRole);
-    return { success: true, activeRole, permissions };
+    const permissions = await getMyEnabledRolesPermissions(availableRoles);
+    return {
+      success: true,
+      activeRole: availableRoles[0] ?? null,
+      permissions,
+    };
   } catch (e) {
     console.error('getMyActiveRolePermissions', e);
     return {
       success: false,
-      activeRole,
-      permissions: activeRole
-        ? defaultsForRole(activeRole as Role)
-        : defaultsForRole('Beneficiario'),
+      activeRole: availableRoles[0] ?? null,
+      permissions: defaultsForRole('Beneficiario'),
       error: 'Error al cargar permisos',
     };
   }

@@ -3,8 +3,13 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { createHistorialEntry, createHistorialEntriesBatch } from './historial';
-import { getCurrentUser, getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { getCurrentUser } from '@/lib/auth-utils';
+import { userHasPermission } from '@/lib/permissions/check';
+import {
+  requireAdmin,
+  requirePermission,
+  requireProjectAccess,
+} from '@/lib/authz/guards';
 import {
   Escuela,
   Carrera,
@@ -30,8 +35,6 @@ import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 import {
   isSyncableRole,
   upsertPersonaFromParticipante,
-  updatePersonaProfile,
-  ensureSyncableUserRole,
 } from '@/lib/personas/sync-persona';
 
 type GeneralTabUpdateData = {
@@ -293,54 +296,74 @@ async function _getProyectosDashboardFromDB(whereIds?: string[]) {
   });
 }
 
+async function getProyectoIdsForUserParticipation(
+  userId: string,
+  userEmail: string | null | undefined
+): Promise<string[]> {
+  const participaciones = await prisma.proyectoParticipante.findMany({
+    where: {
+      OR: [
+        { userId },
+        ...(userEmail
+          ? [{ email: { equals: userEmail, mode: 'insensitive' as const } }]
+          : []),
+      ],
+    },
+    select: { proyectoId: true },
+  });
+  return [...new Set(participaciones.map((p) => p.proyectoId))];
+}
+
 /**
- * Obtener todos los proyectos con relaciones y variaciones mensuales
- * Con caché de 30 segundos para mejorar rendimiento
+ * Obtener todos los proyectos visibles para el usuario (sesión).
+ * Admin / projects.view_all: todos. Otros: todas las participaciones del usuario.
+ * Sin caché global compartida entre usuarios.
  */
 export async function getProyectos() {
-  try {
-    console.log('🔍 [getProyectos] Iniciando consulta a la base de datos...');
-
-    // Caché global solo para listado Admin (getProyectos). Dashboard usa getProyectosDashboard sin caché compartida.
-    const cachedGetProyectos = unstable_cache(
-      async () => {
-        return await _getProyectosFromDB();
-      },
-      ['proyectos-list'],
-      {
-        revalidate: 30, // Revalidar cada 30 segundos
-        tags: ['proyectos'],
-      }
-    );
-
-    const proyectosConVariaciones = await cachedGetProyectos();
-
-    console.log(
-      `✅ [getProyectos] Encontrados ${proyectosConVariaciones.length} proyectos`
-    );
-
-    return { success: true, data: proyectosConVariaciones };
-  } catch (error) {
-    console.error('❌ [getProyectos] Error:', error);
-    return { success: false, error: 'Error al obtener proyectos' };
-  }
+  return getProyectosParaUsuarioPorRolActivo();
 }
 
 /**
  * Proyectos optimizados para el dashboard (sin grafo completo innecesario).
+ * Filtrado por sesión; caché keyed por userId + view_all.
  */
 export async function getProyectosDashboard() {
   try {
-    const cachedGetProyectosDashboard = unstable_cache(
-      async () => _getProyectosDashboardFromDB(),
-      ['proyectos-dashboard-list'],
-      {
-        revalidate: 45,
-        tags: ['proyectos-dashboard'],
-      }
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: [] };
+    }
+    const availableRoles = user.availableRoles ?? [];
+    const canViewAll = await userHasPermission(
+      availableRoles,
+      'projects.view_all'
     );
 
-    const proyectosConVariaciones = await cachedGetProyectosDashboard();
+    const cacheKey = [
+      'proyectos-dashboard-list',
+      user.id,
+      canViewAll ? 'all' : 'scoped',
+    ];
+
+    const load = async () => {
+      if (canViewAll) {
+        return _getProyectosDashboardFromDB();
+      }
+      const userEmail = user.email ?? null;
+      const proyectoIds = await getProyectoIdsForUserParticipation(
+        user.id,
+        userEmail
+      );
+      if (proyectoIds.length === 0) return [];
+      return _getProyectosDashboardFromDB(proyectoIds);
+    };
+
+    const cached = unstable_cache(load, cacheKey, {
+      revalidate: 45,
+      tags: ['proyectos-dashboard', `proyectos-dashboard-${user.id}`],
+    });
+
+    const proyectosConVariaciones = await cached();
     return { success: true, data: proyectosConVariaciones };
   } catch (error) {
     console.error('❌ [getProyectosDashboard] Error:', error);
@@ -349,13 +372,12 @@ export async function getProyectosDashboard() {
 }
 
 /**
- * Obtener proyectos filtrados por usuario y rol activo.
+ * Obtener proyectos visibles para el usuario.
  * - projects.view_all (Admin por defecto): ven todos los proyectos.
- * - Otros: solo proyectos donde participan con ese rol (userId o email).
- * @param activeRoleOverride - Rol a usar en lugar del de la sesión (evita esperar sync al cambiar rol)
+ * - Otros: todos los proyectos donde participan (cualquier rol).
  */
 export async function getProyectosParaUsuarioPorRolActivo(
-  activeRoleOverride?: string | null
+  _activeRoleOverride?: string | null
 ) {
   try {
     const user = await getCurrentUser();
@@ -363,38 +385,21 @@ export async function getProyectosParaUsuarioPorRolActivo(
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
 
-    const activeRole =
-      activeRoleOverride ?? (user as { activeRole?: string | null }).activeRole ?? null;
-
-    const canViewAll = await roleHasPermission(activeRole, 'projects.view_all');
+    const availableRoles = user.availableRoles ?? [];
+    const canViewAll = await userHasPermission(
+      availableRoles,
+      'projects.view_all'
+    );
     if (canViewAll) {
       const result = await _getProyectosFromDB();
       return { success: true, data: result };
     }
 
-    // Sin rol activo: no hay proyectos para mostrar
-    if (!activeRole) {
-      return { success: true, data: [] };
-    }
-
-    const userEmail = (user as { email?: string | null }).email ?? null;
-    const participaciones = await prisma.proyectoParticipante.findMany({
-      where: {
-        rol: activeRole,
-        OR: [
-          { userId: user.id },
-          ...(userEmail
-            ? [
-                {
-                  email: { equals: userEmail, mode: 'insensitive' as const },
-                },
-              ]
-            : []),
-        ],
-      },
-      select: { proyectoId: true },
-    });
-    const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
+    const userEmail = user.email ?? null;
+    const proyectoIds = await getProyectoIdsForUserParticipation(
+      user.id,
+      userEmail
+    );
 
     if (proyectoIds.length === 0) {
       return { success: true, data: [] };
@@ -413,17 +418,16 @@ export async function getProyectosParaUsuarioPorRolActivo(
  * Carga instantánea; los detalles completos se cargan al seleccionar.
  */
 export async function getProyectosListadoParaUsuario(
-  activeRoleOverride?: string | null
+  _activeRoleOverride?: string | null
 ) {
   try {
     const user = await getCurrentUser();
-    const activeRole =
-      activeRoleOverride ?? (user as { activeRole?: string | null })?.activeRole ?? null;
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
 
-    if (await roleHasPermission(activeRole, 'projects.view_all')) {
+    const availableRoles = user.availableRoles ?? [];
+    if (await userHasPermission(availableRoles, 'projects.view_all')) {
       const proyectos = await prisma.proyecto.findMany({
         select: {
           id: true,
@@ -436,28 +440,11 @@ export async function getProyectosListadoParaUsuario(
       return { success: true, data: proyectos as ProyectoListadoItem[] };
     }
 
-    if (!activeRole) {
-      return { success: true, data: [] };
-    }
-
-    const userEmail = (user as { email?: string | null }).email ?? null;
-    const participaciones = await prisma.proyectoParticipante.findMany({
-      where: {
-        rol: activeRole,
-        OR: [
-          { userId: user.id },
-          ...(userEmail
-            ? [
-                {
-                  email: { equals: userEmail, mode: 'insensitive' as const },
-                },
-              ]
-            : []),
-        ],
-      },
-      select: { proyectoId: true },
-    });
-    const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
+    const userEmail = user.email ?? null;
+    const proyectoIds = await getProyectoIdsForUserParticipation(
+      user.id,
+      userEmail
+    );
 
     if (proyectoIds.length === 0) {
       return { success: true, data: [] };
@@ -515,21 +502,38 @@ async function enrichParticipantesRel(
     { name: string | null; image: string | null }
   >();
   if (emailsSinUser.length > 0) {
-    const users = await prisma.user.findMany({
-      where: {
-        OR: emailsSinUser.map((e) => ({
-          email: { equals: e, mode: 'insensitive' as const },
-        })),
-      },
+    // Exact match first (usa índice de email); insensitive solo para residuales.
+    const usersExact = await prisma.user.findMany({
+      where: { email: { in: emailsSinUser } },
       select: { email: true, name: true, image: true },
     });
-    users.forEach((u) => {
+    usersExact.forEach((u) => {
       if (u.email)
         userByEmailLower.set(u.email.toLowerCase(), {
           name: u.name ?? null,
           image: u.image ?? null,
         });
     });
+    const missing = emailsSinUser.filter(
+      (e) => !userByEmailLower.has(e.toLowerCase())
+    );
+    if (missing.length > 0) {
+      const usersInsensitive = await prisma.user.findMany({
+        where: {
+          OR: missing.map((e) => ({
+            email: { equals: e, mode: 'insensitive' as const },
+          })),
+        },
+        select: { email: true, name: true, image: true },
+      });
+      usersInsensitive.forEach((u) => {
+        if (u.email)
+          userByEmailLower.set(u.email.toLowerCase(), {
+            name: u.name ?? null,
+            image: u.image ?? null,
+          });
+      });
+    }
   }
   return participantes.map((p) => {
     const display =
@@ -722,6 +726,15 @@ export async function getProyectoBase(id: string) {
  */
 export async function getProyectoParticipantes(proyectoId: string) {
   try {
+    const gate = await requireProjectAccess(proyectoId);
+    if (!gate.ok) {
+      return {
+        success: false as const,
+        error: gate.error,
+        data: [] as ParticipanteRelRow[],
+      };
+    }
+
     const rows = await prisma.proyectoParticipante.findMany({
       where: { proyectoId },
       include: participantesInclude,
@@ -747,6 +760,9 @@ type CreateProyectoInput = ProyectoFormData & {
  */
 export async function createProyecto(data: CreateProyectoInput) {
   try {
+    const gate = await requirePermission('projects.create');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const sedeStr =
       data.sede?.trim()
         ? data.sede.trim()
@@ -883,16 +899,9 @@ export async function createProyectoCompleto(
   payload: ProyectoFormPayload
 ): Promise<{ success: boolean; data?: ProyectoWithRelations; error?: string }> {
   try {
-    const session = await getSession();
-    const currentUser = session?.user as { id?: string; email?: string; name?: string; activeRole?: string } | null;
-
-    const canCreate = await roleHasPermission(
-      currentUser?.activeRole,
-      'projects.create'
-    );
-    if (!canCreate) {
-      return { success: false, error: 'No tienes permiso para crear proyectos' };
-    }
+    const gate = await requirePermission('projects.create');
+    if (!gate.ok) return { success: false, error: gate.error };
+    const currentUser = gate.user;
 
     // Centralizar personas syncables (User pendiente + UserRole) y resolver userId
     const participantesRel = [...(payload.participantes_rel ?? [])];
@@ -931,33 +940,58 @@ export async function createProyectoCompleto(
       }
     }
 
-    // Si quien crea tiene rol activo "Encargado", agregarlo como encargado inicial si no está ya
-    if (currentUser?.id && currentUser?.activeRole === 'Encargado') {
+    // Rol de participación elegido en el formulario (único por cuenta/proyecto)
+    const creatorRoles = currentUser?.availableRoles ?? [];
+    const miRol = payload.miRolEnProyecto;
+    if (!miRol) {
+      return {
+        success: false,
+        error: 'Debes elegir tu rol en este proyecto',
+      };
+    }
+    if (!creatorRoles.includes(miRol) && !creatorRoles.includes('Admin')) {
+      return {
+        success: false,
+        error: 'El rol elegido no está habilitado en tu cuenta',
+      };
+    }
+    if (currentUser?.id) {
+      const emailNorm = (currentUser.email ?? '').trim().toLowerCase();
       const yaEsta = participantesRel.some(
-        (p) => p.rol === 'Encargado' && (p.userId === currentUser.id || (p.email?.trim() && p.email.trim().toLowerCase() === (currentUser.email ?? '').toLowerCase()))
+        (p) =>
+          p.userId === currentUser.id ||
+          (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
       );
       if (!yaEsta) {
         participantesRel.unshift({
           userId: currentUser.id,
-          rol: 'Encargado',
+          rol: miRol,
           nombre: (currentUser.name as string) ?? undefined,
           email: (currentUser.email as string) ?? undefined,
         });
-      }
-    }
-
-    // Si quien crea tiene rol activo "Coordinador", agregarlo como coordinador del proyecto si no está ya
-    if (currentUser?.id && currentUser?.activeRole === 'Coordinador') {
-      const yaEsta = participantesRel.some(
-        (p) => p.rol === 'Coordinador' && (p.userId === currentUser.id || (p.email?.trim() && p.email.trim().toLowerCase() === (currentUser.email ?? '').toLowerCase()))
-      );
-      if (!yaEsta) {
-        participantesRel.push({
-          userId: currentUser.id,
-          rol: 'Coordinador',
-          nombre: (currentUser.name as string) ?? undefined,
-          email: (currentUser.email as string) ?? undefined,
-        });
+      } else {
+        const idx = participantesRel.findIndex(
+          (p) =>
+            p.userId === currentUser.id ||
+            (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
+        );
+        if (idx >= 0) {
+          participantesRel[idx] = {
+            ...participantesRel[idx],
+            rol: miRol,
+            userId: currentUser.id,
+          };
+          for (let i = participantesRel.length - 1; i >= 0; i--) {
+            if (i === idx) continue;
+            const p = participantesRel[i];
+            if (
+              p.userId === currentUser.id ||
+              (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
+            ) {
+              participantesRel.splice(i, 1);
+            }
+          }
+        }
       }
     }
 
@@ -1091,6 +1125,9 @@ export async function createProyectoCompleto(
  */
 export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
   try {
+    const gate = await requireProjectAccess(id);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const proyecto = await prisma.proyecto.update({
       where: { id },
       data: {
@@ -1147,6 +1184,9 @@ function idsEq(a: string[] | undefined, b: string[]): boolean {
 
 export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
   try {
+    const gate = await requireProjectAccess(data.proyectoId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Cargar estado previo para registrar en historial solo lo que realmente cambió
     const estadoAnterior = await prisma.proyecto.findUnique({
       where: { id: data.proyectoId },
@@ -1724,6 +1764,9 @@ export async function createObjetivoEspecifico(
   descripcion: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const gate = await requireProjectAccess(proyectoId);
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const trimmed = descripcion?.trim();
     if (!trimmed) {
       return { success: false, error: 'La descripción no puede estar vacía' };
@@ -1769,6 +1812,9 @@ export async function createObjetivoEspecifico(
  */
 export async function deleteProyecto(id: string) {
   try {
+    const gate = await requireAdmin();
+    if (!gate.ok) return { success: false, error: gate.error };
+
     await prisma.proyecto.delete({
       where: { id },
     });
@@ -1780,396 +1826,6 @@ export async function deleteProyecto(id: string) {
   } catch (error) {
     console.error('Error deleting proyecto:', error);
     return { success: false, error: 'Error al eliminar proyecto' };
-  }
-}
-
-// ===== FUNCIONES PARA PARTICIPANTES =====
-
-const proyectoIncludeForParticipante = {
-  participantes_rel: {
-    include: {
-      user: true,
-      socioComunitario: true,
-      sede: true,
-      escuela: true,
-      carrera: true,
-      asignatura: true,
-    },
-  },
-  sociosComunitarios: { include: { socioComunitario: true } },
-} as const;
-
-type AddParticipanteData = {
-  rol: string;
-  nombre?: string;
-  rut?: string;
-  email?: string;
-  cargo?: string;
-  laborEnProyecto?: string;
-  socioComunitarioId?: string;
-  sedeId?: string;
-  escuelaId?: string;
-  carreraId?: string;
-  asignaturaId?: string;
-};
-
-export async function addParticipanteProyecto(
-  proyectoId: string,
-  data: AddParticipanteData
-) {
-  try {
-    if (!data.email?.trim()) {
-      return {
-        success: false,
-        error: 'El correo es obligatorio.',
-      };
-    }
-    if (
-      (data.rol === 'Docente' || data.rol === 'Estudiante') &&
-      !data.rut?.trim()
-    ) {
-      return {
-        success: false,
-        error: 'El RUT es obligatorio para docentes y estudiantes.',
-      };
-    }
-    if (data.rol === 'Estudiante' && !data.carreraId) {
-      return {
-        success: false,
-        error: 'La carrera es obligatoria para estudiantes.',
-      };
-    }
-    if (data.rol === 'Estudiante' && !data.asignaturaId) {
-      return {
-        success: false,
-        error: 'La asignatura es obligatoria para estudiantes.',
-      };
-    }
-    let userId: string | null = null;
-    let nombre = data.nombre ?? null;
-    let email = data.email.trim();
-    let rut = data.rut?.trim() || null;
-    let cargo = data.cargo ?? null;
-    let sedeId = data.sedeId ?? null;
-    let escuelaId = data.escuelaId ?? null;
-
-    if (isSyncableRole(data.rol)) {
-      const persona = await upsertPersonaFromParticipante({
-        email,
-        nombre,
-        rut,
-        cargo,
-        sedeId,
-        escuelaId,
-        rol: data.rol,
-      });
-      userId = persona.userId;
-      email = persona.email;
-      nombre = persona.name ?? nombre;
-      // Cascade: perfil centralizado puede haber enriquecido campos
-      const userProfile = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { rut: true, cargo: true, sedeId: true, escuelaId: true, name: true },
-      });
-      if (userProfile) {
-        rut = rut || userProfile.rut;
-        cargo = cargo || userProfile.cargo;
-        sedeId = sedeId || userProfile.sedeId;
-        escuelaId = escuelaId || userProfile.escuelaId;
-        nombre = nombre || userProfile.name;
-        // Propagar perfil a todos los participantes del user
-        await updatePersonaProfile(userId, {
-          name: nombre,
-          rut,
-          cargo,
-          sedeId,
-          escuelaId,
-        });
-      }
-    } else {
-      const user = await prisma.user.findFirst({
-        where: {
-          email: { equals: email, mode: 'insensitive' },
-        },
-        select: { id: true, name: true, email: true },
-      });
-      if (user) {
-        userId = user.id;
-        nombre = user.name ?? nombre;
-        email = user.email;
-      }
-    }
-
-    await prisma.proyectoParticipante.create({
-      data: {
-        proyectoId,
-        userId,
-        rol: data.rol,
-        nombre,
-        rut,
-        email,
-        cargo,
-        laborEnProyecto: data.laborEnProyecto?.trim() || null,
-        socioComunitarioId:
-          data.rol === 'Beneficiario'
-            ? (data.socioComunitarioId ?? null)
-            : null,
-        sedeId,
-        escuelaId,
-        carreraId: data.carreraId ?? null,
-        asignaturaId: data.asignaturaId ?? null,
-      },
-    });
-    await createHistorialEntry({
-      proyectoId,
-      accion: 'Agregar participante',
-      tabProyecto: 'Participantes',
-      elementoEspecifico: `a un nuevo ${data.rol}`,
-      cambioGenerado: data.nombre ?? '',
-    });
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id: proyectoId },
-      include: proyectoIncludeForParticipante,
-    });
-    revalidatePath('/proyectos');
-    revalidatePath('/configuracion/usuarios');
-    revalidateTag('proyectos');
-    revalidateTag('proyectos-dashboard');
-    return { success: true, data: proyecto as ProyectoWithRelations };
-  } catch (error) {
-    console.error('Error adding participante:', error);
-    return {
-      success: false,
-      error: 'Error al agregar participante',
-    };
-  }
-}
-
-type UpdateParticipanteData = {
-  rol?: string;
-  nombre?: string;
-  rut?: string;
-  email?: string;
-  cargo?: string;
-  laborEnProyecto?: string;
-  socioComunitarioId?: string;
-  sedeId?: string;
-  escuelaId?: string;
-  carreraId?: string;
-  asignaturaId?: string;
-};
-
-export async function updateParticipanteProyecto(
-  participanteId: string,
-  data: UpdateParticipanteData
-) {
-  try {
-    const existing = await prisma.proyectoParticipante.findUnique({
-      where: { id: participanteId },
-    });
-    if (!existing) {
-      return { success: false, error: 'Participante no encontrado' };
-    }
-    const finalRol = data.rol ?? existing.rol;
-    const finalRut =
-      data.rut !== undefined ? data.rut.trim() || null : existing.rut;
-    const finalCarreraId =
-      data.carreraId !== undefined
-        ? data.carreraId || null
-        : existing.carreraId;
-    const finalAsignaturaId =
-      data.asignaturaId !== undefined
-        ? data.asignaturaId || null
-        : existing.asignaturaId;
-    const finalEmail =
-      data.email !== undefined ? data.email.trim() || null : existing.email;
-    if (!finalEmail?.trim()) {
-      return {
-        success: false,
-        error: 'El correo es obligatorio.',
-      };
-    }
-    if (
-      (finalRol === 'Docente' || finalRol === 'Estudiante') &&
-      !finalRut?.trim()
-    ) {
-      return {
-        success: false,
-        error: 'El RUT es obligatorio para docentes y estudiantes.',
-      };
-    }
-    if (finalRol === 'Estudiante' && !finalCarreraId) {
-      return {
-        success: false,
-        error: 'La carrera es obligatoria para estudiantes.',
-      };
-    }
-    if (finalRol === 'Estudiante' && !finalAsignaturaId) {
-      return {
-        success: false,
-        error: 'La asignatura es obligatoria para estudiantes.',
-      };
-    }
-    let resolvedUserId: string | null = existing.userId;
-    let resolvedNombre: string | null =
-      data.nombre !== undefined ? data.nombre : existing.nombre;
-    let resolvedEmail: string | null =
-      data.email !== undefined ? data.email.trim() || null : existing.email;
-    const finalCargo =
-      data.cargo !== undefined ? data.cargo : existing.cargo;
-    const finalSedeId =
-      data.sedeId !== undefined ? data.sedeId || null : existing.sedeId;
-    const finalEscuelaId =
-      data.escuelaId !== undefined
-        ? data.escuelaId || null
-        : existing.escuelaId;
-
-    if (isSyncableRole(finalRol) && resolvedEmail?.trim()) {
-      const persona = await upsertPersonaFromParticipante({
-        email: resolvedEmail,
-        nombre: resolvedNombre,
-        rut: finalRut,
-        cargo: finalCargo,
-        sedeId: finalSedeId,
-        escuelaId: finalEscuelaId,
-        rol: finalRol,
-      });
-      resolvedUserId = persona.userId;
-      resolvedEmail = persona.email;
-      resolvedNombre = persona.name ?? resolvedNombre;
-      await updatePersonaProfile(persona.userId, {
-        name: resolvedNombre,
-        email: persona.email,
-        rut: finalRut,
-        cargo: finalCargo,
-        sedeId: finalSedeId,
-        escuelaId: finalEscuelaId,
-      });
-    } else if (data.email !== undefined) {
-      if (data.email.trim()) {
-        const user = await prisma.user.findFirst({
-          where: {
-            email: { equals: data.email.trim(), mode: 'insensitive' },
-          },
-          select: { id: true, name: true, email: true },
-        });
-        if (user) {
-          resolvedUserId = user.id;
-          resolvedNombre = user.name ?? resolvedNombre;
-          resolvedEmail = user.email;
-        } else {
-          resolvedUserId = null;
-          resolvedEmail = data.email.trim();
-        }
-      } else {
-        resolvedUserId = null;
-        resolvedEmail = null;
-      }
-    } else if (
-      isSyncableRole(finalRol) &&
-      resolvedUserId &&
-      (data.nombre !== undefined ||
-        data.rut !== undefined ||
-        data.cargo !== undefined ||
-        data.sedeId !== undefined ||
-        data.escuelaId !== undefined)
-    ) {
-      await updatePersonaProfile(resolvedUserId, {
-        ...(data.nombre !== undefined && { name: data.nombre }),
-        ...(data.rut !== undefined && { rut: finalRut }),
-        ...(data.cargo !== undefined && { cargo: finalCargo }),
-        ...(data.sedeId !== undefined && { sedeId: finalSedeId }),
-        ...(data.escuelaId !== undefined && { escuelaId: finalEscuelaId }),
-      });
-      await ensureSyncableUserRole(resolvedUserId, finalRol);
-    }
-
-    const updateData = {
-      ...(data.rol !== undefined && { rol: data.rol }),
-      nombre: resolvedNombre,
-      email: resolvedEmail,
-      userId: resolvedUserId,
-      rut: finalRut,
-      cargo: finalCargo,
-      sedeId: finalSedeId,
-      escuelaId: finalEscuelaId,
-      ...(data.laborEnProyecto !== undefined && {
-        laborEnProyecto: data.laborEnProyecto.trim() || null,
-      }),
-      ...(data.socioComunitarioId !== undefined && {
-        socioComunitarioId:
-          finalRol === 'Beneficiario' ? data.socioComunitarioId : null,
-      }),
-      ...(data.carreraId !== undefined && {
-        carreraId: data.carreraId || null,
-      }),
-      ...(data.asignaturaId !== undefined && {
-        asignaturaId: data.asignaturaId || null,
-      }),
-    };
-    await prisma.proyectoParticipante.update({
-      where: { id: participanteId },
-      data: updateData,
-    });
-    const nombreParticipante = existing.nombre || existing.rol || 'Participante';
-    await createHistorialEntry({
-      proyectoId: existing.proyectoId,
-      accion: 'Actualizar',
-      tabProyecto: 'Participantes',
-      elementoEspecifico: `los datos del ${existing.rol}`,
-      cambioGenerado: nombreParticipante,
-    });
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id: existing.proyectoId },
-      include: proyectoIncludeForParticipante,
-    });
-    revalidatePath('/proyectos');
-    revalidatePath('/configuracion/usuarios');
-    revalidateTag('proyectos');
-    revalidateTag('proyectos-dashboard');
-    return { success: true, data: proyecto as ProyectoWithRelations };
-  } catch (error) {
-    console.error('Error updating participante:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar participante',
-    };
-  }
-}
-
-export async function deleteParticipanteProyecto(participanteId: string) {
-  try {
-    const existing = await prisma.proyectoParticipante.findUnique({
-      where: { id: participanteId },
-    });
-    if (!existing) {
-      return { success: false, error: 'Participante no encontrado' };
-    }
-    const nombreParticipante = existing.nombre || existing.rol || 'Participante';
-    await prisma.proyectoParticipante.delete({
-      where: { id: participanteId },
-    });
-    await createHistorialEntry({
-      proyectoId: existing.proyectoId,
-      accion: 'Eliminar participante',
-      tabProyecto: 'Participantes',
-      elementoEspecifico: `al ${existing.rol}`,
-      cambioGenerado: nombreParticipante,
-    });
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id: existing.proyectoId },
-      include: proyectoIncludeForParticipante,
-    });
-    revalidatePath('/proyectos');
-    revalidateTag('proyectos');
-    revalidateTag('proyectos-dashboard');
-    return { success: true, data: proyecto as ProyectoWithRelations };
-  } catch (error) {
-    console.error('Error deleting participante:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar participante',
-    };
   }
 }
 
@@ -2360,6 +2016,9 @@ export async function createSocioComunitario(
   descripcion?: string
 ) {
   try {
+    const gate = await requirePermission('view.ajustes');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const socio = await prisma.socioComunitario.create({
       data: {
         nombre,

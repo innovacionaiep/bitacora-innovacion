@@ -16,7 +16,6 @@ import {
   type PermissionKey,
   type RolePermissionMap,
 } from '@/lib/permissions/catalog';
-import type { Role } from '@/lib/auth-utils';
 
 type PermissionsContextValue = {
   permissions: RolePermissionMap;
@@ -27,17 +26,20 @@ type PermissionsContextValue = {
 
 const PermissionsContext = createContext<PermissionsContextValue | null>(null);
 
+/**
+ * Provides the union of permissions for all enabled roles on the session.
+ * (Name kept for import compatibility; no longer tied to a single active role.)
+ */
 export function ActiveRolePermissionsProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const { data: session, status } = useSession();
-  const activeRole = session?.user?.activeRole ?? null;
+  const rolesKey = (session?.user?.availableRoles ?? []).join('|');
   const [permissions, setPermissions] = useState<RolePermissionMap>(() =>
-    defaultsForRole((activeRole as Role) || 'Beneficiario')
+    defaultsForRole('Beneficiario')
   );
-  // Solo bloquear UI en la primera carga; refrescos posteriores no desmontan el layout
   const [loading, setLoading] = useState(true);
   const hasLoadedOnceRef = useRef(false);
 
@@ -48,7 +50,6 @@ export function ActiveRolePermissionsProvider({
       return;
     }
     if (status === 'loading') return;
-    // Evitar spinner de pantalla completa en refrescos (p. ej. tras session.update)
     if (!hasLoadedOnceRef.current) {
       setLoading(true);
     }
@@ -60,7 +61,7 @@ export function ActiveRolePermissionsProvider({
 
   useEffect(() => {
     void refresh();
-  }, [refresh, activeRole]);
+  }, [refresh, rolesKey]);
 
   const value = useMemo<PermissionsContextValue>(
     () => ({

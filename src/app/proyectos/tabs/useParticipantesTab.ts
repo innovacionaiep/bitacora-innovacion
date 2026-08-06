@@ -6,8 +6,8 @@ import {
   addParticipanteProyecto,
   deleteParticipanteProyecto,
   updateParticipanteProyecto,
-  getProyectoParticipantes,
-} from '@/lib/actions/proyectos';
+} from '@/lib/actions/proyectos-participantes';
+import { getProyectoParticipantes } from '@/lib/actions/proyectos';
 import {
   getSedes,
   getEscuelas as getEscuelasConfig,
@@ -34,7 +34,6 @@ import {
   validateParticipanteForm,
   type NewParticipanteForm,
   isSyncableParticipanteRol,
-  SYNCABLE_PARTICIPANTE_ROLES,
 } from './participantes-tab-utils';
 import type { Role } from '@/lib/auth-utils';
 import { useEditarSociosComunitarios } from './useEditarSociosComunitarios';
@@ -114,10 +113,29 @@ export function useParticipantesTab({
     onSaveSuccess,
   });
 
+  /** Carga usuarios del rol solo cuando hace falta el selector de persona (add/edit). */
+  const ensureUsuariosPorRol = (rol: string) => {
+    if (!isSyncableParticipanteRol(rol)) return;
+    void queryClient
+      .fetchQuery({
+        queryKey: usersByAppRoleKey(rol),
+        queryFn: () => listUsersByAppRole(rol as Role),
+        staleTime: 5 * 60_000,
+      })
+      .then((res) => {
+        if (res?.success && res.data) {
+          setUsuariosPorRolApp((prev) =>
+            prev[rol] === res.data ? prev : { ...prev, [rol]: res.data! }
+          );
+        }
+      });
+  };
+
   const startAddingParticipante = () => {
     setEditingParticipanteId(null);
     setEditDraft(null);
     setIsAddingParticipante(true);
+    ensureUsuariosPorRol(newParticipanteData.rol);
   };
 
   const cancelAddingParticipante = () => {
@@ -168,6 +186,7 @@ export function useParticipantesTab({
   const handleNewParticipanteRolChange = (rol: NewParticipanteForm['rol']) => {
     setNewParticipanteData((prev) => {
       if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
+        ensureUsuariosPorRol(rol);
         return {
           ...prev,
           rol,
@@ -187,6 +206,7 @@ export function useParticipantesTab({
     setEditDraft((prev) => {
       if (!prev) return prev;
       if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
+        ensureUsuariosPorRol(rol);
         return {
           ...prev,
           rol,
@@ -207,10 +227,12 @@ export function useParticipantesTab({
       (p) => p.id === participanteId
     );
     if (!existing) return;
+    const rol =
+      (existing.rol as NewParticipanteForm['rol']) || 'Colaborador';
     setIsAddingParticipante(false);
     setEditingParticipanteId(participanteId);
     setEditDraft({
-      rol: (existing.rol as NewParticipanteForm['rol']) || 'Colaborador',
+      rol,
       nombre:
         existing.displayName ??
         existing.user?.name ??
@@ -226,6 +248,7 @@ export function useParticipantesTab({
       carreraId: existing.carrera?.id ?? '',
       asignaturaId: existing.asignatura?.id ?? '',
     });
+    ensureUsuariosPorRol(rol);
   };
 
   const cancelEditParticipante = () => {
@@ -565,61 +588,13 @@ export function useParticipantesTab({
     }
   };
 
+  // 1) Tabla: solo participantes (no espera catálogos ni listas de usuarios).
   useEffect(() => {
     if (selectedTab !== 'Participantes') return;
     let cancelled = false;
     (async () => {
-      const catalogosCached =
-        queryClient.getQueryData<CatalogosGeneral>(catalogosGeneralKey);
-
-      const fetchSedes = catalogosCached
-        ? Promise.resolve(catalogosCached.sedes)
-        : queryClient.fetchQuery({
-            queryKey: sedesKey,
-            queryFn: getSedes,
-            staleTime: 10 * 60_000,
-          });
-      const fetchEscuelas = catalogosCached
-        ? Promise.resolve(catalogosCached.escuelas)
-        : queryClient.fetchQuery({
-            queryKey: escuelasConfigKey,
-            queryFn: getEscuelasConfig,
-            staleTime: 10 * 60_000,
-          });
-      const fetchCarreras = catalogosCached
-        ? Promise.resolve(catalogosCached.carreras)
-        : queryClient.fetchQuery({
-            queryKey: carrerasConfigKey,
-            queryFn: getCarrerasConfig,
-            staleTime: 10 * 60_000,
-          });
-      const fetchAsignaturas = catalogosCached
-        ? Promise.resolve(catalogosCached.asignaturas)
-        : queryClient.fetchQuery({
-            queryKey: asignaturasConfigKey,
-            queryFn: getAsignaturasConfig,
-            staleTime: 10 * 60_000,
-          });
-
-      const [
-        sedes,
-        escuelas,
-        carreras,
-        asignaturas,
-        ...roleUserResults
-      ] = await Promise.all([
-        fetchSedes,
-        fetchEscuelas,
-        fetchCarreras,
-        fetchAsignaturas,
-        ...SYNCABLE_PARTICIPANTE_ROLES.map((role) =>
-          queryClient.fetchQuery({
-            queryKey: usersByAppRoleKey(role),
-            queryFn: () => listUsersByAppRole(role as Role),
-            staleTime: 5 * 60_000,
-          })
-        ),
-        queryClient.fetchQuery({
+      try {
+        const participantes = await queryClient.fetchQuery({
           queryKey: proyectoParticipantesKey(project.id),
           queryFn: async () => {
             const result = await getProyectoParticipantes(project.id);
@@ -629,15 +604,75 @@ export function useParticipantesTab({
             return result.data ?? [];
           },
           staleTime: 60_000,
-        }),
-      ]);
+        });
+        if (cancelled) return;
+        setProject((prev) => {
+          if (!prev || prev.id !== project.id) return prev;
+          if (prev.participantes_rel) return prev;
+          return {
+            ...prev,
+            participantes_rel: participantes ?? [],
+            participantes: (participantes ?? []).length,
+          } as ProyectoWithRelations;
+        });
+      } catch (error) {
+        console.error('Error cargando participantes:', error);
+        if (!cancelled) {
+          setProject((prev) => {
+            if (!prev || prev.id !== project.id) return prev;
+            if (prev.participantes_rel) return prev;
+            return {
+              ...prev,
+              participantes_rel: [],
+              participantes: 0,
+            } as ProyectoWithRelations;
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTab, project.id, queryClient, setProject]);
 
-      const participantes = roleUserResults[
-        roleUserResults.length - 1
-      ] as Awaited<ReturnType<typeof getProyectoParticipantes>>['data'];
-      const roleResults = roleUserResults.slice(0, -1) as Awaited<
-        ReturnType<typeof listUsersByAppRole>
-      >[];
+  // 2) Catálogos en background (formularios add/edit); no bloquean la tabla.
+  useEffect(() => {
+    if (selectedTab !== 'Participantes') return;
+    let cancelled = false;
+    (async () => {
+      const catalogosCached =
+        queryClient.getQueryData<CatalogosGeneral>(catalogosGeneralKey);
+
+      const [sedes, escuelas, carreras, asignaturas] = await Promise.all([
+        catalogosCached
+          ? Promise.resolve(catalogosCached.sedes)
+          : queryClient.fetchQuery({
+              queryKey: sedesKey,
+              queryFn: getSedes,
+              staleTime: 10 * 60_000,
+            }),
+        catalogosCached
+          ? Promise.resolve(catalogosCached.escuelas)
+          : queryClient.fetchQuery({
+              queryKey: escuelasConfigKey,
+              queryFn: getEscuelasConfig,
+              staleTime: 10 * 60_000,
+            }),
+        catalogosCached
+          ? Promise.resolve(catalogosCached.carreras)
+          : queryClient.fetchQuery({
+              queryKey: carrerasConfigKey,
+              queryFn: getCarrerasConfig,
+              staleTime: 10 * 60_000,
+            }),
+        catalogosCached
+          ? Promise.resolve(catalogosCached.asignaturas)
+          : queryClient.fetchQuery({
+              queryKey: asignaturasConfigKey,
+              queryFn: getAsignaturasConfig,
+              staleTime: 10 * 60_000,
+            }),
+      ]);
 
       if (catalogosCached) {
         queryClient.setQueryData(sedesKey, sedes);
@@ -659,27 +694,12 @@ export function useParticipantesTab({
         setAsignaturasParticipantes(
           asignaturas.map((a) => ({ id: a.id, nombre: a.nombre }))
         );
-        const byRol: Record<string, UserByRoleOption[]> = {};
-        SYNCABLE_PARTICIPANTE_ROLES.forEach((role, i) => {
-          const res = roleResults[i];
-          byRol[role] = res?.success && res.data ? res.data : [];
-        });
-        setUsuariosPorRolApp(byRol);
-        setProject((prev) => {
-          if (!prev || prev.id !== project.id) return prev;
-          if (prev.participantes_rel) return prev;
-          return {
-            ...prev,
-            participantes_rel: participantes ?? [],
-            participantes: (participantes ?? []).length,
-          } as ProyectoWithRelations;
-        });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [selectedTab, project.id, queryClient, setProject]);
+  }, [selectedTab, queryClient]);
 
   return {
     filterParticipantesRol,

@@ -630,7 +630,8 @@ export default function ConfiguracionProyectosPage() {
             <DialogTitle>Desbloquear eliminación de proyectos</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Ingresa la contraseña de administración (bitacora) para poder
+            Ingresa la contraseña de administración configurada en el servidor
+            para poder
             eliminar proyectos y todo su contenido asociado.
           </p>
           <div className="space-y-2">
@@ -676,7 +677,7 @@ export default function ConfiguracionProyectosPage() {
               type="password"
               value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Contraseña (bitacora)"
+              placeholder="Contraseña de desbloqueo"
             />
             {deleteError && (
               <p className="text-sm text-red-600">{deleteError}</p>

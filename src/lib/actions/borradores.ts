@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-utils';
+import { requireSession } from '@/lib/authz/guards';
 import type { ProyectoFormPayload } from '@/types/proyecto';
 
 export type BorradorListItem = {
@@ -16,10 +16,9 @@ export async function getProyectoBorradores(): Promise<{
   error?: string;
 }> {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autorizado' };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
     const list = await prisma.proyectoBorrador.findMany({
       where: { userId: user.id },
       orderBy: { updatedAt: 'desc' },
@@ -38,10 +37,9 @@ export async function getProyectoBorrador(id: string): Promise<{
   error?: string;
 }> {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autorizado' };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
     const borrador = await prisma.proyectoBorrador.findFirst({
       where: { id, userId: user.id },
       select: { id: true, nombre: true, payload: true },
@@ -69,10 +67,9 @@ export async function saveProyectoBorrador(data: {
   payload: ProyectoFormPayload;
 }): Promise<{ success: boolean; data?: { id: string }; error?: string }> {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autorizado' };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
     const nombre = (data.nombre || 'Sin nombre').trim() || 'Sin nombre';
     const payload = data.payload as object;
 
@@ -102,10 +99,9 @@ export async function deleteProyectoBorrador(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autorizado' };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
     await prisma.proyectoBorrador.deleteMany({
       where: { id, userId: user.id },
     });

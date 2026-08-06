@@ -1,14 +1,15 @@
 'use server';
 
 import { getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
-
-const NOVEDADES_PASSWORD = 'bitacora';
+import { userHasPermission } from '@/lib/permissions/check';
+import {
+  getNovedadesUnlockPassword,
+  secretsMatch,
+} from '@/lib/secrets/env-secrets';
 
 /**
  * Verifica la contraseña de acceso a Novedades / Soporte.
- * Requiere view.novedades o view.soporte según el contexto de la página.
- * No se persiste estado: la contraseña se pide cada vez que se entra.
+ * Requiere view.novedades o view.soporte. Fail-closed si falta NOVEDADES_UNLOCK_PASSWORD.
  */
 export async function verifyNovedadesPassword(
   password: string
@@ -17,18 +18,27 @@ export async function verifyNovedadesPassword(
   if (!session?.user) {
     return { success: false, error: 'No autenticado' };
   }
-  const canNovedades = await roleHasPermission(
-    session.user.activeRole,
+  const availableRoles = session.user.availableRoles ?? [];
+  const canNovedades = await userHasPermission(
+    availableRoles,
     'view.novedades'
   );
-  const canSoporte = await roleHasPermission(
-    session.user.activeRole,
+  const canSoporte = await userHasPermission(
+    availableRoles,
     'view.soporte'
   );
   if (!canNovedades && !canSoporte) {
     return { success: false, error: 'Sin permisos' };
   }
-  if (password !== NOVEDADES_PASSWORD) {
+
+  const expected = getNovedadesUnlockPassword();
+  if (!expected) {
+    return {
+      success: false,
+      error: 'NOVEDADES_UNLOCK_PASSWORD no está configurada en el servidor',
+    };
+  }
+  if (!secretsMatch(password, expected)) {
     return { success: false, error: 'Contraseña incorrecta' };
   }
   return { success: true };

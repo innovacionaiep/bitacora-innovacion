@@ -68,9 +68,13 @@ Crea `.env.local` con al menos:
 DATABASE_URL=
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=
+CONFIG_UNLOCK_PASSWORD=
+NOVEDADES_UNLOCK_PASSWORD=
 ```
 
 Variables habituales adicionales: Cloudinary, Supabase (URL/anon key) y SMTP si usas reportes por correo.
+
+> **Seeds:** los scripts `prisma/seed*.ts` están en cuarentena. Nunca ejecutarlos (ver `prisma/SEED_QUARANTINE.md`).
 
 ```bash
 pnpm exec prisma migrate deploy
@@ -88,6 +92,9 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `pnpm build` | Build de producción |
 | `pnpm start` | Servidor de producción |
 | `pnpm lint` | ESLint |
+| `pnpm test` | Vitest (Strict TDD) |
+| `pnpm test:watch` | Vitest en modo watch |
+| `pnpm test:coverage` | Cobertura V8 |
 
 ---
 

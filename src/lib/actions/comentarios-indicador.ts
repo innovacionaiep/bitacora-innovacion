@@ -1,8 +1,8 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 export interface ComentarioIndicadorData {
@@ -58,14 +58,6 @@ export async function createComentarioIndicador(
   contenido: string
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado',
-      };
-    }
-
     // Obtener el indicador para tener su nombre y proyectoId
     const indicador = await prisma.indicador.findUnique({
       where: { id: indicadorId },
@@ -82,10 +74,16 @@ export async function createComentarioIndicador(
       };
     }
 
+    const gate = await requireProjectAccess(
+      indicador.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const comentario = await prisma.comentarioIndicador.create({
       data: {
         indicadorId,
-        userId: user.id,
+        userId: gate.user.id,
         contenido,
       },
       include: {
@@ -125,17 +123,12 @@ export async function createComentarioIndicador(
 
 export async function deleteComentarioIndicador(comentarioId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado',
-      };
-    }
-
     // Verificar que el comentario pertenece al usuario
     const comentario = await prisma.comentarioIndicador.findUnique({
       where: { id: comentarioId },
+      include: {
+        indicador: { select: { proyectoId: true } },
+      },
     });
 
     if (!comentario) {
@@ -145,7 +138,13 @@ export async function deleteComentarioIndicador(comentarioId: string) {
       };
     }
 
-    if (comentario.userId !== user.id) {
+    const gate = await requireProjectAccess(
+      comentario.indicador.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
+    if (comentario.userId !== gate.user.id) {
       return {
         success: false,
         error: 'No tienes permiso para eliminar este comentario',

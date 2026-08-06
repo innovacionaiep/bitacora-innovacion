@@ -12,9 +12,7 @@ import { ProyectosContent } from './ProyectosContent';
 
 export default async function ProyectosPage() {
   const session = await getSession();
-  const activeRole =
-    (session?.user as { activeRole?: string | null } | undefined)?.activeRole ??
-    null;
+  const userId = session?.user?.id ?? null;
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -27,9 +25,9 @@ export default async function ProyectosPage() {
   let initialListado: ProyectoListadoItem[] | undefined;
   if (session?.user) {
     await queryClient.prefetchQuery({
-      queryKey: proyectosListadoKey(activeRole),
+      queryKey: proyectosListadoKey(userId),
       queryFn: async () => {
-        const result = await getProyectosListadoParaUsuario(activeRole);
+        const result = await getProyectosListadoParaUsuario();
         if (!result.success) {
           throw new Error(result.error ?? 'Error al obtener listado');
         }
@@ -38,17 +36,14 @@ export default async function ProyectosPage() {
     });
     initialListado =
       queryClient.getQueryData<ProyectoListadoItem[]>(
-        proyectosListadoKey(activeRole)
-      ) ?? [];
+        proyectosListadoKey(userId)
+      );
   }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <Suspense fallback={<div className="h-full min-h-[200px]" />}>
-        <ProyectosContent
-          initialListado={initialListado}
-          initialActiveRole={activeRole}
-        />
+        <ProyectosContent initialListado={initialListado} />
       </Suspense>
     </HydrationBoundary>
   );

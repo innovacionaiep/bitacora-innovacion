@@ -4,7 +4,8 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
+import { requireSession } from '@/lib/authz/guards';
 
 // Tipos para las respuestas
 export interface PostWithRelations {
@@ -492,13 +493,9 @@ export async function getUpcomingEvents(
  */
 export async function createPost(data: CreatePostData) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión para publicar',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     if (!data.contenido.trim()) {
       return {
@@ -561,7 +558,7 @@ export async function createPost(data: CreatePostData) {
       data: {
         contenido: data.contenido.trim(),
         authorId: user.id,
-        authorRoleAtPost: user.activeRole ?? null,
+        authorRoleAtPost: user.availableRoles?.[0] ?? null,
         eventoFecha: eventoFechaDate,
         eventoNombre: data.eventoNombre?.trim() || null,
         eventoDescripcion: data.eventoDescripcion?.trim() || null,
@@ -653,13 +650,9 @@ export async function createPost(data: CreatePostData) {
  */
 export async function deletePost(postId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     // Verificar que el post existe y pertenece al usuario
     const post = await prisma.post.findUnique({
@@ -708,13 +701,9 @@ export async function deletePost(postId: string) {
  */
 export async function toggleEventoAsistencia(postId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión para confirmar asistencia',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
@@ -1025,13 +1014,10 @@ export async function setPostReaction(
   reactionType: PostReactionType
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión para reaccionar',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
+
     if (!VALID_REACTIONS.includes(reactionType)) {
       return {
         success: false,
@@ -1111,8 +1097,8 @@ export async function getProyectosParaPost() {
       }),
     ]);
 
-    const canViewAll = await roleHasPermission(
-      (user as { activeRole?: string | null }).activeRole,
+    const canViewAll = await userHasPermission(
+      user.availableRoles ?? [],
       'projects.view_all'
     );
 

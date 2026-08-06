@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
 import { NovedadesPasswordGate } from '@/components/novedades/NovedadesPasswordGate';
 
 /**
@@ -14,8 +14,8 @@ export default async function NovedadesPage() {
     redirect('/inicio');
   }
 
-  const canView = await roleHasPermission(
-    session.user.activeRole,
+  const canView = await userHasPermission(
+    session.user.availableRoles ?? [],
     'view.novedades'
   );
   if (!canView) {

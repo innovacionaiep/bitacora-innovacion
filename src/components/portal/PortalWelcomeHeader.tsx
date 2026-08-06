@@ -5,15 +5,9 @@ import { useSession, signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { updateUserProfile } from '@/lib/auth-actions';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
-import { Check, ChevronDown, LogOut, Pencil, X } from 'lucide-react';
+import { Check, CircleHelp, LogOut, Pencil, X } from 'lucide-react';
 
 function getRoleColors(role: string): string {
   switch (role.toLowerCase()) {
@@ -36,45 +30,18 @@ function getRoleColors(role: string): string {
   }
 }
 
-function getRoleCircleColor(role: string): string {
-  switch (role.toLowerCase()) {
-    case 'admin':
-      return 'bg-yellow-500';
-    case 'coordinador':
-      return 'bg-blue-500';
-    case 'colaborador':
-      return 'bg-violet-500';
-    case 'encargado':
-      return 'bg-orange-500';
-    case 'docente':
-      return 'bg-green-500';
-    case 'estudiante':
-      return 'bg-red-500';
-    case 'beneficiario':
-      return 'bg-cyan-500';
-    default:
-      return 'bg-gray-500';
-  }
-}
-
-/** Sobrevive a remounts del header; evita update() en bucle tras login. */
-const sessionSyncedUserIds = new Set<string>();
-
 export interface PortalWelcomeHeaderProps {
-  onRoleChange?: (newRole: string) => void;
+  onStartTour?: () => void;
 }
 
-export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) {
+export function PortalWelcomeHeader({ onStartTour }: PortalWelcomeHeaderProps) {
   const { data: session, update } = useSession();
-  const [optimisticRole, setOptimisticRole] = useState<string | null>(null);
   const [fullName, setFullName] = useState('');
   const [tempFullName, setTempFullName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameError, setNameError] = useState('');
 
   const availableRoles = session?.user?.availableRoles ?? [];
-  const currentRole =
-    optimisticRole ?? session?.user?.activeRole ?? availableRoles[0] ?? 'Sin rol';
 
   useEffect(() => {
     if (session?.user) {
@@ -82,41 +49,6 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
       setTempFullName(session.user.name || '');
     }
   }, [session?.user?.name, session?.user]);
-
-  useEffect(() => {
-    if (optimisticRole && session?.user?.activeRole === optimisticRole) {
-      setOptimisticRole(null);
-    }
-  }, [session?.user?.activeRole, optimisticRole]);
-
-  // Una sola sync por usuario y sesión de pestaña (no por remount del componente)
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId || sessionSyncedUserIds.has(userId)) return;
-    sessionSyncedUserIds.add(userId);
-    update({ activeRole: session.user.activeRole ?? undefined });
-  }, [session?.user?.id, session?.user?.activeRole, session?.user, update]);
-
-  const handleRoleChange = async (newRole: string) => {
-    if (!session?.user?.id) return;
-    const previousRole = session.user.activeRole ?? null;
-    setOptimisticRole(newRole);
-    onRoleChange?.(newRole);
-    try {
-      const result = await updateUserProfile(session.user.id, {
-        activeRole: newRole,
-      });
-      if (!result.success) throw new Error(result.error);
-      await update({ activeRole: newRole });
-      setTimeout(() => update(), 100);
-    } catch {
-      setOptimisticRole(previousRole);
-      await update({ activeRole: previousRole });
-      if (typeof previousRole === 'string') {
-        onRoleChange?.(previousRole);
-      }
-    }
-  };
 
   const handleNameEdit = () => {
     setIsEditingName(true);
@@ -227,6 +159,21 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
           <p className="text-[13px] text-gray-500 mt-0.5 truncate tracking-wide">
             {session.user.email}
           </p>
+          {availableRoles.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-gray-500 shrink-0">
+                Roles habilitados:
+              </span>
+              {availableRoles.map((role) => (
+                <span
+                  key={role}
+                  className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${getRoleColors(role)}`}
+                >
+                  {role}
+                </span>
+              ))}
+            </div>
+          )}
           {nameError && (
             <p className="text-red-600 text-[11px] mt-1">{nameError}</p>
           )}
@@ -234,36 +181,17 @@ export function PortalWelcomeHeader({ onRoleChange }: PortalWelcomeHeaderProps) 
       </div>
 
       <div className="flex items-center gap-3 shrink-0 ml-auto">
-        {availableRoles.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className={`min-w-[140px] h-8 justify-between shrink-0 rounded border px-2 text-[10px] font-medium shadow-none bg-white border-gray-200 hover:bg-gray-50 ${getRoleColors(currentRole)}`}
-              >
-                {currentRole}
-                <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" strokeWidth={1.75} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px] border-gray-200 shadow-md">
-              {availableRoles.map((role) => {
-                const isActive = role === currentRole;
-                return (
-                  <DropdownMenuItem
-                    key={role}
-                    className={`cursor-pointer flex items-center gap-2 text-[13px] ${isActive ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-700'}`}
-                    onClick={() => void handleRoleChange(role)}
-                  >
-                    <div
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${getRoleCircleColor(role)}`}
-                    />
-                    <span className="flex-1">{role}</span>
-                    {isActive && <Check className="h-3.5 w-3.5 text-emerald-600" />}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {onStartTour && (
+          <Button
+            type="button"
+            onClick={onStartTour}
+            size="sm"
+            variant="outline"
+            className="h-8 px-2.5 gap-1.5 text-[13px] font-medium tracking-wide text-gray-600 border-gray-200 bg-white shadow-none hover:bg-gray-50 hover:text-emerald-700"
+          >
+            <CircleHelp className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Ver tutorial
+          </Button>
         )}
 
         <Button

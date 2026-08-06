@@ -1,7 +1,6 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { Role } from '@/lib/auth-utils';
@@ -10,14 +9,13 @@ import {
   updatePersonaProfile,
   getRolesConParticipacionActivaAlQuitar,
 } from '@/lib/personas/sync-persona';
+import { requireAdmin } from '@/lib/authz/guards';
+import {
+  getConfigUnlockPassword,
+  secretsMatch,
+} from '@/lib/secrets/env-secrets';
 
 const SALT_ROUNDS = 10;
-const CONFIG_UNLOCK_PASSWORD = process.env.CONFIG_UNLOCK_PASSWORD ?? 'bitacora';
-
-const ENCRYPTION_KEY = (() => {
-  const secret = process.env.PASSWORD_DISPLAY_SECRET ?? CONFIG_UNLOCK_PASSWORD;
-  return crypto.createHash('sha256').update(secret).digest();
-})();
 
 export type UserListRow = {
   id: string;
@@ -44,33 +42,33 @@ export type RoleRemovalConflict = {
   proyectos: { proyectoId: string; proyectoNombre: string }[];
 };
 
-function encryptPassword(plain: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
-  const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
-  return Buffer.concat([iv, enc]).toString('base64');
-}
-
-function decryptPassword(encrypted: string): string | null {
-  try {
-    const buf = Buffer.from(encrypted, 'base64');
-    const iv = buf.subarray(0, 16);
-    const data = buf.subarray(16);
-    const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
-    return decipher.update(data) + decipher.final('utf8');
-  } catch {
-    return null;
+function unlockConfiguredOrError():
+  | { ok: true; password: string }
+  | { ok: false; error: string } {
+  const password = getConfigUnlockPassword();
+  if (!password) {
+    return {
+      ok: false,
+      error:
+        'CONFIG_UNLOCK_PASSWORD no está configurada en el servidor',
+    };
   }
+  return { ok: true, password };
 }
 
 /** Mapa id -> última actividad (desde BD por raw para no depender del cliente Prisma). */
-async function getLastActiveByUserId(): Promise<Map<string, Date | null>> {
+async function getLastActiveByUserId(
+  userIds: string[]
+): Promise<Map<string, Date | null>> {
   const map = new Map<string, Date | null>();
+  if (userIds.length === 0) return map;
   try {
+    const { Prisma } = await import('@prisma/client');
     const raw = await prisma.$queryRaw<
       { id: string; last_active_at: Date | null }[]
     >`
       SELECT id, last_active_at FROM users
+      WHERE id IN (${Prisma.join(userIds)})
     `;
     raw.forEach((r) => map.set(r.id, r.last_active_at));
   } catch {
@@ -88,8 +86,11 @@ export async function listUsersAdmin(): Promise<{
   data?: UserListRow[];
   error?: string;
 }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
-    const [users, lastActiveById, participacionesPorEmail] = await Promise.all([
+    const [users, participacionesPorEmail] = await Promise.all([
       prisma.user.findMany({
         orderBy: { email: 'asc' },
         select: {
@@ -121,7 +122,6 @@ export async function listUsersAdmin(): Promise<{
           },
         },
       }),
-      getLastActiveByUserId(),
       prisma.proyectoParticipante.findMany({
         where: { userId: null, email: { not: null } },
         select: {
@@ -131,6 +131,7 @@ export async function listUsersAdmin(): Promise<{
         },
       }),
     ]);
+    const lastActiveById = await getLastActiveByUserId(users.map((u) => u.id));
 
     const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
     for (const p of participacionesPorEmail) {
@@ -193,14 +194,21 @@ export async function verifyConfigUnlock(password: string): Promise<{
   success: boolean;
   error?: string;
 }> {
-  if (password === CONFIG_UNLOCK_PASSWORD) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  const configured = unlockConfiguredOrError();
+  if (!configured.ok) return { success: false, error: configured.error };
+
+  if (secretsMatch(password, configured.password)) {
     return { success: true };
   }
   return { success: false, error: 'Contraseña incorrecta' };
 }
 
 /**
- * Listar usuarios con contraseñas en claro (solo si la contraseña de desbloqueo es correcta).
+ * Listar usuarios tras desbloqueo admin.
+ * Passwords are never returned in plaintext (reversible storage removed).
  */
 export async function listUsersAdminWithPasswords(
   unlockPassword: string
@@ -209,11 +217,16 @@ export async function listUsersAdminWithPasswords(
   data?: UserListRowWithPassword[];
   error?: string;
 }> {
-  if (unlockPassword !== CONFIG_UNLOCK_PASSWORD) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  const configured = unlockConfiguredOrError();
+  if (!configured.ok) return { success: false, error: configured.error };
+  if (!secretsMatch(unlockPassword, configured.password)) {
     return { success: false, error: 'Contraseña incorrecta' };
   }
   try {
-    const [users, lastActiveById, participacionesPorEmail] = await Promise.all([
+    const [users, participacionesPorEmail] = await Promise.all([
       prisma.user.findMany({
         orderBy: { email: 'asc' },
         select: {
@@ -225,7 +238,6 @@ export async function listUsersAdminWithPasswords(
           sedeId: true,
           escuelaId: true,
           password: true,
-          passwordEncrypted: true,
           sede: { select: { nombre: true } },
           escuela: { select: { nombre: true } },
           roles: { select: { role: true } },
@@ -246,7 +258,6 @@ export async function listUsersAdminWithPasswords(
           },
         },
       }),
-      getLastActiveByUserId(),
       prisma.proyectoParticipante.findMany({
         where: { userId: null, email: { not: null } },
         select: {
@@ -256,6 +267,7 @@ export async function listUsersAdminWithPasswords(
         },
       }),
     ]);
+    const lastActiveById = await getLastActiveByUserId(users.map((u) => u.id));
 
     const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
     for (const p of participacionesPorEmail) {
@@ -301,9 +313,7 @@ export async function listUsersAdminWithPasswords(
           lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
         roles: u.roles.map((r) => r.role),
         proyectos: merged,
-        passwordPlain: u.passwordEncrypted
-          ? decryptPassword(u.passwordEncrypted)
-          : null,
+        passwordPlain: null,
       };
     });
 
@@ -327,6 +337,9 @@ export async function createUserAdmin(data: {
   sedeId?: string | null;
   escuelaId?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const email = data.email.trim().toLowerCase();
     const existing = await prisma.user.findFirst({
@@ -344,14 +357,12 @@ export async function createUserAdmin(data: {
       if (!hasAccount(existing)) {
         // Activar cuenta pendiente existente
         const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
-        const encrypted = encryptPassword(data.password);
         await prisma.$transaction(async (tx) => {
           await tx.user.update({
             where: { id: existing.id },
             data: {
               name: data.name,
               password: hashed,
-              passwordEncrypted: encrypted,
               rut: data.rut?.trim() || existing.rut,
               cargo: data.cargo?.trim() || existing.cargo,
               sedeId: data.sedeId || existing.sedeId,
@@ -381,14 +392,12 @@ export async function createUserAdmin(data: {
       return { success: false, error: 'Este email ya está registrado' };
     }
     const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
-    const encrypted = encryptPassword(data.password);
     await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           name: data.name,
           email,
           password: hashed,
-          passwordEncrypted: encrypted,
           activeRole: data.initialRole,
           rut: data.rut?.trim() || null,
           cargo: data.cargo?.trim() || null,
@@ -422,6 +431,9 @@ export async function updateUserAdmin(
     escuelaId?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     if (data.email !== undefined) {
       const email = data.email.trim().toLowerCase();
@@ -460,6 +472,9 @@ export async function previewUpdateUserRolesAdmin(
   conflicts?: RoleRemovalConflict[];
   error?: string;
 }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const current = await prisma.userRole.findMany({
       where: { userId },
@@ -492,6 +507,9 @@ export async function updateUserRolesAdmin(
   requiresConfirm?: boolean;
   conflicts?: RoleRemovalConflict[];
 }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const current = await prisma.userRole.findMany({
       where: { userId },
@@ -548,6 +566,9 @@ export async function activateUserAccountAdmin(
   userId: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     if (!password || password.length < 6) {
       return { success: false, error: 'La contraseña debe tener al menos 6 caracteres' };
@@ -563,10 +584,9 @@ export async function activateUserAccountAdmin(
       return { success: false, error: 'Este usuario ya tiene cuenta creada' };
     }
     const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-    const encrypted = encryptPassword(password);
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashed, passwordEncrypted: encrypted },
+      data: { password: hashed },
     });
     revalidatePath('/configuracion/usuarios');
     return { success: true };
@@ -583,12 +603,14 @@ export async function updateUserPasswordAdmin(
   userId: string,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    const encrypted = encryptPassword(newPassword);
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashed, passwordEncrypted: encrypted },
+      data: { password: hashed },
     });
     revalidatePath('/configuracion/usuarios');
     return { success: true };
@@ -605,7 +627,12 @@ export async function deleteUserAdmin(
   userId: string,
   unlockPassword: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (unlockPassword !== CONFIG_UNLOCK_PASSWORD) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  const configured = unlockConfiguredOrError();
+  if (!configured.ok) return { success: false, error: configured.error };
+  if (!secretsMatch(unlockPassword, configured.password)) {
     return { success: false, error: 'Contraseña incorrecta' };
   }
   try {

@@ -4,6 +4,10 @@ import type { Prisma } from '@prisma/client';
 import { parse } from 'date-fns';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import {
+  requireProjectAccess,
+  requireSession,
+} from '@/lib/authz/guards';
 
 export interface HistorialEntryData {
   proyectoId: string;
@@ -18,13 +22,9 @@ export interface HistorialEntryData {
  */
 export async function createHistorialEntry(data: HistorialEntryData) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     const historialEntry = await prisma.historialProyecto.create({
       data: {
@@ -72,10 +72,9 @@ export async function createHistorialEntriesBatch(
     return { success: true as const, count: 0 };
   }
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false as const, error: 'Usuario no autenticado' };
-    }
+    const gate = await requireProjectAccess(proyectoId);
+    if (!gate.ok) return { success: false as const, error: gate.error };
+    const user = gate.user;
 
     const result = await prisma.historialProyecto.createMany({
       data: entries.map((entry) => ({
@@ -258,10 +257,10 @@ export async function getHistorialFiltros(proyectoId: string) {
 }
 
 /**
- * Obtener últimas entradas de historial de los proyectos donde el usuario participa con el rol activo (portal Inicio).
+ * Obtener últimas entradas de historial de los proyectos donde el usuario participa (portal Inicio).
  */
 export async function getHistorialRecienteParaUsuario(
-  activeRole: string | null,
+  _activeRole?: string | null,
   limit = 10
 ) {
   try {
@@ -269,19 +268,14 @@ export async function getHistorialRecienteParaUsuario(
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
-    if (!activeRole) {
-      return { success: true, data: [] };
-    }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
       where: {
-        rol: activeRole,
         OR: [
           { userId: user.id },
           ...(user.email
             ? [
                 {
-                  userId: null,
                   email: { equals: user.email, mode: 'insensitive' as const },
                 },
               ]

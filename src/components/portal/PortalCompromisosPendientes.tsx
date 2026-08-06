@@ -132,6 +132,16 @@ export function PortalCompromisosPendientes({
     const result = await toggleCompromiso(id);
     setTogglingId(null);
     if (result.success) {
+      // Lista de pendientes: al marcar realizado, sacar de la UI de inmediato.
+      if (!current.completado) {
+        setCompromisos((prev) => prev.filter((c) => c.id !== id));
+        if (selectedCompromiso?.id === id) {
+          setSelectedCompromiso(null);
+          setDetailModalOpen(false);
+          setIsEditingCompromiso(false);
+        }
+      }
+      // Refresco en segundo plano (sin spinners / top-loader).
       void onSuccess();
     } else {
       setCompromisos((prev) =>

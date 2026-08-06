@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 export interface IndicadorData {
@@ -296,6 +297,12 @@ export async function updateIndicadorResultado(
       };
     }
 
+    const gate = await requireProjectAccess(
+      indicadorActual.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     await prisma.indicador.update({
       where: { id: indicadorId },
       data: {
@@ -356,6 +363,12 @@ export async function updateIndicador(
         error: 'Indicador no encontrado',
       };
     }
+
+    const gate = await requireProjectAccess(
+      indicadorActual.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     // Función auxiliar para parsear valores numéricos (remover % y otros símbolos)
     const parseValue = (value: string | null | undefined): number => {
@@ -470,6 +483,9 @@ export async function createIndicador(
   }
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    const gate = await requireProjectAccess(proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const parseValue = (value: string | null | undefined): number => {
       if (!value || value === '') return 0;
       const cleaned = value
@@ -538,6 +554,12 @@ export async function deleteIndicador(
       };
     }
 
+    const gate = await requireProjectAccess(
+      indicador.proyectoId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const proyectoId = indicador.proyectoId;
     const nombre = indicador.nombre;
 
@@ -570,6 +592,9 @@ export async function recalcularPorcentajesProyecto(
   proyectoId: string
 ): Promise<{ success: boolean; error?: string; updated?: number }> {
   try {
+    const gate = await requireProjectAccess(proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Obtener todos los indicadores del proyecto
     const indicadores = await prisma.indicador.findMany({
       where: { proyectoId },
@@ -651,6 +676,9 @@ export async function sincronizarObjetivosProyecto(
   error?: string;
 }> {
   try {
+    const gate = await requireProjectAccess(proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const result = await getIndicadoresByProyecto(proyectoId);
 
     if (!result.success || !result.data) {

@@ -11,7 +11,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
 
 export default async function ConfiguracionLayout({
   children,
@@ -22,8 +22,8 @@ export default async function ConfiguracionLayout({
   if (!session?.user) {
     redirect('/auth/login');
   }
-  const canAjustes = await roleHasPermission(
-    session.user.activeRole,
+  const canAjustes = await userHasPermission(
+    session.user.availableRoles ?? [],
     'view.ajustes'
   );
   if (!canAjustes) {

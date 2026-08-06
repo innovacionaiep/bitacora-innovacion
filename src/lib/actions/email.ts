@@ -1,6 +1,7 @@
 'use server';
 
 import nodemailer from 'nodemailer';
+import { requireSession } from '@/lib/authz/guards';
 
 /**
  * Envío de correo vía SMTP (ej. Outlook/Office 365).
@@ -30,6 +31,9 @@ function parseRecipients(to: string): string[] {
 export async function sendEmail(
   params: SendEmailParams
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireSession();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   const {
     to,
     html,

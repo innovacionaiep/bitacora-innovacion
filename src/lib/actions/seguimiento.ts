@@ -2,7 +2,10 @@
 
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { roleHasPermission, userCanOnProject } from '@/lib/permissions/check';
+import {
+  userHasPermission,
+  userCanOnProject,
+} from '@/lib/permissions/check';
 import { revalidatePath } from 'next/cache';
 import { createHistorialEntry } from './historial';
 import { toggleTaskCompletion } from './gantt';
@@ -69,9 +72,10 @@ export async function addCompromiso(
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
     const puedeCrear = await userCanOnProject({
-      activeRole,
+      availableRoles,
       email: userEmail,
       userId: user.id,
       proyectoId,
@@ -138,9 +142,10 @@ export async function updateCompromiso(
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
     const puedeEditar = await userCanOnProject({
-      activeRole,
+      availableRoles,
       email: userEmail,
       userId: user.id,
       proyectoId: compromiso.proyectoId,
@@ -217,9 +222,10 @@ export async function toggleCompromiso(compromisoId: string) {
     }
 
     const userEmail = (user as { email?: string | null }).email ?? null;
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
     const puedeMarcarRealizado = await userCanOnProject({
-      activeRole,
+      availableRoles,
       email: userEmail,
       userId: user.id,
       proyectoId: compromiso.proyectoId,
@@ -305,8 +311,11 @@ export async function getProyectosParaSeguimiento() {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
 
-    const activeRole = user.activeRole ?? null;
-    const canViewAll = await roleHasPermission(activeRole, 'projects.view_all');
+    const availableRoles = user.availableRoles ?? [];
+    const canViewAll = await userHasPermission(
+      availableRoles,
+      'projects.view_all'
+    );
     if (!canViewAll) {
       return { success: false, error: 'Acceso denegado', data: [] };
     }
@@ -373,27 +382,24 @@ export async function getCompromisosProyecto(proyectoId: string) {
 }
 
 /**
- * Obtener compromisos pendientes de los proyectos donde el usuario participa con el rol activo (portal Inicio).
+ * Obtener compromisos pendientes de los proyectos donde el usuario participa (portal Inicio).
  */
-export async function getCompromisosPendientesParaUsuario(activeRole: string | null) {
+export async function getCompromisosPendientesParaUsuario(
+  _activeRole?: string | null
+) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
-    if (!activeRole) {
-      return { success: true, data: [] };
-    }
 
     const participaciones = await prisma.proyectoParticipante.findMany({
       where: {
-        rol: activeRole,
         OR: [
           { userId: user.id },
           ...(user.email
             ? [
                 {
-                  userId: null,
                   email: { equals: user.email, mode: 'insensitive' as const },
                 },
               ]

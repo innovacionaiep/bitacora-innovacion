@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth-utils';
 import {
-  roleHasPermission,
+  userHasPermission,
   userCanOnProject,
 } from '@/lib/permissions/check';
 import {
@@ -99,14 +99,17 @@ export async function GET(
   const user = session?.user as {
     id?: string;
     email?: string;
-    activeRole?: string;
+    availableRoles?: string[];
   } | null;
-  if (!user?.activeRole) {
+  if (!user?.id) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
   if (tipo === 'proyectos') {
-    const ok = await roleHasPermission(user.activeRole, 'projects.bulk_create');
+    const ok = await userHasPermission(
+      user.availableRoles ?? [],
+      'projects.bulk_create'
+    );
     if (!ok) {
       return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
     }
@@ -127,7 +130,7 @@ export async function GET(
             ? 'projects.import_indicadores'
             : 'projects.import_presupuesto';
     const ok = await userCanOnProject({
-      activeRole: user.activeRole,
+      availableRoles: user.availableRoles ?? [],
       email: user.email,
       userId: user.id,
       proyectoId,

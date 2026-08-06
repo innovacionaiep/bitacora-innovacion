@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { AVAILABLE_ROLES, type Role } from '@/lib/auth-utils';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
 import {
   defaultsForRole,
   getDefaultEnabled,
@@ -87,6 +88,31 @@ export async function getPermissionsForRole(
   return map;
 }
 
+/** Union of permission maps for multiple enabled roles. */
+export async function getPermissionsForRoles(
+  roles: readonly string[] | null | undefined
+): Promise<RolePermissionMap> {
+  const empty = defaultsForRole('Beneficiario');
+  for (const k of PERMISSION_KEYS) empty[k] = false;
+
+  if (!roles?.length) return empty;
+  if (roles.includes('Admin')) {
+    const all = defaultsForRole('Admin');
+    for (const k of PERMISSION_KEYS) all[k] = true;
+    return all;
+  }
+
+  const result = { ...empty };
+  for (const role of roles) {
+    if (!AVAILABLE_ROLES.includes(role as Role)) continue;
+    const map = await getPermissionsForRole(role);
+    for (const key of PERMISSION_KEYS) {
+      if (map[key]) result[key] = true;
+    }
+  }
+  return result;
+}
+
 export async function roleHasPermission(
   role: string | null | undefined,
   key: PermissionKey
@@ -97,29 +123,35 @@ export async function roleHasPermission(
   return map[key] === true;
 }
 
+/** True if any enabled role grants the permission (union). */
+export async function userHasPermission(
+  availableRoles: readonly string[] | null | undefined,
+  key: PermissionKey
+): Promise<boolean> {
+  if (!availableRoles?.length) return false;
+  if (availableRoles.includes('Admin')) return true;
+  for (const role of availableRoles) {
+    if (await roleHasPermission(role, key)) return true;
+  }
+  return false;
+}
+
 /**
- * Participation: email (lowercase) + rol in ProyectoParticipante equals activeRole.
- * Admin has global participation (always true for project scope).
+ * Whether the user is a participant of the project (any role).
+ * Admin-enabled accounts are treated as global participants.
  */
-export async function isParticipantWithActiveRole(params: {
+export async function isProjectParticipant(params: {
   proyectoId: string;
   email: string | null | undefined;
-  activeRole: string | null | undefined;
   userId?: string | null;
+  hasAdminEnabled: boolean;
 }): Promise<boolean> {
-  const { proyectoId, email, activeRole, userId } = params;
-  if (!activeRole) return false;
-  if (activeRole === 'Admin') return true;
-
-  const roleNorm = activeRole.trim();
+  const { proyectoId, email, userId, hasAdminEnabled } = params;
+  if (hasAdminEnabled) return true;
 
   if (userId) {
     const byUser = await prisma.proyectoParticipante.findFirst({
-      where: {
-        proyectoId,
-        userId,
-        rol: roleNorm,
-      },
+      where: { proyectoId, userId },
       select: { id: true },
     });
     if (byUser) return true;
@@ -127,35 +159,92 @@ export async function isParticipantWithActiveRole(params: {
 
   if (!email?.trim()) return false;
   const normalized = email.trim().toLowerCase();
-  const byEmail = await prisma.proyectoParticipante.findMany({
+  const byEmail = await prisma.proyectoParticipante.findFirst({
     where: {
       proyectoId,
-      email: { not: null },
-      rol: roleNorm,
+      email: { equals: normalized, mode: 'insensitive' },
     },
-    select: { email: true },
+    select: { id: true },
   });
-  return byEmail.some((p) => p.email?.trim().toLowerCase() === normalized);
+  return !!byEmail;
+}
+
+/** Participation role for a user in a project (first match; uniqueness enforced elsewhere). */
+export async function getParticipationRole(params: {
+  proyectoId: string;
+  email: string | null | undefined;
+  userId?: string | null;
+}): Promise<string | null> {
+  const { proyectoId, email, userId } = params;
+
+  if (userId) {
+    const byUser = await prisma.proyectoParticipante.findFirst({
+      where: { proyectoId, userId },
+      select: { rol: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (byUser) return byUser.rol;
+  }
+
+  if (!email?.trim()) return null;
+  const normalized = email.trim().toLowerCase();
+  const byEmail = await prisma.proyectoParticipante.findFirst({
+    where: {
+      proyectoId,
+      email: { equals: normalized, mode: 'insensitive' },
+    },
+    select: { rol: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return byEmail?.rol ?? null;
 }
 
 /**
- * Matrix permission ON + (Admin global OR participant with same role via email/userId).
+ * Matrix permission for participation role + membership (or Admin-enabled).
  */
 export async function userCanOnProject(params: {
-  activeRole: string | null | undefined;
+  availableRoles: readonly string[] | null | undefined;
   email: string | null | undefined;
   userId?: string | null;
   proyectoId: string;
   key: PermissionKey;
+  /** @deprecated Ignored; kept for transitional call sites */
+  activeRole?: string | null;
 }): Promise<boolean> {
-  const { activeRole, email, userId, proyectoId, key } = params;
-  const has = await roleHasPermission(activeRole, key);
-  if (!has) return false;
-  if (activeRole === 'Admin') return true;
-  return isParticipantWithActiveRole({
+  const { availableRoles, email, userId, proyectoId, key } = params;
+  if (userHasAdminEnabled(availableRoles)) return true;
+
+  const participationRole = await getParticipationRole({
     proyectoId,
     email,
-    activeRole,
     userId,
   });
+  if (!participationRole) return false;
+
+  return roleHasPermission(participationRole, key);
+}
+
+/** @deprecated Use isProjectParticipant */
+export async function isParticipantWithActiveRole(params: {
+  proyectoId: string;
+  email: string | null | undefined;
+  activeRole: string | null | undefined;
+  userId?: string | null;
+  availableRoles?: readonly string[] | null;
+}): Promise<boolean> {
+  return isProjectParticipant({
+    proyectoId: params.proyectoId,
+    email: params.email,
+    userId: params.userId,
+    hasAdminEnabled: userHasAdminEnabled(
+      params.availableRoles ??
+        (params.activeRole === 'Admin' ? ['Admin'] : [])
+    ),
+  });
+}
+
+export async function getMyEnabledRolesPermissions(
+  availableRoles: readonly string[] | null | undefined
+): Promise<RolePermissionMap> {
+  return getPermissionsForRoles(availableRoles);
 }

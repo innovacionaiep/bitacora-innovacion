@@ -3,6 +3,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, type RefObject } from 'react';
 import type { Activity } from '@/hooks/useGantt';
+import { getActivityRowHeight } from './gantt-utils';
 
 type GanttActivityListProps<TActivityRowProps> = {
   activities: Activity[];
@@ -23,13 +24,10 @@ export function GanttActivityVirtualList({
   scrollContainerRef,
   renderActivityRow,
 }: GanttActivityListProps<unknown>) {
-  const getActivityRowHeight = useCallback(
+  const estimateActivityRowHeight = useCallback(
     (activity: Activity) => {
       const isExpanded = expandedDescriptions.has(activity.id);
-      const baseHeight = 3 + 50;
-      // Debe coincidir con taskSpacing (25) al posicionar tareas en GanttChart
-      const taskHeight = isExpanded ? activity.tasks.length * 25 : 0;
-      return Math.max(48, baseHeight + taskHeight + 10);
+      return getActivityRowHeight(isExpanded, activity.tasks.length);
     },
     [expandedDescriptions]
   );
@@ -37,7 +35,7 @@ export function GanttActivityVirtualList({
   const rowVirtualizer = useVirtualizer({
     count: activities.length,
     getScrollElement: () => scrollContainerRef.current,
-    estimateSize: (index) => getActivityRowHeight(activities[index]),
+    estimateSize: (index) => estimateActivityRowHeight(activities[index]),
     overscan: 4,
   });
 

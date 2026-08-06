@@ -65,7 +65,7 @@ export function PortalMisProyectos({
         <PanelHeader />
         <div className="flex-1 flex items-center px-5 py-4">
           <p className="text-[13px] text-gray-400">
-            No hay proyectos con el rol seleccionado.
+            No participas en ningún proyecto.
           </p>
         </div>
       </div>
@@ -79,6 +79,7 @@ export function PortalMisProyectos({
         <div className="flex items-center gap-3 w-full px-5 py-2 border-b border-gray-100 bg-gray-50/50 text-[11px] font-medium tracking-wide text-gray-600 shrink-0 sticky top-0 z-[1]">
           <span className="w-12 shrink-0" aria-hidden />
           <span className="flex-1 min-w-0 text-center whitespace-nowrap overflow-visible">Proyecto</span>
+          <span className="shrink-0 min-w-20 text-center whitespace-nowrap overflow-visible">Mi rol</span>
           <span className="shrink-0 min-w-24 text-center whitespace-nowrap overflow-visible">Fondo</span>
           <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Gantt</span>
           <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Indicadores</span>
@@ -86,7 +87,7 @@ export function PortalMisProyectos({
         </div>
         {proyectos.map((p) => (
           <div
-            key={p.id}
+            key={`${p.id}-${p.rol}`}
             className="flex items-center gap-3 w-full px-5 py-2.5 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/80 transition-colors"
           >
             <Link href={`/proyectos?id=${p.id}`} className="shrink-0">
@@ -104,6 +105,9 @@ export function PortalMisProyectos({
               title={p.proyecto}
             >
               {p.proyecto}
+            </span>
+            <span className="text-[11px] text-gray-600 shrink-0 min-w-20 text-center truncate" title={p.rol}>
+              {p.rol}
             </span>
             <span className="text-[11px] text-gray-500 shrink-0 w-24 text-center">
               {p.fondo}

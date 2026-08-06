@@ -23,7 +23,14 @@
 # misc
 .DS_Store
 *.pem
-.cursor/
+
+# Cursor local noise — keep shared rules versioned
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# Gentle AI / SDD local skill registry cache (not shareable)
+.atl/
 
 # debug
 debug*.log

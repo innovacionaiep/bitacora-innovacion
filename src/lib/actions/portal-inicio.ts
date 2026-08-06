@@ -48,57 +48,46 @@ export async function getRolesConProyectosVigentes() {
 }
 
 /**
- * Obtener proyectoIds donde el usuario participa con el rol activo.
- * Función interna para reutilizar en otras actions del portal.
+ * Participaciones del usuario (cualquier rol) — proyectoId + rol.
  */
-async function getProyectoIdsPorRol(
-  user: { id: string; email?: string | null },
-  activeRole: string | null
-) {
-  if (!activeRole) return [];
-  const list = await prisma.proyectoParticipante.findMany({
+async function getParticipacionesUsuario(user: {
+  id: string;
+  email?: string | null;
+}) {
+  return prisma.proyectoParticipante.findMany({
     where: {
-      rol: activeRole,
       OR: [
         { userId: user.id },
         ...(user.email
           ? [
               {
-                userId: null,
                 email: { equals: user.email, mode: 'insensitive' as const },
               },
             ]
           : []),
       ],
     },
-    select: { proyectoId: true },
+    select: { proyectoId: true, rol: true },
   });
-  return list.map((p) => p.proyectoId);
 }
 
 /**
- * Proyectos donde el usuario participa con el rol activo (id, nombre, avanceGantt, rol).
+ * Proyectos donde el usuario participa (todos los roles), con columna de rol.
  */
-export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
+export async function getProyectosDelUsuarioConRol(_ignored?: string | null) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
 
-    if (!activeRole) {
-      return { success: true, data: [] };
-    }
-
     const participaciones = await prisma.proyectoParticipante.findMany({
       where: {
-        rol: activeRole,
         OR: [
           { userId: user.id },
           ...(user.email
             ? [
                 {
-                  userId: null,
                   email: { equals: user.email, mode: 'insensitive' as const },
                 },
               ]
@@ -117,6 +106,7 @@ export async function getProyectosDelUsuarioConRol(activeRole: string | null) {
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     const proyectoIds = participaciones
@@ -230,6 +220,8 @@ export interface AlertasPortal {
   actividadesPorEvidenciar: AlertaActividadItem[];
   indicadoresPorEvidenciar: AlertaIndicadorItem[];
   actividadesAtrasadas: AlertaActividadAtrasadaItem[];
+  /** Rol de participación del usuario por proyecto (para atribuciones por ítem). */
+  miRolPorProyecto?: Record<string, string>;
 }
 
 const LIMITE_ALERTAS_PORTAL = 100;
@@ -241,6 +233,7 @@ function emptyAlertasPortal(): AlertasPortal {
     actividadesPorEvidenciar: [],
     indicadoresPorEvidenciar: [],
     actividadesAtrasadas: [],
+    miRolPorProyecto: {},
   };
 }
 
@@ -374,29 +367,34 @@ async function fetchAlertasPorEvidenciar(proyectoIds: string[]) {
 }
 
 /**
- * Alertas del portal según rol activo.
- * Coordinador / Encargado / Colaborador / Docente / Estudiante →
- * evidenciar actividades/indicadores + presupuesto + atrasadas.
- * Solo proyectos donde el usuario tiene ese rol.
+ * Alertas del portal para todos los proyectos donde el usuario participa
+ * con un rol de ROLES_ALERTAS_PORTAL. Incluye miRolPorProyecto para UI.
  */
-export async function getAlertasPortalUsuario(activeRole: string | null) {
+export async function getAlertasPortalUsuario(_ignored?: string | null) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: null };
     }
 
-    const proyectoIds = await getProyectoIdsPorRol(user, activeRole);
-    if (proyectoIds.length === 0) {
-      return { success: true, data: emptyAlertasPortal() };
+    const participaciones = await getParticipacionesUsuario(user);
+    const miRolPorProyecto: Record<string, string> = {};
+    const proyectoIds: string[] = [];
+    for (const p of participaciones) {
+      if (
+        (ROLES_ALERTAS_PORTAL as readonly string[]).includes(p.rol) &&
+        !miRolPorProyecto[p.proyectoId]
+      ) {
+        miRolPorProyecto[p.proyectoId] = p.rol;
+        proyectoIds.push(p.proyectoId);
+      }
     }
 
-    const rolPermitido =
-      activeRole != null &&
-      (ROLES_ALERTAS_PORTAL as readonly string[]).includes(activeRole);
-
-    if (!rolPermitido) {
-      return { success: true, data: emptyAlertasPortal() };
+    if (proyectoIds.length === 0) {
+      return {
+        success: true,
+        data: { ...emptyAlertasPortal(), miRolPorProyecto: {} },
+      };
     }
 
     const [porEvidenciar, presupuesto, atrasadas] = await Promise.all([
@@ -412,6 +410,7 @@ export async function getAlertasPortalUsuario(activeRole: string | null) {
         indicadoresPorEvidenciar: porEvidenciar.indicadoresPorEvidenciar,
         presupuestoPorSolicitar: presupuesto,
         actividadesAtrasadas: atrasadas,
+        miRolPorProyecto,
       },
     };
   } catch (error) {
@@ -438,26 +437,21 @@ export type InicioInitialData = {
  * Carga inicial del portal de inicio en el servidor (SSR).
  */
 export async function getInicioInitialData(
-  activeRole: string | null
+  _ignored?: string | null
 ): Promise<InicioInitialData | null> {
   const user = await getCurrentUser();
   if (!user?.id) return null;
 
-  const role =
-    activeRole ??
-    (user as { availableRoles?: string[] }).availableRoles?.[0] ??
-    null;
-
   const [proyectosRes, alertasRes, compromisosRes, historialRes] =
     await Promise.all([
-      getProyectosDelUsuarioConRol(role),
-      getAlertasPortalUsuario(role),
-      getCompromisosPendientesParaUsuario(role),
-      getHistorialRecienteParaUsuario(role, 10),
+      getProyectosDelUsuarioConRol(),
+      getAlertasPortalUsuario(),
+      getCompromisosPendientesParaUsuario(),
+      getHistorialRecienteParaUsuario(null, 10),
     ]);
 
   return {
-    role,
+    role: null,
     proyectos: proyectosRes.success ? proyectosRes.data ?? [] : [],
     alertas: alertasRes.success ? alertasRes.data : null,
     compromisos: compromisosRes.success ? compromisosRes.data ?? [] : [],

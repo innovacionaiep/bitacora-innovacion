@@ -39,7 +39,6 @@ import {
   Loader2,
   X,
   Save,
-  Pencil,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -71,9 +70,30 @@ import {
   useMemo,
   memo,
   useCallback,
-  type ReactNode,
 } from 'react';
 import { GanttActivityVirtualList } from '@/components/proyectos/gantt/GanttActivityList';
+import {
+  ActivityFieldSaveCancel,
+  ActivityHoverEditButton,
+} from '@/components/proyectos/gantt/ActivityFieldControls';
+import type {
+  ActivityEditableField,
+  GanttChartProps,
+  SortableActivityProps,
+} from '@/components/proyectos/gantt/gantt-types';
+import {
+  convertDateToISO,
+  formatDateForTooltip,
+  getActivityDateRange as computeActivityDateRange,
+  getActivityProgress as computeActivityProgress,
+  getActivityRowHeight,
+  getBarWidth as computeBarWidth,
+  getDatePosition as computeDatePosition,
+  getProjectStats as computeProjectStats,
+  getTodayCenteredOffset,
+  getTodayPositionPercent,
+  getVisibleMonths as computeVisibleMonths,
+} from '@/components/proyectos/gantt/gantt-utils';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { ActivityStatus } from '@prisma/client';
@@ -101,125 +121,6 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Meses del año
-const MONTHS = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-];
-
-type ActivityEditableField = 'name' | 'description';
-
-function ActivityFieldSaveCancel({
-  isSaving,
-  onSave,
-  onCancel,
-}: {
-  isSaving: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-4 mt-2">
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={isSaving}
-        className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
-      >
-        <Save className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-        Guardar
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
-      >
-        <X className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-        Cancelar
-      </button>
-    </div>
-  );
-}
-
-function ActivityHoverEditButton({
-  onClick,
-  tooltip = 'Editar',
-  className = 'right-0 top-0',
-}: {
-  onClick: () => void;
-  tooltip?: string;
-  className?: string;
-}) {
-  return (
-    <div className={`absolute z-10 ${className}`}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={onClick}
-            className="h-7 w-7 shrink-0 rounded-sm opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 flex items-center justify-center text-gray-400 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
-            aria-label={tooltip}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  );
-}
-
-// Props del componente
-interface GanttChartProps {
-  projectId: string;
-  projectName?: string;
-  showProjectSelector?: boolean;
-  onProjectChange?: () => void;
-  /** Actividades precargadas del proyecto (evita refetch al abrir tab Gantt) */
-  initialActivities?: Activity[];
-  topLoaderEnabled?: boolean;
-  /** Acciones bajo la columna de actividades (ej. carga masiva) */
-  footerLeft?: ReactNode;
-}
-
-// Componente para actividad arrastrable
-interface SortableActivityProps {
-  activity: Activity;
-  expandedDescriptions: Set<string>;
-  toggleDescription: (activityId: string) => void;
-  handleActivityBarClick: (activity: Activity) => void;
-  handleActivityInteraction: (
-    activity: Activity,
-    event: React.MouseEvent | React.TouchEvent | React.PointerEvent,
-    isDragging: boolean
-  ) => void;
-  handleDeleteActivity: (activityId: string) => void;
-  handleToggleTaskCompletion: (taskId: string) => void;
-  getActivityDateRange: (
-    activity: Activity
-  ) => { startDate: string; endDate: string } | null;
-  getActivityProgress: (activity: Activity) => number;
-  getDatePosition: (date: string) => {
-    month: number;
-    day: number;
-    left: number;
-  };
-  getBarWidth: (startDate: string, endDate: string) => number;
-  formatDateForTooltip: (dateString: string) => string;
-}
-
 const SortableActivity = memo(function SortableActivity({
   activity,
   expandedDescriptions,
@@ -244,17 +145,8 @@ const SortableActivity = memo(function SortableActivity({
     isDragging,
   } = useSortable({ id: activity.id });
 
-  // Función unificada para calcular altura de fila
-  // taskSpacing debe coincidir con el usado al posicionar nombres/barras de tareas (25)
-  const getRowHeight = (isExpanded: boolean, taskCount: number) => {
-    const baseHeight = 3 + 50; // padding superior + altura barra actividad
-    const taskHeight = isExpanded ? taskCount * 25 : 0; // altura por tarea
-    const bottomPadding = 10; // padding inferior unificado
-    return Math.max(48, baseHeight + taskHeight + bottomPadding);
-  };
-
   const isExpanded = expandedDescriptions.has(activity.id);
-  const rowHeight = getRowHeight(isExpanded, activity.tasks.length);
+  const rowHeight = getActivityRowHeight(isExpanded, activity.tasks.length);
 
   const normalized = transform
     ? { ...transform, scaleX: 1, scaleY: 1 }
@@ -755,22 +647,9 @@ export default function GanttChart({
   // Estado para controlar el rango visible de meses (6-24 meses)
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
 
-  // Offset que centra la vista en "hoy" (meses desde enero 2025, centrado en el rango visible)
-  const getTodayCenteredOffset = (range: number) => {
-    const t = new Date();
-    const todayOffset = (t.getFullYear() - 2025) * 12 + t.getMonth();
-    const centered = todayOffset - Math.floor(range / 2);
-    return Math.max(-24, Math.min(24, centered));
-  };
-
   // Estado para controlar el offset del timeline (meses desde enero 2025); inicializa centrado en hoy
   const [timelineOffset, setTimelineOffset] = useState(() =>
-    (() => {
-      const t = new Date();
-      const todayOffset = (t.getFullYear() - 2025) * 12 + t.getMonth();
-      const centered = todayOffset - 6; // 6 = floor(12/2) para rango por defecto 12 meses
-      return Math.max(-24, Math.min(24, centered));
-    })()
+    getTodayCenteredOffset(12)
   );
 
   // Refs y estado para manejar el ancho del scrollbar y altura de la línea "hoy"
@@ -792,30 +671,8 @@ export default function GanttChart({
   );
 
   // Generar los meses visibles basados en el offset y rango
-  const getVisibleMonths = () => {
-    const months = [];
-    const startYear = 2025 + Math.floor(timelineOffset / 12);
-    const startMonth = ((timelineOffset % 12) + 12) % 12;
-
-    for (let i = 0; i < visibleMonthsRange; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      const year = startYear + Math.floor((startMonth + i) / 12);
-
-      const shouldTruncate = visibleMonthsRange > 12;
-      const monthName = shouldTruncate
-        ? MONTHS[monthIndex].substring(0, 3)
-        : MONTHS[monthIndex];
-
-      months.push({
-        name: monthName,
-        fullName: MONTHS[monthIndex],
-        year: year,
-        monthIndex: monthIndex,
-      });
-    }
-
-    return months;
-  };
+  const getVisibleMonths = () =>
+    computeVisibleMonths(timelineOffset, visibleMonthsRange);
 
   // Formulario de actividad
   const [activityForm, setActivityForm] = useState({
@@ -925,36 +782,7 @@ export default function GanttChart({
   };
 
   // Calcular estadísticas de actividades y tareas completadas
-  const getProjectStats = () => {
-    if (!projectId || !activities.length) {
-      return {
-        completedActivities: 0,
-        totalActivities: 0,
-        completedTasks: 0,
-        totalTasks: 0,
-      };
-    }
-
-    const totalActivities = activities.length;
-    const completedActivities = activities.filter(
-      (activity) =>
-        activity.tasks.length > 0 &&
-        activity.tasks.every((task) => task.completed)
-    ).length;
-
-    const allTasks = activities.flatMap((activity) => activity.tasks);
-    const totalTasks = allTasks.length;
-    const completedTasks = allTasks.filter((task) => task.completed).length;
-
-    return {
-      completedActivities,
-      totalActivities,
-      completedTasks,
-      totalTasks,
-    };
-  };
-
-  const stats = getProjectStats();
+  const stats = computeProjectStats(projectId, activities);
 
   // Función para cerrar todos los popups
   const closeAllPopups = () => {
@@ -1112,39 +940,6 @@ export default function GanttChart({
       setShowActivityPopup(false);
       showSuccessMessage('Actividad creada exitosamente');
     }
-  };
-
-  // Función para convertir fecha del formato chileno (DD/MM/YYYY o DD-MM-YYYY) a ISO (YYYY-MM-DD)
-  const convertDateToISO = (dateString: string): string => {
-    if (!dateString) {
-      return '';
-    }
-
-    const isoPattern = /^\d{4}-\d{2}-\d{2}$/;
-    if (isoPattern.test(dateString)) {
-      return dateString;
-    }
-
-    const slashParts = dateString.split('/');
-    if (slashParts.length === 3) {
-      const [day, month, year] = slashParts;
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    const dashParts = dateString.split('-');
-    if (dashParts.length === 3) {
-      const [day, month, year] = dashParts;
-      if (day.length <= 2 && month.length <= 2 && year.length === 4) {
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-    }
-
-    const date = new Date(dateString);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
-    }
-
-    return dateString;
   };
 
   // Crear nueva tarea
@@ -1825,50 +1620,10 @@ export default function GanttChart({
 
   // Obtener posición de una fecha en el calendario para tareas
   const getDatePosition = useCallback(
-    (date: string) => {
-      const dateObj = new Date(date);
-      const year = dateObj.getFullYear();
-      const month = dateObj.getMonth();
-      const day = dateObj.getDate();
-
-      const dateOffset = (year - 2025) * 12 + month;
-      const visibleStartOffset = timelineOffset;
-      const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
-
-      if (dateOffset < visibleStartOffset) {
-        return { month: 0, day: 1, left: 0 };
-      }
-      if (dateOffset > visibleEndOffset) {
-        return { month: visibleMonthsRange - 1, day: 31, left: 100 };
-      }
-
-      const relativeMonth = dateOffset - visibleStartOffset;
-      const monthWidth = 100 / visibleMonthsRange;
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const dayWidth = monthWidth / daysInMonth;
-      const dayPosition = (day - 1) * dayWidth;
-      const leftPosition = relativeMonth * monthWidth + dayPosition;
-      const clampedLeft = Math.max(0, Math.min(100, leftPosition));
-
-      return {
-        month,
-        day,
-        left: clampedLeft,
-      };
-    },
+    (date: string) =>
+      computeDatePosition(date, timelineOffset, visibleMonthsRange),
     [timelineOffset, visibleMonthsRange]
   );
-
-  // Formatear fecha para mostrar en tooltip
-  const formatDateForTooltip = useCallback((dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = date
-      .toLocaleDateString('es-ES', { month: 'long' })
-      .toLowerCase();
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  }, []);
 
   // Función para abrir el popup unificado en diferentes modos
   const openActivityPopup = useCallback(
@@ -1948,119 +1703,32 @@ export default function GanttChart({
     [activities, reorderActivities, showSuccessMessage]
   );
 
-  // Calcular el rango de fechas de una actividad basado en sus tareas
-  const getActivityDateRange = useCallback((activity: Activity) => {
-    if (!activity.tasks || activity.tasks.length === 0) {
-      return null;
-    }
-
-    const sortedTasks = [...activity.tasks].sort(
-      (a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    );
-
-    const firstTask = sortedTasks[0];
-    const lastTask = sortedTasks[sortedTasks.length - 1];
-
-    return {
-      startDate: firstTask.startDate,
-      endDate: lastTask.endDate,
-    };
-  }, []);
-
-  // Calcular el progreso de una actividad basado en tareas completadas
-  const getActivityProgress = useCallback((activity: Activity) => {
-    if (!activity.tasks || activity.tasks.length === 0) {
-      return 0;
-    }
-
-    const completedTasks = activity.tasks.filter(
-      (task) => task.completed
-    ).length;
-    const totalTasks = activity.tasks.length;
-
-    return Math.round((completedTasks / totalTasks) * 100);
-  }, []);
-
-  // Obtener ancho de la barra basado en la duración para tareas
-  const getBarWidth = useCallback(
-    (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const startOffset = (start.getFullYear() - 2025) * 12 + start.getMonth();
-    const endOffset = (end.getFullYear() - 2025) * 12 + end.getMonth();
-    const visibleStartOffset = timelineOffset;
-    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
-
-    if (endOffset < visibleStartOffset || startOffset > visibleEndOffset) {
-      return 0;
-    }
-
-    const startPos = getDatePosition(startDate);
-    const endPos = getDatePosition(endDate);
-
-    let width = endPos.left - startPos.left;
-
-    if (startPos.left >= 100) {
-      return 0;
-    } else if (endPos.left > 100) {
-      width = 100 - startPos.left;
-    }
-
-    return Math.max(1, width);
-    },
-    [getDatePosition, timelineOffset, visibleMonthsRange]
+  const getActivityDateRange = useCallback(
+    (activity: Activity) => computeActivityDateRange(activity),
+    []
   );
 
-  // Obtener posición del día de hoy
-  const getTodayPosition = () => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
+  const getActivityProgress = useCallback(
+    (activity: Activity) => computeActivityProgress(activity),
+    []
+  );
 
-    let targetMonth = currentMonth;
-    if (currentYear === 2024) {
-      targetMonth = 0;
-    }
-
-    const monthWidth = 100 / 12;
-    const dayWidth = monthWidth / 31;
-
-    const leftPosition = targetMonth * monthWidth + currentDay * dayWidth;
-
-    return {
-      month: targetMonth,
-      day: currentDay,
-      left: leftPosition,
-    };
-  };
+  const getBarWidth = useCallback(
+    (startDate: string, endDate: string) =>
+      computeBarWidth(
+        startDate,
+        endDate,
+        timelineOffset,
+        visibleMonthsRange
+      ),
+    [timelineOffset, visibleMonthsRange]
+  );
 
   // Obtener posición en porcentaje para la línea roja
-  const todayPositionPercent = useMemo(() => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-
-    const todayOffset = (currentYear - 2025) * 12 + currentMonth;
-    const visibleStartOffset = timelineOffset;
-    const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
-
-    if (todayOffset < visibleStartOffset || todayOffset > visibleEndOffset) {
-      return -1;
-    }
-
-    const relativeMonth = todayOffset - visibleStartOffset;
-    const monthWidth = 100 / visibleMonthsRange;
-    const monthStartPosition = relativeMonth * monthWidth;
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const dayWidth = monthWidth / daysInMonth;
-    const dayPosition = (currentDay - 1) * dayWidth;
-
-    return monthStartPosition + dayPosition;
-  }, [timelineOffset, visibleMonthsRange]);
+  const todayPositionPercent = useMemo(
+    () => getTodayPositionPercent(timelineOffset, visibleMonthsRange),
+    [timelineOffset, visibleMonthsRange]
+  );
 
   if (ganttError) {
     return (
@@ -2865,7 +2533,7 @@ export default function GanttChart({
               {/* COLUMNA IZQUIERDA: Descripción + Período */}
               <div className="space-y-6 overflow-y-auto min-h-0 border-r border-gray-100 pr-6 custom-scrollbar">
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
                   </h3>
                   {activityPopupMode === 'create' ? (
@@ -2921,7 +2589,7 @@ export default function GanttChart({
                 </div>
 
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Período
                   </h3>
                   <div className="rounded-lg border border-gray-200 bg-gray-50/40 p-4">
@@ -2950,7 +2618,7 @@ export default function GanttChart({
 
                 {/* Evidencias */}
                 <div>
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Evidencias
                   </h3>
                   <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -3149,7 +2817,7 @@ export default function GanttChart({
               {/* COLUMNA CENTRAL: Tareas */}
               <div className="group/tasks flex flex-col min-h-0 overflow-hidden">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                     Tareas{' '}
                     <span className="normal-case tracking-normal text-gray-400">
                       {activityPopupMode === 'create'
@@ -3231,7 +2899,7 @@ export default function GanttChart({
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
+                          <Label className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                             Inicio
                           </Label>
                           <Calendar
@@ -3248,7 +2916,7 @@ export default function GanttChart({
                           />
                         </div>
                         <div>
-                          <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
+                          <Label className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                             Término
                           </Label>
                           <Calendar
@@ -3348,7 +3016,7 @@ export default function GanttChart({
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
+                              <Label className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                                 Inicio
                               </Label>
                               <Calendar
@@ -3365,7 +3033,7 @@ export default function GanttChart({
                               />
                             </div>
                             <div>
-                              <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
+                              <Label className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1.5">
                                 Término
                               </Label>
                               <Calendar
@@ -3542,7 +3210,7 @@ export default function GanttChart({
               <div className="flex flex-col min-h-0 border-l border-gray-100 pl-6">
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
                   <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
-                  <h3 className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
+                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                     Comentarios
                   </h3>
                 </div>
@@ -3615,8 +3283,8 @@ export default function GanttChart({
                           <p className="text-[12px] text-gray-400">
                             Comentas como{' '}
                             {session.user.name || session.user.email}
-                            {session.user.activeRole
-                              ? ` · ${session.user.activeRole}`
+                            {(session.user.availableRoles ?? []).length > 0
+                              ? ` · ${(session.user.availableRoles ?? []).join(', ')}`
                               : ''}
                           </p>
                           <div className="flex gap-2">

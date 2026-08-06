@@ -23,7 +23,7 @@ export function MetricChip({
 }: MetricChipProps) {
   const interactive = typeof onClick === 'function';
   const classNames = cn(
-    'flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-none text-left w-full',
+    'flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-none text-left min-w-0',
     interactive &&
       'cursor-pointer transition-colors hover:border-emerald-300/60 hover:bg-emerald-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
     className

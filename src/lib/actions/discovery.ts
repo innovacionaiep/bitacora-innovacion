@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { unstable_cache, revalidateTag } from 'next/cache';
+import { requireSession } from '@/lib/authz/guards';
 
 // Tipos para las respuestas
 export interface RandomParticipant {
@@ -99,6 +100,9 @@ export async function getRandomParticipants(
   error?: string;
 }> {
   try {
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Si se fuerza refresh, obtener directamente sin caché
     if (forceRefresh) {
       const data = await _fetchRandomParticipants(limit);
@@ -162,6 +166,9 @@ export async function getRandomProjects(
   error?: string;
 }> {
   try {
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Si se fuerza refresh, obtener directamente sin caché
     if (forceRefresh) {
       const data = await _fetchRandomProjects(limit);
@@ -320,6 +327,9 @@ export async function getMonthlyTrends(): Promise<{
   error?: string;
 }> {
   try {
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const cachedFetch = unstable_cache(
       async () => _fetchMonthlyTrends(),
       ['monthly-trends'],

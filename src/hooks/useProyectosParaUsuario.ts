@@ -17,25 +17,21 @@ import type {
 import { proyectosListadoKey } from '@/lib/query-keys';
 
 /**
- * Hook que carga un listado ligero de proyectos (solo id, nombre, sede, escuelas).
- * Cache React Query; la carga completa del proyecto se hace al seleccionar (getProyectoBase).
- * initialListado / initialActiveRole alinean la key con el prefetch RSC.
+ * Hook que carga un listado ligero de proyectos (todas las participaciones del usuario).
  */
 export function useProyectosParaUsuario(opts?: {
   initialListado?: ProyectoListadoItem[];
+  /** @deprecated Ignored */
   initialActiveRole?: string | null;
 }) {
   const { data: session, status } = useSession();
-  const activeRole =
-    (session?.user as { activeRole?: string | null } | undefined)?.activeRole ??
-    opts?.initialActiveRole ??
-    null;
+  const userId = session?.user?.id ?? null;
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: proyectosListadoKey(activeRole),
+    queryKey: proyectosListadoKey(userId),
     queryFn: async () => {
-      const result = await getProyectosListadoParaUsuario(activeRole);
+      const result = await getProyectosListadoParaUsuario();
       if (!result.success) {
         throw new Error(result.error ?? 'Error al obtener listado');
       }
@@ -47,16 +43,14 @@ export function useProyectosParaUsuario(opts?: {
   });
 
   const fetchProyectos = useCallback(
-    async (opts?: { silent?: boolean; activeRole?: string | null }) => {
-      const role = opts?.activeRole !== undefined ? opts.activeRole : activeRole;
+    async (_opts?: { silent?: boolean; activeRole?: string | null }) => {
       await queryClient.invalidateQueries({
-        queryKey: proyectosListadoKey(role),
+        queryKey: proyectosListadoKey(userId),
       });
     },
-    [activeRole, queryClient]
+    [userId, queryClient]
   );
 
-  /** Actualiza un ítem del listado en cache sin refetch (nombre/sede/escuelas). */
   const patchProyectoEnListado = useCallback(
     (item: {
       id: string;
@@ -65,7 +59,7 @@ export function useProyectosParaUsuario(opts?: {
       escuelas?: { escuela: { nombre: string } }[];
     }) => {
       queryClient.setQueryData<ProyectoListadoItem[]>(
-        proyectosListadoKey(activeRole),
+        proyectosListadoKey(userId),
         (prev) => {
           if (!prev) return prev;
           return prev.map((p) =>
@@ -81,7 +75,7 @@ export function useProyectosParaUsuario(opts?: {
         }
       );
     },
-    [activeRole, queryClient]
+    [userId, queryClient]
   );
 
   const createProyectoHandler = async (proyecto: ProyectoFormData) => {
@@ -141,7 +135,7 @@ export function useProyectosParaUsuario(opts?: {
       }
 
       queryClient.setQueryData<ProyectoListadoItem[]>(
-        proyectosListadoKey(activeRole),
+        proyectosListadoKey(userId),
         (prev) => (prev ? prev.filter((p) => p.id !== id) : prev)
       );
       await queryClient.invalidateQueries({

@@ -32,10 +32,8 @@ type MiradaGeneralTabProps = {
   proyectos: Project[];
 };
 
-const distributionPanelClass =
-  'min-h-0 h-full flex flex-col';
-const distributionBodyClass =
-  'flex-1 min-h-0 overflow-y-auto custom-scrollbar';
+const distributionPanelClass = 'min-h-0 flex flex-col';
+const distributionBodyClass = 'max-h-[16rem] overflow-y-auto custom-scrollbar';
 
 export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
   const metrics = useMemo(
@@ -52,9 +50,9 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-5 pb-2">
+    <div className="flex h-full min-h-0 flex-col gap-5 pb-2 overflow-y-auto custom-scrollbar">
       {/* KPI strip — fixed */}
-      <div className="shrink-0 flex flex-wrap gap-2.5">
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
         <MetricChip
           label="Total proyectos"
           value={metrics.totalProyectos}
@@ -151,12 +149,12 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
         </SectionPanel>
       </div>
 
-      {/* Portfolio distribution — fills remaining height; lists scroll inside cards */}
-      <div className="min-h-0 flex-1 flex flex-col gap-3">
+      {/* Portfolio distribution */}
+      <div className="shrink-0 flex flex-col gap-3">
         <p className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">
           Distribución del portafolio
         </p>
-        <div className="min-h-0 flex-1 grid gap-4 md:grid-cols-2 xl:grid-cols-4 md:grid-rows-2 xl:grid-rows-1 auto-rows-fr">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SectionPanel
             title="Por fondo"
             icon={DollarSign}

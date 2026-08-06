@@ -2,6 +2,10 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import {
+  requireAdmin,
+  requirePermission,
+} from '@/lib/authz/guards';
 
 const CONFIG_PATH = '/configuracion/validacion';
 
@@ -13,6 +17,9 @@ export async function getSedes() {
 }
 
 export async function createSede(nombre: string, orden?: number) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.sede.create({
       data: { nombre: nombre.trim(), orden: orden ?? 0 },
@@ -27,6 +34,9 @@ export async function createSede(nombre: string, orden?: number) {
 }
 
 export async function updateSede(id: string, nombre: string, orden?: number) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.sede.update({
       where: { id },
@@ -42,6 +52,9 @@ export async function updateSede(id: string, nombre: string, orden?: number) {
 }
 
 export async function deleteSede(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const enUso = await prisma.proyectoParticipante.count({
       where: { sedeId: id },
@@ -68,6 +81,9 @@ export async function backfillSedesFromProyectos(): Promise<{
   created?: number;
   error?: string;
 }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const proyectos = await prisma.proyecto.findMany({
       select: { sede: true },
@@ -103,6 +119,9 @@ export async function getComunas() {
 }
 
 export async function createComuna(nombre: string, region: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.comuna.create({
       data: { nombre: nombre.trim(), region: region.trim() },
@@ -116,6 +135,9 @@ export async function createComuna(nombre: string, region: string) {
 }
 
 export async function updateComuna(id: string, nombre: string, region: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.comuna.update({
       where: { id },
@@ -130,6 +152,9 @@ export async function updateComuna(id: string, nombre: string, region: string) {
 }
 
 export async function deleteComuna(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const inUse = await prisma.proyectoComuna.count({
       where: { comunaId: id },
@@ -155,6 +180,9 @@ export async function getEscuelas() {
 }
 
 export async function createEscuela(nombre: string, codigo: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.escuela.create({
       data: { nombre: nombre.trim(), codigo: codigo.trim().toUpperCase() },
@@ -172,6 +200,9 @@ export async function updateEscuela(
   nombre: string,
   codigo: string
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.escuela.update({
       where: { id },
@@ -186,6 +217,9 @@ export async function updateEscuela(
 }
 
 export async function deleteEscuela(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const inUse =
       (await prisma.proyectoEscuela.count({ where: { escuelaId: id } })) > 0 ||
@@ -215,6 +249,9 @@ export async function getCarreras() {
 }
 
 export async function createCarrera(nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.carrera.create({
       data: { nombre: nombre.trim() },
@@ -228,6 +265,9 @@ export async function createCarrera(nombre: string) {
 }
 
 export async function updateCarrera(id: string, nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.carrera.update({
       where: { id },
@@ -242,6 +282,9 @@ export async function updateCarrera(id: string, nombre: string) {
 }
 
 export async function deleteCarrera(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const inUseProyecto = await prisma.proyectoCarrera.count({
       where: { carreraId: id },
@@ -274,6 +317,9 @@ export async function importCarrerasFromNames(
   skipped?: number;
   error?: string;
 }> {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const nombresUnicos = [
       ...new Set(
@@ -315,6 +361,9 @@ export async function getAsignaturas() {
 }
 
 export async function createAsignatura(nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.asignatura.create({
       data: { nombre: nombre.trim() },
@@ -328,6 +377,9 @@ export async function createAsignatura(nombre: string) {
 }
 
 export async function updateAsignatura(id: string, nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const trimmed = nombre.trim();
     if (!trimmed) {
@@ -364,6 +416,9 @@ export async function updateAsignatura(id: string, nombre: string) {
 }
 
 export async function deleteAsignatura(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const inUseProyecto = await prisma.proyectoAsignatura.count({
       where: { asignaturaId: id },
@@ -396,6 +451,9 @@ export async function importAsignaturasFromNames(
   skipped?: number;
   error?: string;
 }> {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const nombresUnicos = [
       ...new Set(
@@ -435,6 +493,9 @@ export async function getGruposInteres() {
 }
 
 export async function createGrupoInteres(nombre: string, descripcion?: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.grupoInteres.create({
       data: { nombre: nombre.trim(), descripcion: descripcion?.trim() || null },
@@ -452,6 +513,9 @@ export async function updateGrupoInteres(
   nombre: string,
   descripcion?: string
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.grupoInteres.update({
       where: { id },
@@ -466,6 +530,9 @@ export async function updateGrupoInteres(
 }
 
 export async function deleteGrupoInteres(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const inUse = await prisma.proyectoGrupoInteres.count({
       where: { grupoInteresId: id },
@@ -493,6 +560,9 @@ export async function getFondos() {
 }
 
 export async function createFondo(nombre: string, orden?: number) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     await prisma.fondo.create({
       data: { nombre: nombre.trim(), orden: orden ?? 0 },
@@ -508,6 +578,9 @@ export async function createFondo(nombre: string, orden?: number) {
 }
 
 export async function updateFondo(id: string, nombre: string, orden?: number) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const existing = await prisma.fondo.findUnique({ where: { id } });
     if (!existing) {
@@ -539,6 +612,9 @@ export async function updateFondo(id: string, nombre: string, orden?: number) {
 }
 
 export async function deleteFondo(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const fondo = await prisma.fondo.findUnique({ where: { id } });
     if (!fondo) {
@@ -570,6 +646,9 @@ export async function backfillFondosFromProyectos(): Promise<{
   created?: number;
   error?: string;
 }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const defaults = ['IMPULSA', 'FONDART', 'CORFO', 'SENCE', 'Otro'];
     const proyectos = await prisma.proyecto.findMany({
@@ -612,6 +691,9 @@ export async function createLinea(
   fondoId: string,
   orden?: number
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     if (!fondoId.trim()) {
       return { success: false, error: 'El fondo es obligatorio' };
@@ -642,6 +724,9 @@ export async function updateLinea(
   fondoId: string,
   orden?: number
 ) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const existing = await prisma.linea.findUnique({
       where: { id },

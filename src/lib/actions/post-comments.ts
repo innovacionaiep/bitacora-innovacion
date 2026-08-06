@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { requireSession } from '@/lib/authz/guards';
 
 // Tipos para comentarios
 export interface CommentWithRelations {
@@ -140,13 +141,9 @@ export async function createComment(
   parentId?: string
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión para comentar',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     if (!contenido.trim()) {
       return {
@@ -228,13 +225,9 @@ export async function createComment(
  */
 export async function deleteComment(commentId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     // Verificar que el comentario existe y pertenece al usuario
     const comment = await prisma.postComment.findUnique({
@@ -278,13 +271,9 @@ export async function deleteComment(commentId: string) {
  */
 export async function toggleCommentLike(commentId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'Debes iniciar sesión para dar like',
-      };
-    }
+    const gate = await requireSession();
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     // Verificar si ya existe el like
     const existingLike = await prisma.commentLike.findUnique({

@@ -1,0 +1,148 @@
+schema: spec-driven
+
+
+
+# Persistence: hybrid (openspec files + Engram observations)
+
+# Project: gestor-proyectos (Bitácora / AIEP)
+
+
+
+context: |
+
+  Product: Bitácora — plataforma de gestión y seguimiento de proyectos AIEP (actividades, presupuesto, indicadores, participantes, portal Inicio, novedades, reportes).
+
+  Stack: Next.js 15.5.7 (App Router) + React 19.1 + TypeScript (strict) + pnpm.
+
+  Data: PostgreSQL (Supabase) via Prisma 6; NextAuth.js v4 (Credentials + Prisma adapter).
+
+  UI: Tailwind CSS 4 + shadcn/ui (new-york) + TanStack Query; Server Actions in src/lib/actions/.
+
+  Package manager: ALWAYS pnpm (never npm/yarn). Informal docs: docs/PLAN-PORTAL-INICIO.md, docs/SISTEMA-ROLES.md, docs/PERFORMANCE-DB-INDICES.md.
+
+  Absolute DB policy: never delete/truncate DB data, never run/expand seeds, never insert fake DB rows (.cursor/rules/no-db-destructive-or-seed.mdc). Tests MUST NOT write to the real database; use in-memory mocks/stubs only.
+  Secrets: CONFIG_UNLOCK_PASSWORD and NOVEDADES_UNLOCK_PASSWORD are required (fail-closed; no hardcoded defaults). Never store or display reversible passwords.
+  Testing: Vitest + Testing Library (jsdom). Strict TDD enabled. Unit layer primary; no E2E runner yet.
+
+  Style: ESLint (next/core-web-vitals + prettier) + Prettier; PascalCase components; 'use client' only when needed.
+
+
+
+strict_tdd: true
+
+
+
+testing:
+
+  runner: vitest
+
+  test_command: "pnpm test"
+
+  layers:
+
+    unit: true
+
+    integration: false
+
+    e2e: false
+
+  coverage: true
+
+  quality:
+
+    linter: "pnpm lint"
+
+    type_checker: "pnpm exec tsc --noEmit"
+
+    formatter: "pnpm exec prettier --check ."
+
+    build: "pnpm build"
+
+
+
+rules:
+
+  proposal:
+
+    - Include rollback plan for risky or data-touching changes
+
+    - Respect absolute no-db-destructive / no-seed / no-fake-DB-data policy
+
+    - Prefer pnpm scripts and existing Server Action patterns
+
+    - Reference informal docs under docs/ when the change overlaps portal, roles, or DB indexes
+
+  specs:
+
+    - Use Given/When/Then for scenarios
+
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+
+    - Encode role/permission constraints from docs/SISTEMA-ROLES.md when relevant
+
+  design:
+
+    - Prefer App Router + Server Actions + Prisma over new API surface unless justified
+
+    - Document architecture decisions with rationale
+
+    - Include sequence diagrams for auth, role switching, and multi-tab project flows
+
+    - Schema changes MUST be additive/non-destructive; never propose destructive DML
+
+  tasks:
+
+    - Group by phase, use hierarchical numbering
+
+    - Keep tasks completable in one session
+
+    - Flag 400-line PR budget risk; recommend chained PRs when High
+
+    - Every behavior task MUST include a corresponding Vitest test task (red → green)
+
+  apply:
+
+    guidelines:
+
+      - Follow existing code patterns in src/app, src/components, src/lib/actions
+
+      - Use pnpm only; do not introduce npm/yarn lockfiles
+
+      - Do not overwrite .cursor/rules/no-db-destructive-or-seed.mdc
+
+      - Do not delete DB rows, run seeds, or insert invented DB data
+
+      - Prefer unit tests under src/**/*.test.ts(x); mock Prisma/NextAuth — never hit real DB
+
+    tdd: true
+
+    test_command: "pnpm test"
+
+  verify:
+
+    test_command: "pnpm test"
+
+    build_command: "pnpm build"
+
+    lint_command: "pnpm lint"
+
+    typecheck_command: "pnpm exec tsc --noEmit"
+
+    coverage_threshold: 0
+
+    notes:
+
+      - Strict TDD: failing tests block verify. Run pnpm test before claiming done.
+
+      - Optional coverage report: pnpm test:coverage (threshold not enforced yet)
+
+      - No E2E runner; supplement with manual scenario checks from specs when UI flows are critical
+
+  archive:
+
+    - Warn before merging destructive deltas
+
+    - Preserve audit trail under openspec/changes/archive/
+
+    - Keep informal docs/ plans in sync only when explicitly requested
+

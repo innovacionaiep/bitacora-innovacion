@@ -10,6 +10,8 @@ import {
   PortalAlertasPendientes,
   PortalCompromisosPendientes,
   PortalHistorialReciente,
+  InicioTour,
+  type InicioTourHandle,
 } from '@/components/portal';
 import {
   getProyectosDelUsuarioConRol,
@@ -26,6 +28,7 @@ export function InicioClient({
   initialData?: InicioInitialData | null;
 }) {
   const { data: session, status } = useSession();
+  const tourRef = useRef<InicioTourHandle>(null);
   const [proyectos, setProyectos] = useState<
     Awaited<ReturnType<typeof getProyectosDelUsuarioConRol>>['data']
   >(initialData?.proyectos ?? []);
@@ -42,134 +45,59 @@ export function InicioClient({
   const [loadingAlertas, setLoadingAlertas] = useState(!initialData);
   const [loadingCompromisos, setLoadingCompromisos] = useState(!initialData);
   const [loadingHistorial, setLoadingHistorial] = useState(!initialData);
-  const [displayRole, setDisplayRole] = useState<string | null>(
-    initialData?.role ?? null
-  );
-  const lastLoadedRoleRef = useRef<string | null>(initialData?.role ?? null);
-  const isRoleChangeInProgressRef = useRef(false);
-  const syncClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasLoadedRef = useRef(Boolean(initialData));
 
-  const activeRole = session?.user?.activeRole ?? null;
-  const availableRoles = session?.user?.availableRoles ?? [];
-  const roleToLoad = activeRole ?? availableRoles[0] ?? null;
-
-  const loadPortalData = useCallback(
-    async (role: string | null, options?: { isRoleChange?: boolean }) => {
-      const isRoleChange = options?.isRoleChange === true;
-      setDisplayRole(role);
-      if (isRoleChange) {
-        // Solo spinners dentro de cada tarjeta; la página no se recarga
-        setLoadingProyectos(true);
-        setLoadingAlertas(true);
-        setLoadingCompromisos(true);
-        setLoadingHistorial(true);
-      } else {
-        // Carga inicial: loading por sección
-        setLoadingProyectos(true);
-        setLoadingAlertas(true);
-        setLoadingCompromisos(true);
-        setLoadingHistorial(true);
-      }
-
-      const proyPromise = getProyectosDelUsuarioConRol(role).then((r) => {
-        if (r.success && r.data) setProyectos(r.data);
-        setLoadingProyectos(false);
-        return r;
-      });
-      const alertasPromise = getAlertasPortalUsuario(role).then((r) => {
-        if (r.success) setAlertas(r.data);
-        setLoadingAlertas(false);
-        return r;
-      });
-      const compromisosPromise = getCompromisosPendientesParaUsuario(role).then((r) => {
-        if (r.success && r.data) setCompromisos(r.data);
-        setLoadingCompromisos(false);
-        return r;
-      });
-      const historialPromise = getHistorialRecienteParaUsuario(role, 10).then((r) => {
-        if (r.success && r.data) setHistorial(r.data);
-        setLoadingHistorial(false);
-        return r;
-      });
-
-      await Promise.all([
-        proyPromise,
-        alertasPromise,
-        compromisosPromise,
-        historialPromise,
-      ]);
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (
-      status === 'authenticated' &&
-      roleToLoad != null &&
-      roleToLoad === lastLoadedRoleRef.current &&
-      isRoleChangeInProgressRef.current
-    ) {
-      if (syncClearTimeoutRef.current) clearTimeout(syncClearTimeoutRef.current);
-      syncClearTimeoutRef.current = setTimeout(() => {
-        syncClearTimeoutRef.current = null;
-        isRoleChangeInProgressRef.current = false;
-      }, 1500);
+  const loadPortalData = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) {
+      setLoadingProyectos(true);
+      setLoadingAlertas(true);
+      setLoadingCompromisos(true);
+      setLoadingHistorial(true);
     }
-    if (status !== 'authenticated') return;
-    if (roleToLoad == null) return;
-    if (roleToLoad === lastLoadedRoleRef.current) return;
-    if (isRoleChangeInProgressRef.current) return;
-    if (initialData && roleToLoad === initialData.role) return;
-    lastLoadedRoleRef.current = roleToLoad;
-    loadPortalData(roleToLoad);
-  }, [status, roleToLoad, loadPortalData, initialData]);
 
-  const handleRoleChange = useCallback(
-    (newRole: string) => {
-      if (syncClearTimeoutRef.current) {
-        clearTimeout(syncClearTimeoutRef.current);
-        syncClearTimeoutRef.current = null;
-      }
-      lastLoadedRoleRef.current = newRole;
-      isRoleChangeInProgressRef.current = true;
-      loadPortalData(newRole, { isRoleChange: true });
-    },
-    [loadPortalData]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (syncClearTimeoutRef.current) clearTimeout(syncClearTimeoutRef.current);
-    };
+    await Promise.all([
+      getProyectosDelUsuarioConRol().then((r) => {
+        if (r.success && r.data) setProyectos(r.data);
+        if (!silent) setLoadingProyectos(false);
+      }),
+      getAlertasPortalUsuario().then((r) => {
+        if (r.success) setAlertas(r.data);
+        if (!silent) setLoadingAlertas(false);
+      }),
+      getCompromisosPendientesParaUsuario().then((r) => {
+        if (r.success && r.data) setCompromisos(r.data);
+        if (!silent) setLoadingCompromisos(false);
+      }),
+      getHistorialRecienteParaUsuario(null, 10).then((r) => {
+        if (r.success && r.data) setHistorial(r.data);
+        if (!silent) setLoadingHistorial(false);
+      }),
+    ]);
+    hasLoadedRef.current = true;
   }, []);
 
-  // Sincronizar portal cuando el rol activo cambia desde la sesión
   useEffect(() => {
-    if (status !== 'authenticated' || !session?.user?.activeRole) return;
-    const newRole = session.user.activeRole;
-    if (newRole === lastLoadedRoleRef.current) return;
-    if (isRoleChangeInProgressRef.current) return;
-    lastLoadedRoleRef.current = newRole;
-    isRoleChangeInProgressRef.current = true;
-    loadPortalData(newRole, { isRoleChange: true });
-  }, [status, session?.user?.activeRole, loadPortalData]);
+    if (status !== 'authenticated') return;
+    if (hasLoadedRef.current) return;
+    void loadPortalData();
+  }, [status, loadPortalData]);
 
-  // Carga inicial de sesión o de datos del portal → barra superior
   usePageTopLoader(
-    (status === 'loading' && displayRole == null) ||
+    status === 'loading' ||
       loadingProyectos ||
       loadingAlertas ||
       loadingCompromisos ||
       loadingHistorial
   );
 
-  if (status === 'loading' && displayRole == null) {
+  if (status === 'loading' && !initialData) {
     return <div className="h-full min-h-[200px] bg-background" />;
   }
 
   if (status !== 'authenticated' || !session?.user) {
-    if (status === 'loading' && displayRole != null) {
-      // Refetch de sesión: mantener portal visible, no mostrar login
+    if (status === 'loading') {
+      // keep portal if we have SSR data
     } else {
       return (
         <div className="h-full overflow-auto bg-background">
@@ -208,36 +136,38 @@ export function InicioClient({
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
+      <InicioTour ref={tourRef} />
       <div className="flex-shrink-0">
-        <PortalWelcomeHeader onRoleChange={handleRoleChange} />
+        <PortalWelcomeHeader
+          onStartTour={() => tourRef.current?.startTour()}
+        />
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col gap-4 mt-4 overflow-hidden">
         <div className="h-[262px] shrink-0 grid grid-cols-[1.5fr_1fr] gap-4 min-h-0 overflow-hidden">
-          <div className="min-w-0 min-h-0 h-full p-2 overflow-hidden">
+          <div
+            id="tour-mis-proyectos"
+            className="min-w-0 min-h-0 h-full p-2 overflow-hidden"
+          >
             <PortalMisProyectos proyectos={proyectos} loading={loadingProyectos} />
           </div>
-          <div className="min-w-0 min-h-0 h-full p-2 overflow-hidden">
+          <div
+            id="tour-historial"
+            className="min-w-0 min-h-0 h-full p-2 overflow-hidden"
+          >
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto p-2">
+        <div id="tour-alertas" className="flex-1 min-h-0 overflow-auto p-2">
           <PortalAlertasPendientes
             alertas={alertas}
-            activeRole={displayRole ?? activeRole}
             loading={loadingAlertas}
-            onSuccess={() =>
-              loadPortalData(displayRole ?? roleToLoad, { isRoleChange: true })
-            }
+            onSuccess={() => void loadPortalData({ silent: true })}
             extraColumn={
               <PortalCompromisosPendientes
                 compromisos={compromisos}
-                activeRole={displayRole ?? activeRole}
-                onSuccess={() =>
-                  loadPortalData(displayRole ?? roleToLoad, {
-                    isRoleChange: true,
-                  })
-                }
+                activeRole={null}
+                onSuccess={() => void loadPortalData({ silent: true })}
                 loading={loadingCompromisos}
                 variant="column"
               />

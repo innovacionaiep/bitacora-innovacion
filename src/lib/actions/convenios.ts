@@ -4,7 +4,8 @@ import { createHash } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import {
   DEFAULT_CONVENIO_BRUTO_FILENAME,
   DEFAULT_CONVENIO_BRUTO_PUBLIC_ID,
@@ -69,16 +70,14 @@ async function userCanAccessProyecto(
   proyectoId: string,
   userId: string,
   userEmail: string | null | undefined,
-  activeRole: string | null | undefined
+  availableRoles: readonly string[]
 ): Promise<boolean> {
-  if (await roleHasPermission(activeRole, 'projects.view_all')) {
+  if (await userHasPermission(availableRoles, 'projects.view_all')) {
     return true;
   }
-  if (!activeRole) return false;
   const participacion = await prisma.proyectoParticipante.findFirst({
     where: {
       proyectoId,
-      rol: activeRole,
       OR: [
         { userId },
         ...(userEmail
@@ -94,15 +93,13 @@ async function userCanAccessProyecto(
 async function getAccessibleProyectoIds(
   userId: string,
   userEmail: string | null | undefined,
-  activeRole: string | null | undefined
+  availableRoles: readonly string[]
 ): Promise<string[] | 'all'> {
-  if (await roleHasPermission(activeRole, 'projects.view_all')) {
+  if (await userHasPermission(availableRoles, 'projects.view_all')) {
     return 'all';
   }
-  if (!activeRole) return [];
   const participaciones = await prisma.proyectoParticipante.findMany({
     where: {
-      rol: activeRole,
       OR: [
         { userId },
         ...(userEmail
@@ -144,8 +141,8 @@ export async function getFondosConveniosConfig() {
     if (!user?.id) {
       return { success: false, error: 'No autenticado', data: [] as FondoConvenioConfig[] };
     }
-    const canAjustes = await roleHasPermission(
-      (user as { activeRole?: string | null }).activeRole,
+    const canAjustes = await userHasPermission(
+      user.availableRoles ?? [],
       'view.ajustes'
     );
     if (!canAjustes) {
@@ -180,8 +177,8 @@ export async function setFondoConveniosEnabled(
     if (!user?.id) {
       return { success: false, error: 'No autenticado' };
     }
-    const canAjustes = await roleHasPermission(
-      (user as { activeRole?: string | null }).activeRole,
+    const canAjustes = await userHasPermission(
+      user.availableRoles ?? [],
       'view.ajustes'
     );
     if (!canAjustes) {
@@ -241,21 +238,9 @@ export async function guardarConvenioFirmado(data: {
   nombreArchivo: string;
 }) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autenticado' };
-    }
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const userEmail = (user as { email?: string | null }).email;
-    const canAccess = await userCanAccessProyecto(
-      data.proyectoId,
-      user.id,
-      userEmail,
-      activeRole
-    );
-    if (!canAccess) {
-      return { success: false, error: 'Sin acceso al proyecto' };
-    }
+    const gate = await requireProjectAccess(data.proyectoId);
+    if (!gate.ok) return { success: false, error: gate.error };
+    const user = gate.user;
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: data.proyectoId },
@@ -331,21 +316,8 @@ export async function guardarConvenioFirmado(data: {
 
 export async function eliminarConvenioFirmado(proyectoId: string) {
   try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autenticado' };
-    }
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const userEmail = (user as { email?: string | null }).email;
-    const canAccess = await userCanAccessProyecto(
-      proyectoId,
-      user.id,
-      userEmail,
-      activeRole
-    );
-    if (!canAccess) {
-      return { success: false, error: 'Sin acceso al proyecto' };
-    }
+    const gate = await requireProjectAccess(proyectoId);
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
@@ -417,9 +389,9 @@ export async function getConveniosDashboard() {
         data: [] as ConvenioDashboardRow[],
       };
     }
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const userEmail = (user as { email?: string | null }).email;
-    const canDash = await roleHasPermission(activeRole, 'view.dashboard');
+    const availableRoles = user.availableRoles ?? [];
+    const userEmail = user.email;
+    const canDash = await userHasPermission(availableRoles, 'view.dashboard');
     if (!canDash) {
       return {
         success: false,
@@ -440,7 +412,7 @@ export async function getConveniosDashboard() {
     const accessible = await getAccessibleProyectoIds(
       user.id,
       userEmail,
-      activeRole
+      availableRoles
     );
 
     const proyectos = await prisma.proyecto.findMany({
@@ -491,9 +463,9 @@ export async function getConveniosPorFondo(fondoNombre: string) {
         data: [] as ConvenioDashboardRow[],
       };
     }
-    const activeRole = (user as { activeRole?: string | null }).activeRole;
-    const userEmail = (user as { email?: string | null }).email;
-    const canFondos = await roleHasPermission(activeRole, 'view.fondos');
+    const availableRoles = user.availableRoles ?? [];
+    const userEmail = user.email;
+    const canFondos = await userHasPermission(availableRoles, 'view.fondos');
     if (!canFondos) {
       return {
         success: false,
@@ -526,7 +498,7 @@ export async function getConveniosPorFondo(fondoNombre: string) {
     const accessible = await getAccessibleProyectoIds(
       user.id,
       userEmail,
-      activeRole
+      availableRoles
     );
 
     const proyectos = await prisma.proyecto.findMany({

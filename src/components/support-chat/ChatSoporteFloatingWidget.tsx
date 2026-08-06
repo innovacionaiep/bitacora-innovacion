@@ -8,7 +8,7 @@ import { getSupportMessages, sendSupportMessage } from '@/lib/actions/support-ch
 import type { SupportMessageRow } from '@/lib/actions/support-chat';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { parseRealtimeSupportMessage } from '@/lib/support-chat-realtime';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -28,6 +28,10 @@ function normalizeMessage(payload: {
   };
 }
 
+const HINT_INITIAL_DELAY_MS = 5_000;
+const HINT_INTERVAL_MS = 5 * 60 * 1_000;
+const HINT_VISIBLE_MS = 8_000;
+
 export function ChatSoporteFloatingWidget() {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
@@ -35,9 +39,53 @@ export function ChatSoporteFloatingWidget() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [showHint, setShowHint] = useState(false);
   const listEndRef = useRef<HTMLDivElement>(null);
+  const openRef = useRef(false);
+  const hintHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const userId = session?.user?.id ?? null;
+
+  openRef.current = open;
+
+  const revealHint = useCallback(() => {
+    if (openRef.current) return;
+    if (hintHideTimeoutRef.current) {
+      clearTimeout(hintHideTimeoutRef.current);
+    }
+    setShowHint(true);
+    hintHideTimeoutRef.current = setTimeout(() => {
+      setShowHint(false);
+      hintHideTimeoutRef.current = null;
+    }, HINT_VISIBLE_MS);
+  }, []);
+
+  // Nudge: 5 s tras la primera carga/recarga, y luego cada 5 minutos
+  useEffect(() => {
+    if (status !== 'authenticated' || !userId) return;
+
+    const initialTimer = setTimeout(revealHint, HINT_INITIAL_DELAY_MS);
+    const intervalId = setInterval(revealHint, HINT_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalId);
+      if (hintHideTimeoutRef.current) {
+        clearTimeout(hintHideTimeoutRef.current);
+        hintHideTimeoutRef.current = null;
+      }
+    };
+  }, [status, userId, revealHint]);
+
+  useEffect(() => {
+    if (open) {
+      setShowHint(false);
+      if (hintHideTimeoutRef.current) {
+        clearTimeout(hintHideTimeoutRef.current);
+        hintHideTimeoutRef.current = null;
+      }
+    }
+  }, [open]);
 
   const loadMessages = useCallback(async () => {
     if (!userId) return;
@@ -111,15 +159,28 @@ export function ChatSoporteFloatingWidget() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-600/30 bg-emerald-600 text-white shadow-lg hover:bg-emerald-700"
-        title="Chat de soporte"
-        aria-label="Abrir chat de soporte"
-      >
-        <MessageCircle className="h-7 w-7" />
-      </button>
+      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+        {showHint && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="soporte-chat-hint inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-600 px-4 py-2.5 text-left text-base font-medium text-white shadow-lg"
+            aria-label="Abrir chat de soporte"
+          >
+            ¿Tienes dudas? Contáctanos por este chat
+            <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-emerald-600/30 bg-emerald-600 text-white shadow-lg hover:bg-emerald-700"
+          title="Chat de soporte"
+          aria-label="Abrir chat de soporte"
+        >
+          <MessageCircle className="h-7 w-7" />
+        </button>
+      </div>
     );
   }
 

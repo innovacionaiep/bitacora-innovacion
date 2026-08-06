@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, requireProjectAccess } from '@/lib/authz/guards';
 
 /**
  * Crear o actualizar un snapshot mensual para un proyecto
@@ -13,6 +14,9 @@ export async function createOrUpdateSnapshot(
   objetivos: number
 ) {
   try {
+    const gate = await requireProjectAccess(proyectoId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const snapshot = await prisma.snapshotMensualProyecto.upsert({
       where: {
         proyectoId_mes_anio: {
@@ -95,6 +99,9 @@ export async function getSnapshotMesAnterior(proyectoId: string) {
  */
 export async function createSnapshotsFinDeMes() {
   try {
+    const gate = await requireAdmin();
+    if (!gate.ok) return { success: false, error: gate.error };
+
     const ahora = new Date();
     const mesActual = ahora.getMonth() + 1; // 1-12
     const anioActual = ahora.getFullYear();

@@ -110,6 +110,8 @@ model UserRole {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([role])
+  @@index([role, userId])
   @@map("user_roles")
 }
 
@@ -255,7 +257,10 @@ model ProyectoParticipante {
   asignatura       Asignatura?      @relation(fields: [asignaturaId], references: [id], onDelete: SetNull)
 
   @@unique([proyectoId, userId, rol])
+  // Unicidad 1 cuenta/proyecto se aplica en Server Actions (excepción: admin@test.cl).
+  // No se usa UNIQUE(proyecto_id, user_id) en BD para no romper esa excepción.
   @@index([userId, rol])
+  @@index([proyectoId, userId])
   @@map("proyecto_participantes")
 }
 

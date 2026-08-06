@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { verifyConfigUnlock } from '@/lib/actions/configuracion-usuarios';
 import { deleteProyecto } from '@/lib/actions/proyectos';
+import { requireAdmin } from '@/lib/authz/guards';
 
 export type ProyectoParticipanteRow = {
   nombre: string;
@@ -94,12 +95,16 @@ export async function listProyectosConfig(): Promise<{
 }
 
 /**
- * Eliminar un proyecto y todo su contenido (cascade). Requiere contraseña de desbloqueo "bitacora".
+ * Eliminar un proyecto y todo su contenido (cascade).
+ * Requiere contraseña de desbloqueo (CONFIG_UNLOCK_PASSWORD).
  */
 export async function deleteProyectoConfig(
   proyectoId: string,
   unlockPassword: string
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   const verified = await verifyConfigUnlock(unlockPassword);
   if (!verified.success) {
     return { success: false, error: verified.error ?? 'Contraseña incorrecta' };
@@ -121,6 +126,9 @@ export async function updateProyectoFondoConfig(
   proyectoId: string,
   fondo: string
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   return updateProyectoCamposConfig(proyectoId, { fondo });
 }
 
@@ -131,6 +139,9 @@ export async function updateProyectoCamposConfig(
   proyectoId: string,
   campos: ProyectoCamposConfigUpdate
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
   try {
     const existing = await prisma.proyecto.findUnique({
       where: { id: proyectoId },

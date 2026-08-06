@@ -89,10 +89,11 @@ export default function DashboardPage({
         className={cn(
           'min-h-0 flex-1',
           currentView === 'analisis-participantes' ||
-          currentView === 'lista' ||
-          currentView === 'mirada-general'
+          currentView === 'lista'
             ? 'flex flex-col overflow-hidden'
-            : 'overflow-y-auto custom-scrollbar'
+            : currentView === 'mirada-general'
+              ? 'flex flex-col overflow-y-auto custom-scrollbar'
+              : 'overflow-y-auto custom-scrollbar'
         )}
       >
         {currentView === 'mirada-general' && (

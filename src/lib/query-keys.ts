@@ -1,7 +1,7 @@
 /** Keys estables de React Query para /proyectos y tabs. */
 
-export const proyectosListadoKey = (activeRole?: string | null) =>
-  ['proyectos-listado', activeRole ?? null] as const;
+export const proyectosListadoKey = (userId?: string | null) =>
+  ['proyectos-listado', userId ?? null] as const;
 
 export const proyectoBaseKey = (id: string) =>
   ['proyecto', id, 'base'] as const;

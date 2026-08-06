@@ -14,6 +14,7 @@ import {
   getReporteResumenInlineAttachments,
   type DatosResumenProyecto,
 } from '@/lib/utils/reporte-email';
+import { requireProjectAccess } from '@/lib/authz/guards';
 
 const HISTORIAL_LIMIT = 10;
 
@@ -120,6 +121,9 @@ export async function sendReporteProyecto(
   to: string,
   subject?: string
 ): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireProjectAccess(proyectoId, 'view.proyectos');
+  if (!gate.ok) return { success: false, error: gate.error };
+
   const trimmedTo = to.trim();
   if (!trimmedTo) {
     return { success: false, error: 'Indica al menos un destinatario.' };

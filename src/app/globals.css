@@ -251,3 +251,31 @@
   animation: convenio-tab-pendiente 0.65s ease-in-out infinite alternate;
 }
 
+/* Nudge del chat de soporte: entra desde la derecha y sale con fade */
+@keyframes soporte-chat-hint-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes soporte-chat-hint-pulse {
+  0%,
+  100% {
+    box-shadow: 0 10px 15px -3px rgb(5 150 105 / 0.35);
+  }
+  50% {
+    box-shadow: 0 10px 20px -2px rgb(5 150 105 / 0.55);
+  }
+}
+
+.soporte-chat-hint {
+  animation:
+    soporte-chat-hint-in 0.45s ease-out both,
+    soporte-chat-hint-pulse 1.6s ease-in-out 0.45s infinite;
+}
+

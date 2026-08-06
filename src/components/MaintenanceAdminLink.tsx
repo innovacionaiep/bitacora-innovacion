@@ -9,8 +9,7 @@ export function MaintenanceAdminLink() {
   const { data: session, status } = useSession();
   const isAdmin =
     status === 'authenticated' &&
-    (session?.user as { activeRole?: string | null } | undefined)?.activeRole ===
-      'Admin';
+    (session?.user?.availableRoles ?? []).includes('Admin');
 
   if (!isAdmin) return null;
 

@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
+import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
@@ -42,6 +43,11 @@ export async function getActivityById(actividadId: string) {
  */
 export async function getActivities(projectId: string) {
   try {
+    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    if (!gate.ok) {
+      return { success: false, error: gate.error };
+    }
+
     const activities = await prisma.activity.findMany({
       where: { projectId },
       include: {
@@ -69,6 +75,9 @@ export async function getActivities(projectId: string) {
  */
 export async function createActivity(data: CreateActivityInput) {
   try {
+    const gate = await requireProjectAccess(data.projectId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Verificar que el proyecto existe
     const project = await prisma.proyecto.findUnique({
       where: { id: data.projectId },
@@ -135,6 +144,12 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
     if (!activityBefore) {
       return { success: false, error: 'Actividad no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      activityBefore.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const activity = await prisma.activity.update({
       where: { id },
@@ -203,6 +218,13 @@ export async function deleteActivity(id: string) {
     if (!activity) {
       return { success: false, error: 'Actividad no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      activity.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     // Las tareas se eliminan automáticamente por el onDelete: Cascade
     await prisma.activity.delete({
       where: { id },
@@ -231,6 +253,21 @@ export async function reorderActivities(
   updates: { id: string; orderIndex: number }[]
 ) {
   try {
+    if (updates.length > 0) {
+      const first = await prisma.activity.findUnique({
+        where: { id: updates[0].id },
+        select: { projectId: true },
+      });
+      if (!first) {
+        return { success: false, error: 'Actividad no encontrada' };
+      }
+      const gate = await requireProjectAccess(
+        first.projectId,
+        'view.proyectos'
+      );
+      if (!gate.ok) return { success: false, error: gate.error };
+    }
+
     await prisma.$transaction(
       updates.map((update) =>
         prisma.activity.update({
@@ -255,6 +292,21 @@ export async function reorderActivitiesKanban(
   updates: { id: string; kanbanOrderIndex: number }[]
 ) {
   try {
+    if (updates.length > 0) {
+      const first = await prisma.activity.findUnique({
+        where: { id: updates[0].id },
+        select: { projectId: true },
+      });
+      if (!first) {
+        return { success: false, error: 'Actividad no encontrada' };
+      }
+      const gate = await requireProjectAccess(
+        first.projectId,
+        'view.proyectos'
+      );
+      if (!gate.ok) return { success: false, error: gate.error };
+    }
+
     await prisma.$transaction(
       updates.map((update) =>
         prisma.activity.update({
@@ -287,6 +339,19 @@ export async function createTask(data: TaskData) {
         error: 'El nombre de la tarea no puede exceder 60 caracteres',
       };
     }
+
+    const activity = await prisma.activity.findUnique({
+      where: { id: data.activityId },
+      select: { projectId: true },
+    });
+    if (!activity) {
+      return { success: false, error: 'Actividad no encontrada' };
+    }
+    const gate = await requireProjectAccess(
+      activity.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const task = await prisma.task.create({
       data: {
@@ -344,6 +409,12 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
     if (!taskBefore) {
       return { success: false, error: 'Tarea no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      taskBefore.activity.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const task = await prisma.task.update({
       where: { id },
@@ -427,6 +498,12 @@ export async function deleteTask(id: string) {
       return { success: false, error: 'Tarea no encontrada' };
     }
 
+    const gate = await requireProjectAccess(
+      task.activity.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
+
     await prisma.task.delete({
       where: { id },
     });
@@ -473,6 +550,12 @@ export async function toggleTaskCompletion(id: string) {
     if (!task) {
       return { success: false, error: 'Tarea no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      task.activity.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const updatedTask = await prisma.task.update({
       where: { id },
@@ -605,6 +688,12 @@ export async function updateActivityStatus(
     if (!activityBefore) {
       return { success: false, error: 'Actividad no encontrada' };
     }
+
+    const gate = await requireProjectAccess(
+      activityBefore.projectId,
+      'view.proyectos'
+    );
+    if (!gate.ok) return { success: false, error: gate.error };
 
     const activity = await prisma.activity.update({
       where: { id: activityId },

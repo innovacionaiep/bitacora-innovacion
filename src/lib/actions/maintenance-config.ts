@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth-utils';
-import { roleHasPermission } from '@/lib/permissions/check';
+import { userHasPermission } from '@/lib/permissions/check';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
 import { MAINTENANCE_SETTINGS_PATH } from '@/lib/maintenance';
 import {
   readMaintenanceEnabled,
@@ -14,11 +15,12 @@ async function assertCanManageMaintenance() {
   if (!session?.user) {
     return { ok: false as const, error: 'No autorizado' };
   }
-  const activeRole = (session.user as { activeRole?: string | null }).activeRole;
-  if (activeRole !== 'Admin') {
+  const availableRoles =
+    (session.user as { availableRoles?: string[] }).availableRoles ?? [];
+  if (!userHasAdminEnabled(availableRoles)) {
     return { ok: false as const, error: 'Solo Admin puede gestionar el mantenimiento' };
   }
-  const canAjustes = await roleHasPermission(activeRole, 'view.ajustes');
+  const canAjustes = await userHasPermission(availableRoles, 'view.ajustes');
   if (!canAjustes) {
     return { ok: false as const, error: 'No autorizado' };
   }

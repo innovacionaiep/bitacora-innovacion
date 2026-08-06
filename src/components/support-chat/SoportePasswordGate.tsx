@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
 
 /**
- * Misma contraseña que Novedades ("bitacora"). Al verificar, muestra el panel de chat de soporte.
+ * Misma contraseña que Novedades (NOVEDADES_UNLOCK_PASSWORD).
+ * Al verificar, muestra el panel de chat de soporte.
  */
 export function SoportePasswordGate() {
   const [password, setPassword] = useState('');
@@ -24,11 +25,17 @@ export function SoportePasswordGate() {
     const result = await verifyNovedadesPassword(password);
     setLoading(false);
     if (!result.success) {
-      setError(
-        result.error === 'Contraseña incorrecta'
-          ? 'Contraseña incorrecta'
-          : 'No se pudo verificar. Intenta de nuevo.'
-      );
+      if (result.error === 'Contraseña incorrecta') {
+        setError('Contraseña incorrecta');
+      } else if (result.error?.includes('NOVEDADES_UNLOCK_PASSWORD')) {
+        setError(
+          'La contraseña de desbloqueo no está configurada en el servidor (NOVEDADES_UNLOCK_PASSWORD).'
+        );
+      } else if (result.error === 'Sin permisos') {
+        setError('No tienes permisos para acceder al chat de soporte.');
+      } else {
+        setError('No se pudo verificar. Intenta de nuevo.');
+      }
       return;
     }
     setUnlocked(true);

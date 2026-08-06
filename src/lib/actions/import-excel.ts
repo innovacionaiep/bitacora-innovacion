@@ -4,14 +4,14 @@ import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getSession } from '@/lib/auth-utils';
 import {
-  roleHasPermission,
+  userHasPermission,
   userCanOnProject,
 } from '@/lib/permissions/check';
 import {
   createProyecto,
   updateProyectoGeneralTab,
 } from '@/lib/actions/proyectos';
-import { addParticipanteProyecto } from '@/lib/actions/proyectos';
+import { addParticipanteProyecto } from '@/lib/actions/proyectos-participantes';
 import { createActivity, createTask } from '@/lib/actions/gantt';
 import { createIndicador } from '@/lib/actions/indicadores';
 import { createItemPresupuesto } from '@/lib/actions/presupuesto';
@@ -51,9 +51,9 @@ async function requireSession() {
     id?: string;
     email?: string;
     name?: string;
-    activeRole?: string;
+    availableRoles?: string[];
   } | null;
-  if (!user?.activeRole) {
+  if (!user?.id) {
     return { error: 'No autenticado' as const, user: null };
   }
   return { error: null, user };
@@ -162,7 +162,7 @@ async function assertTabImport(
   const { error, user } = await requireSession();
   if (error || !user) return { ok: false as const, error: error ?? 'No autenticado' };
   const allowed = await userCanOnProject({
-    activeRole: user.activeRole,
+    availableRoles: user.availableRoles ?? [],
     email: user.email,
     userId: user.id,
     proyectoId,
@@ -182,7 +182,10 @@ export async function previewBulkProyectos(fileBase64: string): Promise<{
   try {
     const { error, user } = await requireSession();
     if (error || !user) return { success: false, error: error ?? 'No autenticado' };
-    const can = await roleHasPermission(user.activeRole, 'projects.bulk_create');
+    const can = await userHasPermission(
+      user.availableRoles ?? [],
+      'projects.bulk_create'
+    );
     if (!can) return { success: false, error: 'No tienes permiso para crear proyectos masivos' };
 
     const buffer = decodeBase64(fileBase64);
@@ -221,7 +224,10 @@ export async function confirmBulkProyectos(
   try {
     const { error, user } = await requireSession();
     if (error || !user) return { success: false, error: error ?? 'No autenticado' };
-    const can = await roleHasPermission(user.activeRole, 'projects.bulk_create');
+    const can = await userHasPermission(
+      user.availableRoles ?? [],
+      'projects.bulk_create'
+    );
     if (!can) return { success: false, error: 'No tienes permiso para crear proyectos masivos' };
     if (!items.length) return { success: false, error: 'No hay filas para importar' };
 

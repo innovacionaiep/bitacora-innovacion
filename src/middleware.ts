@@ -71,7 +71,8 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
         req,
         secret: process.env.NEXTAUTH_SECRET,
       });
-      const isAdmin = token?.activeRole === 'Admin';
+      const roles = (token?.availableRoles as string[] | undefined) ?? [];
+      const isAdmin = roles.includes('Admin');
 
       // Admin puede entrar al tab para desactivar el modo
       if (isAdmin && pathname.startsWith(MAINTENANCE_SETTINGS_PATH)) {
