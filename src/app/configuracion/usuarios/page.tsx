@@ -66,6 +66,14 @@ import {
 
 const SELECT_NONE = '__none__';
 
+function formatDate(d: Date | null): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('es-CL', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 // Colores característicos por rol (ver docs/SISTEMA-ROLES.md)
 function getRolTagClasses(rol: string): string {
   const r = rol.toLowerCase();
@@ -399,25 +407,26 @@ export default function ConfiguracionUsuariosPage() {
           <div className="flex-1 min-h-0 flex flex-col px-6 pt-0 pb-6">
             {/* Encabezados fuera del scroll: no se mueven */}
             <div className="rounded-t-md border border-b-0 overflow-hidden flex-shrink-0">
-              <Table className="table-fixed w-full min-w-[1100px]">
+              <Table className="table-fixed w-full min-w-[1200px]">
                 <TableHeader ref={tableHeaderRef}>
                   <TableRow className="[&_th]:bg-muted/50 [&_th]:border-b [&_th]:font-medium [&_th]:text-muted-foreground [&_th]:h-10 [&_th]:px-2 [&_th]:text-left [&_th]:align-middle">
-                    <TableHead className="w-[11%]">Nombre</TableHead>
-                    <TableHead className="w-[12%]">Correo</TableHead>
-                    <TableHead className="w-[8%]">RUT</TableHead>
-                    <TableHead className="w-[9%]">Cargo</TableHead>
-                    <TableHead className="w-[8%]">Sede</TableHead>
-                    <TableHead className="w-[9%]">Escuela</TableHead>
+                    <TableHead className="w-[10%]">Nombre</TableHead>
+                    <TableHead className="w-[10%]">Última actividad</TableHead>
+                    <TableHead className="w-[11%]">Correo</TableHead>
+                    <TableHead className="w-[7%]">RUT</TableHead>
+                    <TableHead className="w-[8%]">Cargo</TableHead>
+                    <TableHead className="w-[7%]">Sede</TableHead>
+                    <TableHead className="w-[8%]">Escuela</TableHead>
                     <TableHead className="w-[6%]">Contraseña</TableHead>
-                    <TableHead className="w-[9%]">Roles</TableHead>
-                    <TableHead className="w-[16%]">Proyectos (rol)</TableHead>
-                    <TableHead className="w-[12%]">Acciones</TableHead>
+                    <TableHead className="w-[8%]">Roles</TableHead>
+                    <TableHead className="w-[14%]">Proyectos (rol)</TableHead>
+                    <TableHead className="w-[11%]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
               </Table>
             </div>
             <div className="flex-1 min-h-0 overflow-auto rounded-b-md border">
-              <Table className="table-fixed w-full min-w-[1100px]">
+              <Table className="table-fixed w-full min-w-[1200px]">
                 <TableBody>
                   {users.map((u) => {
                     const isEditing = editUser?.id === u.id;
@@ -447,6 +456,9 @@ export default function ConfiguracionUsuariosPage() {
                               )}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm align-top">
+                          {formatDate(u.lastSessionExpires)}
                         </TableCell>
                         <TableCell className="align-top">
                           {isEditing ? (
