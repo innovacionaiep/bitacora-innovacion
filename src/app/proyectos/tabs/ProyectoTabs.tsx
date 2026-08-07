@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet } from 'lucide-react';
@@ -209,9 +209,11 @@ export function IndicadoresTab({
 
 export function PresupuestoTab({
   project,
+  setProject,
   topLoaderEnabled = true,
 }: {
   project: ProyectoWithRelations;
+  setProject?: Dispatch<SetStateAction<ProyectoWithRelations | null>>;
   topLoaderEnabled?: boolean;
 }) {
   const [importOpen, setImportOpen] = useState(false);
@@ -233,6 +235,13 @@ export function PresupuestoTab({
           topLoaderEnabled={topLoaderEnabled}
           canImport={canImport}
           onCargaMasiva={() => setImportOpen(true)}
+          onPresupuestoAdjudicadoChange={(monto) => {
+            setProject?.((prev) =>
+              prev && prev.id === project.id
+                ? { ...prev, presupuestoAdjudicado: monto }
+                : prev
+            );
+          }}
         />
       </div>
       <ImportExcelDialog

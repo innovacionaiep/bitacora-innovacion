@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   updateCompromiso,
   toggleCompromiso,
+  deleteCompromiso,
 } from '@/lib/actions/seguimiento';
 import {
   ClipboardCheck,
@@ -105,6 +106,9 @@ interface CompromisoDetalleModalProps {
       descripcion?: string;
     }
   ) => void;
+  onOptimisticCompromisoRemove?: (id: string) => void;
+  /** Sync ligero tras toggle (sin refetch completo). */
+  onBackgroundSync?: () => void;
 }
 
 export function CompromisoDetalleModal({
@@ -114,13 +118,16 @@ export function CompromisoDetalleModal({
   rolEnProyecto,
   onSuccess,
   onOptimisticCompromisoUpdate,
+  onOptimisticCompromisoRemove,
+  onBackgroundSync,
 }: CompromisoDetalleModalProps) {
   const [selected, setSelected] = useState<CompromisoItem | null>(compromiso);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitulo, setEditTitulo] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: session } = useSession();
   const availableRoles = session?.user?.availableRoles ?? [];
@@ -147,6 +154,7 @@ export function CompromisoDetalleModal({
       setIsEditing(false);
       setEditTitulo(compromiso.titulo ?? '');
       setEditDescripcion(compromiso.descripcion);
+      setDeleting(false);
     }
   }, [compromiso, open]);
 
@@ -158,22 +166,26 @@ export function CompromisoDetalleModal({
   if (!selected || !open) return null;
 
   const handleToggleRealizado = async (id: string) => {
+    if (!canMarkRealizado || toggling || !selected) return;
     const prevCompletado = selected.completado;
-    onOptimisticCompromisoUpdate?.(id, { completado: !prevCompletado });
+    const nextCompletado = !prevCompletado;
+
+    onOptimisticCompromisoUpdate?.(id, { completado: nextCompletado });
     setSelected((prev) =>
-      prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+      prev?.id === id ? { ...prev, completado: nextCompletado } : prev
     );
-    setTogglingId(id);
+    setToggling(true);
     const result = await toggleCompromiso(id);
-    setTogglingId(null);
+    setToggling(false);
+
     if (result.success) {
-      void onSuccess();
+      onBackgroundSync?.();
     } else {
       onOptimisticCompromisoUpdate?.(id, { completado: prevCompletado });
       setSelected((prev) =>
         prev?.id === id ? { ...prev, completado: prevCompletado } : prev
       );
-      void onSuccess();
+      alert(result.error ?? 'Error al actualizar el compromiso');
     }
   };
 
@@ -212,11 +224,34 @@ export function CompromisoDetalleModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (
+      !isCoordinadorOrAdmin ||
+      deleting ||
+      !confirm('¿Eliminar este compromiso? Esta acción no se puede deshacer.')
+    ) {
+      return;
+    }
+
+    const id = selected.id;
+    onOptimisticCompromisoRemove?.(id);
+    onOpenChange(false);
+    setDeleting(true);
+    const result = await deleteCompromiso(id);
+    setDeleting(false);
+    if (result.success) {
+      void onSuccess();
+    } else {
+      void onSuccess();
+      alert(result.error ?? 'Error al eliminar compromiso');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg [&>button]:hidden">
         <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
-          <DialogTitle className="m-0 flex items-center justify-between text-[13px] font-medium leading-none tracking-wide text-gray-800">
+          <DialogTitle className="m-0 flex items-center justify-between gap-3 text-[13px] font-medium leading-none tracking-wide text-gray-800">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <ClipboardCheck
                 className={`size-3.5 shrink-0 ${
@@ -231,8 +266,19 @@ export function CompromisoDetalleModal({
                   className="flex-1 h-8 border-gray-200 bg-white text-[13px] font-medium shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                 />
               ) : (
-                selected.titulo?.trim() ||
-                tituloDeDescripcion(selected.descripcion || '', 50)
+                <>
+                  <span className="truncate min-w-0 leading-none">
+                    {selected.titulo?.trim() ||
+                      tituloDeDescripcion(selected.descripcion || '', 50)}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-3 w-px shrink-0 bg-gray-300 self-center"
+                  />
+                  <span className="shrink-0 text-[11px] font-normal leading-none text-gray-400 whitespace-nowrap">
+                    {formatFechaCreacion(selected.createdAt)}
+                  </span>
+                </>
               )}
             </div>
             <EstadoIcon compromiso={selected} />
@@ -263,31 +309,17 @@ export function CompromisoDetalleModal({
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
-              Fecha de creación
-            </Label>
-            <p className="text-sm text-gray-700">
-              {formatFechaCreacion(selected.createdAt)}
-            </p>
-          </div>
           <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
-            <label className="flex items-center gap-3 cursor-pointer">
-              {togglingId === selected.id ? (
-                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-              ) : (
-                <Checkbox
-                  checked={selected.completado}
-                  onCheckedChange={() =>
-                    canMarkRealizado && handleToggleRealizado(selected.id)
-                  }
-                  disabled={!canMarkRealizado}
-                  className="border-gray-400/60 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-700"
-                />
-              )}
-              <span className="font-medium text-gray-700">
-                Realizado (Encargado)
-              </span>
+            <label className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-600">
+              <Checkbox
+                checked={selected.completado}
+                onCheckedChange={() =>
+                  canMarkRealizado && handleToggleRealizado(selected.id)
+                }
+                disabled={!canMarkRealizado || deleting || toggling}
+                className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
+              />
+              {selected.completado ? 'Realizada' : 'Marcar como realizada'}
             </label>
           </div>
         </div>
@@ -327,17 +359,33 @@ export function CompromisoDetalleModal({
           ) : (
             <>
               {isCoordinadorOrAdmin && (
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsEditing(true)}
-                  className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
-                >
-                  Editar
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => void handleDelete()}
+                    disabled={deleting}
+                    className="h-7 px-2 text-[13px] font-normal text-red-600 hover:text-red-700 hover:bg-transparent mr-auto"
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Eliminar'
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsEditing(true)}
+                    disabled={deleting}
+                    className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
+                  >
+                    Editar
+                  </Button>
+                </>
               )}
               <Button
                 variant="ghost"
                 onClick={() => onOpenChange(false)}
+                disabled={deleting}
                 className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
               >
                 Cerrar

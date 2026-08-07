@@ -1573,6 +1573,7 @@ export function ProyectosContent({
                 >
                   <PresupuestoTab
                     project={selectedProject}
+                    setProject={setSelectedProjectAndCache}
                     topLoaderEnabled={selectedTab === 'Presupuesto'}
                   />
                 </div>

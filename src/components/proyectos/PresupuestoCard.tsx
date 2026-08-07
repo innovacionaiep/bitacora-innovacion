@@ -4,6 +4,7 @@ const TABLE_HEADER_BG = '#d1d5db';
 const TABLE_HEADER_TEXT = '#374151';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Maximize,
   Minimize,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { usePresupuesto } from '@/hooks/usePresupuesto';
+import { resumenTabKey } from '@/lib/query-keys';
 import {
   createItemPresupuesto,
   updateItemPresupuesto,
@@ -105,23 +108,23 @@ const ESTADO_LABEL: Record<EstadoGastoPresupuesto, string> = {
   EJECUTADO_OK: 'Ejecutado OK',
 };
 
-export function EstadoBadge({ estado }: { estado: EstadoGastoPresupuesto }) {
-  const variant =
-    estado === 'EJECUTADO_OK'
-      ? 'default'
-      : estado === 'EN_PEDIDO'
-        ? 'secondary'
-        : 'outline';
-  const className =
+export function EstadoBadge({
+  estado,
+  className,
+}: {
+  estado: EstadoGastoPresupuesto;
+  className?: string;
+}) {
+  const colorClass =
     estado === 'EJECUTADO_OK'
       ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
       : estado === 'EN_PEDIDO'
         ? 'bg-blue-100 text-blue-800 border-blue-200'
         : estado === 'SOLICITADO'
           ? 'bg-amber-100 text-amber-800 border-amber-200'
-          : 'bg-gray-100 text-gray-700 border-gray-200';
+          : 'bg-red-100 text-red-800 border-red-200';
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant="outline" className={cn(colorClass, className)}>
       {ESTADO_LABEL[estado]}
     </Badge>
   );
@@ -160,6 +163,8 @@ interface PresupuestoCardProps {
   topLoaderEnabled?: boolean;
   canImport?: boolean;
   onCargaMasiva?: () => void;
+  /** Notifica al padre para actualizar selectedProject / Resumen sin remount. */
+  onPresupuestoAdjudicadoChange?: (monto: number) => void;
 }
 
 const CUENTA_OPTIONS: { value: CuentaPresupuesto; label: string }[] = [
@@ -255,7 +260,9 @@ export function PresupuestoCard({
   topLoaderEnabled = true,
   canImport = false,
   onCargaMasiva,
+  onPresupuestoAdjudicadoChange,
 }: PresupuestoCardProps) {
+  const queryClient = useQueryClient();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
@@ -339,11 +346,19 @@ export function PresupuestoCard({
       setPresupuestoAdjudicado(monto);
       setIsEditingAdjudicado(false);
       setAdjudicadoDraft('');
+      onPresupuestoAdjudicadoChange?.(monto);
+      void queryClient.invalidateQueries({ queryKey: resumenTabKey(projectId) });
     } else {
       alert(result.error ?? 'Error al guardar presupuesto adjudicado');
     }
     setIsSavingAdjudicado(false);
-  }, [adjudicadoDraft, isSavingAdjudicado, projectId]);
+  }, [
+    adjudicadoDraft,
+    isSavingAdjudicado,
+    onPresupuestoAdjudicadoChange,
+    projectId,
+    queryClient,
+  ]);
   const startAddingRow = () => {
     setEditingItemId(null);
     setEditDraft(null);
@@ -425,8 +440,10 @@ export function PresupuestoCard({
         idRecepcion: previous.idRecepcion,
       });
       alert(result.error ?? 'Error al actualizar el ítem');
+    } else {
+      void queryClient.invalidateQueries({ queryKey: resumenTabKey(projectId) });
     }
-  }, [editingItemId, editDraft, items, patchItem]);
+  }, [editingItemId, editDraft, items, patchItem, projectId, queryClient]);
 
   const handleSaveNewItem = useCallback(async () => {
     if (isSubmitting) return;
@@ -499,6 +516,7 @@ export function PresupuestoCard({
       }
       if (updatePromises.length > 0) await Promise.all(updatePromises);
       void refetch(false);
+      void queryClient.invalidateQueries({ queryKey: resumenTabKey(projectId) });
     } else {
       removeItemOptimistic(tempId);
       alert(`Error al crear el ítem: ${result.error}`);
@@ -513,6 +531,7 @@ export function PresupuestoCard({
     addItemOptimistic,
     removeItemOptimistic,
     replaceItemId,
+    queryClient,
   ]);
 
   const handleDeleteItem = useCallback(
@@ -537,9 +556,20 @@ export function PresupuestoCard({
       if (!result.success) {
         addItemOptimistic(previous);
         alert(`Error al eliminar el ítem: ${result.error}`);
+      } else {
+        void queryClient.invalidateQueries({
+          queryKey: resumenTabKey(projectId),
+        });
       }
     },
-    [items, removeItemOptimistic, addItemOptimistic]
+    [
+      items,
+      removeItemOptimistic,
+      addItemOptimistic,
+      editingItemId,
+      projectId,
+      queryClient,
+    ]
   );
 
   usePageTopLoader(loading, {
@@ -1581,12 +1611,7 @@ export function PresupuestoCard({
                       —
                     </TableCell>
                     <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
-                      <Badge
-                        variant="outline"
-                        className="bg-red-100 text-red-800 border-red-200"
-                      >
-                        {ESTADO_LABEL.PENDIENTE}
-                      </Badge>
+                      <EstadoBadge estado="PENDIENTE" />
                     </TableCell>
                     <TableCell className="text-center align-middle  whitespace-normal" />
                   </TableRow>
@@ -1675,6 +1700,7 @@ export function PresupuestoCard({
           gasto={selectedGastoForModal}
           onClose={() => setSelectedGastoForModal(null)}
           onUpdate={refetch}
+          canEdit
         />
       )}
     </div>

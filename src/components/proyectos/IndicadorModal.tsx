@@ -30,6 +30,7 @@ import {
 } from '@/lib/actions/evidencias-indicador';
 import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
 import { Button } from '@/components/ui/button';
+import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { useSession } from 'next-auth/react';
 import {
   ActivityFieldSaveCancel,
@@ -85,6 +86,11 @@ interface IndicadorModalProps {
   projectId?: string;
   /** Oculta los botones de edición por campo (ej. en el portal de inicio). El botón de cargar evidencias sigue visible. */
   hideEditButton?: boolean;
+  /**
+   * Si false, no monta Dialog/DialogContent (el padre ya los tiene).
+   * Evita el parpadeo al cargar desde IndicadorDetalleModal.
+   */
+  wrapInDialog?: boolean;
 }
 
 function valuesFromIndicador(
@@ -102,24 +108,12 @@ function valuesFromIndicador(
   };
 }
 
-function formatDisplayDate(value: string): string {
-  if (!value) return 'No definida';
-  try {
-    const date = new Date(value);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}.${month}.${year}`;
-  } catch {
-    return 'No definida';
-  }
-}
-
 export function IndicadorModal({
   indicador,
   onClose,
   onUpdate,
   hideEditButton = false,
+  wrapInDialog = true,
 }: IndicadorModalProps) {
   const { data: session } = useSession();
   const canEdit = !hideEditButton;
@@ -524,13 +518,8 @@ export function IndicadorModal({
     values.formatoNumero
   );
 
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent
-        ref={dialogContentRef}
-        closeButtonPosition="outside-top-right"
-        className="w-[65vw] max-w-[65vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
-      >
+  const body = (
+    <>
         {/* Header con título e indicador de cumplimiento */}
         <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
           <div className="flex items-center justify-between gap-4">
@@ -595,15 +584,56 @@ export function IndicadorModal({
           </div>
         </div>
 
-        {/* Layout de dos columnas con separador */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-6 px-5 py-4 flex-1 min-h-0">
-          {/* COLUMNA IZQUIERDA */}
-          <div className="space-y-6 overflow-y-auto min-h-0 custom-scrollbar">
-            {/* FECHAS */}
+        {/* Layout de tres columnas (igual que actividad) */}
+        <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
+          {/* COLUMNA IZQUIERDA: Descripción, Período, Evidencias */}
+          <div className="space-y-14 overflow-y-auto border-r border-gray-100 pr-6 min-h-0 custom-scrollbar">
             <div>
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                Descripción
+              </h3>
+              {editingField === 'descripcion' ? (
+                <div className="min-w-0">
+                  <textarea
+                    value={fieldDraft.descripcion}
+                    onChange={(e) =>
+                      setFieldDraft({
+                        ...fieldDraft,
+                        descripcion: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
+                    rows={3}
+                    autoFocus
+                  />
+                  <ActivityFieldSaveCancel
+                    isSaving={isSavingField}
+                    onSave={handleSaveField}
+                    onCancel={handleCancelFieldEdit}
+                  />
+                </div>
+              ) : (
+                <div className="group/field relative min-w-0 pr-8">
+                  <p className="text-[15px] leading-[1.75] text-gray-800 break-words [overflow-wrap:anywhere]">
+                    {values.descripcion || 'Sin descripción'}
+                  </p>
+                  {canEdit && (
+                    <ActivityHoverEditButton
+                      onClick={() => handleStartFieldEdit('descripcion')}
+                      tooltip="Editar descripción"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                Período
+              </h3>
               {editingField === 'fechas' ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-6">
+                <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/40 p-4">
+                  <div className="flex items-center space-x-6 flex-wrap gap-y-2">
                     <div className="flex items-center space-x-3">
                       <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                         Inicio
@@ -645,23 +675,17 @@ export function IndicadorModal({
                   />
                 </div>
               ) : (
-                <div className="group/field relative inline-flex items-center space-x-6 pr-8">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
-                      Inicio
-                    </span>
-                    <span className="text-[15px] leading-[1.75] text-gray-800">
-                      {formatDisplayDate(values.fechaInicio)}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
-                      Finalización
-                    </span>
-                    <span className="text-[15px] leading-[1.75] text-gray-800">
-                      {formatDisplayDate(values.fechaFin)}
-                    </span>
-                  </div>
+                <div className="group/field relative rounded-lg border border-gray-200 bg-gray-50/40 p-4 pr-10">
+                  {values.fechaInicio || values.fechaFin ? (
+                    <PeriodTimeline
+                      startDate={values.fechaInicio || undefined}
+                      endDate={values.fechaFin || undefined}
+                    />
+                  ) : (
+                    <p className="text-[13px] text-gray-400">
+                      Sin período definido
+                    </p>
+                  )}
                   {canEdit && (
                     <ActivityHoverEditButton
                       onClick={() => handleStartFieldEdit('fechas')}
@@ -672,236 +696,6 @@ export function IndicadorModal({
               )}
             </div>
 
-            <div className="space-y-6">
-              {/* Descripción */}
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
-                  Descripción
-                </h3>
-                {editingField === 'descripcion' ? (
-                  <div className="min-w-0">
-                    <textarea
-                      value={fieldDraft.descripcion}
-                      onChange={(e) =>
-                        setFieldDraft({
-                          ...fieldDraft,
-                          descripcion: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
-                      rows={3}
-                      autoFocus
-                    />
-                    <ActivityFieldSaveCancel
-                      isSaving={isSavingField}
-                      onSave={handleSaveField}
-                      onCancel={handleCancelFieldEdit}
-                    />
-                  </div>
-                ) : (
-                  <div className="group/field relative min-w-0 pr-8">
-                    <p className="text-[15px] leading-[1.75] text-gray-800">
-                      {values.descripcion}
-                    </p>
-                    {canEdit && (
-                      <ActivityHoverEditButton
-                        onClick={() => handleStartFieldEdit('descripcion')}
-                        tooltip="Editar descripción"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Forma de Cálculo y Formato del número */}
-              <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-                <div className="min-w-0">
-                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
-                    Forma de Cálculo
-                  </h3>
-                  {editingField === 'formaCalculo' ? (
-                    <div className="min-w-0">
-                      <textarea
-                        value={fieldDraft.formaCalculo}
-                        onChange={(e) =>
-                          setFieldDraft({
-                            ...fieldDraft,
-                            formaCalculo: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
-                        rows={3}
-                        autoFocus
-                      />
-                      <ActivityFieldSaveCancel
-                        isSaving={isSavingField}
-                        onSave={handleSaveField}
-                        onCancel={handleCancelFieldEdit}
-                      />
-                    </div>
-                  ) : (
-                    <div className="group/field relative min-w-0 pr-8">
-                      <p className="text-[15px] leading-[1.75] text-gray-800">
-                        {values.formaCalculo}
-                      </p>
-                      {canEdit && (
-                        <ActivityHoverEditButton
-                          onClick={() => handleStartFieldEdit('formaCalculo')}
-                          tooltip="Editar forma de cálculo"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-48 flex-shrink-0">
-                  <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
-                    Formato del número
-                  </h3>
-                  {editingField === 'formatoNumero' ? (
-                    <div className="min-w-0">
-                      <select
-                        value={fieldDraft.formatoNumero}
-                        onChange={(e) =>
-                          setFieldDraft({
-                            ...fieldDraft,
-                            formatoNumero: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
-                        autoFocus
-                      >
-                        {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
-                          (option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          )
-                        )}
-                      </select>
-                      <ActivityFieldSaveCancel
-                        isSaving={isSavingField}
-                        onSave={handleSaveField}
-                        onCancel={handleCancelFieldEdit}
-                      />
-                    </div>
-                  ) : (
-                    <div className="group/field relative min-w-0 pr-8">
-                      <p className="text-[15px] leading-[1.75] text-gray-800">
-                        {values.formatoNumero}
-                      </p>
-                      {canEdit && (
-                        <ActivityHoverEditButton
-                          onClick={() => handleStartFieldEdit('formatoNumero')}
-                          tooltip="Editar formato"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Resultados */}
-              <div className="mt-4">
-                <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
-                  Resultados
-                </h3>
-
-                <div className="flex items-center">
-                  <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1">
-                      Esperado
-                    </span>
-                    {editingField === 'resultadoEsperado' ? (
-                      <div className="w-full max-w-[200px] flex flex-col items-center">
-                        <input
-                          type="text"
-                          value={fieldDraft.resultadoEsperado}
-                          onChange={(e) =>
-                            setFieldDraft({
-                              ...fieldDraft,
-                              resultadoEsperado: e.target.value,
-                            })
-                          }
-                          className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
-                          autoFocus
-                        />
-                        <ActivityFieldSaveCancel
-                          isSaving={isSavingField}
-                          onSave={handleSaveField}
-                          onCancel={handleCancelFieldEdit}
-                        />
-                      </div>
-                    ) : (
-                      <div className="group/field relative inline-flex items-center pr-8">
-                        <p className="text-[15px] font-semibold text-gray-800">
-                          {resultadoEsperadoFormateado}
-                        </p>
-                        {canEdit && (
-                          <ActivityHoverEditButton
-                            onClick={() =>
-                              handleStartFieldEdit('resultadoEsperado')
-                            }
-                            tooltip="Editar resultado esperado"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="w-px h-10 bg-gray-100 self-center"></div>
-
-                  <div className="flex-1 flex flex-col items-center py-1.5">
-                    <span
-                      className={`text-xs font-medium uppercase tracking-[0.14em] mb-1 ${colorEstado}`}
-                    >
-                      Actual
-                    </span>
-                    {editingField === 'resultadoAlcanzado' ? (
-                      <div className="w-full max-w-[200px] flex flex-col items-center">
-                        <input
-                          type="text"
-                          value={fieldDraft.resultadoAlcanzado}
-                          onChange={(e) =>
-                            setFieldDraft({
-                              ...fieldDraft,
-                              resultadoAlcanzado: e.target.value,
-                            })
-                          }
-                          className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
-                          autoFocus
-                        />
-                        <ActivityFieldSaveCancel
-                          isSaving={isSavingField}
-                          onSave={handleSaveField}
-                          onCancel={handleCancelFieldEdit}
-                        />
-                      </div>
-                    ) : (
-                      <div className="group/field relative inline-flex items-center pr-8">
-                        <p
-                          className={`text-[15px] font-semibold ${colorEstado}`}
-                        >
-                          {resultadoAlcanzadoFormateado}
-                        </p>
-                        {canEdit && (
-                          <ActivityHoverEditButton
-                            onClick={() =>
-                              handleStartFieldEdit('resultadoAlcanzado')
-                            }
-                            tooltip="Editar resultado actual"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="w-full h-px bg-gray-100 mt-1.5"></div>
-              </div>
-            </div>
-
-            {/* Evidencias */}
             <div>
               <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                 Evidencias
@@ -1083,12 +877,192 @@ export function IndicadorModal({
             </div>
           </div>
 
-          <div className="w-px bg-gray-100"></div>
+          {/* COLUMNA CENTRO: Forma de cálculo, formato, resultados */}
+          <div className="flex flex-col min-h-0 overflow-y-auto space-y-14 custom-scrollbar">
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                Forma de Cálculo
+              </h3>
+              {editingField === 'formaCalculo' ? (
+                <div className="min-w-0">
+                  <textarea
+                    value={fieldDraft.formaCalculo}
+                    onChange={(e) =>
+                      setFieldDraft({
+                        ...fieldDraft,
+                        formaCalculo: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
+                    rows={3}
+                    autoFocus
+                  />
+                  <ActivityFieldSaveCancel
+                    isSaving={isSavingField}
+                    onSave={handleSaveField}
+                    onCancel={handleCancelFieldEdit}
+                  />
+                </div>
+              ) : (
+                <div className="group/field relative min-w-0 pr-8">
+                  <p className="text-[15px] leading-[1.75] text-gray-800 break-words [overflow-wrap:anywhere]">
+                    {values.formaCalculo || 'Sin forma de cálculo'}
+                  </p>
+                  {canEdit && (
+                    <ActivityHoverEditButton
+                      onClick={() => handleStartFieldEdit('formaCalculo')}
+                      tooltip="Editar forma de cálculo"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                Formato del número
+              </h3>
+              {editingField === 'formatoNumero' ? (
+                <div className="min-w-0">
+                  <select
+                    value={fieldDraft.formatoNumero}
+                    onChange={(e) =>
+                      setFieldDraft({
+                        ...fieldDraft,
+                        formatoNumero: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[13px] text-gray-800"
+                    autoFocus
+                  >
+                    {['Porcentaje', 'Número Entero', 'Número Decimal'].map(
+                      (option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      )
+                    )}
+                  </select>
+                  <ActivityFieldSaveCancel
+                    isSaving={isSavingField}
+                    onSave={handleSaveField}
+                    onCancel={handleCancelFieldEdit}
+                  />
+                </div>
+              ) : (
+                <div className="group/field relative min-w-0 pr-8">
+                  <p className="text-[15px] leading-[1.75] text-gray-800">
+                    {values.formatoNumero}
+                  </p>
+                  {canEdit && (
+                    <ActivityHoverEditButton
+                      onClick={() => handleStartFieldEdit('formatoNumero')}
+                      tooltip="Editar formato"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
+                Resultados
+              </h3>
+
+              <div className="flex items-center rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex-1 flex flex-col items-center py-1.5">
+                  <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-1">
+                    Esperado
+                  </span>
+                  {editingField === 'resultadoEsperado' ? (
+                    <div className="w-full max-w-[200px] flex flex-col items-center">
+                      <input
+                        type="text"
+                        value={fieldDraft.resultadoEsperado}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            resultadoEsperado: e.target.value,
+                          })
+                        }
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative inline-flex items-center pr-8">
+                      <p className="text-[15px] font-semibold text-gray-800">
+                        {resultadoEsperadoFormateado}
+                      </p>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() =>
+                            handleStartFieldEdit('resultadoEsperado')
+                          }
+                          tooltip="Editar resultado esperado"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-px h-10 bg-gray-100 self-center"></div>
+
+                <div className="flex-1 flex flex-col items-center py-1.5">
+                  <span
+                    className={`text-xs font-medium uppercase tracking-[0.14em] mb-1 ${colorEstado}`}
+                  >
+                    Actual
+                  </span>
+                  {editingField === 'resultadoAlcanzado' ? (
+                    <div className="w-full max-w-[200px] flex flex-col items-center">
+                      <input
+                        type="text"
+                        value={fieldDraft.resultadoAlcanzado}
+                        onChange={(e) =>
+                          setFieldDraft({
+                            ...fieldDraft,
+                            resultadoAlcanzado: e.target.value,
+                          })
+                        }
+                        className="w-full max-w-[160px] px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 text-[15px] font-semibold text-center text-gray-800"
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative inline-flex items-center pr-8">
+                      <p className={`text-[15px] font-semibold ${colorEstado}`}>
+                        {resultadoAlcanzadoFormateado}
+                      </p>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() =>
+                            handleStartFieldEdit('resultadoAlcanzado')
+                          }
+                          tooltip="Editar resultado actual"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* COLUMNA DERECHA: Comentarios */}
           <div
             ref={comentariosContainerRef}
-            className="flex flex-col pb-2 h-full min-h-0 border-l border-gray-100 pl-6"
+            className="flex flex-col min-h-0 border-l border-gray-100 pl-6"
           >
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
               <MessageSquare
@@ -1103,7 +1077,6 @@ export function IndicadorModal({
             <div
               ref={comentariosListRef}
               className="space-y-3 flex-1 overflow-y-auto mb-4 min-h-0 custom-scrollbar"
-              style={{ minHeight: 0, maxHeight: '100%' }}
             >
               {isLoadingComentarios ? (
                 <p className="text-[13px] text-gray-400">
@@ -1129,7 +1102,7 @@ export function IndicadorModal({
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-2">
+                      <div className="flex items-center space-x-2 mb-2 flex-wrap">
                         <span className="text-[13px] font-medium text-gray-800">
                           {comentario.user.name || 'Usuario'}
                         </span>
@@ -1202,6 +1175,21 @@ export function IndicadorModal({
             <span className="text-[13px] font-medium">Guardado con éxito</span>
           </div>
         )}
+    </>
+  );
+
+  if (!wrapInDialog) {
+    return body;
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent
+        ref={dialogContentRef}
+        closeButtonPosition="outside-top-right"
+        className="w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
+      >
+        {body}
       </DialogContent>
     </Dialog>
   );

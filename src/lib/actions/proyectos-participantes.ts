@@ -46,6 +46,7 @@ async function syncProyectoParticipantesCount(proyectoId: string) {
     where: { id: proyectoId },
     data: { participantes: count },
   });
+  return count;
 }
 
 type AddParticipanteData = {
@@ -456,7 +457,11 @@ export async function deleteParticipanteProyecto(participanteId: string) {
     await prisma.proyectoParticipante.delete({
       where: { id: participanteId },
     });
-    await syncProyectoParticipantesCount(existing.proyectoId);
+    // No re-fetch de la lista: la UI ya es optimista; devolver solo el conteo evita
+    // latencia y que una respuesta stale pise deletes/adds concurrentes (rebote).
+    const participantes = await syncProyectoParticipantesCount(
+      existing.proyectoId
+    );
     await createHistorialEntry({
       proyectoId: existing.proyectoId,
       accion: 'Eliminar participante',
@@ -464,14 +469,13 @@ export async function deleteParticipanteProyecto(participanteId: string) {
       elementoEspecifico: `al ${existing.rol}`,
       cambioGenerado: nombreParticipante,
     });
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id: existing.proyectoId },
-      include: proyectoIncludeForParticipante,
-    });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');
     revalidateTag('proyectos-dashboard');
-    return { success: true, data: proyecto as ProyectoWithRelations };
+    return {
+      success: true,
+      data: { id: existing.proyectoId, participantes },
+    };
   } catch (error) {
     console.error('Error deleting participante:', error);
     return {

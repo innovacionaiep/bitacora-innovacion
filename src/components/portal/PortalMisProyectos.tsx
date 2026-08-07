@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { FolderKanban, ExternalLink, Plus } from 'lucide-react';
+import { getRoleColors, ROLE_BADGE_CLASS } from '@/lib/role-colors';
+import { FolderKanban, ExternalLink } from 'lucide-react';
 
 export interface ProyectoConRol {
   id: string;
@@ -22,26 +23,23 @@ export interface PortalMisProyectosProps {
 
 const PANEL_SHELL =
   'h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none overflow-hidden';
+/** Franja fina del título del panel (no confundir con la fila de columnas). */
 const PANEL_HEADER =
-  'flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50/90 flex items-center justify-between gap-3';
+  'flex-shrink-0 h-7 px-5 border-b border-gray-100 bg-gray-50/90 flex items-center';
 const PANEL_TITLE =
-  'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2';
-const CTA_BUTTON =
-  'h-8 shrink-0 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-emerald-700 gap-1.5 px-3 shadow-none';
+  'text-[11px] font-medium tracking-wide text-gray-800 flex items-center gap-1.5 leading-none';
+
+/** Misma plantilla para encabezado de columnas y filas de datos. */
+const TABLE_ROW =
+  'grid grid-cols-[3rem_minmax(0,1fr)_5rem_6rem_9rem_9rem_9rem] gap-3 items-center w-full px-5';
 
 function PanelHeader() {
   return (
     <div className={PANEL_HEADER}>
       <h3 className={PANEL_TITLE}>
-        <FolderKanban className="h-3.5 w-3.5 text-gray-500" strokeWidth={1.75} />
+        <FolderKanban className="h-3 w-3 text-gray-500" strokeWidth={1.75} />
         Mis proyectos
       </h3>
-      <Button variant="outline" size="sm" asChild className={CTA_BUTTON}>
-        <Link href="/proyectos/nuevo" className="inline-flex items-center gap-1.5 text-[13px] font-medium tracking-wide">
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          <span>Crear proyecto</span>
-        </Link>
-      </Button>
     </div>
   );
 }
@@ -76,49 +74,58 @@ export function PortalMisProyectos({
     <div className={PANEL_SHELL}>
       <PanelHeader />
       <div className="flex-1 min-h-0 overflow-auto w-full">
-        <div className="flex items-center gap-3 w-full px-5 py-2 border-b border-gray-100 bg-gray-50/50 text-[11px] font-medium tracking-wide text-gray-600 shrink-0 sticky top-0 z-[1]">
-          <span className="w-12 shrink-0" aria-hidden />
-          <span className="flex-1 min-w-0 text-center whitespace-nowrap overflow-visible">Proyecto</span>
-          <span className="shrink-0 min-w-20 text-center whitespace-nowrap overflow-visible">Mi rol</span>
-          <span className="shrink-0 min-w-24 text-center whitespace-nowrap overflow-visible">Fondo</span>
-          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Gantt</span>
-          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Indicadores</span>
-          <span className="shrink-0 w-36 text-center whitespace-nowrap overflow-visible">Presupuesto</span>
+        <div
+          className={`${TABLE_ROW} py-1.5 border-b border-gray-100 bg-gray-50/50 text-[11px] font-medium tracking-wide text-gray-600 shrink-0 sticky top-0 z-[1]`}
+        >
+          <span className="justify-self-center" aria-hidden />
+          <span className="text-center truncate">Proyecto</span>
+          <span className="text-center truncate">Mi rol</span>
+          <span className="text-center truncate">Fondo</span>
+          <span className="text-center truncate">Gantt</span>
+          <span className="text-center truncate">Indicadores</span>
+          <span className="text-center truncate">Presupuesto</span>
         </div>
         {proyectos.map((p) => (
           <div
             key={`${p.id}-${p.rol}`}
-            className="flex items-center gap-3 w-full px-5 py-2.5 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/80 transition-colors"
+            className={`${TABLE_ROW} py-1.5 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/80 transition-colors`}
           >
-            <Link href={`/proyectos?id=${p.id}`} className="shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 h-7 px-2 text-[11px] font-medium tracking-wide border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-emerald-700 shadow-none"
-              >
-                <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-                Ir
-              </Button>
-            </Link>
+            <div className="justify-self-center">
+              <Link href={`/proyectos?id=${p.id}`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-6 px-1.5 text-[10px] font-medium tracking-wide border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-emerald-700 shadow-none"
+                >
+                  <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
+                  Ir
+                </Button>
+              </Link>
+            </div>
             <span
-              className="text-[11px] font-medium text-gray-800 truncate min-w-0 flex-1"
+              className="text-[11px] font-normal leading-none text-gray-800 truncate min-w-0"
               title={p.proyecto}
             >
               {p.proyecto}
             </span>
-            <span className="text-[11px] text-gray-600 shrink-0 min-w-20 text-center truncate" title={p.rol}>
-              {p.rol}
+            <span className="flex justify-center min-w-0">
+              <span
+                className={`${ROLE_BADGE_CLASS} ${getRoleColors(p.rol)} truncate max-w-full`}
+                title={p.rol}
+              >
+                {p.rol}
+              </span>
             </span>
-            <span className="text-[11px] text-gray-500 shrink-0 w-24 text-center">
+            <span className="text-[11px] text-gray-500 text-center truncate" title={p.fondo}>
               {p.fondo}
             </span>
-            <div className="flex items-center gap-2 shrink-0 w-36">
+            <div className="flex items-center gap-2 min-w-0">
               <Progress value={p.avanceGantt} className="h-1.5 flex-1 bg-gray-100" />
               <span className="text-[11px] text-gray-500 w-8 tabular-nums shrink-0">
                 {Math.round(p.avanceGantt)}%
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 w-36">
+            <div className="flex items-center gap-2 min-w-0">
               <Progress
                 value={p.avanceIndicadores ?? 0}
                 className="h-1.5 flex-1 bg-gray-100"
@@ -127,7 +134,7 @@ export function PortalMisProyectos({
                 {Math.round(p.avanceIndicadores ?? 0)}%
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 w-36">
+            <div className="flex items-center gap-2 min-w-0">
               <Progress
                 value={p.avancePresupuesto ?? 0}
                 className="h-1.5 flex-1 bg-gray-100"

@@ -2,18 +2,12 @@
 
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  getCompromisosProyecto,
-  getReunionesProyecto,
-} from '@/lib/actions/seguimiento';
-import { CompromisosPostItWall } from './CompromisosPostItWall';
+import { getReunionesProyecto } from '@/lib/actions/seguimiento';
 import { ReunionesSeguimientoTable } from './ReunionesSeguimientoTable';
 import { compromisosKey, reunionesKey } from '@/lib/query-keys';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import type { CompromisoItem } from './compromiso-ui';
 
-type CompromisosData = NonNullable<
-  Awaited<ReturnType<typeof getCompromisosProyecto>>['data']
->;
 type ReunionesData = NonNullable<
   Awaited<ReturnType<typeof getReunionesProyecto>>['data']
 >;
@@ -22,7 +16,7 @@ interface SeguimientoCardProps {
   projectId: string;
   projectName?: string;
   rolEnProyecto?: string | null;
-  /** Rol activo del usuario (ej. Admin). Los Admin pueden crear compromisos aunque no sean coordinadores del proyecto. */
+  /** @deprecated UI-only; authorization uses availableRoles + rolEnProyecto */
   activeRole?: string | null;
   topLoaderEnabled?: boolean;
 }
@@ -30,22 +24,9 @@ interface SeguimientoCardProps {
 export function SeguimientoCard({
   projectId,
   rolEnProyecto,
-  activeRole,
   topLoaderEnabled = true,
 }: SeguimientoCardProps) {
   const queryClient = useQueryClient();
-
-  const compromisosQuery = useQuery({
-    queryKey: compromisosKey(projectId),
-    queryFn: async () => {
-      const compromisosRes = await getCompromisosProyecto(projectId);
-      if (!compromisosRes.success) {
-        throw new Error(compromisosRes.error ?? 'Error al cargar compromisos');
-      }
-      return (compromisosRes.data ?? []) as CompromisosData;
-    },
-    staleTime: 60_000,
-  });
 
   const reunionesQuery = useQuery({
     queryKey: reunionesKey(projectId),
@@ -59,21 +40,7 @@ export function SeguimientoCard({
     staleTime: 60_000,
   });
 
-  const compromisos = compromisosQuery.data ?? [];
   const reuniones = reunionesQuery.data ?? [];
-
-  const setCompromisos = useCallback(
-    (update: CompromisosData | ((prev: CompromisosData) => CompromisosData)) => {
-      queryClient.setQueryData<CompromisosData>(
-        compromisosKey(projectId),
-        (prev) => {
-          const current = prev ?? [];
-          return typeof update === 'function' ? update(current) : update;
-        }
-      );
-    },
-    [projectId, queryClient]
-  );
 
   const setReuniones = useCallback(
     (update: ReunionesData | ((prev: ReunionesData) => ReunionesData)) => {
@@ -97,9 +64,6 @@ export function SeguimientoCard({
         descripcion?: string;
       }
     ) => {
-      setCompromisos((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
-      );
       setReuniones((prev) =>
         prev.map((r) => ({
           ...r,
@@ -109,45 +73,36 @@ export function SeguimientoCard({
         }))
       );
     },
-    [setCompromisos, setReuniones]
+    [setReuniones]
   );
 
   const handleSuccess = async () => {
+    // Invalidar también compromisos: portal Inicio / Resumen los usan aparte.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: compromisosKey(projectId) }),
       queryClient.invalidateQueries({ queryKey: reunionesKey(projectId) }),
     ]);
-    await Promise.all([
-      queryClient.fetchQuery({
-        queryKey: compromisosKey(projectId),
-        queryFn: async () => {
-          const compromisosRes = await getCompromisosProyecto(projectId);
-          if (!compromisosRes.success) {
-            throw new Error(
-              compromisosRes.error ?? 'Error al cargar compromisos'
-            );
-          }
-          return (compromisosRes.data ?? []) as CompromisosData;
-        },
-        staleTime: 0,
-      }),
-      queryClient.fetchQuery({
-        queryKey: reunionesKey(projectId),
-        queryFn: async () => {
-          const reunionesRes = await getReunionesProyecto(projectId);
-          if (!reunionesRes.success) {
-            throw new Error(reunionesRes.error ?? 'Error al cargar reuniones');
-          }
-          return (reunionesRes.data ?? []) as ReunionesData;
-        },
-        staleTime: 0,
-      }),
-    ]);
+    await queryClient.fetchQuery({
+      queryKey: reunionesKey(projectId),
+      queryFn: async () => {
+        const reunionesRes = await getReunionesProyecto(projectId);
+        if (!reunionesRes.success) {
+          throw new Error(reunionesRes.error ?? 'Error al cargar reuniones');
+        }
+        return (reunionesRes.data ?? []) as ReunionesData;
+      },
+      staleTime: 0,
+    });
   };
 
-  const isLoading =
-    (compromisosQuery.isLoading && !compromisosQuery.data) ||
-    (reunionesQuery.isLoading && !reunionesQuery.data);
+  /** Tras toggle: no refetch de reuniones (evita rebote del checkbox optimista). */
+  const handleBackgroundSync = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: compromisosKey(projectId),
+    });
+  }, [projectId, queryClient]);
+
+  const isLoading = reunionesQuery.isLoading && !reunionesQuery.data;
 
   usePageTopLoader(isLoading, {
     completeOnReady: true,
@@ -160,29 +115,15 @@ export function SeguimientoCard({
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="flex-1 min-h-0 flex flex-col gap-4 pb-6 overflow-auto">
-        <div
-          id="tour-seguimiento-compromisos"
-          className="rounded-xl border border-gray-200 bg-white shadow-lg flex flex-col min-h-[200px] overflow-hidden"
-        >
-          <CompromisosPostItWall
-            projectId={projectId}
-            compromisos={compromisos}
-            rolEnProyecto={rolEnProyecto}
-            activeRole={activeRole}
-            onSuccess={handleSuccess}
-            onOptimisticCompromisoUpdate={patchCompromisoInCaches}
-          />
-        </div>
-
+      <div className="flex-1 min-h-0 flex flex-col pb-6 overflow-auto">
         <ReunionesSeguimientoTable
           projectId={projectId}
           reuniones={reuniones}
           rolEnProyecto={rolEnProyecto}
           onSuccess={handleSuccess}
+          onBackgroundSync={handleBackgroundSync}
           onOptimisticCompromisoUpdate={patchCompromisoInCaches}
-          onOptimisticCompromisoAdd={(compromiso) => {
-            setCompromisos((prev) => [compromiso, ...prev]);
+          onOptimisticCompromisoAdd={(compromiso: CompromisoItem) => {
             setReuniones((prev) =>
               prev.map((r) =>
                 r.id === compromiso.reunionId
@@ -198,7 +139,6 @@ export function SeguimientoCard({
             );
           }}
           onOptimisticCompromisoRemove={(id) => {
-            setCompromisos((prev) => prev.filter((c) => c.id !== id));
             setReuniones((prev) =>
               prev.map((r) => ({
                 ...r,
@@ -207,12 +147,19 @@ export function SeguimientoCard({
             );
           }}
           onOptimisticReunionAdd={(reunion) =>
-            setReuniones((prev) => [...prev, reunion])
+            setReuniones((prev) =>
+              [...prev, reunion].sort((a, b) => a.numero - b.numero)
+            )
           }
           onOptimisticReunionUpdate={(id, patch) =>
-            setReuniones((prev) =>
-              prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-            )
+            setReuniones((prev) => {
+              const next = prev.map((r) =>
+                r.id === id ? { ...r, ...patch } : r
+              );
+              return patch.numero !== undefined
+                ? [...next].sort((a, b) => a.numero - b.numero)
+                : next;
+            })
           }
           onOptimisticReunionRemove={(id) =>
             setReuniones((prev) => prev.filter((r) => r.id !== id))

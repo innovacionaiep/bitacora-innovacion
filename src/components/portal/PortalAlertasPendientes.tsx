@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   ImagePlus,
   BarChart3,
@@ -9,7 +10,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { type AlertasPortal } from '@/lib/actions/portal-inicio';
-import { ROLES_ALERTAS_PORTAL } from '@/lib/portal-constants';
+import {
+  ROLES_ALERTAS_PORTAL,
+  canEditPortalProject,
+} from '@/lib/portal-constants';
 import { ActividadDetalleModal } from './ActividadDetalleModal';
 import { IndicadorDetalleModal } from './IndicadorDetalleModal';
 import { GastoPresupuestoDetalleModal } from './GastoPresupuestoDetalleModal';
@@ -30,6 +34,10 @@ const ALERT_ROW =
 const SECTION_TITLE =
   'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2 mb-2';
 
+/** Mismo gris claro que los títulos de Mis proyectos / Últimas actualizaciones. */
+const SECTION_SHELL =
+  'min-w-0 h-full flex flex-col rounded-lg border border-gray-200 bg-gray-50/90 p-3 overflow-hidden';
+
 function isRolPortal(role: string | null | undefined): boolean {
   return (
     role != null && (ROLES_ALERTAS_PORTAL as readonly string[]).includes(role)
@@ -46,12 +54,12 @@ function SectionColumn({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 flex flex-col">
+    <section className={SECTION_SHELL}>
       <h3 className={SECTION_TITLE}>
         <Icon className="h-3.5 w-3.5 text-gray-500 shrink-0" strokeWidth={1.75} />
         <span className="truncate">{title}</span>
       </h3>
-      <div className="min-h-0 flex-1 space-y-1.5">{children}</div>
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-auto">{children}</div>
     </section>
   );
 }
@@ -60,10 +68,18 @@ function EmptyLabel({ text }: { text: string }) {
   return <p className="text-[13px] text-gray-400 py-1">{text}</p>;
 }
 
+function ProyectoLine({ nombre }: { nombre: string }) {
+  return (
+    <p className="text-[11px] text-gray-500 break-words [overflow-wrap:anywhere]">
+      Proyecto: &quot;{nombre}&quot;
+    </p>
+  );
+}
+
 /** Columna extra (compromisos) con separador vertical sutil en xl. */
 function ExtraColumnSlot({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-w-0 flex flex-col xl:before:content-[''] xl:before:absolute xl:before:-left-3 xl:before:top-0 xl:before:bottom-0 xl:before:w-px xl:before:bg-gray-200">
+    <div className="relative min-w-0 min-h-0 h-full flex flex-col xl:before:content-[''] xl:before:absolute xl:before:-left-3 xl:before:top-0 xl:before:bottom-0 xl:before:w-px xl:before:bg-gray-200">
       {children}
     </div>
   );
@@ -75,13 +91,22 @@ export function PortalAlertasPendientes({
   onSuccess,
   extraColumn,
 }: PortalAlertasPendientesProps) {
+  const { data: session } = useSession();
+  const availableRoles = session?.user?.availableRoles ?? [];
   const rolesByProyecto = alertas?.miRolPorProyecto ?? {};
   const hasAnyPortalRole = Object.values(rolesByProyecto).some(isRolPortal);
+  const canEditFor = (proyectoId: string | null | undefined) =>
+    canEditPortalProject(
+      availableRoles,
+      proyectoId ? rolesByProyecto[proyectoId] : null
+    );
+  // Misma regla que Gantt/createEvidenciaActividad: participante del proyecto
+  // (no solo Encargado). Si ve la alerta, puede adjuntar evidencia.
   const canAddEvidenciaFor = (proyectoId: string | null | undefined) =>
-    Boolean(proyectoId && rolesByProyecto[proyectoId] === 'Encargado');
+    Boolean(proyectoId && isRolPortal(rolesByProyecto[proyectoId]));
   const gridClass = extraColumn
-    ? 'h-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 px-1 content-start'
-    : 'h-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 px-1 content-start';
+    ? 'h-full min-h-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 px-1 items-stretch'
+    : 'h-full min-h-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 px-1 items-stretch';
 
   const [actividadModal, setActividadModal] = useState<{
     actividadId: string;
@@ -93,6 +118,7 @@ export function PortalAlertasPendientes({
   } | null>(null);
   const [presupuestoModal, setPresupuestoModal] = useState<{
     itemId: string;
+    proyectoId: string;
   } | null>(null);
 
   if (loading) {
@@ -156,20 +182,18 @@ export function PortalAlertasPendientes({
                   strokeWidth={1.75}
                 />
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[13px] text-gray-800 truncate">{a.name}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[13px] font-semibold tabular-nums text-red-700">
-                      {Math.round(a.porcentaje)}%
-                    </span>
-                    <span className="text-[12px] text-red-600">
-                      {a.tareasAtrasadas === 1
-                        ? '1 tarea vencida'
-                        : `${a.tareasAtrasadas} tareas vencidas`}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    {a.proyectoNombre}
+                  <p className="text-[13px] text-gray-800 break-words [overflow-wrap:anywhere]">
+                    {a.name}
                   </p>
+                  <p className="text-[13px] font-semibold tabular-nums text-red-700">
+                    {Math.round(a.porcentaje)}% actividad completada
+                  </p>
+                  <p className="text-[12px] text-red-600">
+                    {a.tareasAtrasadas === 1
+                      ? '1 tarea vencida'
+                      : `${a.tareasAtrasadas} tareas vencidas`}
+                  </p>
+                  <ProyectoLine nombre={a.proyectoNombre} />
                 </div>
               </button>
             ))
@@ -197,18 +221,16 @@ export function PortalAlertasPendientes({
                   strokeWidth={1.75}
                 />
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[13px] text-gray-800 truncate">{a.name}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[13px] font-semibold tabular-nums text-emerald-700">
-                      {Math.round(a.porcentaje)}%
-                    </span>
-                    <span className="text-[12px] text-red-600">
-                      Evidencias pendientes
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    {a.proyectoNombre}
+                  <p className="text-[13px] text-gray-800 break-words [overflow-wrap:anywhere]">
+                    {a.name}
                   </p>
+                  <p className="text-[13px] font-semibold tabular-nums text-emerald-700">
+                    {Math.round(a.porcentaje)}% actividad completada
+                  </p>
+                  <p className="text-[12px] text-red-600">
+                    Evidencias pendientes
+                  </p>
+                  <ProyectoLine nombre={a.proyectoNombre} />
                 </div>
               </button>
             ))
@@ -236,18 +258,16 @@ export function PortalAlertasPendientes({
                   strokeWidth={1.75}
                 />
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[13px] text-gray-800 truncate">{i.nombre}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[13px] font-semibold tabular-nums text-blue-700">
-                      {Math.round(i.porcentaje)}%
-                    </span>
-                    <span className="text-[12px] text-red-600">
-                      Evidencias pendientes
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    {i.proyectoNombre}
+                  <p className="text-[13px] text-gray-800 break-words [overflow-wrap:anywhere]">
+                    {i.nombre}
                   </p>
+                  <p className="text-[13px] font-semibold tabular-nums text-blue-700">
+                    {Math.round(i.porcentaje)}% del indicador completado
+                  </p>
+                  <p className="text-[12px] text-red-600">
+                    Evidencias pendientes
+                  </p>
+                  <ProyectoLine nombre={i.proyectoNombre} />
                 </div>
               </button>
             ))
@@ -258,28 +278,70 @@ export function PortalAlertasPendientes({
           {presupuestoItems.length === 0 ? (
             <EmptyLabel text="Ninguno" />
           ) : (
-            presupuestoItems.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPresupuestoModal({ itemId: p.id })}
-                className={ALERT_ROW}
-              >
-                <Wallet
-                  className="h-4 w-4 shrink-0 text-amber-600 mt-0.5"
-                  strokeWidth={1.75}
-                />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[13px] text-gray-800 truncate">{p.item}</p>
-                  <span className="text-[12px] text-red-600">
-                    Solicitud pendiente
-                  </span>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    {p.proyectoNombre}
-                  </p>
-                </div>
-              </button>
-            ))
+            presupuestoItems.map((p) => {
+              const content = (
+                <>
+                  <Wallet
+                    className="h-4 w-4 shrink-0 text-amber-600 mt-0.5"
+                    strokeWidth={1.75}
+                  />
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-[13px] text-gray-800 break-words [overflow-wrap:anywhere]">
+                      {p.item}
+                    </p>
+                    {p.isDelta ? (
+                      <p className="text-[13px] font-semibold tabular-nums text-amber-700">
+                        {[p.detalle, p.montoLabel].filter(Boolean).join(' · ')}
+                      </p>
+                    ) : (
+                      <>
+                        {p.montoLabel ? (
+                          <p className="text-[13px] font-semibold tabular-nums text-amber-700">
+                            {p.montoLabel}
+                          </p>
+                        ) : null}
+                        {p.detalle ? (
+                          <p className="text-[12px] text-gray-600 break-words [overflow-wrap:anywhere]">
+                            {p.detalle}
+                          </p>
+                        ) : null}
+                      </>
+                    )}
+                    <p className="text-[12px] text-red-600">
+                      Solicitud pendiente
+                    </p>
+                    <ProyectoLine nombre={p.proyectoNombre} />
+                  </div>
+                </>
+              );
+
+              if (p.isDelta) {
+                return (
+                  <div
+                    key={p.id}
+                    className={`${ALERT_ROW} cursor-default hover:bg-white`}
+                  >
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() =>
+                    setPresupuestoModal({
+                      itemId: p.id,
+                      proyectoId: p.proyectoId,
+                    })
+                  }
+                  className={ALERT_ROW}
+                >
+                  {content}
+                </button>
+              );
+            })
           )}
         </SectionColumn>
 
@@ -291,6 +353,7 @@ export function PortalAlertasPendientes({
         proyectoId={actividadModal?.proyectoId ?? null}
         open={!!actividadModal}
         onOpenChange={(open) => !open && setActividadModal(null)}
+        canEdit={canEditFor(actividadModal?.proyectoId)}
         canAddEvidencia={canAddEvidenciaFor(actividadModal?.proyectoId)}
         onSuccess={onSuccess}
       />
@@ -299,6 +362,7 @@ export function PortalAlertasPendientes({
         proyectoId={indicadorModal?.proyectoId ?? null}
         open={!!indicadorModal}
         onOpenChange={(open) => !open && setIndicadorModal(null)}
+        canEdit={canEditFor(indicadorModal?.proyectoId)}
         onSuccess={onSuccess}
       />
       <GastoPresupuestoDetalleModal
@@ -306,6 +370,7 @@ export function PortalAlertasPendientes({
         open={!!presupuestoModal}
         onOpenChange={(open) => !open && setPresupuestoModal(null)}
         onSuccess={onSuccess}
+        canEdit={canEditFor(presupuestoModal?.proyectoId)}
       />
     </>
   );

@@ -186,7 +186,6 @@ export function useParticipantesTab({
   const handleNewParticipanteRolChange = (rol: NewParticipanteForm['rol']) => {
     setNewParticipanteData((prev) => {
       if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
-        ensureUsuariosPorRol(rol);
         return {
           ...prev,
           rol,
@@ -200,26 +199,23 @@ export function useParticipantesTab({
       }
       return { ...prev, rol };
     });
+    if (isSyncableParticipanteRol(rol)) {
+      ensureUsuariosPorRol(rol);
+    }
   };
 
   const handleEditParticipanteRolChange = (rol: NewParticipanteForm['rol']) => {
     setEditDraft((prev) => {
       if (!prev) return prev;
-      if (isSyncableParticipanteRol(rol) && prev.rol !== rol) {
-        ensureUsuariosPorRol(rol);
-        return {
-          ...prev,
-          rol,
-          nombre: '',
-          email: '',
-          rut: '',
-          cargo: '',
-          sedeId: '',
-          escuelaId: '',
-        };
-      }
+      if (prev.rol === rol) return prev;
+      // Solo cambia el rol: conserva nombre/email/rut/cargo/sede/escuela.
+      // Vaciar al cambiar de Coordinador↔Encargado (etc.) borraba datos
+      // cuando el usuario solo quería ajustar el rol en el proyecto.
       return { ...prev, rol };
     });
+    if (isSyncableParticipanteRol(rol)) {
+      ensureUsuariosPorRol(rol);
+    }
   };
 
   const startEditParticipante = (participanteId: string) => {
@@ -284,7 +280,6 @@ export function useParticipantesTab({
       return;
     }
 
-    const previousProject = project;
     const tempId = `temp-part-${Date.now()}`;
     const sede = sedeId
       ? sedesParticipantes.find((s) => s.id === sedeId) ?? null
@@ -335,10 +330,26 @@ export function useParticipantesTab({
       displayImage: null,
     };
 
-    setProject({
-      ...project,
-      participantes_rel: [...(project.participantes_rel ?? []), optimisticRow],
-    } as ProyectoWithRelations);
+    const nextAfterAdd = [
+      ...(project.participantes_rel ?? []),
+      optimisticRow,
+    ];
+    setProject((prev) => {
+      if (!prev || prev.id !== project.id) return prev;
+      const base = prev.participantes_rel ?? project.participantes_rel ?? [];
+      // Si hubo deletes concurrentes, partimos del estado más reciente.
+      const withoutDup = base.filter((p) => p.id !== tempId);
+      const merged = [...withoutDup, optimisticRow];
+      queryClient.setQueryData(
+        proyectoParticipantesKey(project.id),
+        merged
+      );
+      return {
+        ...prev,
+        participantes_rel: merged,
+        participantes: merged.length,
+      } as ProyectoWithRelations;
+    });
     setIsAddingParticipante(false);
     setNewParticipanteData(emptyNewParticipanteData());
 
@@ -360,39 +371,42 @@ export function useParticipantesTab({
     setParticipanteSubmitting(false);
 
     if (result.success && result.data) {
-      setProject((prev) =>
-        ({
+      const serverParts =
+        (result.data as ProyectoWithRelations).participantes_rel ?? [];
+      const emailNorm = email.trim().toLowerCase();
+      const created =
+        serverParts.find(
+          (p) =>
+            (p.email ?? p.user?.email ?? '').toLowerCase() === emailNorm &&
+            p.rol === rol
+        ) ??
+        serverParts.find(
+          (p) => !nextAfterAdd.some((l) => l.id === p.id && l.id !== tempId)
+        );
+
+      setProject((prev) => {
+        if (!prev) return prev;
+        // Preservar deletes/edits concurrentes: solo sustituir la fila temp.
+        const local = prev.participantes_rel ?? [];
+        const merged = created
+          ? local.map((p) =>
+              p.id === tempId ? ({ ...created } as (typeof local)[number]) : p
+            )
+          : local.filter((p) => p.id !== tempId);
+        queryClient.setQueryData(
+          proyectoParticipantesKey(project.id),
+          merged
+        );
+        return {
           ...prev,
-          ...result.data,
-          activities: prev?.activities ?? (result.data as ProyectoWithRelations).activities,
-          escuelas: prev?.escuelas ?? (result.data as ProyectoWithRelations).escuelas,
-          carreras: prev?.carreras ?? (result.data as ProyectoWithRelations).carreras,
-          asignaturas:
-            prev?.asignaturas ??
-            (result.data as ProyectoWithRelations).asignaturas,
-          comunas: prev?.comunas ?? (result.data as ProyectoWithRelations).comunas,
-          gruposInteres:
-            prev?.gruposInteres ??
-            (result.data as ProyectoWithRelations).gruposInteres,
-          objetivos_rel:
-            prev?.objetivos_rel ??
-            (result.data as ProyectoWithRelations).objetivos_rel,
-          desarrolloTecnico:
-            prev?.desarrolloTecnico ??
-            (result.data as ProyectoWithRelations).desarrolloTecnico,
-          participantes_rel:
-            (result.data as ProyectoWithRelations).participantes_rel ??
-            prev?.participantes_rel,
+          participantes_rel: merged,
+          participantes: merged.length,
           sociosComunitarios:
             (result.data as ProyectoWithRelations).sociosComunitarios ??
-            prev?.sociosComunitarios,
-        }) as ProyectoWithRelations
-      );
+            prev.sociosComunitarios,
+        } as ProyectoWithRelations;
+      });
       onSaveSuccess();
-      queryClient.setQueryData(
-        proyectoParticipantesKey(project.id),
-        (result.data as ProyectoWithRelations).participantes_rel
-      );
       if (isSyncableParticipanteRol(rol)) {
         void queryClient.invalidateQueries({
           queryKey: usersByAppRoleKey(rol),
@@ -404,7 +418,22 @@ export function useParticipantesTab({
         });
       }
     } else {
-      setProject(previousProject);
+      // Rollback concurrente-safe: solo quitar la fila temp (no revivir deletes).
+      setProject((prev) => {
+        if (!prev) return prev;
+        const local = (prev.participantes_rel ?? []).filter(
+          (p) => p.id !== tempId
+        );
+        queryClient.setQueryData(
+          proyectoParticipantesKey(project.id),
+          local
+        );
+        return {
+          ...prev,
+          participantes_rel: local,
+          participantes: local.length,
+        } as ProyectoWithRelations;
+      });
       alert(result.error ?? 'Error al agregar participante');
     }
   };
@@ -496,15 +525,20 @@ export function useParticipantesTab({
             existing.asignatura,
     };
 
+    const nextAfterEdit = (project.participantes_rel ?? []).map((p) =>
+      p.id === participanteId ? patched : p
+    );
     setProject({
       ...project,
-      participantes_rel: (project.participantes_rel ?? []).map((p) =>
-        p.id === participanteId ? patched : p
-      ),
+      participantes_rel: nextAfterEdit,
     } as ProyectoWithRelations);
     setEditingParticipanteId(null);
     setEditDraft(null);
     setParticipanteSubmitting(true);
+    queryClient.setQueryData(
+      proyectoParticipantesKey(project.id),
+      nextAfterEdit
+    );
 
     const result = await updateParticipanteProyecto(participanteId, {
       rol,
@@ -523,67 +557,112 @@ export function useParticipantesTab({
     setParticipanteSubmitting(false);
 
     if (result.success && result.data) {
-      setProject((prev) =>
-        ({
+      const serverRow = (
+        result.data as ProyectoWithRelations
+      ).participantes_rel?.find((p) => p.id === participanteId);
+      // No reemplazar la lista completa: preserva deletes/adds concurrentes.
+      setProject((prev) => {
+        if (!prev) return prev;
+        const local = prev.participantes_rel ?? [];
+        return {
           ...prev,
-          participantes_rel:
-            (result.data as ProyectoWithRelations).participantes_rel ??
-            prev?.participantes_rel,
+          participantes_rel: serverRow
+            ? local.map((p) => (p.id === participanteId ? serverRow : p))
+            : local,
           sociosComunitarios:
             (result.data as ProyectoWithRelations).sociosComunitarios ??
-            prev?.sociosComunitarios,
-          activities: prev?.activities,
-        }) as ProyectoWithRelations
-      );
+            prev.sociosComunitarios,
+        } as ProyectoWithRelations;
+      });
       onSaveSuccess();
-      queryClient.setQueryData(
-        proyectoParticipantesKey(project.id),
-        (result.data as ProyectoWithRelations).participantes_rel
-      );
+      if (serverRow) {
+        queryClient.setQueryData(
+          proyectoParticipantesKey(project.id),
+          (prev: unknown) => {
+            const local = Array.isArray(prev)
+              ? prev
+              : nextAfterEdit;
+            return local.map((p: { id?: string }) =>
+              p.id === participanteId ? serverRow : p
+            );
+          }
+        );
+      }
     } else {
       setProject(previousProject);
+      queryClient.setQueryData(
+        proyectoParticipantesKey(project.id),
+        previousProject.participantes_rel
+      );
       alert(result.error ?? 'Error al actualizar participante');
     }
   };
 
   const handleDeleteParticipante = async (participanteId: string) => {
     if (!confirm('¿Eliminar este participante?')) return;
-    const previousProject = project;
+
+    type ParticipanteRow = NonNullable<
+      ProyectoWithRelations['participantes_rel']
+    >[number];
+    let removedRow: ParticipanteRow | null = null;
 
     setEditingParticipanteId((current) =>
       current === participanteId ? null : current
     );
-    if (editingParticipanteId === participanteId) {
-      setEditDraft(null);
-    }
-    setProject({
-      ...project,
-      participantes_rel: (project.participantes_rel ?? []).filter(
-        (p) => p.id !== participanteId
-      ),
-    } as ProyectoWithRelations);
+    setEditDraft((draft) =>
+      editingParticipanteId === participanteId ? null : draft
+    );
+
+    // UI optimista inmediata: la fila desaparece sin esperar al server.
+    setProject((prev) => {
+      if (!prev) return prev;
+      const list = prev.participantes_rel ?? [];
+      removedRow = list.find((p) => p.id === participanteId) ?? null;
+      const nextRel = list.filter((p) => p.id !== participanteId);
+      queryClient.setQueryData(
+        proyectoParticipantesKey(prev.id),
+        nextRel
+      );
+      return {
+        ...prev,
+        participantes_rel: nextRel,
+        participantes: nextRel.length,
+      } as ProyectoWithRelations;
+    });
 
     const result = await deleteParticipanteProyecto(participanteId);
-    if (result.success && result.data) {
-      setProject((prev) =>
-        ({
+    if (result.success) {
+      // Mantener lista local; el conteo sigue el largo local (evita rebote
+      // si hay varios deletes en vuelo y el server aún no refleja todos).
+      setProject((prev) => {
+        if (!prev) return prev;
+        const local = (prev.participantes_rel ?? []).filter(
+          (p) => p.id !== participanteId
+        );
+        return {
           ...prev,
-          participantes_rel:
-            (result.data as ProyectoWithRelations).participantes_rel ??
-            prev?.participantes_rel,
-          sociosComunitarios:
-            (result.data as ProyectoWithRelations).sociosComunitarios ??
-            prev?.sociosComunitarios,
-          activities: prev?.activities,
-        }) as ProyectoWithRelations
-      );
+          participantes_rel: local,
+          participantes: local.length,
+        } as ProyectoWithRelations;
+      });
       onSaveSuccess();
-      queryClient.setQueryData(
-        proyectoParticipantesKey(project.id),
-        (result.data as ProyectoWithRelations).participantes_rel
-      );
     } else {
-      setProject(previousProject);
+      // Reinsertar solo la fila fallida; no restaurar snapshot completo.
+      setProject((prev) => {
+        if (!prev || !removedRow) return prev;
+        const list = prev.participantes_rel ?? [];
+        if (list.some((p) => p.id === participanteId)) return prev;
+        const nextRel = [...list, removedRow];
+        queryClient.setQueryData(
+          proyectoParticipantesKey(prev.id),
+          nextRel
+        );
+        return {
+          ...prev,
+          participantes_rel: nextRel,
+          participantes: nextRel.length,
+        } as ProyectoWithRelations;
+      });
       alert(result.error ?? 'Error al eliminar participante');
     }
   };

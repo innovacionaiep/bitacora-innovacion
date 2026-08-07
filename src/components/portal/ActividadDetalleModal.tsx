@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
-import { getActivityById } from '@/lib/actions/gantt';
+import { getActivityById, updateActivity } from '@/lib/actions/gantt';
 import {
   getEvidenciasActividad,
   createEvidenciaActividad,
@@ -31,6 +31,10 @@ import {
 } from '@/lib/actions/comentarios-actividad';
 import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
+import {
+  ActivityFieldSaveCancel,
+  ActivityHoverEditButton,
+} from '@/components/proyectos/gantt/ActivityFieldControls';
 
 type ActivityWithRelations = Awaited<
   ReturnType<typeof getActivityById>
@@ -70,16 +74,21 @@ export interface ActividadDetalleModalProps {
   proyectoId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Si el usuario puede agregar evidencias (Encargado) */
+  /** Admin / Coordinador / Encargado: lápices de edición (nombre, descripción). */
+  canEdit?: boolean;
+  /** Si el usuario puede agregar evidencias */
   canAddEvidencia?: boolean;
   onSuccess?: () => void | Promise<void>;
 }
+
+type ActivityEditableField = 'name' | 'description';
 
 export function ActividadDetalleModal({
   actividadId,
   proyectoId,
   open,
   onOpenChange,
+  canEdit = false,
   canAddEvidencia = true,
   onSuccess,
 }: ActividadDetalleModalProps) {
@@ -93,6 +102,11 @@ export function ActividadDetalleModal({
   const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [sendingComentario, setSendingComentario] = useState(false);
+  const [editingField, setEditingField] = useState<ActivityEditableField | null>(
+    null
+  );
+  const [fieldDraft, setFieldDraft] = useState({ name: '', description: '' });
+  const [isSavingField, setIsSavingField] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -100,6 +114,7 @@ export function ActividadDetalleModal({
       setActivity(null);
       setEvidencias([]);
       setComentarios([]);
+      setEditingField(null);
       return;
     }
     let cancelled = false;
@@ -184,8 +199,59 @@ export function ActividadDetalleModal({
     }
   };
 
+  const handleStartFieldEdit = (field: ActivityEditableField) => {
+    if (!activity || !canEdit) return;
+    setFieldDraft({
+      name: activity.name || '',
+      description: activity.description || '',
+    });
+    setEditingField(field);
+  };
+
+  const handleCancelFieldEdit = () => {
+    setEditingField(null);
+    if (activity) {
+      setFieldDraft({
+        name: activity.name || '',
+        description: activity.description || '',
+      });
+    }
+  };
+
+  const handleSaveField = async () => {
+    if (!activity || !editingField) return;
+    if (editingField === 'name') {
+      const name = fieldDraft.name.trim();
+      if (!name) {
+        alert('Por favor completa el nombre de la actividad');
+        return;
+      }
+      if (name.length > 70) {
+        alert('El nombre de la actividad no puede exceder los 70 caracteres');
+        return;
+      }
+    }
+
+    setIsSavingField(true);
+    try {
+      const payload =
+        editingField === 'name'
+          ? { name: fieldDraft.name.trim() }
+          : { description: fieldDraft.description };
+      const { error } = await updateActivity(activity.id, payload);
+      if (error) {
+        alert('Error al actualizar la actividad: ' + error);
+        return;
+      }
+      setActivity({ ...activity, ...payload });
+      setEditingField(null);
+      onSuccess?.();
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
   const tasks = activity?.tasks ?? [];
-  const allCompleted = tasks.length > 0 && tasks.every((t) => t.completed);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,43 +277,103 @@ export function ActividadDetalleModal({
         ) : (
           <>
             <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
-              {!allCompleted && (
-                <div className="flex items-center gap-2 text-gray-400 mb-2">
-                  <div className="w-3.5 h-3.5 rounded-sm border border-gray-300 bg-white" />
-                  <span className="text-[12px]">Actividad no finalizada</span>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-4">
-                <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate min-w-0">
-                  {activity.name || 'Sin nombre'}
-                </DialogTitle>
-                <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
-                  <span className="text-base font-medium text-gray-700">
-                    Progreso
-                  </span>
-                  <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full rounded-full transition-all"
-                      style={{ width: `${getActivityProgress(activity)}%` }}
-                    />
-                  </div>
-                  <span className="text-2xl font-bold text-gray-800 min-w-[4rem] tabular-nums">
-                    {getActivityProgress(activity)}%
-                  </span>
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  {editingField === 'name' ? (
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <DialogTitle className="sr-only">Editar nombre</DialogTitle>
+                      <input
+                        type="text"
+                        value={fieldDraft.name}
+                        onChange={(e) =>
+                          setFieldDraft((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        className="h-auto border border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 rounded-md w-full min-w-0 px-3"
+                        maxLength={70}
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative min-w-0 max-w-full pr-8">
+                      <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
+                        {activity.name || 'Sin nombre'}
+                      </DialogTitle>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() => handleStartFieldEdit('name')}
+                          tooltip="Editar nombre"
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
+                {editingField !== 'name' && (
+                  <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
+                    <span className="text-base font-medium text-gray-700">
+                      Progreso
+                    </span>
+                    <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="bg-emerald-500 h-full rounded-full transition-all"
+                        style={{ width: `${getActivityProgress(activity)}%` }}
+                      />
+                    </div>
+                    <span className="text-2xl font-bold text-gray-800 min-w-[4rem] tabular-nums">
+                      {getActivityProgress(activity)}%
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
               {/* Columna Izq: Descripción, Período, Evidencias */}
-              <div className="space-y-6 overflow-y-auto border-r border-gray-100 pr-6 custom-scrollbar">
+              <div className="space-y-14 overflow-y-auto border-r border-gray-100 pr-6 custom-scrollbar">
                 <div>
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
                   </h3>
-                  <p className="text-[15px] text-gray-800 leading-[1.75] break-words [overflow-wrap:anywhere]">
-                    {activity.description || 'Sin descripción'}
-                  </p>
+                  {editingField === 'description' ? (
+                    <div className="min-w-0">
+                      <textarea
+                        value={fieldDraft.description}
+                        onChange={(e) =>
+                          setFieldDraft((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 min-h-[110px] resize-y text-[13px] text-gray-800"
+                        rows={3}
+                        autoFocus
+                      />
+                      <ActivityFieldSaveCancel
+                        isSaving={isSavingField}
+                        onSave={handleSaveField}
+                        onCancel={handleCancelFieldEdit}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group/field relative min-w-0 pr-8">
+                      <p className="text-[15px] text-gray-800 leading-[1.75] break-words [overflow-wrap:anywhere]">
+                        {activity.description || 'Sin descripción'}
+                      </p>
+                      {canEdit && (
+                        <ActivityHoverEditButton
+                          onClick={() => handleStartFieldEdit('description')}
+                          tooltip="Editar descripción"
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
@@ -272,8 +398,35 @@ export function ActividadDetalleModal({
                     {loadingEvidencias ? (
                       <p className="text-[13px] text-gray-400">Cargando...</p>
                     ) : evidencias.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4">
-                        <p className="text-[13px] text-gray-400">No se han cargado evidencias</p>
+                      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/40 px-3 py-4 space-y-3">
+                        <p className="text-[13px] text-gray-400">
+                          No se han cargado evidencias
+                        </p>
+                        {canAddEvidencia && (
+                          <button
+                            type="button"
+                            disabled={uploadingEvidencia}
+                            onClick={() =>
+                              evidenciasFileInputRef.current?.click()
+                            }
+                            className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-white py-2.5"
+                          >
+                            {uploadingEvidencia ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <Paperclip
+                                  className="h-3.5 w-3.5"
+                                  strokeWidth={2}
+                                />
+                                Agregar evidencia (JPG o PDF)
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
@@ -323,7 +476,7 @@ export function ActividadDetalleModal({
                       </div>
                     )}
                     {canAddEvidencia && (
-                      <div className="mt-3">
+                      <>
                         <input
                           ref={evidenciasFileInputRef}
                           type="file"
@@ -331,25 +484,34 @@ export function ActividadDetalleModal({
                           className="hidden"
                           onChange={handleUploadEvidencia}
                         />
-                        <button
-                          type="button"
-                          disabled={uploadingEvidencia}
-                          onClick={() => evidenciasFileInputRef.current?.click()}
-                          className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5"
-                        >
-                          {uploadingEvidencia ? (
-                            <>
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              Subiendo...
-                            </>
-                          ) : (
-                            <>
-                              <Paperclip className="h-3.5 w-3.5" strokeWidth={2} />
-                              Agregar evidencia (JPG o PDF)
-                            </>
-                          )}
-                        </button>
-                      </div>
+                        {evidencias.length > 0 && (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              disabled={uploadingEvidencia}
+                              onClick={() =>
+                                evidenciasFileInputRef.current?.click()
+                              }
+                              className="inline-flex w-full items-center justify-center gap-1.5 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm border border-dashed border-gray-200 bg-gray-50/40 py-2.5"
+                            >
+                              {uploadingEvidencia ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  Subiendo...
+                                </>
+                              ) : (
+                                <>
+                                  <Paperclip
+                                    className="h-3.5 w-3.5"
+                                    strokeWidth={2}
+                                  />
+                                  Agregar evidencia (JPG o PDF)
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

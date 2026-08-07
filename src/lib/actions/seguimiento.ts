@@ -225,6 +225,75 @@ export async function updateCompromiso(
 }
 
 /**
+ * Eliminar un compromiso (coordinador o admin con compromisos.create_edit).
+ */
+export async function deleteCompromiso(compromisoId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return { success: false, error: 'Usuario no autenticado', data: null };
+    }
+
+    const compromiso = await prisma.compromisoProyecto.findUnique({
+      where: { id: compromisoId },
+      select: {
+        id: true,
+        proyectoId: true,
+        titulo: true,
+        descripcion: true,
+      },
+    });
+
+    if (!compromiso) {
+      return { success: false, error: 'Compromiso no encontrado', data: null };
+    }
+
+    const userEmail = (user as { email?: string | null }).email ?? null;
+    const availableRoles =
+      (user as { availableRoles?: string[] }).availableRoles ?? [];
+    const puedeEliminar = await userCanOnProject({
+      availableRoles,
+      email: userEmail,
+      userId: user.id,
+      proyectoId: compromiso.proyectoId,
+      key: 'compromisos.create_edit',
+    });
+    if (!puedeEliminar) {
+      return {
+        success: false,
+        error: 'No tienes permiso para eliminar compromisos en este proyecto',
+        data: null,
+      };
+    }
+
+    await prisma.compromisoProyecto.delete({
+      where: { id: compromisoId },
+    });
+
+    await createHistorialEntry({
+      proyectoId: compromiso.proyectoId,
+      accion: 'Eliminar',
+      tabProyecto: 'Seguimiento',
+      elementoEspecifico:
+        (compromiso.titulo ?? compromiso.descripcion)?.substring(0, 80) ??
+        'Compromiso',
+      cambioGenerado: 'Compromiso eliminado',
+    });
+
+    revalidatePath('/proyectos');
+    revalidatePath('/inicio');
+    return { success: true, data: { id: compromisoId } };
+  } catch (error) {
+    console.error('Error al eliminar compromiso:', error);
+    return {
+      success: false,
+      error: 'Error al eliminar compromiso',
+      data: null,
+    };
+  }
+}
+
+/**
  * Marcar o desmarcar compromiso como completado (solo encargado o admin)
  */
 export async function toggleCompromiso(compromisoId: string) {
@@ -430,11 +499,12 @@ export async function getReunionesProyecto(proyectoId: string) {
 }
 
 /**
- * Crear reunión de seguimiento (coordinador o admin). N° correlativo por proyecto.
+ * Crear reunión de seguimiento (coordinador o admin).
+ * Obligatorios: número y fecha. Resumen opcional.
  */
 export async function addReunion(
   proyectoId: string,
-  data: { fecha: Date; resumen: string }
+  data: { fecha: Date; resumen?: string; numero?: number }
 ) {
   try {
     const user = await getCurrentUser();
@@ -442,14 +512,6 @@ export async function addReunion(
       return { success: false, error: 'Usuario no autenticado', data: null };
     }
 
-    const resumen = data.resumen?.trim();
-    if (!resumen) {
-      return {
-        success: false,
-        error: 'El resumen de la reunión es obligatorio',
-        data: null,
-      };
-    }
     if (!data.fecha || Number.isNaN(data.fecha.getTime())) {
       return {
         success: false,
@@ -457,6 +519,8 @@ export async function addReunion(
         data: null,
       };
     }
+
+    const resumen = data.resumen?.trim() ?? '';
 
     const userEmail = (user as { email?: string | null }).email ?? null;
     const availableRoles =
@@ -476,11 +540,34 @@ export async function addReunion(
       };
     }
 
-    const agg = await prisma.reunionSeguimiento.aggregate({
-      where: { proyectoId },
-      _max: { numero: true },
-    });
-    const numero = (agg._max.numero ?? 0) + 1;
+    let numero: number;
+    if (data.numero !== undefined) {
+      if (!Number.isInteger(data.numero) || data.numero < 1) {
+        return {
+          success: false,
+          error: 'El número de reunión debe ser un entero mayor a 0',
+          data: null,
+        };
+      }
+      const existing = await prisma.reunionSeguimiento.findFirst({
+        where: { proyectoId, numero: data.numero },
+        select: { id: true },
+      });
+      if (existing) {
+        return {
+          success: false,
+          error: `Ya existe una reunión N° ${data.numero} en este proyecto`,
+          data: null,
+        };
+      }
+      numero = data.numero;
+    } else {
+      const agg = await prisma.reunionSeguimiento.aggregate({
+        where: { proyectoId },
+        _max: { numero: true },
+      });
+      numero = (agg._max.numero ?? 0) + 1;
+    }
 
     const reunion = await prisma.reunionSeguimiento.create({
       data: {
@@ -499,7 +586,9 @@ export async function addReunion(
       accion: 'Agregar',
       tabProyecto: 'Seguimiento',
       elementoEspecifico: `Reunión N° ${numero}`,
-      cambioGenerado: resumen.substring(0, 200),
+      cambioGenerado: resumen
+        ? resumen.substring(0, 200)
+        : `Reunión N° ${numero} creada`,
     });
 
     revalidatePath('/proyectos');
@@ -511,11 +600,12 @@ export async function addReunion(
 }
 
 /**
- * Actualizar fecha y/o resumen de una reunión (coordinador o admin).
+ * Actualizar número, fecha y/o resumen de una reunión (coordinador o admin).
+ * Resumen puede quedar vacío.
  */
 export async function updateReunion(
   reunionId: string,
-  data: { fecha?: Date; resumen?: string }
+  data: { fecha?: Date; resumen?: string; numero?: number }
 ) {
   try {
     const user = await getCurrentUser();
@@ -556,12 +646,32 @@ export async function updateReunion(
         data: null,
       };
     }
-    if (data.resumen !== undefined && !data.resumen.trim()) {
-      return {
-        success: false,
-        error: 'El resumen de la reunión es obligatorio',
-        data: null,
-      };
+
+    if (data.numero !== undefined) {
+      if (!Number.isInteger(data.numero) || data.numero < 1) {
+        return {
+          success: false,
+          error: 'El número de reunión debe ser un entero mayor a 0',
+          data: null,
+        };
+      }
+      if (data.numero !== reunion.numero) {
+        const existing = await prisma.reunionSeguimiento.findFirst({
+          where: {
+            proyectoId: reunion.proyectoId,
+            numero: data.numero,
+            NOT: { id: reunionId },
+          },
+          select: { id: true },
+        });
+        if (existing) {
+          return {
+            success: false,
+            error: `Ya existe una reunión N° ${data.numero} en este proyecto`,
+            data: null,
+          };
+        }
+      }
     }
 
     const updated = await prisma.reunionSeguimiento.update({
@@ -569,6 +679,7 @@ export async function updateReunion(
       data: {
         ...(data.fecha !== undefined && { fecha: data.fecha }),
         ...(data.resumen !== undefined && { resumen: data.resumen.trim() }),
+        ...(data.numero !== undefined && { numero: data.numero }),
       },
       include: {
         compromisos: {
@@ -581,7 +692,7 @@ export async function updateReunion(
       proyectoId: reunion.proyectoId,
       accion: 'Actualizar',
       tabProyecto: 'Seguimiento',
-      elementoEspecifico: `Reunión N° ${reunion.numero}`,
+      elementoEspecifico: `Reunión N° ${updated.numero}`,
       cambioGenerado: 'Reunión actualizada',
     });
 

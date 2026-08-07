@@ -61,10 +61,10 @@ function validateBulkActivityTask(
   if (!name) {
     return { ok: false, error: 'El nombre de la tarea es obligatorio' };
   }
-  if (name.length > 60) {
+  if (name.length > 70) {
     return {
       ok: false,
-      error: 'El nombre de la tarea no puede exceder 60 caracteres',
+      error: 'El nombre de la tarea no puede exceder 70 caracteres',
     };
   }
   const startDate = task.startDate?.trim() ?? '';
@@ -316,10 +316,10 @@ export async function previewBulkActivityFondo(input: {
     if (!name) {
       return { success: false, error: 'El nombre de la actividad es obligatorio' };
     }
-    if (name.length > 60) {
+    if (name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 60 caracteres',
+        error: 'El nombre de la actividad no puede exceder 70 caracteres',
       };
     }
 
@@ -371,10 +371,10 @@ export async function confirmBulkActivityFondo(input: {
     if (!name) {
       return { success: false, error: 'El nombre de la actividad es obligatorio' };
     }
-    if (name.length > 60) {
+    if (name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 60 caracteres',
+        error: 'El nombre de la actividad no puede exceder 70 caracteres',
       };
     }
 

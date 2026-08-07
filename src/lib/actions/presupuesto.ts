@@ -281,6 +281,7 @@ export async function createItemPresupuesto(
     await syncPresupuestoProyecto(projectId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
+    revalidatePath('/inicio');
     return { success: true, data: { id: item.id } };
   } catch (error) {
     console.error('Error createItemPresupuesto:', error);
@@ -370,6 +371,7 @@ export async function updateItemPresupuesto(
     await syncPresupuestoProyecto(updated.proyectoId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
+    revalidatePath('/inicio');
     return { success: true };
   } catch (error) {
     console.error('Error updateItemPresupuesto:', error);
@@ -410,6 +412,7 @@ export async function deleteItemPresupuesto(
     await syncPresupuestoProyecto(item.proyectoId);
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
+    revalidatePath('/inicio');
     return { success: true };
   } catch (error) {
     console.error('Error deleteItemPresupuesto:', error);
@@ -535,6 +538,8 @@ export async function updatePresupuestoAdjudicado(
       data: { presupuestoAdjudicado: Math.round(presupuestoAdjudicado) },
     });
     revalidatePath('/proyectos');
+    revalidatePath('/dashboard');
+    revalidatePath('/inicio');
     return { success: true };
   } catch (error) {
     console.error('Error updatePresupuestoAdjudicado:', error);

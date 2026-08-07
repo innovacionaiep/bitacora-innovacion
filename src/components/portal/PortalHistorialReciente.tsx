@@ -29,9 +29,9 @@ const CONJUGACIONES: Record<string, string> = {
 const PANEL_SHELL =
   'h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-none overflow-hidden';
 const PANEL_HEADER =
-  'flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50/90';
+  'flex-shrink-0 h-7 px-5 border-b border-gray-100 bg-gray-50/90 flex items-center';
 const PANEL_TITLE =
-  'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2';
+  'text-[11px] font-medium tracking-wide text-gray-800 flex items-center gap-1.5 leading-none';
 
 function formatFecha(fecha: Date | string): string {
   const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
@@ -46,7 +46,7 @@ function formatFecha(fecha: Date | string): string {
 function PanelTitle() {
   return (
     <h3 className={PANEL_TITLE}>
-      <History className="h-3.5 w-3.5 text-gray-500" strokeWidth={1.75} />
+      <History className="h-3 w-3 text-gray-500" strokeWidth={1.75} />
       Últimas actualizaciones
     </h3>
   );

@@ -79,8 +79,9 @@ export function InicioClient({
 
   useEffect(() => {
     if (status !== 'authenticated') return;
-    if (hasLoadedRef.current) return;
-    void loadPortalData();
+    // Refetch al montar / volver a Inicio: el SSR inicial puede quedar stale
+    // tras mutaciones en /proyectos (p. ej. presupuesto por solicitar).
+    void loadPortalData({ silent: hasLoadedRef.current });
   }, [status, loadPortalData]);
 
   usePageTopLoader(
@@ -144,7 +145,7 @@ export function InicioClient({
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col gap-4 mt-4 overflow-hidden">
-        <div className="h-[262px] shrink-0 grid grid-cols-[1.5fr_1fr] gap-4 min-h-0 overflow-hidden">
+        <div className="h-[262px] shrink-0 grid grid-cols-[2fr_1fr] gap-4 min-h-0 overflow-hidden">
           <div
             id="tour-mis-proyectos"
             className="min-w-0 min-h-0 h-full p-2 overflow-hidden"
@@ -158,7 +159,7 @@ export function InicioClient({
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
           </div>
         </div>
-        <div id="tour-alertas" className="flex-1 min-h-0 overflow-auto p-2">
+        <div id="tour-alertas" className="flex-1 min-h-0 overflow-hidden p-2">
           <PortalAlertasPendientes
             alertas={alertas}
             loading={loadingAlertas}

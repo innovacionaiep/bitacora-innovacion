@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +45,8 @@ import {
   Trash2,
   Pencil,
   Users,
+  UserPlus,
+  Search,
   Handshake,
   GraduationCap,
   BookOpen,
@@ -60,6 +67,7 @@ import {
   ROLE_COLORS,
   SELECT_NONE_VALUE,
   NEW_PERSONA_VALUE,
+  CURRENT_PERSONA_VALUE,
   isSyncableParticipanteRol,
 } from './participantes-tab-utils';
 import { useParticipantesTab } from './useParticipantesTab';
@@ -142,6 +150,188 @@ function toggleFilterValue(current: string, optionValue: string): string {
     ? values.filter((v) => v !== optionValue)
     : [...values, optionValue];
   return formatMultiFilter(next);
+}
+
+type PersonaOption = {
+  id: string;
+  name: string | null;
+  email: string;
+  cargo?: string | null;
+  hasAccount?: boolean;
+};
+
+function formatPersonaListLabel(
+  name: string | null | undefined,
+  cargo: string | null | undefined,
+  opts?: { hasAccount?: boolean; emailFallback?: string }
+) {
+  const nombre =
+    name?.trim() || opts?.emailFallback?.trim() || 'Sin nombre';
+  const cargoTrim = cargo?.trim();
+  const base = cargoTrim ? `${nombre} · ${cargoTrim}` : nombre;
+  if (opts?.hasAccount === false) return `${base} · sin cuenta`;
+  return base;
+}
+
+/** Combobox de persona (Popover): permite buscar; Radix Select no deja escribir en un input. */
+function PersonaPicker({
+  value,
+  placeholder,
+  options,
+  currentPersona,
+  onValueChange,
+}: {
+  value?: string;
+  placeholder: string;
+  options: PersonaOption[];
+  currentPersona?: { label: string } | null;
+  onValueChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const query = search.trim().toLowerCase();
+
+  const filteredOptions = useMemo(() => {
+    if (!query) return options;
+    return options.filter((u) => {
+      const nombre = (u.name?.trim() || u.email).toLowerCase();
+      const cargo = (u.cargo ?? '').trim().toLowerCase();
+      return nombre.includes(query) || cargo.includes(query);
+    });
+  }, [options, query]);
+
+  const showCurrent =
+    !!currentPersona &&
+    (!query || currentPersona.label.toLowerCase().includes(query));
+
+  const selectedLabel = useMemo(() => {
+    if (!value) return null;
+    if (value === NEW_PERSONA_VALUE) return 'Nueva persona…';
+    if (value === CURRENT_PERSONA_VALUE) return currentPersona?.label ?? null;
+    const u = options.find((o) => o.id === value);
+    if (u) {
+      return formatPersonaListLabel(u.name, u.cargo, {
+        hasAccount: u.hasAccount,
+        emailFallback: u.email,
+      });
+    }
+    return currentPersona?.label ?? null;
+  }, [value, options, currentPersona]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSearch('');
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
+
+  const pick = (next: string) => {
+    onValueChange(next);
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            SELECT_TRIGGER,
+            'flex items-center justify-between gap-1 rounded-md border border-input bg-transparent px-2 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
+          )}
+        >
+          <span
+            className={cn(
+              'min-w-0 flex-1 truncate',
+              !selectedLabel && 'text-muted-foreground'
+            )}
+          >
+            {selectedLabel ?? placeholder}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={4}
+        avoidCollisions={false}
+        className="w-[var(--radix-popover-trigger-width)] min-w-[16rem] p-1"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => pick(NEW_PERSONA_VALUE)}
+          className="flex w-full items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-left text-[11px] font-medium text-emerald-800 hover:bg-emerald-100"
+        >
+          <UserPlus className="h-3.5 w-3.5 shrink-0" />
+          Nueva persona…
+        </button>
+        <div className="my-1.5 h-px bg-gray-200" />
+        <div className="space-y-1 px-1 pb-1.5">
+          <span className="block px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Personas disponibles
+          </span>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar…"
+              className="h-6 border-gray-200 bg-white py-0 pl-5 pr-1.5 text-[10px] leading-none shadow-none md:text-[10px] placeholder:text-[10px]"
+            />
+          </div>
+        </div>
+        <div className="max-h-48 overflow-y-auto">
+          {showCurrent ? (
+            <button
+              type="button"
+              onClick={() => pick(CURRENT_PERSONA_VALUE)}
+              className={cn(
+                'flex w-full rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-accent',
+                value === CURRENT_PERSONA_VALUE && 'bg-accent'
+              )}
+            >
+              {currentPersona!.label}
+            </button>
+          ) : null}
+          {filteredOptions.map((u) => (
+            <button
+              type="button"
+              key={u.id}
+              onClick={() => pick(u.id)}
+              className={cn(
+                'flex w-full rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-accent',
+                value === u.id && 'bg-accent'
+              )}
+            >
+              {formatPersonaListLabel(u.name, u.cargo, {
+                hasAccount: u.hasAccount,
+                emailFallback: u.email,
+              })}
+            </button>
+          ))}
+          {filteredOptions.length === 0 && !showCurrent ? (
+            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+              {options.length === 0
+                ? 'No hay personas en el listado'
+                : 'Sin resultados'}
+            </div>
+          ) : null}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function ParticipantesTab({
@@ -395,6 +585,9 @@ export function ParticipantesTab({
         (u) => u.email.trim().toLowerCase() === emailLower
       );
       if (byEmail) return byEmail.id;
+      // Persona ya en el draft (p. ej. al cambiar Coordinador→Encargado) aunque
+      // aún no figure en el pool del rol destino.
+      if (nombre.trim() || emailLower) return CURRENT_PERSONA_VALUE;
     }
     return '';
   };
@@ -898,7 +1091,6 @@ export function ParticipantesTab({
                                 handleEditParticipanteRolChange(
                                   v as typeof draft.rol
                                 );
-                                setEditPersonaIsManual(false);
                               }}
                             >
                               <SelectTrigger className={SELECT_TRIGGER}>
@@ -924,24 +1116,45 @@ export function ParticipantesTab({
                           {isEditing && draft ? (
                             isSyncableParticipanteRol(draft.rol) ? (
                               <div className="flex flex-col gap-1 min-w-0">
-                                <Select
+                                <PersonaPicker
                                   value={
                                     resolvePersonaSelectValue(
                                       draft.rol,
                                       draft.email,
                                       draft.nombre,
                                       editPersonaIsManual
-                                    ) || SELECT_NONE_VALUE
+                                    ) || undefined
+                                  }
+                                  placeholder={`Seleccionar ${draft.rol.toLowerCase()} *`}
+                                  options={getPersonaOptions(draft.rol, p.id)}
+                                  currentPersona={
+                                    resolvePersonaSelectValue(
+                                      draft.rol,
+                                      draft.email,
+                                      draft.nombre,
+                                      editPersonaIsManual
+                                    ) === CURRENT_PERSONA_VALUE
+                                      ? {
+                                          label: formatPersonaListLabel(
+                                            draft.nombre,
+                                            draft.cargo,
+                                            {
+                                              emailFallback: draft.email,
+                                            }
+                                          ),
+                                        }
+                                      : null
                                   }
                                   onValueChange={(v) => {
-                                    if (v === SELECT_NONE_VALUE) {
-                                      setEditPersonaIsManual(false);
-                                      clearPersonaFormFields('edit');
-                                      return;
-                                    }
                                     if (v === NEW_PERSONA_VALUE) {
                                       setEditPersonaIsManual(true);
                                       clearPersonaFormFields('edit');
+                                      return;
+                                    }
+                                    if (v === CURRENT_PERSONA_VALUE) {
+                                      // Conservar draft actual (cambio de rol sin
+                                      // re-seleccionar persona).
+                                      setEditPersonaIsManual(false);
                                       return;
                                     }
                                     setEditPersonaIsManual(false);
@@ -951,33 +1164,7 @@ export function ParticipantesTab({
                                       draft.rol
                                     );
                                   }}
-                                >
-                                  <SelectTrigger className={SELECT_TRIGGER}>
-                                    <SelectValue
-                                      placeholder={`Seleccionar ${draft.rol.toLowerCase()} *`}
-                                    />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={SELECT_NONE_VALUE}>
-                                      Seleccionar {draft.rol.toLowerCase()} *
-                                    </SelectItem>
-                                    <SelectItem value={NEW_PERSONA_VALUE}>
-                                      Nueva persona…
-                                    </SelectItem>
-                                    {getPersonaOptions(draft.rol, p.id).map(
-                                      (u) => (
-                                        <SelectItem key={u.id} value={u.id}>
-                                          {u.name?.trim()
-                                            ? `${u.name.trim()} (${u.email})`
-                                            : u.email}
-                                          {!u.hasAccount
-                                            ? ' · sin cuenta'
-                                            : ''}
-                                        </SelectItem>
-                                      )
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                />
                                 {editPersonaIsManual && (
                                   <Input
                                     value={draft.nombre}
@@ -1346,21 +1533,18 @@ export function ParticipantesTab({
                     <TableCell className={cn(CELL_BASE, COL_W.nombre)}>
                       {isSyncableParticipanteRol(newParticipanteData.rol) ? (
                         <div className="flex flex-col gap-1 min-w-0">
-                          <Select
+                          <PersonaPicker
                             value={
                               resolvePersonaSelectValue(
                                 newParticipanteData.rol,
                                 newParticipanteData.email,
                                 newParticipanteData.nombre,
                                 newPersonaIsManual
-                              ) || SELECT_NONE_VALUE
+                              ) || undefined
                             }
+                            placeholder={`Seleccionar ${newParticipanteData.rol.toLowerCase()} *`}
+                            options={getPersonaOptions(newParticipanteData.rol)}
                             onValueChange={(v) => {
-                              if (v === SELECT_NONE_VALUE) {
-                                setNewPersonaIsManual(false);
-                                clearPersonaFormFields('new');
-                                return;
-                              }
                               if (v === NEW_PERSONA_VALUE) {
                                 setNewPersonaIsManual(true);
                                 clearPersonaFormFields('new');
@@ -1373,32 +1557,7 @@ export function ParticipantesTab({
                                 newParticipanteData.rol
                               );
                             }}
-                          >
-                            <SelectTrigger className={SELECT_TRIGGER}>
-                              <SelectValue
-                                placeholder={`Seleccionar ${newParticipanteData.rol.toLowerCase()} *`}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={SELECT_NONE_VALUE}>
-                                Seleccionar{' '}
-                                {newParticipanteData.rol.toLowerCase()} *
-                              </SelectItem>
-                              <SelectItem value={NEW_PERSONA_VALUE}>
-                                Nueva persona…
-                              </SelectItem>
-                              {getPersonaOptions(newParticipanteData.rol).map(
-                                (u) => (
-                                  <SelectItem key={u.id} value={u.id}>
-                                    {u.name?.trim()
-                                      ? `${u.name.trim()} (${u.email})`
-                                      : u.email}
-                                    {!u.hasAccount ? ' · sin cuenta' : ''}
-                                  </SelectItem>
-                                )
-                              )}
-                            </SelectContent>
-                          </Select>
+                          />
                           {newPersonaIsManual && (
                             <Input
                               value={newParticipanteData.nombre}

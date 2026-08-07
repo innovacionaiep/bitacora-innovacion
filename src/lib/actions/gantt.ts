@@ -87,16 +87,16 @@ export async function createActivity(data: CreateActivityInput) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
-    if (data.name && data.name.length > 60) {
+    if (data.name && data.name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 60 caracteres',
+        error: 'El nombre de la actividad no puede exceder 70 caracteres',
       };
     }
 
     const activity = await prisma.activity.create({
       data: {
-        name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
+        name: data.name.length > 70 ? data.name.substring(0, 70) : data.name,
         description: data.description || '',
         progress: 0,
         projectId: data.projectId,
@@ -130,10 +130,10 @@ export async function createActivity(data: CreateActivityInput) {
  */
 export async function updateActivity(id: string, data: Partial<ActivityData>) {
   try {
-    if (data.name !== undefined && data.name.length > 60) {
+    if (data.name !== undefined && data.name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 60 caracteres',
+        error: 'El nombre de la actividad no puede exceder 70 caracteres',
       };
     }
 
@@ -155,7 +155,7 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       where: { id },
       data: {
         ...(data.name !== undefined && {
-          name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
+          name: data.name.length > 70 ? data.name.substring(0, 70) : data.name,
         }),
         ...(data.description !== undefined && {
           description: data.description,
@@ -332,11 +332,11 @@ export async function reorderActivitiesKanban(
  */
 export async function createTask(data: TaskData) {
   try {
-    // Validar que el nombre de la tarea no exceda 60 caracteres
-    if (data.name && data.name.length > 60) {
+    // Validar que el nombre de la tarea no exceda 70 caracteres
+    if (data.name && data.name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la tarea no puede exceder 60 caracteres',
+        error: 'El nombre de la tarea no puede exceder 70 caracteres',
       };
     }
 
@@ -355,7 +355,7 @@ export async function createTask(data: TaskData) {
 
     const task = await prisma.task.create({
       data: {
-        name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
+        name: data.name.length > 70 ? data.name.substring(0, 70) : data.name,
         description: data.description || '',
         completed: false,
         startDate: data.startDate,
@@ -392,11 +392,11 @@ export async function createTask(data: TaskData) {
  */
 export async function updateTask(id: string, data: Partial<TaskData>) {
   try {
-    // Validar que el nombre de la tarea no exceda 60 caracteres
-    if (data.name !== undefined && data.name.length > 60) {
+    // Validar que el nombre de la tarea no exceda 70 caracteres
+    if (data.name !== undefined && data.name.length > 70) {
       return {
         success: false,
-        error: 'El nombre de la tarea no puede exceder 60 caracteres',
+        error: 'El nombre de la tarea no puede exceder 70 caracteres',
       };
     }
 
@@ -420,7 +420,7 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
       where: { id },
       data: {
         ...(data.name !== undefined && {
-          name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
+          name: data.name.length > 70 ? data.name.substring(0, 70) : data.name,
         }),
         ...(data.description !== undefined && {
           description: data.description,

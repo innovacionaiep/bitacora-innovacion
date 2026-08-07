@@ -93,6 +93,8 @@ import {
   getTodayCenteredOffset,
   getTodayPositionPercent,
   getVisibleMonths as computeVisibleMonths,
+  TIMELINE_MAX_OFFSET,
+  TIMELINE_MIN_OFFSET,
 } from '@/components/proyectos/gantt/gantt-utils';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
@@ -662,6 +664,7 @@ export default function GanttChart({
   const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
 
   // Estado para controlar el offset del timeline (meses desde enero 2025); inicializa centrado en hoy
+  // Navegación acotada a ene 2026 … ene 2027 (vista 12 meses hasta dic 2027)
   const [timelineOffset, setTimelineOffset] = useState(() =>
     getTodayCenteredOffset(12)
   );
@@ -924,9 +927,9 @@ export default function GanttChart({
 
   // Manejar cambios en el formulario de tarea
   const handleTaskInputChange = (field: string, value: string) => {
-    // Limitar el nombre de la tarea a 60 caracteres máximo
-    if (field === 'name' && value.length > 60) {
-      alert('El nombre de la tarea no puede exceder 60 caracteres');
+    // Limitar el nombre de la tarea a 70 caracteres máximo
+    if (field === 'name' && value.length > 70) {
+      alert('El nombre de la tarea no puede exceder 70 caracteres');
       return;
     }
     setTaskForm((prev) => ({
@@ -970,9 +973,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar que el nombre no exceda 60 caracteres
-    if (taskForm.name.length > 60) {
-      alert('El nombre de la tarea no puede exceder 60 caracteres');
+    // Validar que el nombre no exceda 70 caracteres
+    if (taskForm.name.length > 70) {
+      alert('El nombre de la tarea no puede exceder 70 caracteres');
       return;
     }
 
@@ -1277,8 +1280,8 @@ export default function GanttChart({
         alert('Por favor completa el nombre de la actividad');
         return;
       }
-      if (name.length > 60) {
-        alert('El nombre de la actividad no puede exceder los 60 caracteres');
+      if (name.length > 70) {
+        alert('El nombre de la actividad no puede exceder los 70 caracteres');
         return;
       }
     }
@@ -1313,8 +1316,8 @@ export default function GanttChart({
 
   const handleSaveTaskEdit = async () => {
     if (!editingTaskId) return;
-    if (editingTaskForm.name.length > 60) {
-      alert('El nombre de la tarea no puede exceder 60 caracteres');
+    if (editingTaskForm.name.length > 70) {
+      alert('El nombre de la tarea no puede exceder 70 caracteres');
       return;
     }
     const task = [
@@ -1383,8 +1386,8 @@ export default function GanttChart({
       alert('Completa nombre y fechas');
       return;
     }
-    if (inlineTaskForm.name.length > 60) {
-      alert('El nombre de la tarea no puede exceder 60 caracteres');
+    if (inlineTaskForm.name.length > 70) {
+      alert('El nombre de la tarea no puede exceder 70 caracteres');
       return;
     }
     const act = selectedActivityForPopup;
@@ -1473,9 +1476,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (60 caracteres)
-    if (unifiedActivityForm.name.length > 60) {
-      alert('El nombre de la actividad no puede exceder los 60 caracteres');
+    // Validar longitud máxima del título (70 caracteres)
+    if (unifiedActivityForm.name.length > 70) {
+      alert('El nombre de la actividad no puede exceder los 70 caracteres');
       return;
     }
 
@@ -1488,13 +1491,13 @@ export default function GanttChart({
         return;
       }
 
-      // Validar que todas las tareas temporales tengan nombres válidos (máximo 60 caracteres)
+      // Validar que todas las tareas temporales tengan nombres válidos (máximo 70 caracteres)
       const tasksWithInvalidNames = tempTasks.filter(
-        (task) => task.name.length > 60
+        (task) => task.name.length > 70
       );
       if (tasksWithInvalidNames.length > 0) {
         alert(
-          `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 60 caracteres. Por favor, corrige los nombres antes de continuar.`
+          `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 70 caracteres. Por favor, corrige los nombres antes de continuar.`
         );
         return;
       }
@@ -1546,13 +1549,13 @@ export default function GanttChart({
       if (error) {
         alert('Error al actualizar la actividad: ' + error);
       } else {
-        // Validar que todas las tareas temporales tengan nombres válidos (máximo 60 caracteres)
+        // Validar que todas las tareas temporales tengan nombres válidos (máximo 70 caracteres)
         const tasksWithInvalidNames = tempTasks.filter(
-          (task) => task.name.length > 60
+          (task) => task.name.length > 70
         );
         if (tasksWithInvalidNames.length > 0) {
           alert(
-            `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 60 caracteres. Por favor, corrige los nombres antes de continuar.`
+            `Error: ${tasksWithInvalidNames.length} tarea(s) tienen nombres que exceden 70 caracteres. Por favor, corrige los nombres antes de continuar.`
           );
           return;
         }
@@ -1598,9 +1601,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (60 caracteres)
-    if (editActivityForm.name.length > 60) {
-      alert('El nombre de la actividad no puede exceder los 60 caracteres');
+    // Validar longitud máxima del título (70 caracteres)
+    if (editActivityForm.name.length > 70) {
+      alert('El nombre de la actividad no puede exceder los 70 caracteres');
       return;
     }
 
@@ -2189,8 +2192,8 @@ export default function GanttChart({
                       <Slider
                         value={[timelineOffset]}
                         onValueChange={(value) => setTimelineOffset(value[0])}
-                        min={-24}
-                        max={24}
+                        min={TIMELINE_MIN_OFFSET}
+                        max={TIMELINE_MAX_OFFSET}
                         step={1}
                         className="flex-1"
                       />
@@ -2318,11 +2321,11 @@ export default function GanttChart({
                       }
                       placeholder="Nombre de la tarea *"
                       className="w-full"
-                      maxLength={60}
+                      maxLength={70}
                       required
                     />
                     <div className="text-xs text-gray-500 mt-1 text-right">
-                      {taskForm.name.length}/60 caracteres
+                      {taskForm.name.length}/70 caracteres
                     </div>
                   </div>
 
@@ -2447,10 +2450,10 @@ export default function GanttChart({
                         }
                         placeholder="Nombre de la actividad (obligatorio)"
                         className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
-                        maxLength={60}
+                        maxLength={70}
                       />
                       <span className="text-[12px] text-gray-400">
-                        {unifiedActivityForm.name.length}/60 caracteres
+                        {unifiedActivityForm.name.length}/70 caracteres
                         <span className="text-amber-600 ml-1">
                           · obligatorio
                         </span>
@@ -2471,11 +2474,11 @@ export default function GanttChart({
                         }
                         placeholder="Nombre de la actividad"
                         className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
-                        maxLength={60}
+                        maxLength={70}
                         autoFocus
                       />
                       <span className="text-[12px] text-gray-400">
-                        {activityFieldDraft.name.length}/60 caracteres
+                        {activityFieldDraft.name.length}/70 caracteres
                       </span>
                       <ActivityFieldSaveCancel
                         isSaving={isSavingActivityField}
@@ -2554,7 +2557,7 @@ export default function GanttChart({
             {/* Layout de 3 columnas */}
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
               {/* COLUMNA IZQUIERDA: Descripción + Período */}
-              <div className="space-y-6 overflow-y-auto min-h-0 border-r border-gray-100 pr-6 custom-scrollbar">
+              <div className="space-y-14 overflow-y-auto min-h-0 border-r border-gray-100 pr-6 custom-scrollbar">
                 <div>
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
@@ -2905,7 +2908,7 @@ export default function GanttChart({
                           }))
                         }
                         placeholder="Nombre de la tarea *"
-                        maxLength={60}
+                        maxLength={70}
                         className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                       />
                       <textarea
@@ -3022,7 +3025,7 @@ export default function GanttChart({
                               }))
                             }
                             placeholder="Nombre"
-                            maxLength={60}
+                            maxLength={70}
                             className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                           />
                           <textarea

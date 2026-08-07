@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   toggleCompromiso,
   updateCompromiso,
+  deleteCompromiso,
 } from '@/lib/actions/seguimiento';
 import {
   ClipboardCheck,
@@ -24,6 +25,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
+import { getPostItClass } from '@/components/seguimiento/compromiso-ui';
 
 type CompromisoPortal = Awaited<
   ReturnType<typeof import('@/lib/actions/seguimiento').getCompromisosPendientesParaUsuario>
@@ -35,15 +37,6 @@ const PANEL_HEADER =
   'flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50/90';
 const PANEL_TITLE =
   'text-[13px] font-medium tracking-wide text-gray-800 flex items-center gap-2';
-
-const NOTE_PENDIENTE =
-  'border border-red-200 bg-red-50/40';
-const NOTE_REALIZADO =
-  'border border-emerald-200 bg-emerald-50/40';
-
-function getNoteClass(c: CompromisoPortal): string {
-  return c.completado ? NOTE_REALIZADO : NOTE_PENDIENTE;
-}
 
 function EstadoIcon({ compromiso }: { compromiso: CompromisoPortal }) {
   if (compromiso.completado)
@@ -105,6 +98,7 @@ export function PortalCompromisosPendientes({
   const [editTitulo, setEditTitulo] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setCompromisos(compromisosProp);
@@ -115,45 +109,54 @@ export function PortalCompromisosPendientes({
   const canMarkRealizado = can('compromisos.mark_done');
 
   const handleToggleRealizado = async (id: string) => {
-    if (!canMarkRealizado) return;
+    if (!canMarkRealizado || togglingId === id) return;
     const current = compromisos.find((c) => c.id === id);
     if (!current) return;
 
+    const nextCompletado = !current.completado;
+
     setCompromisos((prev) =>
       prev.map((c) =>
-        c.id === id ? { ...c, completado: !c.completado } : c
+        c.id === id ? { ...c, completado: nextCompletado } : c
       )
     );
     setSelectedCompromiso((prev) =>
-      prev?.id === id ? { ...prev, completado: !prev.completado } : prev
+      prev?.id === id ? { ...prev, completado: nextCompletado } : prev
     );
+
+    // En el listado de pendientes: al marcar realizado, sacar de inmediato.
+    if (nextCompletado) {
+      setCompromisos((prev) => prev.filter((c) => c.id !== id));
+      if (selectedCompromiso?.id === id) {
+        setSelectedCompromiso(null);
+        setDetailModalOpen(false);
+        setIsEditingCompromiso(false);
+      }
+    }
 
     setTogglingId(id);
     const result = await toggleCompromiso(id);
     setTogglingId(null);
+
     if (result.success) {
-      // Lista de pendientes: al marcar realizado, sacar de la UI de inmediato.
-      if (!current.completado) {
-        setCompromisos((prev) => prev.filter((c) => c.id !== id));
-        if (selectedCompromiso?.id === id) {
-          setSelectedCompromiso(null);
-          setDetailModalOpen(false);
-          setIsEditingCompromiso(false);
-        }
-      }
-      // Refresco en segundo plano (sin spinners / top-loader).
       void onSuccess();
     } else {
-      setCompromisos((prev) =>
-        prev.map((c) =>
-          c.id === id ? { ...c, completado: current.completado } : c
-        )
-      );
+      // Revertir
+      if (nextCompletado) {
+        setCompromisos((prev) => [current, ...prev]);
+      } else {
+        setCompromisos((prev) =>
+          prev.map((c) =>
+            c.id === id ? { ...c, completado: current.completado } : c
+          )
+        );
+      }
       setSelectedCompromiso((prev) =>
         prev?.id === id
           ? { ...prev, completado: current.completado }
           : prev
       );
+      alert(result.error ?? 'Error al actualizar el compromiso');
     }
   };
 
@@ -209,10 +212,34 @@ export function PortalCompromisosPendientes({
     setDetailModalOpen(false);
   };
 
+  const handleDelete = async () => {
+    if (
+      !selectedCompromiso ||
+      !isCoordinadorOrAdmin ||
+      deleting ||
+      !confirm('¿Eliminar este compromiso? Esta acción no se puede deshacer.')
+    ) {
+      return;
+    }
+
+    const id = selectedCompromiso.id;
+    setCompromisos((prev) => prev.filter((c) => c.id !== id));
+    handleCloseDetail();
+    setDeleting(true);
+    const result = await deleteCompromiso(id);
+    setDeleting(false);
+    if (result.success) {
+      void onSuccess();
+    } else {
+      void onSuccess();
+      alert(result.error ?? 'Error al eliminar compromiso');
+    }
+  };
+
   if (loading) {
     if (isColumn) {
       return (
-        <section className="min-w-0 flex flex-col gap-2">
+        <section className="min-w-0 min-h-0 h-full flex flex-col gap-2">
           <PanelTitle />
           <div className="min-h-[48px]" />
         </section>
@@ -266,8 +293,8 @@ export function PortalCompromisosPendientes({
               }}
               className={
                 isColumn
-                  ? `rounded-lg shadow-none p-2.5 flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`
-                  : `rounded-lg shadow-none p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:bg-gray-50/80 transition-colors ${getNoteClass(c)}`
+                  ? `rounded-lg border-2 shadow-sm p-2.5 flex flex-col text-left cursor-pointer hover:shadow-md transition-shadow ${getPostItClass(c)}`
+                  : `rounded-lg border-2 shadow-sm p-3 min-h-[120px] flex flex-col text-left cursor-pointer hover:shadow-md transition-shadow ${getPostItClass(c)}`
               }
             >
               <div className="flex items-start justify-between gap-2 mb-1">
@@ -284,8 +311,8 @@ export function PortalCompromisosPendientes({
                 <EstadoIcon compromiso={c} />
               </div>
               {proyectoNombre && (
-                <p className="text-[11px] text-gray-500 tracking-wide mb-1">
-                  {proyectoNombre}
+                <p className="text-[11px] text-gray-500 tracking-wide mb-1 break-words [overflow-wrap:anywhere]">
+                  Proyecto: &quot;{proyectoNombre}&quot;
                 </p>
               )}
               <p className="text-[11px] text-gray-400 mb-2">
@@ -296,17 +323,13 @@ export function PortalCompromisosPendientes({
                 onClick={(e) => e.stopPropagation()}
               >
                 <label className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-600">
-                  {togglingId === c.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                  ) : (
-                    <Checkbox
-                      checked={c.completado}
-                      onCheckedChange={() => handleToggleRealizado(c.id)}
-                      disabled={!canMarkRealizado}
-                      className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
-                    />
-                  )}
-                  Realizado
+                  <Checkbox
+                    checked={c.completado}
+                    onCheckedChange={() => handleToggleRealizado(c.id)}
+                    disabled={!canMarkRealizado || togglingId === c.id}
+                    className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
+                  />
+                  {c.completado ? 'Realizada' : 'Marcar como realizada'}
                 </label>
               </div>
             </div>
@@ -318,9 +341,9 @@ export function PortalCompromisosPendientes({
   return (
     <>
       {isColumn ? (
-        <section className="min-w-0 flex flex-col gap-2">
+        <section className="min-w-0 min-h-0 h-full flex flex-col gap-2">
           <PanelTitle />
-          <div className="min-h-0 overflow-auto pr-1">{listContent}</div>
+          <div className="min-h-0 flex-1 overflow-auto pr-1">{listContent}</div>
         </section>
       ) : (
         <div className={PANEL_SHELL}>
@@ -340,7 +363,7 @@ export function PortalCompromisosPendientes({
         >
           <DialogContent className="sm:max-w-lg gap-0 overflow-hidden border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg [&>button]:hidden">
             <DialogHeader className="space-y-0 border-b border-gray-100 bg-gray-50/90 px-5 py-3 text-left">
-              <DialogTitle className="m-0 flex items-center justify-between text-[13px] font-medium leading-none tracking-wide text-gray-800">
+              <DialogTitle className="m-0 flex items-center justify-between gap-3 text-[13px] font-medium leading-none tracking-wide text-gray-800">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <ClipboardCheck
                     className={
@@ -357,34 +380,30 @@ export function PortalCompromisosPendientes({
                       className="flex-1 h-8 border-gray-200 bg-white text-[13px] font-medium shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
                     />
                   ) : (
-                    selectedCompromiso.titulo?.trim() ||
-                    tituloDeDescripcion(selectedCompromiso.descripcion, 50)
+                    <>
+                      <span className="truncate min-w-0 leading-none">
+                        {selectedCompromiso.titulo?.trim() ||
+                          tituloDeDescripcion(
+                            selectedCompromiso.descripcion,
+                            50
+                          )}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="h-3 w-px shrink-0 bg-gray-300 self-center"
+                      />
+                      <span className="shrink-0 text-[11px] font-normal leading-none text-gray-400 whitespace-nowrap">
+                        {formatFecha(selectedCompromiso.createdAt)}
+                      </span>
+                    </>
                   )}
                 </div>
                 <EstadoIcon compromiso={selectedCompromiso} />
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 px-5 py-5 bg-white">
-              {(
-                selectedCompromiso as CompromisoPortal & {
-                  proyecto?: { proyecto?: string };
-                }
-              ).proyecto?.proyecto && (
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
-                    Proyecto
-                  </Label>
-                  <p className="text-[13px] text-gray-700">
-                    {
-                      (
-                        selectedCompromiso as CompromisoPortal & {
-                          proyecto?: { proyecto?: string };
-                        }
-                      ).proyecto?.proyecto
-                    }
-                  </p>
-                </div>
-              )}
+            <div
+              className={`space-y-4 px-5 py-5 ${getPostItClass(selectedCompromiso)}`}
+            >
               <div className="space-y-2">
                 <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
                   Descripción
@@ -409,36 +428,48 @@ export function PortalCompromisosPendientes({
                   </p>
                 )}
               </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-900">
-                  Fecha de creación
-                </Label>
-                <p className="text-[13px] text-gray-500">
-                  {formatFecha(selectedCompromiso.createdAt)}
-                </p>
-              </div>
               <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  {togglingId === selectedCompromiso.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  ) : (
-                    <Checkbox
-                      checked={selectedCompromiso.completado}
-                      onCheckedChange={() =>
-                        canMarkRealizado &&
-                        handleToggleRealizado(selectedCompromiso.id)
-                      }
-                      disabled={!canMarkRealizado}
-                      className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
-                    />
-                  )}
+                  <Checkbox
+                    checked={selectedCompromiso.completado}
+                    onCheckedChange={() =>
+                      canMarkRealizado &&
+                      handleToggleRealizado(selectedCompromiso.id)
+                    }
+                    disabled={
+                      !canMarkRealizado || togglingId === selectedCompromiso.id
+                    }
+                    className="border-gray-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:text-white data-[state=checked]:border-emerald-600 focus-visible:ring-emerald-500/40"
+                  />
                   <span className="text-[13px] font-medium text-gray-700">
-                    Realizado (Encargado)
+                    {selectedCompromiso.completado
+                      ? 'Realizada'
+                      : 'Marcar como realizada'}
                   </span>
                 </label>
               </div>
             </div>
-            <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3">
+            <DialogFooter className="border-t border-gray-100 px-5 py-3 gap-3 sm:justify-between sm:space-x-0">
+              {(
+                selectedCompromiso as CompromisoPortal & {
+                  proyecto?: { proyecto?: string };
+                }
+              ).proyecto?.proyecto ? (
+                <p className="min-w-0 flex-1 text-left text-[11px] text-gray-500 break-words [overflow-wrap:anywhere] self-center mr-auto">
+                  Proyecto: &quot;
+                  {
+                    (
+                      selectedCompromiso as CompromisoPortal & {
+                        proyecto?: { proyecto?: string };
+                      }
+                    ).proyecto?.proyecto
+                  }
+                  &quot;
+                </p>
+              ) : (
+                <span className="flex-1 mr-auto" aria-hidden />
+              )}
+              <div className="flex flex-wrap items-center justify-end gap-3 shrink-0">
               {isEditingCompromiso ? (
                 <>
                   <Button
@@ -476,23 +507,40 @@ export function PortalCompromisosPendientes({
               ) : (
                 <>
                   {isCoordinadorOrAdmin && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => setIsEditingCompromiso(true)}
-                      className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
-                    >
-                      Editar
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={() => void handleDelete()}
+                        disabled={deleting}
+                        className="h-7 px-2 text-[13px] font-normal text-red-600 hover:text-red-700 hover:bg-transparent"
+                      >
+                        {deleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Eliminar'
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setIsEditingCompromiso(true)}
+                        disabled={deleting}
+                        className="h-7 px-2 text-[13px] font-normal text-gray-900 hover:text-emerald-700 hover:bg-transparent"
+                      >
+                        Editar
+                      </Button>
+                    </>
                   )}
                   <Button
                     variant="ghost"
                     onClick={handleCloseDetail}
+                    disabled={deleting}
                     className="h-7 px-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 hover:bg-transparent"
                   >
                     Cerrar
                   </Button>
                 </>
               )}
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

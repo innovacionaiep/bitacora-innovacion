@@ -11,6 +11,13 @@ export { convertDateToISO, formatDateForTooltip } from './gantt-date-utils';
 /** Año base del timeline del Gantt (enero = offset 0). */
 export const TIMELINE_BASE_YEAR = 2025;
 
+/**
+ * Límites de navegación del slider (meses desde enero del año base).
+ * ene 2026 … ene 2027 → con vista de 12 meses cubre hasta dic 2027.
+ */
+export const TIMELINE_MIN_OFFSET = 12;
+export const TIMELINE_MAX_OFFSET = 24;
+
 export const MONTHS = [
   'Enero',
   'Febrero',
@@ -31,14 +38,17 @@ export const GANTT_TASK_SPACING = 25;
 
 /**
  * Offset del timeline que centra "hoy" en el rango visible
- * (meses desde enero del año base, acotado a [-24, 24]).
+ * (meses desde enero del año base, acotado a [TIMELINE_MIN_OFFSET, TIMELINE_MAX_OFFSET]).
  */
 export function getTodayCenteredOffset(range: number): number {
   const t = new Date();
   const todayOffset =
     (t.getFullYear() - TIMELINE_BASE_YEAR) * 12 + t.getMonth();
   const centered = todayOffset - Math.floor(range / 2);
-  return Math.max(-24, Math.min(24, centered));
+  return Math.max(
+    TIMELINE_MIN_OFFSET,
+    Math.min(TIMELINE_MAX_OFFSET, centered)
+  );
 }
 
 /** Meses visibles según offset y rango del timeline. */

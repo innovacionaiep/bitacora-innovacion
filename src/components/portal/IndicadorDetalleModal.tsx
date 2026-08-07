@@ -10,12 +10,17 @@ import { Loader2 } from 'lucide-react';
 import { getIndicadorById } from '@/lib/actions/indicadores';
 import { IndicadorModal } from '@/components/proyectos/IndicadorModal';
 
+const INDICADOR_DIALOG_CLASS =
+  'w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg';
+
 export interface IndicadorDetalleModalProps {
   indicadorId: string | null;
   proyectoId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void | Promise<void>;
+  /** Admin / Coordinador / Encargado del proyecto: muestra lápices de edición. */
+  canEdit?: boolean;
 }
 
 export function IndicadorDetalleModal({
@@ -24,6 +29,7 @@ export function IndicadorDetalleModal({
   open,
   onOpenChange,
   onSuccess,
+  canEdit = false,
 }: IndicadorDetalleModalProps) {
   const [indicador, setIndicador] = useState<{
     id: string;
@@ -43,11 +49,13 @@ export function IndicadorDetalleModal({
     if (!open || !indicadorId) {
       setIndicador(null);
       setError(null);
+      setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setIndicador(null);
     getIndicadorById(indicadorId).then((res) => {
       if (cancelled) return;
       setLoading(false);
@@ -70,42 +78,42 @@ export function IndicadorDetalleModal({
     if (onSuccess) await onSuccess();
   };
 
-  if (!open) return null;
-
-  if (loading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg border border-gray-200 bg-white shadow-md sm:rounded-lg">
-          <DialogTitle className="sr-only">Cargando indicador</DialogTitle>
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            <p className="mt-4 text-[13px] text-gray-400">Cargando indicador…</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (error || !indicador) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg border border-gray-200 bg-white shadow-md sm:rounded-lg">
-          <DialogTitle className="sr-only">Error</DialogTitle>
-          <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-sm text-destructive">{error ?? 'Indicador no encontrado'}</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
-    <IndicadorModal
-      indicador={indicador}
-      onClose={handleClose}
-      onUpdate={handleUpdate}
-      projectId={proyectoId ?? undefined}
-      hideEditButton
-    />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        closeButtonPosition="outside-top-right"
+        className={INDICADOR_DIALOG_CLASS}
+      >
+        {loading ? (
+          <>
+            <DialogTitle className="sr-only">Cargando indicador</DialogTitle>
+            <div className="flex-1 flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <p className="mt-4 text-[13px] text-gray-400">
+                Cargando indicador…
+              </p>
+            </div>
+          </>
+        ) : error || !indicador ? (
+          <>
+            <DialogTitle className="sr-only">Error</DialogTitle>
+            <div className="flex-1 flex flex-col items-center justify-center py-12">
+              <p className="text-sm text-destructive">
+                {error ?? 'Indicador no encontrado'}
+              </p>
+            </div>
+          </>
+        ) : (
+          <IndicadorModal
+            indicador={indicador}
+            onClose={handleClose}
+            onUpdate={handleUpdate}
+            projectId={proyectoId ?? undefined}
+            hideEditButton={!canEdit}
+            wrapInDialog={false}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

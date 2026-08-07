@@ -4,7 +4,12 @@ import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
-import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
+import {
+  computeAvancePresupuestoPct,
+  computeDeltaSaldo,
+  formatPresupuestoMonto,
+  isDeltaPresupuestoItem,
+} from '@/lib/utils/presupuesto-calculos';
 import { ROLES_ALERTAS_PORTAL } from '@/lib/portal-constants';
 
 /**
@@ -187,6 +192,10 @@ export type AlertaPresupuestoItem = {
   item: string;
   proyectoId: string;
   proyectoNombre: string;
+  detalle?: string | null;
+  /** Fila virtual DELTA del tab Presupuesto (no es ItemPresupuesto en BD). */
+  isDelta?: boolean;
+  montoLabel?: string;
 };
 
 export type AlertaActividadItem = {
@@ -247,25 +256,64 @@ function todayLocalYmd(): string {
 }
 
 async function fetchPresupuestoPorSolicitar(proyectoIds: string[]) {
-  const presupuesto = await prisma.itemPresupuesto.findMany({
-    where: {
-      proyectoId: { in: proyectoIds },
-      idSolicitud: null,
-    },
-    select: {
-      id: true,
-      item: true,
-      proyectoId: true,
-      proyecto: { select: { proyecto: true } },
-    },
-    take: LIMITE_ALERTAS_PORTAL,
-  });
-  return presupuesto.map((p) => ({
-    id: p.id,
-    item: p.item,
-    proyectoId: p.proyectoId,
-    proyectoNombre: p.proyecto?.proyecto ?? '',
-  }));
+  const [presupuesto, proyectos] = await Promise.all([
+    prisma.itemPresupuesto.findMany({
+      where: {
+        proyectoId: { in: proyectoIds },
+        OR: [{ idSolicitud: null }, { idSolicitud: '' }],
+      },
+      select: {
+        id: true,
+        item: true,
+        detalle: true,
+        monto: true,
+        proyectoId: true,
+        proyecto: { select: { proyecto: true } },
+      },
+      take: LIMITE_ALERTAS_PORTAL,
+    }),
+    prisma.proyecto.findMany({
+      where: { id: { in: proyectoIds } },
+      select: {
+        id: true,
+        proyecto: true,
+        presupuestoAdjudicado: true,
+        itemsPresupuesto: { select: { item: true, monto: true } },
+      },
+    }),
+  ]);
+
+  const reales: AlertaPresupuestoItem[] = presupuesto
+    .filter((p) => !isDeltaPresupuestoItem(p))
+    .map((p) => ({
+      id: p.id,
+      item: p.item,
+      detalle: p.detalle,
+      proyectoId: p.proyectoId,
+      proyectoNombre: p.proyecto?.proyecto ?? '',
+      isDelta: false,
+      montoLabel: formatPresupuestoMonto(p.monto),
+    }));
+
+  const deltas: AlertaPresupuestoItem[] = [];
+  for (const proy of proyectos) {
+    const delta = computeDeltaSaldo(
+      proy.presupuestoAdjudicado ?? 0,
+      proy.itemsPresupuesto
+    );
+    if (delta === 0) continue;
+    deltas.push({
+      id: `delta:${proy.id}`,
+      item: 'DELTA',
+      detalle: delta >= 0 ? 'Saldo a favor' : 'Saldo en contra',
+      proyectoId: proy.id,
+      proyectoNombre: proy.proyecto,
+      isDelta: true,
+      montoLabel: formatPresupuestoMonto(delta),
+    });
+  }
+
+  return [...deltas, ...reales].slice(0, LIMITE_ALERTAS_PORTAL);
 }
 
 /**

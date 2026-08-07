@@ -241,29 +241,19 @@ const STEPS_BY_TAB: Record<ProyectoTourTab, DriveStep[]> = {
   Seguimiento: [
     TABS_NAV_STEP,
     step(
-      '#tour-seguimiento-compromisos',
-      'Compromisos',
-      'Muro de compromisos pendientes del proyecto. Aquí se acuerda y da seguimiento a lo acordado en reuniones.'
-    ),
-    step(
-      '#tour-seguimiento-estados',
-      'Estado del compromiso',
-      'Marca como realizado (p. ej. encargado) y revisa el estado visual de cada post-it.'
-    ),
-    step(
       '#tour-seguimiento-reuniones',
       'Reuniones',
-      'Historial de reuniones de seguimiento del proyecto: fechas, temas y compromisos derivados.'
+      'Tabla de reuniones de seguimiento: número, fecha, resumen y compromisos de cada reunión.'
     ),
     step(
       '#tour-seguimiento-agregar-reunion',
       'Agregar reunión',
-      'Registra una nueva reunión de seguimiento y asocia compromisos si corresponde.'
+      'Al final de la tabla, el botón + agrega una fila nueva. Solo son obligatorios el número y la fecha; resumen y compromisos se editan después de crearla.'
     ),
     step(
       '#tour-seguimiento-compromisos',
-      'Alertas del portal',
-      'Los compromisos pendientes también pueden aparecer en Inicio (alertas), para no perderlos de vista.'
+      'Compromisos',
+      'Los compromisos viven en la columna Compromisos de cada reunión. Puedes agregarlos y abrirlos desde ahí.'
     ),
   ],
   Historial: [

@@ -199,13 +199,13 @@ export function BulkActivityDialog({
               <Input
                 id="bulk-activity-name"
                 value={name}
-                maxLength={60}
+                maxLength={70}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nombre de la actividad"
                 className="text-[13px] shadow-none border-gray-200"
               />
               <p className="text-[11px] text-gray-400">
-                Máximo 60 caracteres ({name.length}/60)
+                Máximo 70 caracteres ({name.length}/70)
               </p>
             </div>
             <div className="space-y-2">
@@ -241,7 +241,7 @@ export function BulkActivityDialog({
                 <Input
                   id="bulk-task-name"
                   value={task.name}
-                  maxLength={60}
+                  maxLength={70}
                   onChange={(e) =>
                     setTask((prev) => ({ ...prev, name: e.target.value }))
                   }
@@ -249,7 +249,7 @@ export function BulkActivityDialog({
                   className="text-[13px] shadow-none border-gray-200 bg-white"
                 />
                 <p className="text-[11px] text-gray-400">
-                  Máximo 60 caracteres ({task.name.length}/60)
+                  Máximo 70 caracteres ({task.name.length}/70)
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">

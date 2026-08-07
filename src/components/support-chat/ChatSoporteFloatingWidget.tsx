@@ -29,7 +29,7 @@ function normalizeMessage(payload: {
 }
 
 const HINT_INITIAL_DELAY_MS = 5_000;
-const HINT_INTERVAL_MS = 5 * 60 * 1_000;
+const HINT_INTERVAL_MS = 10 * 60 * 1_000;
 const HINT_VISIBLE_MS = 8_000;
 
 export function ChatSoporteFloatingWidget() {
@@ -60,7 +60,7 @@ export function ChatSoporteFloatingWidget() {
     }, HINT_VISIBLE_MS);
   }, []);
 
-  // Nudge: 5 s tras la primera carga/recarga, y luego cada 5 minutos
+  // Nudge: 5 s tras la primera carga/recarga, y luego cada 10 minutos
   useEffect(() => {
     if (status !== 'authenticated' || !userId) return;
 
@@ -170,7 +170,7 @@ export function ChatSoporteFloatingWidget() {
             className="soporte-chat-hint inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-600 px-4 py-2.5 text-left text-base font-medium text-white shadow-lg"
             aria-label="Abrir chat de soporte"
           >
-            ¿Tienes dudas? Contáctanos por este chat
+            ¿Tienes dudas? Contáctanos aquí
             <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />
           </button>
         )}

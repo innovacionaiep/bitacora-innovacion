@@ -1,5 +1,7 @@
 export const SELECT_NONE_VALUE = '__none__';
 export const NEW_PERSONA_VALUE = '__new_persona__';
+/** Persona ya cargada en el draft de edición, aunque no esté en el pool del rol nuevo. */
+export const CURRENT_PERSONA_VALUE = '__current_persona__';
 
 export const ROLES: { value: string; label: string }[] = [
   { value: 'Encargado', label: 'Encargado' },
