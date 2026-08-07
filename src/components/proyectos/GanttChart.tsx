@@ -121,6 +121,13 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+/** Color del % de avance: negro (0%) → emerald-600 (100%). */
+function getProgressLabelColor(progress: number): string {
+  const t = Math.min(100, Math.max(0, progress)) / 100;
+  // emerald-600 = #059669 → rgb(5, 150, 105)
+  return `rgb(${Math.round(5 * t)}, ${Math.round(150 * t)}, ${Math.round(105 * t)})`;
+}
+
 const SortableActivity = memo(function SortableActivity({
   activity,
   expandedDescriptions,
@@ -225,10 +232,10 @@ const SortableActivity = memo(function SortableActivity({
               {!expandedDescriptions.has(activity.id) && (
                 <div className="flex-1 min-w-0 flex items-center relative">
                   <span
-                    className={`activity-title font-medium text-gray-900 break-words min-w-0 leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
+                    className={`activity-title font-medium text-gray-900 min-w-0 w-full leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 flex items-center ${isDragging ? 'dragging-text' : ''}`}
                     style={{
                       fontSize: '15px',
-                      lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
+                      lineHeight: '1.3',
                       touchAction: 'manipulation',
                     }}
                     data-activity-id={activity.id}
@@ -240,7 +247,7 @@ const SortableActivity = memo(function SortableActivity({
                     }
                     title="Haz clic para ver detalles de la actividad"
                   >
-                    {activity.name}
+                    <span className="truncate min-w-0">{activity.name}</span>
                     {/* Punto oculto (mismo color que el fondo) para mantener la posición de la línea */}
                     <span
                       className="w-2 h-2 rounded-full inline-block ml-1 flex-shrink-0 relative bg-white"
@@ -274,28 +281,15 @@ const SortableActivity = memo(function SortableActivity({
                 className={`absolute left-0 right-0 top-0 bottom-0 pointer-events-none ${isDragging ? 'dragging-absolute' : ''}`}
               >
                 {(() => {
-                  const taskSpacing = 22;
                   const startOffset = 4;
-
-                  const estimatedLines = activity.name.length > 50 ? 2 : 1;
-
-                  let topPosition;
-
-                  if (estimatedLines === 1) {
-                    topPosition = startOffset + 18;
-                  } else {
-                    const totalTextHeight = 17;
-                    const barCenter = startOffset + 19;
-                    const textCenter = totalTextHeight / 2;
-                    topPosition = barCenter - textCenter;
-                  }
+                  const topPosition = startOffset + 18;
 
                   return (
                     <div
-                      className={`absolute font-medium text-gray-900 break-words leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
+                      className={`absolute font-medium text-gray-900 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto flex items-center min-w-0 ${isDragging ? 'dragging-text' : ''}`}
                       style={{
                         fontSize: '15px',
-                        lineHeight: activity.name.length > 50 ? '1.1' : '1.3',
+                        lineHeight: '1.3',
                         top: `${topPosition}px`,
                         left: '40px',
                         right: '20px',
@@ -311,7 +305,7 @@ const SortableActivity = memo(function SortableActivity({
                       title="Haz clic para ver detalles de la actividad"
                     >
                       <span
-                        className={`activity-title ${activity.name.length > 50 ? 'activity-title-multiline' : ''}`}
+                        className="activity-title truncate min-w-0"
                         data-activity-id={activity.id}
                       >
                         {activity.name}
@@ -389,16 +383,13 @@ const SortableActivity = memo(function SortableActivity({
                           </div>
                           {/* Nombre de la tarea con punto al final del texto */}
                           <span
-                            className={`task-title flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative ${isDragging ? 'dragging-text' : ''}`}
+                            className={`task-title flex-1 min-w-0 flex items-center ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative ${isDragging ? 'dragging-text' : ''}`}
                             data-task-id={task.id}
-                            style={{
-                              display: 'inline-block',
-                            }}
                           >
-                            {task.name}
+                            <span className="truncate min-w-0">{task.name}</span>
                             {/* Punto oculto (mismo color que el fondo) para mantener la posición de la línea */}
                             <span
-                              className="w-2 h-2 rounded-full inline-block ml-1 relative bg-white"
+                              className="w-2 h-2 rounded-full inline-block ml-1 flex-shrink-0 relative bg-white"
                               style={{
                                 verticalAlign: 'middle',
                                 transform: 'translateY(-36%)',
@@ -516,14 +507,20 @@ const SortableActivity = memo(function SortableActivity({
                           height: '32px',
                         }}
                       ></div>
+                    </div>
 
-                      {/* Porcentaje al final de la barra: negro si avance < 90%, blanco si >= 90% */}
+                    {/* Porcentaje siempre a la derecha de la barra; color negro→esmeralda según avance */}
+                    {!expandedDescriptions.has(activity.id) && (
                       <div
-                        className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium z-30 ${activityProgress >= 90 ? 'text-white' : 'text-black'}`}
+                        className="absolute top-1/2 -translate-y-1/2 text-xs font-semibold z-30 pointer-events-none tabular-nums whitespace-nowrap"
+                        style={{
+                          left: `calc(${startPos.left + barWidth}% + 8px)`,
+                          color: getProgressLabelColor(activityProgress),
+                        }}
                       >
                         {activityProgress}%
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1263,8 +1260,8 @@ export default function GanttChart({
         alert('Por favor completa el nombre de la actividad');
         return;
       }
-      if (name.length > 50) {
-        alert('El nombre de la actividad no puede exceder los 50 caracteres');
+      if (name.length > 60) {
+        alert('El nombre de la actividad no puede exceder los 60 caracteres');
         return;
       }
     }
@@ -1459,9 +1456,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (50 caracteres)
-    if (unifiedActivityForm.name.length > 50) {
-      alert('El nombre de la actividad no puede exceder los 50 caracteres');
+    // Validar longitud máxima del título (60 caracteres)
+    if (unifiedActivityForm.name.length > 60) {
+      alert('El nombre de la actividad no puede exceder los 60 caracteres');
       return;
     }
 
@@ -1584,9 +1581,9 @@ export default function GanttChart({
       return;
     }
 
-    // Validar longitud máxima del título (50 caracteres)
-    if (editActivityForm.name.length > 50) {
-      alert('El nombre de la actividad no puede exceder los 50 caracteres');
+    // Validar longitud máxima del título (60 caracteres)
+    if (editActivityForm.name.length > 60) {
+      alert('El nombre de la actividad no puede exceder los 60 caracteres');
       return;
     }
 
@@ -2433,10 +2430,10 @@ export default function GanttChart({
                         }
                         placeholder="Nombre de la actividad (obligatorio)"
                         className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
-                        maxLength={50}
+                        maxLength={60}
                       />
                       <span className="text-[12px] text-gray-400">
-                        {unifiedActivityForm.name.length}/50 caracteres
+                        {unifiedActivityForm.name.length}/60 caracteres
                         <span className="text-amber-600 ml-1">
                           · obligatorio
                         </span>
@@ -2457,11 +2454,11 @@ export default function GanttChart({
                         }
                         placeholder="Nombre de la actividad"
                         className="h-auto border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 w-full min-w-0 max-w-full"
-                        maxLength={50}
+                        maxLength={60}
                         autoFocus
                       />
                       <span className="text-[12px] text-gray-400">
-                        {activityFieldDraft.name.length}/50 caracteres
+                        {activityFieldDraft.name.length}/60 caracteres
                       </span>
                       <ActivityFieldSaveCancel
                         isSaving={isSavingActivityField}

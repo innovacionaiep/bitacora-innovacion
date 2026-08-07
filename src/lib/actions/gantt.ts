@@ -87,16 +87,16 @@ export async function createActivity(data: CreateActivityInput) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
-    if (data.name && data.name.length > 50) {
+    if (data.name && data.name.length > 60) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 50 caracteres',
+        error: 'El nombre de la actividad no puede exceder 60 caracteres',
       };
     }
 
     const activity = await prisma.activity.create({
       data: {
-        name: data.name.length > 50 ? data.name.substring(0, 50) : data.name,
+        name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
         description: data.description || '',
         progress: 0,
         projectId: data.projectId,
@@ -130,10 +130,10 @@ export async function createActivity(data: CreateActivityInput) {
  */
 export async function updateActivity(id: string, data: Partial<ActivityData>) {
   try {
-    if (data.name !== undefined && data.name.length > 50) {
+    if (data.name !== undefined && data.name.length > 60) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 50 caracteres',
+        error: 'El nombre de la actividad no puede exceder 60 caracteres',
       };
     }
 
@@ -155,7 +155,7 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       where: { id },
       data: {
         ...(data.name !== undefined && {
-          name: data.name.length > 50 ? data.name.substring(0, 50) : data.name,
+          name: data.name.length > 60 ? data.name.substring(0, 60) : data.name,
         }),
         ...(data.description !== undefined && {
           description: data.description,

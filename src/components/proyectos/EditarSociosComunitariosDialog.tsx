@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Handshake, Plus, Save, X } from 'lucide-react';
+import { Handshake, List, Plus, Save, X } from 'lucide-react';
 import { SELECT_NONE_VALUE } from '@/app/proyectos/tabs/participantes-tab-utils';
 import type { UseEditarSociosComunitariosReturn } from '@/app/proyectos/tabs/useEditarSociosComunitarios';
 
@@ -36,6 +36,8 @@ type EditarSociosComunitariosDialogProps = Pick<
   | 'handleCreateNuevoSocio'
   | 'handleSaveEditarSocios'
 >;
+
+type AgregarSocioMode = 'choose' | 'list' | 'create';
 
 function SectionLabel({
   children,
@@ -58,6 +60,35 @@ function SectionLabel({
   );
 }
 
+function ModeChoiceButton({
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 text-[13px] font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1',
+        active
+          ? 'border-gray-300 bg-white text-gray-900 shadow-sm'
+          : 'border-gray-200 bg-gray-50/80 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900',
+      ].join(' ')}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
 export function EditarSociosComunitariosDialog({
   isEditarSociosOpen,
   setIsEditarSociosOpen,
@@ -73,7 +104,7 @@ export function EditarSociosComunitariosDialog({
   handleCreateNuevoSocio,
   handleSaveEditarSocios,
 }: EditarSociosComunitariosDialogProps) {
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [agregarMode, setAgregarMode] = useState<AgregarSocioMode>('choose');
 
   const disponibles = editarSociosCatalog.filter(
     (s) => !editarSociosIds.includes(s.id)
@@ -81,14 +112,25 @@ export function EditarSociosComunitariosDialog({
 
   useEffect(() => {
     if (!isEditarSociosOpen) {
-      setShowCreateForm(false);
-      return;
+      setAgregarMode('choose');
+      setNuevoSocioNombre('');
+      setNuevoSocioDescripcion('');
     }
-    // Si el listado está vacío, mostrar crear de inmediato
-    if (editarSociosCatalog.length === 0) {
-      setShowCreateForm(true);
-    }
-  }, [isEditarSociosOpen, editarSociosCatalog.length]);
+  }, [
+    isEditarSociosOpen,
+    setNuevoSocioNombre,
+    setNuevoSocioDescripcion,
+  ]);
+
+  const selectListMode = () => {
+    setAgregarMode('list');
+    setNuevoSocioNombre('');
+    setNuevoSocioDescripcion('');
+  };
+
+  const selectCreateMode = () => {
+    setAgregarMode('create');
+  };
 
   return (
     <Dialog open={isEditarSociosOpen} onOpenChange={setIsEditarSociosOpen}>
@@ -191,8 +233,29 @@ export function EditarSociosComunitariosDialog({
           <section className="mt-6 border-t border-gray-100 pt-5">
             <SectionLabel>Agregar socio</SectionLabel>
 
-            <div className="space-y-4">
-              <div>
+            <div className="flex gap-2">
+              <ModeChoiceButton
+                active={agregarMode === 'list'}
+                onClick={selectListMode}
+                icon={
+                  <List className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                }
+              >
+                Seleccionar de listado
+              </ModeChoiceButton>
+              <ModeChoiceButton
+                active={agregarMode === 'create'}
+                onClick={selectCreateMode}
+                icon={
+                  <Plus className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                }
+              >
+                Crear uno nuevo
+              </ModeChoiceButton>
+            </div>
+
+            {agregarMode === 'list' ? (
+              <div className="mt-4">
                 <p className="mb-1.5 text-[12px] font-normal text-gray-500">
                   Desde el listado
                 </p>
@@ -239,60 +302,36 @@ export function EditarSociosComunitariosDialog({
                   </SelectContent>
                 </Select>
               </div>
+            ) : null}
 
-              {!showCreateForm ? (
+            {agregarMode === 'create' ? (
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/50 px-3.5 py-3.5 space-y-2.5">
+                <p className="text-[12px] font-normal text-gray-500">
+                  Nuevo socio (se agrega al listado y al proyecto)
+                </p>
+                <Input
+                  placeholder="Nombre *"
+                  value={nuevoSocioNombre}
+                  onChange={(e) => setNuevoSocioNombre(e.target.value)}
+                  className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
+                />
+                <Textarea
+                  placeholder="Descripción (opcional)"
+                  value={nuevoSocioDescripcion}
+                  onChange={(e) => setNuevoSocioDescripcion(e.target.value)}
+                  className="min-h-[56px] resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
+                />
                 <button
                   type="button"
-                  onClick={() => setShowCreateForm(true)}
-                  className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-500 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
+                  disabled={nuevoSocioSaving || !nuevoSocioNombre.trim()}
+                  onClick={handleCreateNuevoSocio}
+                  className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
                 >
                   <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  Crear uno nuevo
+                  {nuevoSocioSaving ? 'Creando...' : 'Crear y agregar'}
                 </button>
-              ) : (
-                <div className="rounded-lg border border-gray-200 bg-gray-50/50 px-3.5 py-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[12px] font-normal text-gray-500">
-                      Nuevo socio (se agrega al listado y al proyecto)
-                    </p>
-                    {editarSociosCatalog.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCreateForm(false);
-                          setNuevoSocioNombre('');
-                          setNuevoSocioDescripcion('');
-                        }}
-                        className="text-[12px] font-normal text-gray-400 hover:text-gray-700 transition-colors"
-                      >
-                        Ocultar
-                      </button>
-                    ) : null}
-                  </div>
-                  <Input
-                    placeholder="Nombre *"
-                    value={nuevoSocioNombre}
-                    onChange={(e) => setNuevoSocioNombre(e.target.value)}
-                    className="h-9 border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
-                  />
-                  <Textarea
-                    placeholder="Descripción (opcional)"
-                    value={nuevoSocioDescripcion}
-                    onChange={(e) => setNuevoSocioDescripcion(e.target.value)}
-                    className="min-h-[56px] resize-none border-gray-200 bg-white text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1"
-                  />
-                  <button
-                    type="button"
-                    disabled={nuevoSocioSaving || !nuevoSocioNombre.trim()}
-                    onClick={handleCreateNuevoSocio}
-                    className="inline-flex items-center gap-1 text-[13px] font-normal text-gray-900 hover:text-emerald-700 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm"
-                  >
-                    <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
-                    {nuevoSocioSaving ? 'Creando...' : 'Crear y agregar'}
-                  </button>
-                </div>
-              )}
-            </div>
+              </div>
+            ) : null}
           </section>
         </div>
       </DialogContent>

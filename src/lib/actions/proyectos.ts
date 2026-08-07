@@ -10,6 +10,7 @@ import {
   requirePermission,
   requireProjectAccess,
 } from '@/lib/authz/guards';
+import { catalogCreateRequiresAjustes } from '@/lib/authz/catalog-create-policy';
 import {
   Escuela,
   Carrera,
@@ -619,6 +620,8 @@ export async function getProyecto(
               },
             }
           : {}),
+        // Conteo real para el meta-row del header (sin hidratar la lista completa).
+        _count: { select: { participantes_rel: true } },
         escuelas: {
           include: {
             escuela: { select: { id: true, nombre: true, codigo: true } },
@@ -680,11 +683,16 @@ export async function getProyecto(
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
+    const { _count, ...proyectoSinCount } = proyecto;
+    const participantesCount = _count.participantes_rel;
+
     if (!includeParticipantes) {
       return {
         success: true,
         data: {
-          ...proyecto,
+          ...proyectoSinCount,
+          // El Int denormalizado suele quedar desfasado; usar conteo real de la relación.
+          participantes: participantesCount,
           participantes_rel: undefined,
         } as ProyectoWithRelations,
       };
@@ -700,7 +708,8 @@ export async function getProyecto(
     return {
       success: true,
       data: {
-        ...proyecto,
+        ...proyectoSinCount,
+        participantes: participantesEnriquecidos.length,
         participantes_rel: participantesEnriquecidos,
       } as ProyectoWithRelations,
     };
@@ -2009,14 +2018,22 @@ export async function getCatalogosGeneral(): Promise<{
 }
 
 /**
- * Crear un nuevo socio comunitario
+ * Crear un nuevo socio comunitario (catálogo macro interproyecto).
+ * Requiere acceso al proyecto desde el que se crea — no es Configuración/Ajustes.
  */
 export async function createSocioComunitario(
   nombre: string,
-  descripcion?: string
+  descripcion: string | undefined,
+  proyectoId: string
 ) {
   try {
-    const gate = await requirePermission('view.ajustes');
+    if (!proyectoId) {
+      return { success: false, error: 'Proyecto no especificado' };
+    }
+
+    const gate = catalogCreateRequiresAjustes('socio_comunitario')
+      ? await requirePermission('view.ajustes')
+      : await requireProjectAccess(proyectoId);
     if (!gate.ok) return { success: false, error: gate.error };
 
     const socio = await prisma.socioComunitario.create({

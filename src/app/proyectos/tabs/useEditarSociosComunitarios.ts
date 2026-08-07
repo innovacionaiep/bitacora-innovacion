@@ -55,7 +55,8 @@ export function useEditarSociosComunitarios({
     setNuevoSocioSaving(true);
     const result = await createSocioComunitario(
       nombre,
-      descripcion || undefined
+      descripcion || undefined,
+      project.id
     );
     setNuevoSocioSaving(false);
     if (result.success && result.data) {

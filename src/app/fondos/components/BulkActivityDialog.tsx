@@ -199,13 +199,13 @@ export function BulkActivityDialog({
               <Input
                 id="bulk-activity-name"
                 value={name}
-                maxLength={50}
+                maxLength={60}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nombre de la actividad"
                 className="text-[13px] shadow-none border-gray-200"
               />
               <p className="text-[11px] text-gray-400">
-                Máximo 50 caracteres ({name.length}/50)
+                Máximo 60 caracteres ({name.length}/60)
               </p>
             </div>
             <div className="space-y-2">

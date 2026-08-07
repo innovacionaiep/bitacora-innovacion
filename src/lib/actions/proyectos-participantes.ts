@@ -37,6 +37,17 @@ const proyectoIncludeForParticipante = {
   },
 } as const;
 
+/** Mantiene el Int denormalizado `proyecto.participantes` alineado con la relación. */
+async function syncProyectoParticipantesCount(proyectoId: string) {
+  const count = await prisma.proyectoParticipante.count({
+    where: { proyectoId },
+  });
+  await prisma.proyecto.update({
+    where: { id: proyectoId },
+    data: { participantes: count },
+  });
+}
+
 type AddParticipanteData = {
   rol: string;
   nombre?: string;
@@ -181,6 +192,7 @@ export async function addParticipanteProyecto(
         asignaturaId: data.asignaturaId ?? null,
       },
     });
+    await syncProyectoParticipantesCount(proyectoId);
     await createHistorialEntry({
       proyectoId,
       accion: 'Agregar participante',
@@ -444,6 +456,7 @@ export async function deleteParticipanteProyecto(participanteId: string) {
     await prisma.proyectoParticipante.delete({
       where: { id: participanteId },
     });
+    await syncProyectoParticipantesCount(existing.proyectoId);
     await createHistorialEntry({
       proyectoId: existing.proyectoId,
       accion: 'Eliminar participante',

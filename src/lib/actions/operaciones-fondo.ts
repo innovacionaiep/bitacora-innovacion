@@ -316,10 +316,10 @@ export async function previewBulkActivityFondo(input: {
     if (!name) {
       return { success: false, error: 'El nombre de la actividad es obligatorio' };
     }
-    if (name.length > 50) {
+    if (name.length > 60) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 50 caracteres',
+        error: 'El nombre de la actividad no puede exceder 60 caracteres',
       };
     }
 
@@ -371,10 +371,10 @@ export async function confirmBulkActivityFondo(input: {
     if (!name) {
       return { success: false, error: 'El nombre de la actividad es obligatorio' };
     }
-    if (name.length > 50) {
+    if (name.length > 60) {
       return {
         success: false,
-        error: 'El nombre de la actividad no puede exceder 50 caracteres',
+        error: 'El nombre de la actividad no puede exceder 60 caracteres',
       };
     }
 

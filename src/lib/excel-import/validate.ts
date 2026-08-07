@@ -26,7 +26,7 @@ import {
 } from './utils';
 
 /** Límites de BD / UI para nombres en carga masiva de actividades. */
-const ACTIVIDAD_NOMBRE_MAX = 50;
+const ACTIVIDAD_NOMBRE_MAX = 60;
 const TAREA_NOMBRE_MAX = 60;
 
 const PROYECTO_NON_DT_HEADERS = new Set(

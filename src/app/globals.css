@@ -172,14 +172,6 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Separación adicional solo para la segunda línea de títulos de actividad expandidos */
-  .activity-title-multiline {
-    display: inline-block;
-    line-height: 1.1;
-    padding-bottom: 20px;
-    /* Separación adicional solo para la segunda línea */
-  }
-
   /* Scrollbar personalizado sutil */
   .custom-scrollbar {
     scrollbar-width: thin;

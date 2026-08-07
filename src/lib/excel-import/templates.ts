@@ -352,7 +352,7 @@ export async function buildImportTemplate(
       '- En Actividad usa el desplegable: se alimenta con los Nombres de la hoja Actividades.',
       '- Así cada tarea queda vinculada automáticamente a su actividad.',
       '- Cada actividad debe tener al menos una tarea (si no, la vista previa en Bitácora también lo rechaza).',
-      '- Nombres largos se truncan al límite al importar (actividad 50, tarea 60 caracteres).',
+      '- Nombres largos se truncan al límite al importar (actividad 60, tarea 60 caracteres).',
       '',
       'Al importar: primero se crean las actividades y luego las tareas enlazadas por nombre.',
       'Solo se agregan elementos nuevos (no edita actividades ya existentes).',
