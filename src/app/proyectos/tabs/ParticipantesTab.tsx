@@ -157,20 +157,17 @@ type PersonaOption = {
   name: string | null;
   email: string;
   cargo?: string | null;
-  hasAccount?: boolean;
 };
 
 function formatPersonaListLabel(
   name: string | null | undefined,
   cargo: string | null | undefined,
-  opts?: { hasAccount?: boolean; emailFallback?: string }
+  opts?: { emailFallback?: string }
 ) {
   const nombre =
     name?.trim() || opts?.emailFallback?.trim() || 'Sin nombre';
   const cargoTrim = cargo?.trim();
-  const base = cargoTrim ? `${nombre} · ${cargoTrim}` : nombre;
-  if (opts?.hasAccount === false) return `${base} · sin cuenta`;
-  return base;
+  return cargoTrim ? `${nombre} · ${cargoTrim}` : nombre;
 }
 
 /** Combobox de persona (Popover): permite buscar; Radix Select no deja escribir en un input. */
@@ -212,7 +209,6 @@ function PersonaPicker({
     const u = options.find((o) => o.id === value);
     if (u) {
       return formatPersonaListLabel(u.name, u.cargo, {
-        hasAccount: u.hasAccount,
         emailFallback: u.email,
       });
     }
@@ -316,7 +312,6 @@ function PersonaPicker({
               )}
             >
               {formatPersonaListLabel(u.name, u.cargo, {
-                hasAccount: u.hasAccount,
                 emailFallback: u.email,
               })}
             </button>
