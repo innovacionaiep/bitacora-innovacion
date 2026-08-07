@@ -232,7 +232,7 @@ const SortableActivity = memo(function SortableActivity({
               {!expandedDescriptions.has(activity.id) && (
                 <div className="flex-1 min-w-0 flex items-center relative">
                   <span
-                    className={`activity-title font-medium text-gray-900 min-w-0 w-full leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 flex items-center ${isDragging ? 'dragging-text' : ''}`}
+                    className={`activity-title font-medium text-gray-900 min-w-0 w-full leading-tight cursor-default hover:text-blue-600 transition-colors duration-200 inline-flex items-center ${isDragging ? 'dragging-text' : ''}`}
                     style={{
                       fontSize: '15px',
                       lineHeight: '1.3',
@@ -282,11 +282,12 @@ const SortableActivity = memo(function SortableActivity({
               >
                 {(() => {
                   const startOffset = 4;
+                  // Siempre 1 línea (whitespace-nowrap / truncate); misma calibración que el caso corto original
                   const topPosition = startOffset + 18;
 
                   return (
                     <div
-                      className={`absolute font-medium text-gray-900 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto flex items-center min-w-0 ${isDragging ? 'dragging-text' : ''}`}
+                      className={`absolute font-medium text-gray-900 leading-tight cursor-pointer hover:text-blue-600 transition-colors duration-200 pointer-events-auto inline-flex items-center min-w-0 ${isDragging ? 'dragging-text' : ''}`}
                       style={{
                         fontSize: '15px',
                         lineHeight: '1.3',
@@ -381,15 +382,31 @@ const SortableActivity = memo(function SortableActivity({
                               </div>
                             </label>
                           </div>
-                          {/* Nombre de la tarea con punto al final del texto */}
+                          {/* Nombre de la tarea: truncado solo en el texto; punto/línea iguales que el original */}
                           <span
-                            className={`task-title flex-1 min-w-0 flex items-center ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} relative ${isDragging ? 'dragging-text' : ''}`}
+                            className={`task-title flex-1 relative ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'} ${isDragging ? 'dragging-text' : ''}`}
                             data-task-id={task.id}
+                            style={{
+                              display: 'inline-block',
+                              maxWidth: '100%',
+                              whiteSpace: 'nowrap',
+                            }}
                           >
-                            <span className="truncate min-w-0">{task.name}</span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                maxWidth: 'calc(100% - 12px)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                verticalAlign: 'middle',
+                              }}
+                            >
+                              {task.name}
+                            </span>
                             {/* Punto oculto (mismo color que el fondo) para mantener la posición de la línea */}
                             <span
-                              className="w-2 h-2 rounded-full inline-block ml-1 flex-shrink-0 relative bg-white"
+                              className="w-2 h-2 rounded-full inline-block ml-1 relative bg-white"
                               style={{
                                 verticalAlign: 'middle',
                                 transform: 'translateY(-36%)',
