@@ -9,6 +9,7 @@ import {
   requireAdmin,
   requirePermission,
   requireProjectAccess,
+  requireProjectCoordinatorOrAdmin,
 } from '@/lib/authz/guards';
 import { catalogCreateRequiresAjustes } from '@/lib/authz/catalog-create-policy';
 import {
@@ -1136,6 +1137,13 @@ export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
   try {
     const gate = await requireProjectAccess(id);
     if (!gate.ok) return { success: false, error: gate.error };
+
+    if (data.presupuestoAdjudicado !== undefined) {
+      const adjudicadoGate = await requireProjectCoordinatorOrAdmin(id);
+      if (!adjudicadoGate.ok) {
+        return { success: false, error: adjudicadoGate.error };
+      }
+    }
 
     const proyecto = await prisma.proyecto.update({
       where: { id },

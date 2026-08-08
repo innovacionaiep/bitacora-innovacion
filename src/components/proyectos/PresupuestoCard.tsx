@@ -162,6 +162,8 @@ interface PresupuestoCardProps {
   projectName?: string;
   topLoaderEnabled?: boolean;
   canImport?: boolean;
+  /** Solo Admin o Coordinador del proyecto pueden editar el monto adjudicado. */
+  canEditAdjudicado?: boolean;
   onCargaMasiva?: () => void;
   /** Notifica al padre para actualizar selectedProject / Resumen sin remount. */
   onPresupuestoAdjudicadoChange?: (monto: number) => void;
@@ -259,6 +261,7 @@ export function PresupuestoCard({
   projectName,
   topLoaderEnabled = true,
   canImport = false,
+  canEditAdjudicado = false,
   onCargaMasiva,
   onPresupuestoAdjudicadoChange,
 }: PresupuestoCardProps) {
@@ -334,7 +337,7 @@ export function PresupuestoCard({
     setAdjudicadoDraft('');
   };
   const handleSaveAdjudicado = useCallback(async () => {
-    if (isSavingAdjudicado) return;
+    if (!canEditAdjudicado || isSavingAdjudicado) return;
     const monto = parseInt(adjudicadoDraft, 10);
     if (Number.isNaN(monto) || monto < 0) {
       alert('Ingrese un monto válido mayor o igual a 0.');
@@ -354,6 +357,7 @@ export function PresupuestoCard({
     setIsSavingAdjudicado(false);
   }, [
     adjudicadoDraft,
+    canEditAdjudicado,
     isSavingAdjudicado,
     onPresupuestoAdjudicadoChange,
     projectId,
@@ -712,7 +716,7 @@ export function PresupuestoCard({
                       <X className="h-3.5 w-3.5 text-gray-700" />
                     </button>
                   </div>
-                ) : (
+                ) : canEditAdjudicado ? (
                   <button
                     type="button"
                     onClick={startEditingAdjudicado}
@@ -721,7 +725,7 @@ export function PresupuestoCard({
                   >
                     <Pencil className="h-3.5 w-3.5 text-gray-700" />
                   </button>
-                )}
+                ) : null}
               </div>
               <div className="flex items-center justify-center h-10 w-10 p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm shrink-0">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />

@@ -3,7 +3,10 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import type { CuentaPresupuesto, EstadoGastoPresupuesto } from '@prisma/client';
-import { requireProjectAccess } from '@/lib/authz/guards';
+import {
+  requireProjectAccess,
+  requireProjectCoordinatorOrAdmin,
+} from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 import {
   computeDeltaSaldo,
@@ -524,7 +527,7 @@ export async function updatePresupuestoAdjudicado(
   presupuestoAdjudicado: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    const gate = await requireProjectCoordinatorOrAdmin(projectId);
     if (!gate.ok) return { success: false, error: gate.error };
 
     if (!Number.isFinite(presupuestoAdjudicado) || presupuestoAdjudicado < 0) {

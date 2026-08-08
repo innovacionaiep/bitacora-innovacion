@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ObjetivoGeneralCard } from './ObjetivoGeneralCard';
 import { IndicadorModal } from './IndicadorModal';
 import { AgregarIndicadorModal } from './AgregarIndicadorModal';
+import { IndicadoresTabLoading } from './IndicadoresTabLoading';
 import { deleteIndicador } from '@/lib/actions/indicadores';
 import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
@@ -238,7 +239,7 @@ export function IndicadoresCard({
   });
 
   if (loading) {
-    return <div className="h-full min-h-[120px]" />;
+    return <IndicadoresTabLoading />;
   }
 
   if (error) {

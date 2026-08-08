@@ -34,6 +34,24 @@ export function userHasAdminEnabled(
   return userHasEnabledRole(availableRoles, 'Admin');
 }
 
+/** Participation role string is Coordinador (case-insensitive). */
+export function isCoordinatorParticipationRole(
+  role: string | null | undefined
+): boolean {
+  return role?.trim().toLowerCase() === 'coordinador';
+}
+
+/**
+ * Edit presupuesto adjudicado: Admin enabled OR project Coordinador.
+ */
+export function canEditPresupuestoAdjudicado(params: {
+  hasAdminEnabled: boolean;
+  participationRole: string | null | undefined;
+}): boolean {
+  if (params.hasAdminEnabled) return true;
+  return isCoordinatorParticipationRole(params.participationRole);
+}
+
 /**
  * Union of enabled roles: true if ANY role grants the permission.
  * Admin in the list short-circuits to true (caller may also short-circuit earlier).

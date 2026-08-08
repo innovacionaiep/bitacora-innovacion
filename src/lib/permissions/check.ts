@@ -169,7 +169,18 @@ export async function isProjectParticipant(params: {
   return !!byEmail;
 }
 
-/** Participation role for a user in a project (first match; uniqueness enforced elsewhere). */
+function preferCoordinatorRole(
+  roles: Array<{ rol: string | null }>
+): string | null {
+  if (roles.length === 0) return null;
+  const hasCoord = roles.some(
+    (x) => x.rol?.trim().toLowerCase() === 'coordinador'
+  );
+  if (hasCoord) return 'Coordinador';
+  return roles[0]?.rol ?? null;
+}
+
+/** Participation role for a user in a project (prefers Coordinador if multiple). */
 export async function getParticipationRole(params: {
   proyectoId: string;
   email: string | null | undefined;
@@ -178,17 +189,18 @@ export async function getParticipationRole(params: {
   const { proyectoId, email, userId } = params;
 
   if (userId) {
-    const byUser = await prisma.proyectoParticipante.findFirst({
+    const byUser = await prisma.proyectoParticipante.findMany({
       where: { proyectoId, userId },
       select: { rol: true },
       orderBy: { createdAt: 'asc' },
     });
-    if (byUser) return byUser.rol;
+    const preferred = preferCoordinatorRole(byUser);
+    if (preferred) return preferred;
   }
 
   if (!email?.trim()) return null;
   const normalized = email.trim().toLowerCase();
-  const byEmail = await prisma.proyectoParticipante.findFirst({
+  const byEmail = await prisma.proyectoParticipante.findMany({
     where: {
       proyectoId,
       email: { equals: normalized, mode: 'insensitive' },
@@ -196,7 +208,7 @@ export async function getParticipationRole(params: {
     select: { rol: true },
     orderBy: { createdAt: 'asc' },
   });
-  return byEmail?.rol ?? null;
+  return preferCoordinatorRole(byEmail);
 }
 
 /**

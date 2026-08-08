@@ -4,6 +4,7 @@ import {
   anyRoleHasPermission,
   canActOnProjectWithRole,
   canAssumeActiveRole,
+  canEditPresupuestoAdjudicado,
   isRegisterableRole,
   MULTI_PARTICIPATION_EXCEPTION_EMAIL,
   resolveActiveRoleUpdate,
@@ -37,6 +38,47 @@ describe('userHasEnabledRole / userHasAdminEnabled', () => {
   it('detects Admin among enabled roles', () => {
     expect(userHasAdminEnabled(['Admin', 'Coordinador'])).toBe(true);
     expect(userHasAdminEnabled(['Coordinador'])).toBe(false);
+  });
+});
+
+describe('canEditPresupuestoAdjudicado', () => {
+  it('allows Admin enabled', () => {
+    expect(
+      canEditPresupuestoAdjudicado({
+        hasAdminEnabled: true,
+        participationRole: 'Encargado',
+      })
+    ).toBe(true);
+  });
+
+  it('allows Coordinador participation', () => {
+    expect(
+      canEditPresupuestoAdjudicado({
+        hasAdminEnabled: false,
+        participationRole: 'Coordinador',
+      })
+    ).toBe(true);
+    expect(
+      canEditPresupuestoAdjudicado({
+        hasAdminEnabled: false,
+        participationRole: ' coordinador ',
+      })
+    ).toBe(true);
+  });
+
+  it('denies Encargado and missing role', () => {
+    expect(
+      canEditPresupuestoAdjudicado({
+        hasAdminEnabled: false,
+        participationRole: 'Encargado',
+      })
+    ).toBe(false);
+    expect(
+      canEditPresupuestoAdjudicado({
+        hasAdminEnabled: false,
+        participationRole: null,
+      })
+    ).toBe(false);
   });
 });
 

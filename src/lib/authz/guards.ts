@@ -4,8 +4,12 @@ import { getSession } from '@/lib/auth-utils';
 import {
   userHasPermission,
   userCanOnProject,
+  getParticipationRole,
 } from '@/lib/permissions/check';
-import { userHasAdminEnabled } from '@/lib/authz/pure';
+import {
+  userHasAdminEnabled,
+  canEditPresupuestoAdjudicado,
+} from '@/lib/authz/pure';
 import type { PermissionKey } from '@/lib/permissions/catalog';
 
 export type AuthzUser = {
@@ -84,6 +88,37 @@ export async function requireProjectAccess(
   });
   if (!allowed) {
     return { ok: false, error: 'No tienes acceso a este proyecto' };
+  }
+  return gate;
+}
+
+/** Admin habilitado o Coordinador del proyecto (participación). */
+export async function requireProjectCoordinatorOrAdmin(
+  proyectoId: string
+): Promise<AuthzGate> {
+  const gate = await requireSession();
+  if (!gate.ok) return gate;
+  if (!proyectoId) {
+    return { ok: false, error: 'Proyecto no especificado' };
+  }
+  if (userHasAdminEnabled(gate.user.availableRoles)) return gate;
+
+  const participationRole = await getParticipationRole({
+    proyectoId,
+    email: gate.user.email,
+    userId: gate.user.id,
+  });
+  if (
+    !canEditPresupuestoAdjudicado({
+      hasAdminEnabled: false,
+      participationRole,
+    })
+  ) {
+    return {
+      ok: false,
+      error:
+        'Solo coordinadores del proyecto o Admin pueden realizar esta acción',
+    };
   }
   return gate;
 }

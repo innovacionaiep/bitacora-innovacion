@@ -3,18 +3,19 @@
 import { useEffect, useRef } from 'react';
 import { useTopLoader } from 'nextjs-toploader';
 
-const SAFETY_MS = 4000;
+/** Último recurso si isLoading queda true para siempre; no debe cortar cargas normales. */
+const SAFETY_MS = 30000;
 
 type Options = {
-  /** Si true, al montar ya sin loading cierra la barra (p. ej. cache tras click de tab). */
+  /** Si true, cierra la barra residual cuando el contenido ya está listo. */
   completeOnReady?: boolean;
-  /** Si false, no inicia la barra y cierra si estaba activa (tab oculto en keep-alive). */
+  /** Si false, suelta ownership sin cerrar la barra (otro tab/padre puede haberla iniciado). */
   enabled?: boolean;
 };
 
 /**
  * Muestra la barra superior mientras `isLoading` es true.
- * Incluye timeout de seguridad para no dejar la barra pegada.
+ * Incluye timeout de seguridad largo para no dejar la barra pegada ante estados rotos.
  */
 export function usePageTopLoader(
   isLoading: boolean,
@@ -50,21 +51,30 @@ export function usePageTopLoader(
     };
 
     if (!enabled) {
-      if (wasLoadingRef.current) finish();
+      // No llamar done(): el tab activo o el padre pueden haber reiniciado la barra.
+      clearSafety();
+      wasLoadingRef.current = false;
+      // Al reactivar, completeOnReady podrá cerrar una barra residual una vez.
+      initializedRef.current = false;
       return clearSafety;
     }
 
     if (isLoading) {
       loader.start();
       wasLoadingRef.current = true;
+      initializedRef.current = true;
       clearSafety();
       safetyRef.current = setTimeout(() => finish(), SAFETY_MS);
     } else if (wasLoadingRef.current) {
       finish();
+      initializedRef.current = true;
     } else if (completeOnReady && !initializedRef.current) {
+      // Cierra barra residual del click de tab / keep-alive previo cuando ya hay datos.
       finish();
+      initializedRef.current = true;
+    } else {
+      initializedRef.current = true;
     }
-    initializedRef.current = true;
 
     return clearSafety;
   }, [isLoading, loader, completeOnReady, enabled]);

@@ -1,17 +1,28 @@
 'use client';
 
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Loader2 } from 'lucide-react';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
 import { Button } from '@/components/ui/button';
+import { IndicadoresTabLoading } from '@/components/proyectos/IndicadoresTabLoading';
 import { useCanProjectImport } from '@/hooks/useCanProjectImport';
+import {
+  canEditPresupuestoAdjudicado,
+  userHasAdminEnabled,
+} from '@/lib/authz/pure';
 import { proyectoActivitiesKey } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 
 function DynamicTabFallback() {
-  return <div className="h-full min-h-[120px]" />;
+  return (
+    <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 px-6">
+      <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+      <p className="text-sm text-gray-500">Cargando…</p>
+    </div>
+  );
 }
 
 const ResumenProyectoCard = dynamic(
@@ -45,7 +56,7 @@ const IndicadoresCard = dynamic(
       default: m.IndicadoresCard,
     })),
   {
-    loading: () => <DynamicTabFallback />,
+    loading: () => <IndicadoresTabLoading />,
   }
 );
 
@@ -216,12 +227,35 @@ export function PresupuestoTab({
   setProject?: Dispatch<SetStateAction<ProyectoWithRelations | null>>;
   topLoaderEnabled?: boolean;
 }) {
+  const { data: session } = useSession();
   const [importOpen, setImportOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const canImport = useCanProjectImport(
     'projects.import_presupuesto',
     project
   );
+
+  const canEditAdjudicado = useMemo(() => {
+    const availableRoles = session?.user?.availableRoles ?? [];
+    if (userHasAdminEnabled(availableRoles)) return true;
+    const userId = session?.user?.id;
+    const userEmail = session?.user?.email?.trim().toLowerCase();
+    const isCoordinator = (project.participantes_rel ?? []).some(
+      (p) =>
+        ((userId && p.userId === userId) ||
+          (userEmail && p.email?.trim().toLowerCase() === userEmail)) &&
+        canEditPresupuestoAdjudicado({
+          hasAdminEnabled: false,
+          participationRole: p.rol,
+        })
+    );
+    return isCoordinator;
+  }, [
+    project.participantes_rel,
+    session?.user?.availableRoles,
+    session?.user?.email,
+    session?.user?.id,
+  ]);
 
   return (
     <div className="h-full pt-2 flex flex-col min-h-0">
@@ -234,6 +268,7 @@ export function PresupuestoTab({
           projectName={project.proyecto}
           topLoaderEnabled={topLoaderEnabled}
           canImport={canImport}
+          canEditAdjudicado={canEditAdjudicado}
           onCargaMasiva={() => setImportOpen(true)}
           onPresupuestoAdjudicadoChange={(monto) => {
             setProject?.((prev) =>

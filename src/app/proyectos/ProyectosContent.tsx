@@ -535,22 +535,26 @@ export function ProyectosContent({
       if (instantTabs.includes(tab)) {
         requestAnimationFrame(() => topLoader.done(true));
       } else {
-        // Seguridad: no dejar la barra pegada si el tab async no completa
+        // El tab async cierra la barra vía usePageTopLoader.
+        // Este timeout solo evita barra pegada si el chunk nunca monta.
         tabLoaderTimeoutRef.current = setTimeout(() => {
           topLoader.done(true);
           tabLoaderTimeoutRef.current = null;
-        }, 4000);
+        }, 30000);
       }
     }
     setSelectedTab(tab);
   };
 
-  // Seguimiento necesita participantes_rel para rolEnProyecto
+  // Seguimiento (rol) y Presupuesto (editar adjudicado) necesitan participantes_rel
   useEffect(() => {
     if (!selectedProject) return;
-    if (selectedTab !== 'Seguimiento' && !mountedTabs.has('Seguimiento')) {
-      return;
-    }
+    const needsParticipantes =
+      selectedTab === 'Seguimiento' ||
+      selectedTab === 'Presupuesto' ||
+      mountedTabs.has('Seguimiento') ||
+      mountedTabs.has('Presupuesto');
+    if (!needsParticipantes) return;
     if (selectedProject.participantes_rel) return;
     const projectId = selectedProject.id;
     let cancelled = false;
@@ -574,7 +578,7 @@ export function ProyectosContent({
     return () => {
       cancelled = true;
     };
-    // mountedTabs: solo nos importa si Seguimiento ya se visitó; no depender del Set entero
+    // mountedTabs: solo nos importa si Seguimiento/Presupuesto ya se visitó; no depender del Set entero
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mountedTabs.has leído al disparar
   }, [
     selectedProject?.id,
