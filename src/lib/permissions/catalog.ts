@@ -14,6 +14,7 @@ export type PermissionKey =
   | 'view.soporte'
   | 'projects.view_all'
   | 'projects.create'
+  | 'projects.edit'
   | 'projects.bulk_create'
   | 'projects.import_participantes'
   | 'projects.import_actividades'
@@ -92,6 +93,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     key: 'projects.create',
     label: 'Crear proyecto',
     group: 'atribuciones',
+    defaultOn: [...AVAILABLE_ROLES],
+  },
+  {
+    key: 'projects.edit',
+    label: 'Editar proyecto',
+    group: 'atribuciones',
+    /** Participantes: quien tiene este permiso en su rol de participación puede editar ese proyecto. */
     defaultOn: [...AVAILABLE_ROLES],
   },
   {

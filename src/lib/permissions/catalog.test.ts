@@ -12,6 +12,7 @@ describe('permissions catalog', () => {
     expect(map['view.ajustes']).toBe(true);
     expect(map['projects.view_all']).toBe(true);
     expect(map['projects.create']).toBe(true);
+    expect(map['projects.edit']).toBe(true);
   });
 
   it('non-Admin never gets view.ajustes via normalizeEnabled', () => {
@@ -31,5 +32,14 @@ describe('permissions catalog', () => {
   it('Beneficiario has create project default ON and view_all OFF', () => {
     expect(getDefaultEnabled('Beneficiario', 'projects.create')).toBe(true);
     expect(getDefaultEnabled('Beneficiario', 'projects.view_all')).toBe(false);
+  });
+
+  it('Editar proyecto defaults ON for all roles (scoped by participation)', () => {
+    expect(getDefaultEnabled('Coordinador', 'projects.edit')).toBe(true);
+    expect(getDefaultEnabled('Encargado', 'projects.edit')).toBe(true);
+    expect(getDefaultEnabled('Colaborador', 'projects.edit')).toBe(true);
+    expect(getDefaultEnabled('Docente', 'projects.edit')).toBe(true);
+    expect(getDefaultEnabled('Estudiante', 'projects.edit')).toBe(true);
+    expect(getDefaultEnabled('Beneficiario', 'projects.edit')).toBe(true);
   });
 });

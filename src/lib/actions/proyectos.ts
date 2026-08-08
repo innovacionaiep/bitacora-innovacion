@@ -1135,7 +1135,7 @@ export async function createProyectoCompleto(
  */
 export async function updateProyecto(id: string, data: Partial<ProyectoData>) {
   try {
-    const gate = await requireProjectAccess(id);
+    const gate = await requireProjectAccess(id, 'projects.edit');
     if (!gate.ok) return { success: false, error: gate.error };
 
     if (data.presupuestoAdjudicado !== undefined) {
@@ -1201,7 +1201,7 @@ function idsEq(a: string[] | undefined, b: string[]): boolean {
 
 export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
   try {
-    const gate = await requireProjectAccess(data.proyectoId);
+    const gate = await requireProjectAccess(data.proyectoId, 'projects.edit');
     if (!gate.ok) return { success: false, error: gate.error };
 
     // Cargar estado previo para registrar en historial solo lo que realmente cambió
