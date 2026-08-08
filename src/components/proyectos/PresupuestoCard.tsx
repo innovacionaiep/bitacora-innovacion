@@ -1580,45 +1580,47 @@ export function PresupuestoCard({
                       <TableCell className="text-center align-middle  whitespace-normal"></TableCell>
                     </TableRow>
                   )}
-                  <TableRow className="bg-slate-50/90 border-t-2 border-gray-300">
-                    <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200" />
-                    <TableCell className="font-medium text-center align-middle  whitespace-normal border-r border-gray-200">
-                      {CUENTA_LABEL.OPERACION}
-                    </TableCell>
-                    <TableCell
-                      className={`align-middle ${itemColClass} border-r border-gray-200 whitespace-normal font-semibold`}
-                    >
-                      DELTA
-                    </TableCell>
-                    <TableCell
-                      className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
-                    >
-                      {deltaSaldo >= 0 ? 'Saldo a favor' : 'Saldo en contra'}
-                    </TableCell>
-                    <TableCell
-                      className={`text-center tabular-nums font-semibold align-middle  whitespace-normal border-r border-gray-200 ${deltaSaldo < 0 ? 'text-red-600' : 'text-emerald-700'}`}
-                    >
-                      {formatPresupuestoMonto(deltaSaldo)}
-                    </TableCell>
-                    <TableCell
-                      className={`text-center text-sm align-middle ${mesColClass} border-r border-gray-200`}
-                    >
-                      —
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
-                      —
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
-                      —
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal border-r border-gray-200">
-                      —
-                    </TableCell>
-                    <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
-                      <EstadoBadge estado="PENDIENTE" />
-                    </TableCell>
-                    <TableCell className="text-center align-middle  whitespace-normal" />
-                  </TableRow>
+                  {deltaSaldo !== 0 && (
+                    <TableRow className="bg-slate-50/90 border-t-2 border-gray-300">
+                      <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200" />
+                      <TableCell className="font-medium text-center align-middle  whitespace-normal border-r border-gray-200">
+                        {CUENTA_LABEL.OPERACION}
+                      </TableCell>
+                      <TableCell
+                        className={`align-middle ${itemColClass} border-r border-gray-200 whitespace-normal font-semibold`}
+                      >
+                        DELTA
+                      </TableCell>
+                      <TableCell
+                        className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                      >
+                        {deltaSaldo > 0 ? 'Saldo a favor' : 'Saldo en contra'}
+                      </TableCell>
+                      <TableCell
+                        className={`text-center tabular-nums font-semibold align-middle  whitespace-normal border-r border-gray-200 ${deltaSaldo < 0 ? 'text-red-600' : 'text-emerald-700'}`}
+                      >
+                        {formatPresupuestoMonto(deltaSaldo)}
+                      </TableCell>
+                      <TableCell
+                        className={`text-center text-sm align-middle ${mesColClass} border-r border-gray-200`}
+                      >
+                        —
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
+                        —
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal">
+                        —
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums text-sm align-middle  whitespace-normal border-r border-gray-200">
+                        —
+                      </TableCell>
+                      <TableCell className="text-center align-middle  whitespace-normal border-r border-gray-200">
+                        <EstadoBadge estado="PENDIENTE" />
+                      </TableCell>
+                      <TableCell className="text-center align-middle  whitespace-normal" />
+                    </TableRow>
+                  )}
                   {!isAddingRow && (
                     <TableRow
                       id="tour-presupuesto-agregar"
