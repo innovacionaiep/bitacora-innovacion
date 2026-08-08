@@ -26,6 +26,57 @@ type IndicadorPatch = Partial<
   >
 >;
 
+function parseNumericValue(value: string | null | undefined): number {
+  if (!value || value === '') return 0;
+  const cleaned = value
+    .toString()
+    .replace(/%/g, '')
+    .replace(/,/g, '.')
+    .trim();
+  const parsed = parseFloat(cleaned);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/** Misma fórmula que el server: (alcanzado / esperado) * 100, clamp 0–100 */
+function calcPorcentajeAvance(
+  resultadoAlcanzado: string,
+  resultadoEsperado: string
+): number {
+  const esperado = parseNumericValue(resultadoEsperado);
+  const alcanzado = parseNumericValue(resultadoAlcanzado);
+  if (esperado <= 0) return 0;
+  return Math.max(0, Math.min(100, (alcanzado / esperado) * 100));
+}
+
+/** Promedio de avance de cada OE (promedio de sus indicadores), luego promedio entre OEs */
+function calcProgresoGeneral(data: IndicadoresProyectoData): number {
+  const progresosObjetivosEspecificos = data.objetivosGenerales.flatMap((og) =>
+    og.objetivosEspecificos.map((oe) => {
+      if (oe.indicadores.length === 0) return 0;
+      return (
+        oe.indicadores.reduce((sum, ind) => sum + ind.porcentajeAvance, 0) /
+        oe.indicadores.length
+      );
+    })
+  );
+
+  if (progresosObjetivosEspecificos.length === 0) return 0;
+
+  return Math.round(
+    progresosObjetivosEspecificos.reduce((sum, prog) => sum + prog, 0) /
+      progresosObjetivosEspecificos.length
+  );
+}
+
+function withRecalculatedProgreso(
+  data: IndicadoresProyectoData
+): IndicadoresProyectoData {
+  return {
+    ...data,
+    progresoGeneral: calcProgresoGeneral(data),
+  };
+}
+
 function mapIndicadores(
   data: IndicadoresProyectoData,
   mapper: (ind: IndicadorData) => IndicadorData
@@ -90,6 +141,8 @@ export function useIndicadores(projectId: string | null) {
           queryKey: indicadoresKey(projectId),
         });
       }
+      // staleTime: 0 fuerza refetch aunque la query siga "fresh" (60s);
+      // si no, tras mutar se devolvía la caché y las barras no se actualizaban.
       await queryClient.fetchQuery({
         queryKey: indicadoresKey(projectId),
         queryFn: async () => {
@@ -99,7 +152,7 @@ export function useIndicadores(projectId: string | null) {
           }
           return result.data;
         },
-        staleTime: showLoading ? 0 : 60_000,
+        staleTime: 0,
       });
     },
     [projectId, queryClient]
@@ -109,9 +162,33 @@ export function useIndicadores(projectId: string | null) {
     (indicadorId: string, patch: IndicadorPatch) => {
       setData((prev) => {
         if (!prev) return prev;
-        return mapIndicadores(prev, (ind) =>
-          ind.id === indicadorId ? { ...ind, ...patch } : ind
-        );
+        const next = mapIndicadores(prev, (ind) => {
+          if (ind.id !== indicadorId) return ind;
+          const merged = { ...ind, ...patch };
+          if (
+            patch.resultadoAlcanzado !== undefined ||
+            patch.resultadoEsperado !== undefined
+          ) {
+            // Si el caller no envió % explícitos, recalcular como el server
+            if (
+              patch.porcentajeAvance === undefined ||
+              patch.porcentajeCumplimiento === undefined
+            ) {
+              const pct = calcPorcentajeAvance(
+                merged.resultadoAlcanzado,
+                merged.resultadoEsperado
+              );
+              if (patch.porcentajeAvance === undefined) {
+                merged.porcentajeAvance = pct;
+              }
+              if (patch.porcentajeCumplimiento === undefined) {
+                merged.porcentajeCumplimiento = pct;
+              }
+            }
+          }
+          return merged;
+        });
+        return withRecalculatedProgreso(next);
       });
     },
     [setData]
@@ -121,7 +198,7 @@ export function useIndicadores(projectId: string | null) {
     (indicadorId: string) => {
       setData((prev) => {
         if (!prev) return prev;
-        return {
+        return withRecalculatedProgreso({
           ...prev,
           objetivosGenerales: prev.objetivosGenerales.map((og) => ({
             ...og,
@@ -130,7 +207,7 @@ export function useIndicadores(projectId: string | null) {
               indicadores: oe.indicadores.filter((i) => i.id !== indicadorId),
             })),
           })),
-        };
+        });
       });
     },
     [setData]
@@ -140,7 +217,7 @@ export function useIndicadores(projectId: string | null) {
     (objetivoEspecificoId: string, indicador: IndicadorData) => {
       setData((prev) => {
         if (!prev) return prev;
-        return {
+        return withRecalculatedProgreso({
           ...prev,
           objetivosGenerales: prev.objetivosGenerales.map((og) => ({
             ...og,
@@ -150,7 +227,7 @@ export function useIndicadores(projectId: string | null) {
                 : oe
             ),
           })),
-        };
+        });
       });
     },
     [setData]
@@ -165,7 +242,7 @@ export function useIndicadores(projectId: string | null) {
       setData((prev) => {
         if (!prev || prev.objetivosGenerales.length === 0) return prev;
         const [first, ...rest] = prev.objetivosGenerales;
-        return {
+        return withRecalculatedProgreso({
           ...prev,
           objetivosGenerales: [
             {
@@ -177,7 +254,7 @@ export function useIndicadores(projectId: string | null) {
             },
             ...rest,
           ],
-        };
+        });
       });
     },
     [setData]

@@ -74,7 +74,42 @@ export function IndicadorDetalleModal({
     onOpenChange(false);
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (optimistic?: {
+    id: string;
+    patch: Partial<{
+      nombre: string;
+      descripcion: string;
+      formaCalculo: string;
+      formatoNumero: string | null;
+      resultadoEsperado: string;
+      resultadoAlcanzado: string;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+    }>;
+  }) => {
+    if (optimistic) {
+      setIndicador((prev) =>
+        prev && prev.id === optimistic.id
+          ? {
+              ...prev,
+              ...optimistic.patch,
+              formatoNumero:
+                optimistic.patch.formatoNumero !== undefined
+                  ? optimistic.patch.formatoNumero
+                  : prev.formatoNumero,
+              fechaInicio:
+                optimistic.patch.fechaInicio !== undefined
+                  ? optimistic.patch.fechaInicio
+                  : prev.fechaInicio,
+              fechaFin:
+                optimistic.patch.fechaFin !== undefined
+                  ? optimistic.patch.fechaFin
+                  : prev.fechaFin,
+            }
+          : prev
+      );
+      return;
+    }
     if (onSuccess) await onSuccess();
   };
 

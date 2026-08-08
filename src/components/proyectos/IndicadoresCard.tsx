@@ -63,6 +63,8 @@ export function IndicadoresCard({
     }>;
   }) => {
     if (optimistic) {
+      // Solo patch: no refetch aquí. Si se refetch antes de que el server
+      // termine el update, la caché vuelve al valor anterior (rebote).
       patchIndicador(optimistic.id, optimistic.patch);
       setSelectedIndicador((prev) =>
         prev && prev.id === optimistic.id
@@ -84,6 +86,7 @@ export function IndicadoresCard({
             }
           : prev
       );
+      return;
     }
     void fetchIndicadores(false);
   };

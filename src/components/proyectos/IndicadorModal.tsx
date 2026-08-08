@@ -415,6 +415,7 @@ export function IndicadorModal({
     setShowSuccessToast(true);
     setIsSavingField(true);
 
+    // UI inmediata (barras OE/OG); el padre NO debe refetch todavía.
     if (onUpdate) {
       void onUpdate({
         id: indicador.id,
@@ -445,6 +446,11 @@ export function IndicadorModal({
         setEditingField(editingField);
         setShowSuccessToast(false);
         alert(`Error al guardar: ${result.error}`);
+        // Restaurar lista desde servidor (sin patch → refetch)
+        if (onUpdate) await onUpdate();
+      } else if (onUpdate) {
+        // Sync post-commit: ahora sí es seguro refetch
+        await onUpdate();
       }
     } catch (error) {
       justSavedRef.current = false;
@@ -455,6 +461,7 @@ export function IndicadorModal({
       alert(
         `Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`
       );
+      if (onUpdate) await onUpdate();
     } finally {
       setIsSavingField(false);
     }
