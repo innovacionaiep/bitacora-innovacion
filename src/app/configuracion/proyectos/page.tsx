@@ -46,6 +46,7 @@ import {
 } from '@/lib/actions/configuracion';
 import { verifyConfigUnlock } from '@/lib/actions/configuracion-usuarios';
 import { Lock, Unlock, Trash2 } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const SIN_LINEA = '__sin_linea__';
 
@@ -107,6 +108,7 @@ export default function ConfiguracionProyectosPage() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  usePageTopLoader(loading);
   const [unlocked, setUnlocked] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');

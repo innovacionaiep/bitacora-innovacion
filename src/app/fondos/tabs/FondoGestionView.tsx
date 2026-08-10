@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FondoConveniosSection } from '@/components/fondos/FondoConveniosSection';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { BulkActivityDialog } from '../components/BulkActivityDialog';
 import { BulkCoordinadoresDialog } from '../components/BulkCoordinadoresDialog';
 import {
@@ -281,6 +282,8 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
     void queryClient.invalidateQueries({
       queryKey: fondoGestionKey(fondoNombre),
     });
+
+  usePageTopLoader(isLoading && !data);
 
   if (isLoading && !data) {
     return <div className="h-full min-h-[200px] bg-background" />;

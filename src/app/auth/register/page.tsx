@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { useTopLoader } from 'nextjs-toploader';
 import { signUp } from '@/lib/auth-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ export default function RegisterPage() {
   const [registrationComplete, setRegistrationComplete] = useState(false);
 
   const router = useRouter();
+  const topLoader = useTopLoader();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +93,8 @@ export default function RegisterPage() {
         setRegistrationComplete(true);
         setIsLoading(false);
       } else {
-        // Login automático exitoso
+        // Login automático exitoso — barra visible mientras monta el shell
+        topLoader.start();
         router.push('/inicio');
         router.refresh();
       }

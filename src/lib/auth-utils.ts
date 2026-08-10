@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import prisma from './prisma';
 
 // Tipos de roles disponibles

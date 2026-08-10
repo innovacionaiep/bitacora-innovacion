@@ -463,7 +463,7 @@ async function buildAlertasFromParticipaciones(
 
 async function fetchCompromisosForProyectoIds(proyectoIds: string[]) {
   if (proyectoIds.length === 0) return [];
-  return prisma.compromisoProyecto.findMany({
+  const rows = await prisma.compromisoProyecto.findMany({
     where: {
       proyectoId: { in: proyectoIds },
       completado: false,
@@ -475,11 +475,18 @@ async function fetchCompromisosForProyectoIds(proyectoIds: string[]) {
     },
     orderBy: [{ fechaLimite: 'asc' }, { createdAt: 'desc' }],
   });
+  // Plain JSON for RSC → Client (avoids Date / class prototype issues in production)
+  return rows.map((c) => ({
+    ...c,
+    fechaLimite: c.fechaLimite?.toISOString() ?? null,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+  }));
 }
 
 async function fetchHistorialForProyectoIds(proyectoIds: string[], limit = 10) {
   if (proyectoIds.length === 0) return [];
-  return prisma.historialProyecto.findMany({
+  const rows = await prisma.historialProyecto.findMany({
     where: { proyectoId: { in: proyectoIds } },
     take: limit,
     include: {
@@ -497,6 +504,11 @@ async function fetchHistorialForProyectoIds(proyectoIds: string[], limit = 10) {
     },
     orderBy: { fecha: 'desc' },
   });
+  return rows.map((h) => ({
+    ...h,
+    fecha: h.fecha.toISOString(),
+    createdAt: h.createdAt.toISOString(),
+  }));
 }
 
 export type InicioInitialData = {
@@ -511,28 +523,34 @@ export type InicioInitialData = {
 
 /**
  * Carga inicial del portal de inicio: 1× auth + 1× participaciones + widgets en paralelo.
+ * Nunca lanza: un fallo de BD/timeout degrada a null y el client puede refetch.
  */
 export async function getInicioInitialData(
   _ignored?: string | null
 ): Promise<InicioInitialData | null> {
-  const user = await getCurrentUser();
-  if (!user?.id) return null;
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) return null;
 
-  const participaciones = await getParticipacionesUsuario(user);
-  const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
+    const participaciones = await getParticipacionesUsuario(user);
+    const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
 
-  const [proyectos, alertas, compromisos, historial] = await Promise.all([
-    buildProyectosConRolFromParticipaciones(participaciones),
-    buildAlertasFromParticipaciones(participaciones),
-    fetchCompromisosForProyectoIds(proyectoIds),
-    fetchHistorialForProyectoIds(proyectoIds, 10),
-  ]);
+    const [proyectos, alertas, compromisos, historial] = await Promise.all([
+      buildProyectosConRolFromParticipaciones(participaciones),
+      buildAlertasFromParticipaciones(participaciones),
+      fetchCompromisosForProyectoIds(proyectoIds),
+      fetchHistorialForProyectoIds(proyectoIds, 10),
+    ]);
 
-  return {
-    role: null,
-    proyectos,
-    alertas,
-    compromisos,
-    historial,
-  };
+    return {
+      role: null,
+      proyectos,
+      alertas,
+      compromisos: compromisos as InicioInitialData['compromisos'],
+      historial: historial as InicioInitialData['historial'],
+    };
+  } catch (error) {
+    console.error('[getInicioInitialData] Error:', error);
+    return null;
+  }
 }

@@ -8,6 +8,7 @@ import {
   getMaintenanceEnabled,
   setMaintenanceEnabled,
 } from '@/lib/actions/maintenance-config';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const isLocalDev = process.env.NODE_ENV === 'development';
 
@@ -16,6 +17,8 @@ export default function MantenimientoClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  usePageTopLoader(loading || pending);
 
   useEffect(() => {
     let cancelled = false;

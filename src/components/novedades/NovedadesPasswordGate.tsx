@@ -8,12 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 export function NovedadesPasswordGate() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pageData, setPageData] = useState<Awaited<ReturnType<typeof getNovedadesPageData>> | null>(null);
+
+  usePageTopLoader(loading);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

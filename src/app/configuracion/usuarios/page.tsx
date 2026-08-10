@@ -63,6 +63,7 @@ import {
   KeyRound,
   FolderOpen,
 } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const SELECT_NONE = '__none__';
 
@@ -103,6 +104,7 @@ export default function ConfiguracionUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  usePageTopLoader(loading);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState<string | null>(null);

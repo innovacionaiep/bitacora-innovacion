@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { getProyectosListadoParaUsuario } from '@/lib/actions/proyectos';
 import { sendReporteProyecto } from '@/lib/actions/reporte-proyecto';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { Loader2, FileText } from 'lucide-react';
 import type { ProyectoListadoItem } from '@/types/proyecto';
 
@@ -28,6 +29,8 @@ export default function ReportesPage() {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  usePageTopLoader(proyectosLoading || reporteLoading);
 
   useEffect(() => {
     async function loadProyectos() {

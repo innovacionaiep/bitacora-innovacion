@@ -39,6 +39,7 @@ import {
   ChevronRight,
   ListFilter,
 } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 type CategoriaWithSub = Awaited<
   ReturnType<typeof DT.getCategoriasWithSubcategorias>
@@ -52,6 +53,7 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
   const [categorias, setCategorias] = useState<CategoriaWithSub[]>([]);
   const [fondosConLineas, setFondosConLineas] = useState<FondoConLineas[]>([]);
   const [loading, setLoading] = useState(true);
+  usePageTopLoader(loading);
   const [error, setError] = useState<string | null>(null);
   const [expandedCat, setExpandedCat] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);

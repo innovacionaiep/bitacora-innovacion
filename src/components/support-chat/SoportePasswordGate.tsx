@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
+import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 /**
  * Misma contraseña que Novedades (NOVEDADES_UNLOCK_PASSWORD).
@@ -17,6 +18,8 @@ export function SoportePasswordGate() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+
+  usePageTopLoader(loading);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -4,7 +4,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import NextTopLoader from 'nextjs-toploader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
@@ -76,32 +75,29 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
   // Only block non-/inicio routes once we know the user lacks the view permission.
   const showDeniedGate = faltaPermisoVista && pathname !== '/inicio';
 
+  if (showDeniedGate) {
+    return <DeniedViewLoading />;
+  }
+
   return (
     <>
-      <NextTopLoader color="#10b981" height={2} showSpinner={false} />
-      {showDeniedGate ? (
-        <DeniedViewLoading />
-      ) : (
-        <>
-          <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
-            <SidebarProvider expandOnHover>
-              <SidebarNav />
-              <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
-                <div className={contentClassName}>
-                  {isNovedadesRoute ? (
-                    children
-                  ) : (
-                    <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col overflow-hidden">
-                      {children}
-                    </div>
-                  )}
+      <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
+        <SidebarProvider expandOnHover>
+          <SidebarNav />
+          <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
+            <div className={contentClassName}>
+              {isNovedadesRoute ? (
+                children
+              ) : (
+                <div className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col overflow-hidden">
+                  {children}
                 </div>
-              </ResponsiveMain>
-            </SidebarProvider>
-          </div>
-          {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
-        </>
-      )}
+              )}
+            </div>
+          </ResponsiveMain>
+        </SidebarProvider>
+      </div>
+      {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
     </>
   );
 }
