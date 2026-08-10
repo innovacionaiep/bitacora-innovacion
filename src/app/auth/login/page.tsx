@@ -61,9 +61,10 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Iniciar Sesión</CardTitle>
-            <CardDescription>
-              Ingresa tus credenciales para acceder
+            <CardTitle>Accede con:</CardTitle>
+            <CardDescription className="space-y-1">
+              <span className="block">Email institucional</span>
+              <span className="block">Pass: Rut completo sin guión</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -129,6 +130,10 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
+
+        <p className="text-center text-sm text-gray-500">
+          Dirección Nacional de Emprendimiento e I+D
+        </p>
       </div>
     </div>
   );
