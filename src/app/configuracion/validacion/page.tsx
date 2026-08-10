@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,8 @@ type CatalogKind =
   | 'fondo'
   | 'linea';
 
+type ValidacionTab = Exclude<CatalogKind, 'linea'>;
+
 export default function ConfiguracionValidacionPage() {
   const [sedes, setSedes] = useState<
     Awaited<ReturnType<typeof Config.getSedes>>
@@ -66,7 +68,11 @@ export default function ConfiguracionValidacionPage() {
   const [lineas, setLineas] = useState<
     Awaited<ReturnType<typeof Config.getLineas>>
   >([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ValidacionTab>('sede');
+  const [loadedTabs, setLoadedTabs] = useState<Set<ValidacionTab>>(
+    () => new Set()
+  );
+  const [tabLoading, setTabLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
@@ -109,37 +115,60 @@ export default function ConfiguracionValidacionPage() {
     });
   };
 
-  const loadAll = async () => {
-    setLoading(true);
+  const catalogTab = (cat: CatalogKind): ValidacionTab =>
+    cat === 'linea' ? 'fondo' : cat;
+
+  const loadCatalog = async (tab: ValidacionTab) => {
+    setTabLoading(true);
     try {
-      const [s, c, e, car, asg, g, f, lin] = await Promise.all([
-        Config.getSedes(),
-        Config.getComunas(),
-        Config.getEscuelas(),
-        Config.getCarreras(),
-        Config.getAsignaturas(),
-        Config.getGruposInteres(),
-        Config.getFondos(),
-        Config.getLineas(),
-      ]);
-      setSedes(s);
-      setComunas(c);
-      setEscuelas(e);
-      setCarreras(car);
-      setAsignaturas(asg);
-      setGrupos(g);
-      setFondos(f);
-      setLineas(lin);
-      setExpandedFondos(new Set(f.map((fondo) => fondo.id)));
-    } catch (err) {
+      switch (tab) {
+        case 'sede':
+          setSedes(await Config.getSedes());
+          break;
+        case 'comuna':
+          setComunas(await Config.getComunas());
+          break;
+        case 'escuela':
+          setEscuelas(await Config.getEscuelas());
+          break;
+        case 'carrera':
+          setCarreras(await Config.getCarreras());
+          break;
+        case 'asignatura':
+          setAsignaturas(await Config.getAsignaturas());
+          break;
+        case 'grupo':
+          setGrupos(await Config.getGruposInteres());
+          break;
+        case 'fondo': {
+          const [f, lin] = await Promise.all([
+            Config.getFondos(),
+            Config.getLineas(),
+          ]);
+          setFondos(f);
+          setLineas(lin);
+          setExpandedFondos(new Set(f.map((fondo) => fondo.id)));
+          break;
+        }
+      }
+      setLoadedTabs((prev) => new Set(prev).add(tab));
+    } catch {
       setError('Error al cargar datos');
     }
-    setLoading(false);
+    setTabLoading(false);
   };
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    if (!loadedTabs.has(activeTab)) {
+      void loadCatalog(activeTab);
+    }
+  }, [activeTab]);
+
+  const tabContentLoading = tabLoading && !loadedTabs.has(activeTab);
+
+  const renderTabLoading = () => (
+    <div className="py-8 text-center text-muted-foreground">Cargando...</div>
+  );
 
   const openAdd = (cat: CatalogKind, opts?: { fondoId?: string }) => {
     setCatalog(cat);
@@ -259,7 +288,7 @@ export default function ConfiguracionValidacionPage() {
     }
     if (res.success) {
       setSheetOpen(false);
-      loadAll();
+      void loadCatalog(catalogTab(catalog));
     } else {
       setError(res.error ?? 'Error');
     }
@@ -310,7 +339,7 @@ export default function ConfiguracionValidacionPage() {
         } else {
           setImportCarrerasResult('No había carreras nuevas que agregar.');
         }
-        loadAll();
+        void loadCatalog('carrera');
       } else {
         setError(res.error ?? 'Error al importar');
       }
@@ -367,7 +396,7 @@ export default function ConfiguracionValidacionPage() {
         } else {
           setImportAsignaturasResult('No había asignaturas nuevas que agregar.');
         }
-        loadAll();
+        void loadCatalog('asignatura');
       } else {
         setError(res.error ?? 'Error al importar');
       }
@@ -407,19 +436,9 @@ export default function ConfiguracionValidacionPage() {
         res = await Config.deleteFondo(id);
         break;
     }
-    if (res.success) loadAll();
+    if (res.success) void loadCatalog(catalogTab(cat));
     else setError(res.error ?? 'Error');
   };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Cargando...
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="h-full flex flex-col min-h-0 gap-6">
@@ -432,7 +451,11 @@ export default function ConfiguracionValidacionPage() {
         </p>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
-        <Tabs defaultValue="sede" className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as ValidacionTab)}
+          className="w-full"
+        >
           <TabsList className="flex flex-wrap gap-1">
             <TabsTrigger value="sede">Sedes</TabsTrigger>
             <TabsTrigger value="comuna">Comunas</TabsTrigger>
@@ -444,6 +467,10 @@ export default function ConfiguracionValidacionPage() {
           </TabsList>
 
           <TabsContent value="sede" className="mt-4">
+            {tabContentLoading && activeTab === 'sede' ? (
+              renderTabLoading()
+            ) : (
+            <>
             <div className="flex justify-end gap-2 mb-2">
               {sedes.length === 0 && (
                 <Button
@@ -455,7 +482,7 @@ export default function ConfiguracionValidacionPage() {
                     setError(null);
                     const res = await Config.backfillSedesFromProyectos();
                     if (res.success) {
-                      loadAll();
+                      void loadCatalog('sede');
                       if (res.created && res.created > 0) {
                         setError(null);
                       }
@@ -507,9 +534,15 @@ export default function ConfiguracionValidacionPage() {
                 ))}
               </TableBody>
             </Table>
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="comuna" className="mt-4">
+            {tabContentLoading && activeTab === 'comuna' ? (
+              renderTabLoading()
+            ) : (
+            <>
             <div className="flex justify-end mb-2">
               <Button size="sm" onClick={() => openAdd('comuna')}>
                 <Plus className="h-4 w-4 mr-1" /> Agregar
@@ -548,6 +581,8 @@ export default function ConfiguracionValidacionPage() {
                 ))}
               </TableBody>
             </Table>
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="escuela" className="mt-4">
@@ -767,7 +802,7 @@ export default function ConfiguracionValidacionPage() {
                     setError(null);
                     const res = await Config.backfillFondosFromProyectos();
                     if (res.success) {
-                      loadAll();
+                      void loadCatalog('fondo');
                     } else {
                       setError(res.error ?? 'Error');
                     }

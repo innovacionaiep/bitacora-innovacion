@@ -92,7 +92,7 @@ export default function RegisterPage() {
         setIsLoading(false);
       } else {
         // Login automático exitoso
-        router.push('/');
+        router.push('/inicio');
         router.refresh();
       }
     }

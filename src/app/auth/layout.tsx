@@ -1,3 +1,7 @@
+/**
+ * Auth pages layout — no QueryProvider / ConditionalLayout / Chat.
+ * Root SessionProvider still wraps this tree.
+ */
 export default function AuthLayout({
   children,
 }: {

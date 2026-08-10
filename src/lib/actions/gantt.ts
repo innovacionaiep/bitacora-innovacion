@@ -1,7 +1,6 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
@@ -73,7 +72,10 @@ export async function getActivities(projectId: string) {
 /**
  * Crear una nueva actividad
  */
-export async function createActivity(data: CreateActivityInput) {
+export async function createActivity(
+  data: CreateActivityInput,
+  options?: { skipRevalidate?: boolean }
+) {
   try {
     const gate = await requireProjectAccess(data.projectId, 'view.proyectos');
     if (!gate.ok) return { success: false, error: gate.error };
@@ -117,7 +119,6 @@ export async function createActivity(data: CreateActivityInput) {
       cambioGenerado: activity.name,
     });
 
-    revalidatePath('/gantt');
     return { success: true, data: activity };
   } catch (error) {
     console.error('Error creating activity:', error);
@@ -198,7 +199,6 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       });
     }
 
-    revalidatePath('/gantt');
     return { success: true, data: activity };
   } catch (error) {
     console.error('Error updating activity:', error);
@@ -238,7 +238,6 @@ export async function deleteActivity(id: string) {
       cambioGenerado: '',
     });
 
-    revalidatePath('/gantt');
     return { success: true };
   } catch (error) {
     console.error('Error deleting activity:', error);
@@ -277,7 +276,6 @@ export async function reorderActivities(
       )
     );
 
-    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error reordering activities:', error);
@@ -330,7 +328,10 @@ export async function reorderActivitiesKanban(
 /**
  * Crear una nueva tarea
  */
-export async function createTask(data: TaskData) {
+export async function createTask(
+  data: TaskData,
+  options?: { skipRevalidate?: boolean }
+) {
   try {
     // Validar que el nombre de la tarea no exceda 70 caracteres
     if (data.name && data.name.length > 70) {
@@ -379,7 +380,6 @@ export async function createTask(data: TaskData) {
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(data.activityId);
 
-    revalidatePath('/gantt');
     return { success: true, data: task };
   } catch (error) {
     console.error('Error creating task:', error);
@@ -474,7 +474,6 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(task.activityId);
 
-    revalidatePath('/gantt');
     return { success: true, data: task };
   } catch (error) {
     console.error('Error updating task:', error);
@@ -519,7 +518,6 @@ export async function deleteTask(id: string) {
     // Recalcular progreso de la actividad
     await recalculateActivityProgress(task.activityId);
 
-    revalidatePath('/gantt');
     return { success: true };
   } catch (error) {
     console.error('Error deleting task:', error);
@@ -720,7 +718,6 @@ export async function updateActivityStatus(
       });
     }
 
-    revalidatePath('/proyectos');
     return { success: true, data: activity };
   } catch (error) {
     console.error('Error updating activity status:', error);

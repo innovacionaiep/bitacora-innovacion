@@ -170,34 +170,33 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
     });
 
     const proyectoIds = rows.map((p) => p.id);
-    const itemsPresupuesto =
+    const [itemsPresupuesto, participantesCoord] =
       proyectoIds.length > 0
-        ? await prisma.itemPresupuesto.findMany({
-            where: { proyectoId: { in: proyectoIds } },
-            select: {
-              proyectoId: true,
-              cuenta: true,
-              monto: true,
-              estado: true,
-              item: true,
-            },
-          })
-        : [];
-    const participantesCoord =
-      proyectoIds.length > 0
-        ? await prisma.proyectoParticipante.findMany({
-            where: {
-              rol: 'Coordinador',
-              proyectoId: { in: proyectoIds },
-              email: { not: null },
-            },
-            select: {
-              email: true,
-              nombre: true,
-              proyectoId: true,
-            },
-          })
-        : [];
+        ? await Promise.all([
+            prisma.itemPresupuesto.findMany({
+              where: { proyectoId: { in: proyectoIds } },
+              select: {
+                proyectoId: true,
+                cuenta: true,
+                monto: true,
+                estado: true,
+                item: true,
+              },
+            }),
+            prisma.proyectoParticipante.findMany({
+              where: {
+                rol: 'Coordinador',
+                proyectoId: { in: proyectoIds },
+                email: { not: null },
+              },
+              select: {
+                email: true,
+                nombre: true,
+                proyectoId: true,
+              },
+            }),
+          ])
+        : [[], []];
 
     const itemsByProyecto = new Map<string, typeof itemsPresupuesto>();
     for (const item of itemsPresupuesto) {
@@ -412,16 +411,19 @@ export async function confirmBulkActivityFondo(input: {
         continue;
       }
 
-      const activityResult = await createActivity({
-        name,
-        description,
-        projectId: proyectoId,
-        color: 'bg-gray-700',
-        progress: 0,
-        orderIndex: 0,
-        kanbanOrderIndex: 0,
-        status: 'TODO',
-      });
+      const activityResult = await createActivity(
+        {
+          name,
+          description,
+          projectId: proyectoId,
+          color: 'bg-gray-700',
+          progress: 0,
+          orderIndex: 0,
+          kanbanOrderIndex: 0,
+          status: 'TODO',
+        },
+        { skipRevalidate: true }
+      );
 
       if (!activityResult.success || !activityResult.data) {
         errors.push({
@@ -431,15 +433,18 @@ export async function confirmBulkActivityFondo(input: {
         continue;
       }
 
-      const taskCreateResult = await createTask({
-        name: task.name,
-        description: task.description ?? '',
-        startDate: task.startDate,
-        endDate: task.endDate,
-        activityId: activityResult.data.id,
-        completed: false,
-        progress: 0,
-      });
+      const taskCreateResult = await createTask(
+        {
+          name: task.name,
+          description: task.description ?? '',
+          startDate: task.startDate,
+          endDate: task.endDate,
+          activityId: activityResult.data.id,
+          completed: false,
+          progress: 0,
+        },
+        { skipRevalidate: true }
+      );
 
       if (!taskCreateResult.success) {
         errors.push({

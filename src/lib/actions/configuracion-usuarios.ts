@@ -56,21 +56,22 @@ function unlockConfiguredOrError():
   return { ok: true, password };
 }
 
-/** Mapa id -> última actividad (desde BD por raw para no depender del cliente Prisma). */
-async function getLastActiveByUserId(
+/** Mapa id -> tiene contraseña (sin leer el hash). */
+async function getHasAccountByUserId(
   userIds: string[]
-): Promise<Map<string, Date | null>> {
-  const map = new Map<string, Date | null>();
+): Promise<Map<string, boolean>> {
+  const map = new Map<string, boolean>();
   if (userIds.length === 0) return map;
   try {
     const { Prisma } = await import('@prisma/client');
     const raw = await prisma.$queryRaw<
-      { id: string; last_active_at: Date | null }[]
+      { id: string; has_account: boolean }[]
     >`
-      SELECT id, last_active_at FROM users
+      SELECT id, (password IS NOT NULL AND password <> '') AS has_account
+      FROM users
       WHERE id IN (${Prisma.join(userIds)})
     `;
-    raw.forEach((r) => map.set(r.id, r.last_active_at));
+    raw.forEach((r) => map.set(r.id, r.has_account));
   } catch {
     // Columna puede no existir en BD antigua
   }
@@ -97,11 +98,13 @@ export async function listUsersAdmin(): Promise<{
           id: true,
           name: true,
           email: true,
+          image: true,
           rut: true,
           cargo: true,
           sedeId: true,
           escuelaId: true,
-          password: true,
+          activeRole: true,
+          lastActiveAt: true,
           sede: { select: { nombre: true } },
           escuela: { select: { nombre: true } },
           roles: { select: { role: true } },
@@ -115,11 +118,6 @@ export async function listUsersAdmin(): Promise<{
               proyecto: { select: { proyecto: true } },
             },
           },
-          sessions: {
-            orderBy: { expires: 'desc' },
-            take: 1,
-            select: { expires: true },
-          },
         },
       }),
       prisma.proyectoParticipante.findMany({
@@ -131,7 +129,7 @@ export async function listUsersAdmin(): Promise<{
         },
       }),
     ]);
-    const lastActiveById = await getLastActiveByUserId(users.map((u) => u.id));
+    const hasAccountById = await getHasAccountByUserId(users.map((u) => u.id));
 
     const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
     for (const p of participacionesPorEmail) {
@@ -172,9 +170,8 @@ export async function listUsersAdmin(): Promise<{
         sedeNombre: u.sede?.nombre ?? null,
         escuelaId: u.escuelaId,
         escuelaNombre: u.escuela?.nombre ?? null,
-        hasAccount: hasAccount(u),
-        lastSessionExpires:
-          lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+        hasAccount: hasAccountById.get(u.id) ?? false,
+        lastSessionExpires: u.lastActiveAt,
         roles: u.roles.map((r) => r.role),
         proyectos: merged,
       };
@@ -238,6 +235,7 @@ export async function listUsersAdminWithPasswords(
           sedeId: true,
           escuelaId: true,
           password: true,
+          lastActiveAt: true,
           sede: { select: { nombre: true } },
           escuela: { select: { nombre: true } },
           roles: { select: { role: true } },
@@ -251,11 +249,6 @@ export async function listUsersAdminWithPasswords(
               proyecto: { select: { proyecto: true } },
             },
           },
-          sessions: {
-            orderBy: { expires: 'desc' },
-            take: 1,
-            select: { expires: true },
-          },
         },
       }),
       prisma.proyectoParticipante.findMany({
@@ -267,7 +260,6 @@ export async function listUsersAdminWithPasswords(
         },
       }),
     ]);
-    const lastActiveById = await getLastActiveByUserId(users.map((u) => u.id));
 
     const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
     for (const p of participacionesPorEmail) {
@@ -309,8 +301,7 @@ export async function listUsersAdminWithPasswords(
         escuelaId: u.escuelaId,
         escuelaNombre: u.escuela?.nombre ?? null,
         hasAccount: hasAccount(u),
-        lastSessionExpires:
-          lastActiveById.get(u.id) ?? u.sessions[0]?.expires ?? null,
+        lastSessionExpires: u.lastActiveAt,
         roles: u.roles.map((r) => r.role),
         proyectos: merged,
         passwordPlain: null,

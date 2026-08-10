@@ -28,5 +28,7 @@ declare module 'next-auth/jwt' {
     id: string;
     activeRole: string | null;
     availableRoles: string[];
+    /** Epoch ms of last DB sync for availableRoles / activeRole */
+    rolesRefreshedAt?: number;
   }
 }

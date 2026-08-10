@@ -5,6 +5,10 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { getUserRoles } from '@/lib/auth-utils';
+import {
+  buildRoleClaims,
+  shouldRefreshJwtRoles,
+} from '@/lib/auth/sync-session-roles';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -46,10 +50,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email o password incorrectos');
         }
 
-        // Registrar última actividad (inicio de sesión) para mostrar en Configuración > Usuarios (raw para no depender del cliente Prisma)
-        await prisma.$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${user.id}`.catch(
-          () => {}
-        );
+        // last_active: fire-and-forget (same pattern as session callback)
+        prisma
+          .$executeRaw`UPDATE users SET last_active_at = NOW() WHERE id = ${user.id}`
+          .catch(() => {});
 
         // Obtener roles del usuario
         const roles = await getUserRoles(user.id);
@@ -84,22 +88,42 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.activeRole = user.activeRole;
         token.availableRoles = user.availableRoles || [];
+        token.rolesRefreshedAt = Date.now();
       }
 
-      // Update session (cuando se llama update() desde el cliente)
-      if (trigger === 'update' && session) {
-        // Refresh enabled roles from DB (activeRole is no longer used for authz)
-        if (token.id) {
+      // Client session.update({ name }) etc.
+      if (trigger === 'update' && session?.name !== undefined) {
+        token.name = session.name;
+      }
+
+      // Re-sync enabled roles from DB while the user stays logged in.
+      // Throttled so getSession()/server actions do not pay 2 DB queries every time.
+      // Client SessionProvider refetch + session.update() still rewrite the cookie.
+      if (token.id) {
+        const now = Date.now();
+        const forceRefresh = trigger === 'update';
+        if (
+          forceRefresh ||
+          shouldRefreshJwtRoles(
+            token.rolesRefreshedAt as number | undefined,
+            now
+          )
+        ) {
           try {
-            const roles = await getUserRoles(token.id as string);
-            token.availableRoles = Array.from(new Set(roles));
+            const [roles, dbUser] = await Promise.all([
+              getUserRoles(token.id as string),
+              prisma.user.findUnique({
+                where: { id: token.id as string },
+                select: { activeRole: true },
+              }),
+            ]);
+            const claims = buildRoleClaims(roles, dbUser?.activeRole ?? null);
+            token.availableRoles = claims.availableRoles;
+            token.activeRole = claims.activeRole;
+            token.rolesRefreshedAt = now;
           } catch {
             // Keep existing roles on refresh failure
           }
-        }
-
-        if (session.name !== undefined) {
-          token.name = session.name;
         }
       }
 

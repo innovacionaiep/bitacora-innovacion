@@ -16,19 +16,52 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
+import type { Session } from 'next-auth';
 
 interface CommentItemProps {
   comment: CommentWithRelations;
   postId: string;
   onCommentAdded: (comment: CommentWithRelations) => void;
+  onCommentReplaced: (tempId: string, comment: CommentWithRelations) => void;
+  onCommentRemoved: (commentId: string) => void;
   onCommentDeleted: (commentId: string) => void;
   isReply?: boolean;
+}
+
+function buildOptimisticReply(
+  tempId: string,
+  postId: string,
+  parentId: string,
+  user: NonNullable<Session['user']>,
+  contenido: string
+): CommentWithRelations {
+  return {
+    id: tempId,
+    postId,
+    authorId: user.id ?? '',
+    parentId,
+    contenido,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    author: {
+      id: user.id ?? '',
+      name: user.name ?? null,
+      email: user.email ?? '',
+      image: user.image ?? null,
+    },
+    likes: [],
+    _count: { likes: 0, replies: 0 },
+    replies: [],
+    isLikedByUser: false,
+  };
 }
 
 export function CommentItem({
   comment,
   postId,
   onCommentAdded,
+  onCommentReplaced,
+  onCommentRemoved,
   onCommentDeleted,
   isReply = false,
 }: CommentItemProps) {
@@ -53,15 +86,32 @@ export function CommentItem({
   };
 
   const handleSubmitReply = async () => {
-    if (!replyContent.trim() || isSubmitting) return;
+    if (!replyContent.trim() || isSubmitting || !session?.user) return;
 
+    const content = replyContent.trim();
+    const tempId = `temp-${Date.now()}`;
+    const optimistic = buildOptimisticReply(
+      tempId,
+      postId,
+      comment.id,
+      session.user,
+      content
+    );
+
+    onCommentAdded(optimistic);
+    setReplyContent('');
+    setShowReplyForm(false);
     setIsSubmitting(true);
-    const result = await createComment(postId, replyContent, comment.id);
+
+    const result = await createComment(postId, content, comment.id);
 
     if (result.success && result.data) {
-      onCommentAdded(result.data);
-      setReplyContent('');
-      setShowReplyForm(false);
+      onCommentReplaced(tempId, result.data);
+    } else {
+      onCommentRemoved(tempId);
+      setReplyContent(content);
+      setShowReplyForm(true);
+      alert(result.error ?? 'Error al crear la respuesta');
     }
     setIsSubmitting(false);
   };
@@ -177,6 +227,8 @@ export function CommentItem({
                 comment={reply}
                 postId={postId}
                 onCommentAdded={onCommentAdded}
+                onCommentReplaced={onCommentReplaced}
+                onCommentRemoved={onCommentRemoved}
                 onCommentDeleted={onCommentDeleted}
                 isReply
               />

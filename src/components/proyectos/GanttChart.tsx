@@ -1286,32 +1286,33 @@ export default function GanttChart({
       }
     }
 
-    setIsSavingActivityField(true);
-    try {
-      const payload =
-        editingActivityField === 'name'
-          ? { name: activityFieldDraft.name.trim() }
-          : { description: activityFieldDraft.description };
+    const payload =
+      editingActivityField === 'name'
+        ? { name: activityFieldDraft.name.trim() }
+        : { description: activityFieldDraft.description };
 
-      const { error } = await updateActivity(
-        selectedActivityForPopup.id,
-        payload
-      );
+    const previousActivity = selectedActivityForPopup;
+    const previousEditingField = editingActivityField;
 
-      if (error) {
-        alert('Error al actualizar la actividad: ' + error);
-        return;
-      }
+    setSelectedActivityForPopup({
+      ...selectedActivityForPopup,
+      ...payload,
+    });
+    setEditingActivityField(null);
 
-      setSelectedActivityForPopup({
-        ...selectedActivityForPopup,
-        ...payload,
-      });
-      setEditingActivityField(null);
-      showSuccessMessage('Cambios guardados');
-    } finally {
-      setIsSavingActivityField(false);
+    const { error } = await updateActivity(
+      selectedActivityForPopup.id,
+      payload
+    );
+
+    if (error) {
+      setSelectedActivityForPopup(previousActivity);
+      setEditingActivityField(previousEditingField);
+      alert('Error al actualizar la actividad: ' + error);
+      return;
     }
+
+    showSuccessMessage('Cambios guardados');
   };
 
   const handleSaveTaskEdit = async () => {
@@ -1344,35 +1345,36 @@ export default function GanttChart({
         )
       );
     } else {
-      const { error } = await updateTask(task.id, {
+      const taskUpdates = {
         name: editingTaskForm.name,
         description: editingTaskForm.description,
         startDate: convertedStart,
         endDate: convertedEnd,
-      });
-      if (error) {
-        alert('Error al actualizar tarea: ' + error);
-        return;
-      }
+      };
+      const previousActivity = selectedActivityForPopup;
+      const previousEditingTaskId = editingTaskId;
+
       if (selectedActivityForPopup) {
         const updated =
           selectedActivityForPopup.tasks?.map((t) =>
-            t.id === task.id
-              ? {
-                  ...t,
-                  name: editingTaskForm.name,
-                  description: editingTaskForm.description,
-                  startDate: convertedStart,
-                  endDate: convertedEnd,
-                }
-              : t
+            t.id === task.id ? { ...t, ...taskUpdates } : t
           ) || [];
         setSelectedActivityForPopup({
           ...selectedActivityForPopup,
           tasks: updated,
         });
       }
+      setEditingTaskId(null);
+
+      const { error } = await updateTask(task.id, taskUpdates);
+      if (error) {
+        if (previousActivity) setSelectedActivityForPopup(previousActivity);
+        setEditingTaskId(previousEditingTaskId);
+        alert('Error al actualizar tarea: ' + error);
+        return;
+      }
       // useGantt.updateTask ya parchea el estado; no hace falta refetch completo
+      return;
     }
     setEditingTaskId(null);
   };

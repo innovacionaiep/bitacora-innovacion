@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,10 +11,9 @@ import {
   PortalAlertasPendientes,
   PortalCompromisosPendientes,
   PortalHistorialReciente,
-  InicioTour,
-  type InicioTourHandle,
 } from '@/components/portal';
 import {
+  getInicioInitialData,
   getProyectosDelUsuarioConRol,
   getAlertasPortalUsuario,
   type InicioInitialData,
@@ -21,6 +21,14 @@ import {
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+
+type InicioTourHandle = { startTour: () => void };
+
+const InicioTour = dynamic(
+  () =>
+    import('@/components/portal/InicioTour').then((m) => m.InicioTour),
+  { ssr: false }
+);
 
 export function InicioClient({
   initialData,
@@ -45,7 +53,6 @@ export function InicioClient({
   const [loadingAlertas, setLoadingAlertas] = useState(!initialData);
   const [loadingCompromisos, setLoadingCompromisos] = useState(!initialData);
   const [loadingHistorial, setLoadingHistorial] = useState(!initialData);
-  const hasLoadedRef = useRef(Boolean(initialData));
 
   const loadPortalData = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -56,33 +63,39 @@ export function InicioClient({
       setLoadingHistorial(true);
     }
 
-    await Promise.all([
-      getProyectosDelUsuarioConRol().then((r) => {
-        if (r.success && r.data) setProyectos(r.data);
-        if (!silent) setLoadingProyectos(false);
-      }),
-      getAlertasPortalUsuario().then((r) => {
-        if (r.success) setAlertas(r.data);
-        if (!silent) setLoadingAlertas(false);
-      }),
-      getCompromisosPendientesParaUsuario().then((r) => {
-        if (r.success && r.data) setCompromisos(r.data);
-        if (!silent) setLoadingCompromisos(false);
-      }),
-      getHistorialRecienteParaUsuario(null, 10).then((r) => {
-        if (r.success && r.data) setHistorial(r.data);
-        if (!silent) setLoadingHistorial(false);
-      }),
-    ]);
-    hasLoadedRef.current = true;
+    const data = await getInicioInitialData();
+    if (data) {
+      setProyectos(data.proyectos ?? []);
+      setAlertas(data.alertas);
+      setCompromisos(data.compromisos ?? []);
+      setHistorial(data.historial ?? []);
+    }
+    if (!silent) {
+      setLoadingProyectos(false);
+      setLoadingAlertas(false);
+      setLoadingCompromisos(false);
+      setLoadingHistorial(false);
+    }
   }, []);
 
+  // Only fetch when SSR did not provide data (unauthenticated SSR → login then hydrate)
   useEffect(() => {
     if (status !== 'authenticated') return;
-    // Refetch al montar / volver a Inicio: el SSR inicial puede quedar stale
-    // tras mutaciones en /proyectos (p. ej. presupuesto por solicitar).
-    void loadPortalData({ silent: hasLoadedRef.current });
-  }, [status, loadPortalData]);
+    if (initialData) return;
+    void loadPortalData({ silent: false });
+  }, [status, initialData, loadPortalData]);
+
+  // Soft refresh when returning to the tab (mutations elsewhere may have changed portal data)
+  useEffect(() => {
+    if (status !== 'authenticated' || !initialData) return;
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        void loadPortalData({ silent: true });
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [status, initialData, loadPortalData]);
 
   usePageTopLoader(
     status === 'loading' ||

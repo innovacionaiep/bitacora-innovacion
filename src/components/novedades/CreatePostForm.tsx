@@ -72,31 +72,53 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
       });
     }
 
-    setIsSubmitting(true);
-    setError(null);
-
-    const result = await createPost({
+    const snapshot = {
       contenido,
       proyectoIds,
-      imagenes: images,
+      images,
+      youtubeUrl,
+      mediaMode,
+      isExpanded,
+      eventoFecha,
+      eventoNombre,
+      eventoDescripcion,
+    };
+
+    setContenido('');
+    setProyectoIds([]);
+    setImages([]);
+    setYoutubeUrl('');
+    setMediaMode(null);
+    setIsExpanded(false);
+    setEventoFecha('');
+    setEventoNombre('');
+    setEventoDescripcion('');
+    setError(null);
+    setIsSubmitting(true);
+
+    const result = await createPost({
+      contenido: snapshot.contenido,
+      proyectoIds: snapshot.proyectoIds,
+      imagenes: snapshot.images,
       videos: videos.length > 0 ? videos : undefined,
-      eventoFecha: mediaMode === 'evento' ? eventoFecha : undefined,
-      eventoNombre: mediaMode === 'evento' ? eventoNombre : undefined,
-      eventoDescripcion: mediaMode === 'evento' ? eventoDescripcion : undefined,
+      eventoFecha: snapshot.mediaMode === 'evento' ? snapshot.eventoFecha : undefined,
+      eventoNombre: snapshot.mediaMode === 'evento' ? snapshot.eventoNombre : undefined,
+      eventoDescripcion:
+        snapshot.mediaMode === 'evento' ? snapshot.eventoDescripcion : undefined,
     });
 
     if (result.success && result.data) {
       onPostCreated(result.data as PostWithRelations);
-      setContenido('');
-      setProyectoIds([]);
-      setImages([]);
-      setYoutubeUrl('');
-      setMediaMode(null);
-      setIsExpanded(false);
-      setEventoFecha('');
-      setEventoNombre('');
-      setEventoDescripcion('');
     } else {
+      setContenido(snapshot.contenido);
+      setProyectoIds(snapshot.proyectoIds);
+      setImages(snapshot.images);
+      setYoutubeUrl(snapshot.youtubeUrl);
+      setMediaMode(snapshot.mediaMode);
+      setIsExpanded(snapshot.isExpanded);
+      setEventoFecha(snapshot.eventoFecha);
+      setEventoNombre(snapshot.eventoNombre);
+      setEventoDescripcion(snapshot.eventoDescripcion);
       setError(result.error || 'Error al crear la publicación');
     }
 

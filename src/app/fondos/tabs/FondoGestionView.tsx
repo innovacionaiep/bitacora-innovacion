@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LucideIcon } from 'lucide-react';
 import {
   FolderKanban,
@@ -31,8 +32,8 @@ import { BulkCoordinadoresDialog } from '../components/BulkCoordinadoresDialog';
 import {
   getFondoGestionData,
   type FondoCoordinadorResumen,
-  type FondoGestionData,
 } from '@/lib/actions/operaciones-fondo';
+import { fondoGestionKey } from '@/lib/query-keys';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -255,34 +256,37 @@ function PctCell({ value }: { value: number }) {
 }
 
 export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
-  const [data, setData] = useState<FondoGestionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [activityOpen, setActivityOpen] = useState(false);
   const [coordsOpen, setCoordsOpen] = useState(false);
   const [conveniosOpen, setConveniosOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await getFondoGestionData(fondoNombre);
-    if (!res.success || !res.data) {
-      setError(res.error ?? 'Error al cargar el fondo');
-      setData(null);
-    } else {
-      setData(res.data);
-    }
-    setLoading(false);
-  }, [fondoNombre]);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: fondoGestionKey(fondoNombre),
+    queryFn: async () => {
+      const res = await getFondoGestionData(fondoNombre);
+      if (!res.success || !res.data) {
+        throw new Error(res.error ?? 'Error al cargar el fondo');
+      }
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const invalidate = () =>
+    void queryClient.invalidateQueries({
+      queryKey: fondoGestionKey(fondoNombre),
+    });
 
-  if (loading && !data) {
-    return <div className="h-full min-h-0" />;
+  if (isLoading && !data) {
+    return <div className="h-full min-h-[200px] bg-background" />;
   }
 
+  const error = queryError?.message ?? null;
   if (error && !data) {
     return (
       <div className="px-1 py-8">
@@ -422,14 +426,14 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
         open={activityOpen}
         onOpenChange={setActivityOpen}
         fondoNombre={fondoNombre}
-        onSuccess={() => void load()}
+        onSuccess={invalidate}
       />
       <BulkCoordinadoresDialog
         open={coordsOpen}
         onOpenChange={setCoordsOpen}
         fondoNombre={fondoNombre}
         fondoCoordinadores={coordinadores}
-        onSuccess={() => void load()}
+        onSuccess={invalidate}
       />
     </div>
   );

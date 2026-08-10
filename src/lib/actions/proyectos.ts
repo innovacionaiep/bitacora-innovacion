@@ -85,6 +85,10 @@ type GeneralTabUpdateData = {
 /**
  * Función interna para obtener proyectos de la BD (sin caché).
  * Si whereIds está definido, solo devuelve esos proyectos.
+ *
+ * @deprecated No usar para listados ni selectores de UI — usar
+ * `getProyectosListadoParaUsuario` en su lugar. Esta consulta carga el grafo
+ * completo (activities, participantes, desarrollo técnico, etc.) y es costosa.
  */
 async function _getProyectosFromDB(whereIds?: string[]) {
   // Obtener información del mes anterior para calcular variaciones
@@ -322,7 +326,7 @@ async function getProyectoIdsForUserParticipation(
  * Sin caché global compartida entre usuarios.
  */
 export async function getProyectos() {
-  return getProyectosParaUsuarioPorRolActivo();
+  return getProyectosListadoParaUsuario();
 }
 
 /**
@@ -379,40 +383,9 @@ export async function getProyectosDashboard() {
  * - Otros: todos los proyectos donde participan (cualquier rol).
  */
 export async function getProyectosParaUsuarioPorRolActivo(
-  _activeRoleOverride?: string | null
+  activeRoleOverride?: string | null
 ) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'Usuario no autenticado', data: [] };
-    }
-
-    const availableRoles = user.availableRoles ?? [];
-    const canViewAll = await userHasPermission(
-      availableRoles,
-      'projects.view_all'
-    );
-    if (canViewAll) {
-      const result = await _getProyectosFromDB();
-      return { success: true, data: result };
-    }
-
-    const userEmail = user.email ?? null;
-    const proyectoIds = await getProyectoIdsForUserParticipation(
-      user.id,
-      userEmail
-    );
-
-    if (proyectoIds.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    const proyectos = await _getProyectosFromDB(proyectoIds);
-    return { success: true, data: proyectos };
-  } catch (error) {
-    console.error('❌ [getProyectosParaUsuarioPorRolActivo] Error:', error);
-    return { success: false, error: 'Error al obtener proyectos', data: [] };
-  }
+  return getProyectosListadoParaUsuario(activeRoleOverride);
 }
 
 /**
@@ -477,6 +450,11 @@ type GetProyectoOptions = {
    * Default false: el tab Participantes los carga vía getProyectoParticipantes.
    */
   includeParticipantes?: boolean;
+  /**
+   * Si true, incluye desarrolloTecnico y desarrolloTecnicoValores.
+   * Default false: el cliente los carga vía getProyectoDesarrolloTecnico.
+   */
+  includeDesarrolloTecnico?: boolean;
 };
 
 type ParticipanteRelRow = NonNullable<
@@ -572,7 +550,11 @@ export async function getProyecto(
   id: string,
   options: GetProyectoOptions = {}
 ) {
-  const { includeActivities = false, includeParticipantes = false } = options;
+  const {
+    includeActivities = false,
+    includeParticipantes = false,
+    includeDesarrolloTecnico = false,
+  } = options;
   try {
     const proyecto = await prisma.proyecto.findUnique({
       where: { id },
@@ -662,21 +644,25 @@ export async function getProyecto(
             orden: 'asc',
           },
         },
-        desarrolloTecnico: true,
-        desarrolloTecnicoValores: {
-          include: {
-            subcategoria: {
-              select: {
-                id: true,
-                nombre: true,
-                categoriaId: true,
-                orden: true,
-                icono: true,
-                campoKey: true,
+        ...(includeDesarrolloTecnico
+          ? {
+              desarrolloTecnico: true,
+              desarrolloTecnicoValores: {
+                include: {
+                  subcategoria: {
+                    select: {
+                      id: true,
+                      nombre: true,
+                      categoriaId: true,
+                      orden: true,
+                      icono: true,
+                      campoKey: true,
+                    },
+                  },
+                },
               },
-            },
-          },
-        },
+            }
+          : {}),
       },
     });
 
@@ -729,6 +715,57 @@ export async function getProyectoBase(id: string) {
     includeActivities: false,
     includeParticipantes: false,
   });
+}
+
+/**
+ * Solo desarrollo técnico del proyecto (carga diferida tras getProyectoBase).
+ */
+export async function getProyectoDesarrolloTecnico(proyectoId: string) {
+  try {
+    const gate = await requireProjectAccess(proyectoId);
+    if (!gate.ok) {
+      return { success: false as const, error: gate.error };
+    }
+
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: proyectoId },
+      select: {
+        desarrolloTecnico: true,
+        desarrolloTecnicoValores: {
+          include: {
+            subcategoria: {
+              select: {
+                id: true,
+                nombre: true,
+                categoriaId: true,
+                orden: true,
+                icono: true,
+                campoKey: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!proyecto) {
+      return { success: false as const, error: 'Proyecto no encontrado' };
+    }
+
+    return {
+      success: true as const,
+      data: {
+        desarrolloTecnico: proyecto.desarrolloTecnico,
+        desarrolloTecnicoValores: proyecto.desarrolloTecnicoValores,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting proyecto desarrollo técnico:', error);
+    return {
+      success: false as const,
+      error: 'Error al obtener desarrollo técnico',
+    };
+  }
 }
 
 /**
@@ -1480,65 +1517,19 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       }
     });
 
-    // Cargar proyecto actualizado SIN activities/tasks (el cliente preserva las ya cargadas)
-    const proyectoActualizado = await prisma.proyecto.findUnique({
-      where: { id: data.proyectoId },
-      include: {
-        participantes_rel: {
-          include: {
-            user: true,
-            socioComunitario: true,
-            sede: true,
-            escuela: true,
-            carrera: true,
-            asignatura: true,
-          },
-        },
-        escuelas: {
-          include: {
-            escuela: true,
-          },
-        },
-        carreras: {
-          include: {
-            carrera: true,
-          },
-        },
-        asignaturas: {
-          include: {
-            asignatura: true,
-          },
-        },
-        comunas: {
-          include: {
-            comuna: true,
-          },
-        },
-        gruposInteres: {
-          include: {
-            grupoInteres: true,
-          },
-        },
-        sociosComunitarios: {
-          include: {
-            socioComunitario: true,
-          },
-        },
-        objetivos_rel: {
-          orderBy: {
-            orden: 'asc',
-          },
-        },
-        desarrolloTecnico: true,
-        desarrolloTecnicoValores: {
-          include: { subcategoria: true },
-        },
-      },
+    const includeDesarrolloTecnico =
+      data.desarrolloTecnico !== undefined ||
+      data.desarrolloTecnicoValores !== undefined;
+    const proyectoResult = await getProyecto(data.proyectoId, {
+      includeDesarrolloTecnico,
     });
-
-    if (!proyectoActualizado) {
-      return { success: false, error: 'Proyecto no encontrado tras actualizar' };
+    if (!proyectoResult.success || !proyectoResult.data) {
+      return {
+        success: false,
+        error: proyectoResult.error ?? 'Proyecto no encontrado tras actualizar',
+      };
     }
+    const proyectoActualizado = proyectoResult.data;
 
     // Registrar en historial solo los campos que realmente cambiaron (comparar con estado anterior)
     const historialEntries: Array<{
@@ -1748,8 +1739,6 @@ export async function updateProyectoGeneralTab(data: GeneralTabUpdateData) {
       );
     }
 
-    revalidatePath('/proyectos');
-    revalidateTag('proyectos');
     revalidateTag('proyectos-dashboard');
 
     const [ytRow] = await prisma.$queryRaw<{ youtube_url: string | null }[]>`
@@ -1810,8 +1799,6 @@ export async function createObjetivoEspecifico(
       elementoEspecifico: 'Objetivos Específicos del proyecto',
       cambioGenerado: `Objetivo específico agregado: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? '…' : ''}`,
     });
-    revalidatePath('/proyectos');
-    revalidateTag('proyectos');
     revalidateTag('proyectos-dashboard');
     return { success: true };
   } catch (error) {
@@ -1943,12 +1930,16 @@ export async function getSociosComunitarios(): Promise<
 }
 
 type CatalogosGeneralData = {
-  escuelas: Escuela[];
-  carreras: Carrera[];
-  asignaturas: Asignatura[];
-  comunas: Comuna[];
-  gruposInteres: GrupoInteres[];
-  sociosComunitarios: SocioComunitario[];
+  escuelas: { id: string; nombre: string; codigo: string }[];
+  carreras: { id: string; nombre: string }[];
+  asignaturas: { id: string; nombre: string }[];
+  comunas: { id: string; nombre: string; region: string }[];
+  gruposInteres: { id: string; nombre: string; descripcion: string | null }[];
+  sociosComunitarios: {
+    id: string;
+    nombre: string;
+    descripcion: string | null;
+  }[];
   sedes: { id: string; nombre: string; orden: number }[];
   fondos: { id: string; nombre: string; orden: number }[];
   lineas: {
@@ -1981,21 +1972,47 @@ export async function getCatalogosGeneral(): Promise<{
       fondos,
       lineasRaw,
     ] = await Promise.all([
-      prisma.escuela.findMany({ orderBy: { nombre: 'asc' } }),
-      prisma.carrera.findMany({ orderBy: { nombre: 'asc' } }),
-      prisma.asignatura.findMany({ orderBy: { nombre: 'asc' } }),
-      prisma.comuna.findMany({ orderBy: { nombre: 'asc' } }),
-      prisma.grupoInteres.findMany({ orderBy: { nombre: 'asc' } }),
-      prisma.socioComunitario.findMany({ orderBy: { nombre: 'asc' } }),
+      prisma.escuela.findMany({
+        select: { id: true, nombre: true, codigo: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.carrera.findMany({
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.asignatura.findMany({
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.comuna.findMany({
+        select: { id: true, nombre: true, region: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.grupoInteres.findMany({
+        select: { id: true, nombre: true, descripcion: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.socioComunitario.findMany({
+        select: { id: true, nombre: true, descripcion: true },
+        orderBy: { nombre: 'asc' },
+      }),
       prisma.sede.findMany({
+        select: { id: true, nombre: true, orden: true },
         orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
       }),
       prisma.fondo.findMany({
+        select: { id: true, nombre: true, orden: true },
         orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
       }),
       prisma.linea.findMany({
+        select: {
+          id: true,
+          nombre: true,
+          orden: true,
+          fondoId: true,
+          fondo: { select: { nombre: true } },
+        },
         orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
-        include: { fondo: { select: { nombre: true } } },
       }),
     ]);
 

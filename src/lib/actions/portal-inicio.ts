@@ -73,11 +73,13 @@ async function getParticipacionesUsuario(user: {
       ],
     },
     select: { proyectoId: true, rol: true },
+    orderBy: { createdAt: 'desc' },
   });
 }
 
 /**
  * Proyectos donde el usuario participa (todos los roles), con columna de rol.
+ * Internals accept preloaded participaciones to avoid duplicate auth/DB work.
  */
 export async function getProyectosDelUsuarioConRol(_ignored?: string | null) {
   try {
@@ -85,98 +87,11 @@ export async function getProyectosDelUsuarioConRol(_ignored?: string | null) {
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: [] };
     }
-
-    const participaciones = await prisma.proyectoParticipante.findMany({
-      where: {
-        OR: [
-          { userId: user.id },
-          ...(user.email
-            ? [
-                {
-                  email: { equals: user.email, mode: 'insensitive' as const },
-                },
-              ]
-            : []),
-        ],
-      },
-      include: {
-        proyecto: {
-          select: {
-            id: true,
-            proyecto: true,
-            fondo: true,
-            avanceGantt: true,
-            presupuestoAdjudicado: true,
-            indicadores: { select: { porcentajeAvance: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const proyectoIds = participaciones
-      .map((p) => p.proyecto?.id)
-      .filter((id): id is string => Boolean(id));
-
-    const itemsPresupuesto =
-      proyectoIds.length > 0
-        ? await prisma.itemPresupuesto.findMany({
-            where: { proyectoId: { in: proyectoIds } },
-            select: {
-              proyectoId: true,
-              cuenta: true,
-              monto: true,
-              estado: true,
-              item: true,
-            },
-          })
-        : [];
-
-    const itemsByProyecto = new Map<
-      string,
-      Array<{
-        proyectoId: string;
-        cuenta: (typeof itemsPresupuesto)[number]['cuenta'];
-        monto: number;
-        estado: (typeof itemsPresupuesto)[number]['estado'];
-        item: string;
-      }>
-    >();
-    for (const item of itemsPresupuesto) {
-      const list = itemsByProyecto.get(item.proyectoId) ?? [];
-      list.push(item);
-      itemsByProyecto.set(item.proyectoId, list);
-    }
-
-    const data = participaciones
-      .filter((p) => p.proyecto)
-      .map((p) => {
-        const proy = p.proyecto!;
-        const indicadores = proy.indicadores ?? [];
-        const avanceIndicadores =
-          indicadores.length > 0
-            ? Math.round(
-                (indicadores.reduce((s, i) => s + i.porcentajeAvance, 0) /
-                  indicadores.length) *
-                  100
-              ) / 100
-            : 0;
-        const avancePresupuesto = computeAvancePresupuestoPct(
-          itemsByProyecto.get(proy.id) ?? [],
-          proy.presupuestoAdjudicado ?? 0
-        );
-        return {
-          id: proy.id,
-          proyecto: proy.proyecto,
-          fondo: proy.fondo,
-          avanceGantt: proy.avanceGantt,
-          avanceIndicadores,
-          avancePresupuesto,
-          rol: p.rol,
-        };
-      });
-
-    return { success: true, data };
+    const participaciones = await getParticipacionesUsuario(user);
+    return {
+      success: true,
+      data: await buildProyectosConRolFromParticipaciones(participaciones),
+    };
   } catch (error) {
     console.error('Error al obtener proyectos del usuario por rol:', error);
     return {
@@ -185,6 +100,82 @@ export async function getProyectosDelUsuarioConRol(_ignored?: string | null) {
       data: [],
     };
   }
+}
+
+type ParticipacionRow = { proyectoId: string; rol: string };
+
+async function buildProyectosConRolFromParticipaciones(
+  participaciones: Array<{ proyectoId: string; rol: string | null }>
+) {
+  const normalized: ParticipacionRow[] = participaciones.map((p) => ({
+    proyectoId: p.proyectoId,
+    rol: p.rol ?? '',
+  }));
+  const proyectoIds = [...new Set(normalized.map((p) => p.proyectoId))];
+  if (proyectoIds.length === 0) return [];
+
+  const [proyectos, avgIndicadores, itemsPresupuesto] = await Promise.all([
+    prisma.proyecto.findMany({
+      where: { id: { in: proyectoIds } },
+      select: {
+        id: true,
+        proyecto: true,
+        fondo: true,
+        avanceGantt: true,
+        presupuestoAdjudicado: true,
+      },
+    }),
+    prisma.indicador.groupBy({
+      by: ['proyectoId'],
+      where: { proyectoId: { in: proyectoIds } },
+      _avg: { porcentajeAvance: true },
+    }),
+    prisma.itemPresupuesto.findMany({
+      where: { proyectoId: { in: proyectoIds } },
+      select: {
+        proyectoId: true,
+        cuenta: true,
+        monto: true,
+        estado: true,
+        item: true,
+      },
+    }),
+  ]);
+
+  const proyectoById = new Map(proyectos.map((p) => [p.id, p]));
+  const avgByProyecto = new Map(
+    avgIndicadores.map((r) => [
+      r.proyectoId,
+      r._avg.porcentajeAvance != null
+        ? Math.round(r._avg.porcentajeAvance * 100) / 100
+        : 0,
+    ])
+  );
+  const itemsByProyecto = new Map<string, typeof itemsPresupuesto>();
+  for (const item of itemsPresupuesto) {
+    const list = itemsByProyecto.get(item.proyectoId) ?? [];
+    list.push(item);
+    itemsByProyecto.set(item.proyectoId, list);
+  }
+
+  return normalized
+    .map((p) => {
+      const proy = proyectoById.get(p.proyectoId);
+      if (!proy) return null;
+      return {
+        id: proy.id,
+        proyecto: proy.proyecto,
+        fondo: proy.fondo,
+        avanceGantt: proy.avanceGantt,
+        avanceIndicadores: avgByProyecto.get(proy.id) ?? 0,
+        avancePresupuesto: computeAvancePresupuestoPct(
+          itemsByProyecto.get(proy.id) ?? [],
+          proy.presupuestoAdjudicado ?? 0
+        ),
+        rol: p.rol,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x != null);
 }
 
 export type AlertaPresupuestoItem = {
@@ -363,6 +354,7 @@ async function fetchAlertasPorEvidenciar(proyectoIds: string[]) {
       where: {
         projectId: { in: proyectoIds },
         evidencias: { none: {} },
+        progress: { gte: MIN_AVANCE_POR_EVIDENCIAR },
       },
       select: {
         id: true,
@@ -377,6 +369,7 @@ async function fetchAlertasPorEvidenciar(proyectoIds: string[]) {
       where: {
         proyectoId: { in: proyectoIds },
         evidencias: { none: {} },
+        porcentajeCumplimiento: { gte: MIN_AVANCE_POR_EVIDENCIAR },
       },
       select: {
         id: true,
@@ -391,26 +384,20 @@ async function fetchAlertasPorEvidenciar(proyectoIds: string[]) {
   ]);
 
   return {
-    actividadesPorEvidenciar: actividades
-      .filter((a) => (a.progress ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR)
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        proyectoId: a.projectId,
-        proyectoNombre: a.project?.proyecto ?? '',
-        porcentaje: a.progress ?? 0,
-      })),
-    indicadoresPorEvidenciar: indicadores
-      .filter(
-        (i) => Number(i.porcentajeCumplimiento ?? 0) >= MIN_AVANCE_POR_EVIDENCIAR
-      )
-      .map((i) => ({
-        id: i.id,
-        nombre: i.nombre,
-        proyectoId: i.proyectoId,
-        proyectoNombre: i.proyecto?.proyecto ?? '',
-        porcentaje: Number(i.porcentajeAvance ?? 0),
-      })),
+    actividadesPorEvidenciar: actividades.map((a) => ({
+      id: a.id,
+      name: a.name,
+      proyectoId: a.projectId,
+      proyectoNombre: a.project?.proyecto ?? '',
+      porcentaje: a.progress ?? 0,
+    })),
+    indicadoresPorEvidenciar: indicadores.map((i) => ({
+      id: i.id,
+      nombre: i.nombre,
+      proyectoId: i.proyectoId,
+      proyectoNombre: i.proyecto?.proyecto ?? '',
+      porcentaje: Number(i.porcentajeAvance ?? 0),
+    })),
   };
 }
 
@@ -424,42 +411,10 @@ export async function getAlertasPortalUsuario(_ignored?: string | null) {
     if (!user?.id) {
       return { success: false, error: 'Usuario no autenticado', data: null };
     }
-
     const participaciones = await getParticipacionesUsuario(user);
-    const miRolPorProyecto: Record<string, string> = {};
-    const proyectoIds: string[] = [];
-    for (const p of participaciones) {
-      if (
-        (ROLES_ALERTAS_PORTAL as readonly string[]).includes(p.rol) &&
-        !miRolPorProyecto[p.proyectoId]
-      ) {
-        miRolPorProyecto[p.proyectoId] = p.rol;
-        proyectoIds.push(p.proyectoId);
-      }
-    }
-
-    if (proyectoIds.length === 0) {
-      return {
-        success: true,
-        data: { ...emptyAlertasPortal(), miRolPorProyecto: {} },
-      };
-    }
-
-    const [porEvidenciar, presupuesto, atrasadas] = await Promise.all([
-      fetchAlertasPorEvidenciar(proyectoIds),
-      fetchPresupuestoPorSolicitar(proyectoIds),
-      fetchActividadesAtrasadas(proyectoIds),
-    ]);
-
     return {
       success: true,
-      data: {
-        actividadesPorEvidenciar: porEvidenciar.actividadesPorEvidenciar,
-        indicadoresPorEvidenciar: porEvidenciar.indicadoresPorEvidenciar,
-        presupuestoPorSolicitar: presupuesto,
-        actividadesAtrasadas: atrasadas,
-        miRolPorProyecto,
-      },
+      data: await buildAlertasFromParticipaciones(participaciones),
     };
   } catch (error) {
     console.error('Error al obtener alertas del portal:', error);
@@ -469,6 +424,79 @@ export async function getAlertasPortalUsuario(_ignored?: string | null) {
       data: null,
     };
   }
+}
+
+async function buildAlertasFromParticipaciones(
+  participaciones: Array<{ proyectoId: string; rol: string | null }>
+): Promise<AlertasPortal> {
+  const miRolPorProyecto: Record<string, string> = {};
+  const proyectoIds: string[] = [];
+  for (const p of participaciones) {
+    const rol = p.rol ?? '';
+    if (
+      (ROLES_ALERTAS_PORTAL as readonly string[]).includes(rol) &&
+      !miRolPorProyecto[p.proyectoId]
+    ) {
+      miRolPorProyecto[p.proyectoId] = rol;
+      proyectoIds.push(p.proyectoId);
+    }
+  }
+
+  if (proyectoIds.length === 0) {
+    return { ...emptyAlertasPortal(), miRolPorProyecto: {} };
+  }
+
+  const [porEvidenciar, presupuesto, atrasadas] = await Promise.all([
+    fetchAlertasPorEvidenciar(proyectoIds),
+    fetchPresupuestoPorSolicitar(proyectoIds),
+    fetchActividadesAtrasadas(proyectoIds),
+  ]);
+
+  return {
+    actividadesPorEvidenciar: porEvidenciar.actividadesPorEvidenciar,
+    indicadoresPorEvidenciar: porEvidenciar.indicadoresPorEvidenciar,
+    presupuestoPorSolicitar: presupuesto,
+    actividadesAtrasadas: atrasadas,
+    miRolPorProyecto,
+  };
+}
+
+async function fetchCompromisosForProyectoIds(proyectoIds: string[]) {
+  if (proyectoIds.length === 0) return [];
+  return prisma.compromisoProyecto.findMany({
+    where: {
+      proyectoId: { in: proyectoIds },
+      completado: false,
+    },
+    include: {
+      proyecto: {
+        select: { id: true, proyecto: true },
+      },
+    },
+    orderBy: [{ fechaLimite: 'asc' }, { createdAt: 'desc' }],
+  });
+}
+
+async function fetchHistorialForProyectoIds(proyectoIds: string[], limit = 10) {
+  if (proyectoIds.length === 0) return [];
+  return prisma.historialProyecto.findMany({
+    where: { proyectoId: { in: proyectoIds } },
+    take: limit,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+      proyecto: {
+        select: { id: true, proyecto: true },
+      },
+    },
+    orderBy: { fecha: 'desc' },
+  });
 }
 
 export type InicioInitialData = {
@@ -482,7 +510,7 @@ export type InicioInitialData = {
 };
 
 /**
- * Carga inicial del portal de inicio en el servidor (SSR).
+ * Carga inicial del portal de inicio: 1× auth + 1× participaciones + widgets en paralelo.
  */
 export async function getInicioInitialData(
   _ignored?: string | null
@@ -490,19 +518,21 @@ export async function getInicioInitialData(
   const user = await getCurrentUser();
   if (!user?.id) return null;
 
-  const [proyectosRes, alertasRes, compromisosRes, historialRes] =
-    await Promise.all([
-      getProyectosDelUsuarioConRol(),
-      getAlertasPortalUsuario(),
-      getCompromisosPendientesParaUsuario(),
-      getHistorialRecienteParaUsuario(null, 10),
-    ]);
+  const participaciones = await getParticipacionesUsuario(user);
+  const proyectoIds = [...new Set(participaciones.map((p) => p.proyectoId))];
+
+  const [proyectos, alertas, compromisos, historial] = await Promise.all([
+    buildProyectosConRolFromParticipaciones(participaciones),
+    buildAlertasFromParticipaciones(participaciones),
+    fetchCompromisosForProyectoIds(proyectoIds),
+    fetchHistorialForProyectoIds(proyectoIds, 10),
+  ]);
 
   return {
     role: null,
-    proyectos: proyectosRes.success ? proyectosRes.data ?? [] : [],
-    alertas: alertasRes.success ? alertasRes.data : null,
-    compromisos: compromisosRes.success ? compromisosRes.data ?? [] : [],
-    historial: historialRes.success ? historialRes.data ?? [] : [],
+    proyectos,
+    alertas,
+    compromisos,
+    historial,
   };
 }

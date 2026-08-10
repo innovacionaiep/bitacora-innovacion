@@ -9,6 +9,9 @@ export const proyectoBaseKey = (id: string) =>
 export const proyectoParticipantesKey = (id: string) =>
   ['proyecto', id, 'participantes'] as const;
 
+export const proyectoDesarrolloTecnicoKey = (id: string) =>
+  ['proyecto', id, 'desarrollo-tecnico'] as const;
+
 export const proyectoActivitiesKey = (id: string) =>
   ['proyecto-activities', id] as const;
 
@@ -51,3 +54,6 @@ export const historialKey = (
 
 export const historialFiltrosKey = (projectId: string) =>
   ['historial-filtros', projectId] as const;
+
+export const fondoGestionKey = (fondoNombre: string) =>
+  ['fondo-gestion', fondoNombre] as const;

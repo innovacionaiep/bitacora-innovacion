@@ -83,7 +83,6 @@ export default function FondosPage({ initialFondos }: FondosPageProps) {
       <div className="min-h-0 flex-1 overflow-hidden">
         {current ? (
           <FondoGestionView
-            key={current.id}
             fondoNombre={current.nombre}
             conveniosEnabled={current.conveniosEnabled}
           />

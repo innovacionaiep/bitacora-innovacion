@@ -1,5 +1,6 @@
 'use server';
 
+import { requireProjectAccess } from '@/lib/authz/guards';
 import prisma from '@/lib/prisma';
 import { getActivities, type ActivityWithTasks } from '@/lib/actions/gantt';
 import {
@@ -44,6 +45,11 @@ export async function getResumenTabData(proyectoId: string): Promise<{
   data?: ResumenTabData;
   error?: string;
 }> {
+  const gate = await requireProjectAccess(proyectoId);
+  if (!gate.ok) {
+    return { success: false, error: gate.error };
+  }
+
   const [
     activitiesResult,
     indicadoresResult,

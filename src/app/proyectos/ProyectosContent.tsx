@@ -36,6 +36,7 @@ import {
   CircleHelp,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -59,7 +60,10 @@ import {
   usePrefetchProyecto,
   useFetchProyectoBase,
   useFetchProyectoParticipantes,
+  useFetchProyectoDesarrolloTecnico,
   setProyectoBaseCache,
+  proyectoNeedsDesarrolloTecnicoFetch,
+  mergeDesarrolloTecnicoIntoProject,
 } from '@/hooks/useProyectoQuery';
 import {
   usePrefetchDesarrolloTecnicoConfig,
@@ -133,10 +137,12 @@ export function ProyectosContent({
   });
   const hasAppliedIdFromUrlRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
   const fetchProyectoBase = useFetchProyectoBase();
   const fetchProyectoParticipantes = useFetchProyectoParticipantes();
+  const fetchProyectoDesarrolloTecnico = useFetchProyectoDesarrolloTecnico();
   const prefetchDesarrolloTecnicoConfig = usePrefetchDesarrolloTecnicoConfig();
   const fetchDesarrolloTecnicoConfig = useFetchDesarrolloTecnicoConfig();
   const topLoader = useTopLoader();
@@ -179,6 +185,18 @@ export function ProyectosContent({
       });
     },
     [queryClient]
+  );
+
+  const hydrateDesarrolloTecnico = useCallback(
+    async (
+      projectId: string,
+      base: ProyectoWithRelations
+    ): Promise<ProyectoWithRelations> => {
+      if (!proyectoNeedsDesarrolloTecnicoFetch(base)) return base;
+      const dt = await fetchProyectoDesarrolloTecnico(projectId);
+      return mergeDesarrolloTecnicoIntoProject(base, dt);
+    },
+    [fetchProyectoDesarrolloTecnico]
   );
 
   const {
@@ -323,7 +341,8 @@ export function ProyectosContent({
           cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
           fetchDesarrolloTecnicoConfig(),
         ]);
-        setSelectedProject(data);
+        const withDt = await hydrateDesarrolloTecnico(project.id, data);
+        setSelectedProjectAndCache(withDt);
         if (tabToSelect) {
           setSelectedTab(tabToSelect);
           setMountedTabs(new Set(['General', tabToSelect]));
@@ -332,7 +351,7 @@ export function ProyectosContent({
           setMountedTabs(new Set(['General']));
         }
         const videoUrl =
-          (data as ProyectoWithRelations & { youtubeUrl?: string | null })
+          (withDt as ProyectoWithRelations & { youtubeUrl?: string | null })
             .youtubeUrl ??
           projectVideos[project.id] ??
           '';
@@ -347,6 +366,8 @@ export function ProyectosContent({
     loading,
     fetchProyectoBase,
     fetchDesarrolloTecnicoConfig,
+    hydrateDesarrolloTecnico,
+    setSelectedProjectAndCache,
     queryClient,
   ]);
 
@@ -507,9 +528,10 @@ export function ProyectosContent({
         cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
         fetchDesarrolloTecnicoConfig(),
       ]);
-      setSelectedProject(data);
+      const withDt = await hydrateDesarrolloTecnico(project.id, data);
+      setSelectedProjectAndCache(withDt);
       const videoUrl =
-        (data as ProyectoWithRelations & { youtubeUrl?: string | null })
+        (withDt as ProyectoWithRelations & { youtubeUrl?: string | null })
           .youtubeUrl ??
         projectVideos[project.id] ??
         '';
@@ -518,6 +540,38 @@ export function ProyectosContent({
       if (needsLoader) topLoader.done(true);
     }
   };
+
+  const shouldVirtualizeList = filteredProjects.length > 40;
+  const projectRowVirtualizer = useVirtualizer({
+    count: filteredProjects.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => 84,
+    overscan: 6,
+  });
+
+  const renderProjectListCard = (project: ProyectoListadoItem) => (
+    <Card
+      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-gray-50"
+      onClick={() => handleSelectProject(project)}
+      onMouseEnter={() => prefetchProyecto(project.id)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center space-x-3">
+          <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0 text-left">
+            <h3 className="font-medium text-sm text-gray-900 truncate">
+              {project.proyecto}
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {project.sede} •{' '}
+              {project.escuelas?.map((e) => e.escuela.nombre).join(', ') ||
+                'Sin escuela'}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   const clearTabLoader = useCallback(() => {
     if (tabLoaderTimeoutRef.current != null) {
@@ -585,6 +639,35 @@ export function ProyectosContent({
     selectedProject?.participantes_rel,
     selectedTab,
     fetchProyectoParticipantes,
+    setSelectedProjectAndCache,
+  ]);
+
+  // Desarrollo técnico: carga diferida tras getProyectoBase (p. ej. prefetch sin DT).
+  useEffect(() => {
+    if (!selectedProject) return;
+    if (!proyectoNeedsDesarrolloTecnicoFetch(selectedProject)) return;
+    const projectId = selectedProject.id;
+    let cancelled = false;
+    (async () => {
+      try {
+        const dt = await fetchProyectoDesarrolloTecnico(projectId);
+        if (cancelled) return;
+        setSelectedProjectAndCache((prev) => {
+          if (!prev || prev.id !== projectId) return prev;
+          if (!proyectoNeedsDesarrolloTecnicoFetch(prev)) return prev;
+          return mergeDesarrolloTecnicoIntoProject(prev, dt);
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedProject?.id,
+    selectedProject,
+    fetchProyectoDesarrolloTecnico,
     setSelectedProjectAndCache,
   ]);
 
@@ -1666,33 +1749,43 @@ export function ProyectosContent({
                 />
               </div>
 
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+              <div ref={listScrollRef} className="min-h-0 flex-1 overflow-y-auto">
                 {filteredProjects.length > 0 ? (
-                  filteredProjects.map((project) => (
-                    <Card
-                      key={project.id}
-                      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-gray-50"
-                      onClick={() => handleSelectProject(project)}
-                      onMouseEnter={() => prefetchProyecto(project.id)}
+                  shouldVirtualizeList ? (
+                    <div
+                      style={{
+                        height: `${projectRowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                      }}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0 text-left">
-                            <h3 className="font-medium text-sm text-gray-900 truncate">
-                              {project.proyecto}
-                            </h3>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {project.sede} •{' '}
-                              {project.escuelas
-                                ?.map((e) => e.escuela.nombre)
-                                .join(', ') || 'Sin escuela'}
-                            </p>
+                      {projectRowVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const project = filteredProjects[virtualRow.index];
+                        return (
+                          <div
+                            key={project.id}
+                            data-index={virtualRow.index}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                            className="pb-2"
+                          >
+                            {renderProjectListCard(project)}
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredProjects.map((project) => (
+                        <div key={project.id}>{renderProjectListCard(project)}</div>
+                      ))}
+                    </div>
+                  )
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <FolderKanban className="h-12 w-12 mx-auto mb-3 text-gray-300" />

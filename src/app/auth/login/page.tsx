@@ -42,8 +42,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Login exitoso
-      router.push('/');
+      // Login exitoso — ir directo a /inicio (sin hop / → redirect)
+      router.push('/inicio');
       router.refresh();
     } catch (err) {
       console.error('Error en login:', err);

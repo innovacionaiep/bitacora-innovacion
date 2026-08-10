@@ -54,6 +54,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     return NextResponse.next();
   }
 
+  // Auth routes: never wait on maintenance fetch (cold start / login path)
+  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
   // En local / preview nunca bloqueamos por mantenimiento
   if (isProductionRuntime()) {
     const enabled = await fetchMaintenanceEnabled(req);
@@ -91,10 +96,6 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
       url.search = '';
       return NextResponse.redirect(url);
     }
-  }
-
-  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
-    return NextResponse.next();
   }
 
   return (

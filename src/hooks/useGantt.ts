@@ -16,6 +16,7 @@ import {
 } from '@/lib/actions/gantt';
 import { ActivityStatus } from '@prisma/client';
 import { proyectoActivitiesKey } from '@/lib/query-keys';
+import { runOptimisticMutation } from '@/lib/ui/optimistic-mutation';
 
 export type Task = {
   id: string;
@@ -141,28 +142,38 @@ export function useGantt(
   ) => {
     setError(null);
 
-    try {
-      const result = await updateActivity(activityId, updates);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      if (result.data) {
+    const result = await runOptimisticMutation({
+      apply: () => {
+        let snapshot: Activity[] = [];
+        setActivities((prev) => {
+          snapshot = prev;
+          return prev.map((activity) =>
+            activity.id === activityId ? { ...activity, ...updates } : activity
+          );
+        });
+        return snapshot;
+      },
+      mutate: () => updateActivity(activityId, updates),
+      rollback: (snapshot) => {
+        if (snapshot) setActivities(snapshot);
+      },
+      commit: (data) => {
         setActivities((prev) =>
           prev.map((activity) =>
-            activity.id === activityId ? result.data! : activity
+            activity.id === activityId ? data : activity
           )
         );
-      }
+      },
+    });
 
-      return { data: result.data, error: null };
-    } catch (err) {
+    if (!result.ok) {
       const errorMessage =
-        err instanceof Error ? err.message : 'Error al actualizar la actividad';
+        result.error ?? 'Error al actualizar la actividad';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     }
+
+    return { data: result.data, error: null };
   };
 
   const deleteActivityHandler = async (activityId: string) => {
@@ -239,20 +250,37 @@ export function useGantt(
   const updateTaskHandler = async (taskId: string, updates: Partial<Task>) => {
     setError(null);
 
-    try {
-      const result = await updateTask(taskId, updates);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      if (result.data) {
+    const result = await runOptimisticMutation({
+      apply: () => {
+        let snapshot: Activity[] = [];
+        setActivities((prev) => {
+          snapshot = prev;
+          return prev.map((activity) => {
+            const taskIndex = activity.tasks.findIndex((t) => t.id === taskId);
+            if (taskIndex === -1) return activity;
+            const tasks = activity.tasks.map((t) =>
+              t.id === taskId ? { ...t, ...updates } : t
+            );
+            return {
+              ...activity,
+              tasks,
+              progress: computeActivityProgress(tasks),
+            };
+          });
+        });
+        return snapshot;
+      },
+      mutate: () => updateTask(taskId, updates),
+      rollback: (snapshot) => {
+        if (snapshot) setActivities(snapshot);
+      },
+      commit: (data) => {
         setActivities((prev) =>
           prev.map((activity) => {
             const taskIndex = activity.tasks.findIndex((t) => t.id === taskId);
             if (taskIndex === -1) return activity;
             const tasks = activity.tasks.map((t) =>
-              t.id === taskId ? { ...t, ...result.data! } : t
+              t.id === taskId ? { ...t, ...data } : t
             );
             return {
               ...activity,
@@ -261,15 +289,16 @@ export function useGantt(
             };
           })
         );
-      }
+      },
+    });
 
-      return { data: result.data, error: null };
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Error al actualizar la tarea';
+    if (!result.ok) {
+      const errorMessage = result.error ?? 'Error al actualizar la tarea';
       setError(errorMessage);
       return { data: null, error: errorMessage };
     }
+
+    return { data: result.data, error: null };
   };
 
   const deleteTaskHandler = async (taskId: string) => {
@@ -446,30 +475,36 @@ export function useGantt(
     activityId: string,
     status: ActivityStatus
   ) => {
-    const prevActivities = activities;
-    setActivities((prev) =>
-      prev.map((activity) =>
-        activity.id === activityId ? { ...activity, status } : activity
-      )
-    );
+    const result = await runOptimisticMutation({
+      apply: () => {
+        let snapshot: Activity[] = [];
+        setActivities((prev) => {
+          snapshot = prev;
+          return prev.map((activity) =>
+            activity.id === activityId ? { ...activity, status } : activity
+          );
+        });
+        return snapshot;
+      },
+      mutate: () => updateActivityStatusAction(activityId, status),
+      rollback: (snapshot) => {
+        if (snapshot) setActivities(snapshot);
+      },
+      commit: (data) => {
+        setActivities((prev) =>
+          prev.map((activity) =>
+            activity.id === activityId ? data : activity
+          )
+        );
+      },
+    });
 
-    try {
-      const result = await updateActivityStatusAction(activityId, status);
-
-      if (!result.success) {
-        setActivities(prevActivities);
-        setError(result.error || 'Error al actualizar el status');
-        return { success: false, error: result.error };
-      }
-
-      return { success: true, data: result.data };
-    } catch (err) {
-      setActivities(prevActivities);
-      const errorMessage =
-        err instanceof Error ? err.message : 'Error al actualizar el status';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
+    if (!result.ok) {
+      setError(result.error ?? 'Error al actualizar el status');
+      return { success: false, error: result.error };
     }
+
+    return { success: true, data: result.data };
   };
 
   const updateActivitiesState = (

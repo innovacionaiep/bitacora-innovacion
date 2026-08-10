@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
-import { getSession, AVAILABLE_ROLES, type Role } from '@/lib/auth-utils';
+import { getSession, getUserRoles, AVAILABLE_ROLES, type Role } from '@/lib/auth-utils';
 import {
   GROUP_LABELS,
   PERMISSION_CATALOG,
@@ -138,15 +138,10 @@ export async function saveRolePermissionsMatrix(
       )
     );
 
+    // Narrow invalidation: clients refresh permissions via ActiveRolePermissionsProvider
+    // / session poll; avoid nuking the whole app layout on every matrix save.
     revalidatePath('/configuracion/roles');
     revalidatePath('/configuracion');
-    revalidatePath('/inicio');
-    revalidatePath('/proyectos');
-    revalidatePath('/dashboard');
-    revalidatePath('/reportes');
-    revalidatePath('/novedades');
-    revalidatePath('/soporte');
-    revalidatePath('/', 'layout');
 
     return { success: true };
   } catch (e) {
@@ -163,8 +158,7 @@ export async function getMyActiveRolePermissions(): Promise<{
   error?: string;
 }> {
   const session = await getSession();
-  const availableRoles = session?.user?.availableRoles ?? [];
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return {
       success: false,
       activeRole: null,
@@ -173,6 +167,12 @@ export async function getMyActiveRolePermissions(): Promise<{
     };
   }
   try {
+    // Hot path: trust JWT availableRoles (populated at login / throttled refresh).
+    // Re-read DB only when claims are empty (stale cookie / edge cases).
+    let availableRoles = session.user.availableRoles ?? [];
+    if (availableRoles.length === 0) {
+      availableRoles = await getUserRoles(session.user.id);
+    }
     const permissions = await getMyEnabledRolesPermissions(availableRoles);
     return {
       success: true,
@@ -181,9 +181,10 @@ export async function getMyActiveRolePermissions(): Promise<{
     };
   } catch (e) {
     console.error('getMyActiveRolePermissions', e);
+    const fallback = session.user.availableRoles ?? [];
     return {
       success: false,
-      activeRole: availableRoles[0] ?? null,
+      activeRole: fallback[0] ?? null,
       permissions: defaultsForRole('Beneficiario'),
       error: 'Error al cargar permisos',
     };

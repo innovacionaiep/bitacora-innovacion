@@ -94,6 +94,8 @@ export default function ConfiguracionRolesPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    const previousInitial = initialCells;
+    setInitialCells(cells);
     const payload = Object.entries(cells).map(([id, enabled]) => {
       const [role, permissionKey] = id.split('::') as [Role, PermissionKey];
       return { role, permissionKey, enabled };
@@ -101,12 +103,11 @@ export default function ConfiguracionRolesPage() {
     const res = await saveRolePermissionsMatrix({ cells: payload });
     setSaving(false);
     if (!res.success) {
+      setInitialCells(previousInitial);
       setError(res.error ?? 'Error al guardar');
       return;
     }
-    setInitialCells(cells);
     setShowSaveToast(true);
-    await load();
   };
 
   const grouped = useMemo(() => {

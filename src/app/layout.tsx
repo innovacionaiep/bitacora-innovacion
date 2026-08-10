@@ -1,17 +1,24 @@
 import type { Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import '@/app/globals.css';
 import { SessionProvider } from '@/components/SessionProvider';
-import { QueryProvider } from '@/components/providers/QueryProvider';
-import { ConditionalLayout } from '@/components/ConditionalLayout';
-import { DesktopScaleCompensate } from '@/components/DesktopScaleCompensate';
+import { RouteAwareShell } from '@/components/RouteAwareShell';
+import { getSession } from '@/lib/auth-utils';
 
-// 👉 Inter SOLO para el título, pero ya se usa dentro de SidebarNav
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-geist-sans',
+  display: 'swap',
+});
+
 export const metadata = {
   title: 'Bitácora - Gestión de Proyectos',
-  description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+  description:
+    'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
   openGraph: {
     title: 'Bitácora - Gestión de Proyectos',
-    description: 'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+    description:
+      'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
   },
 };
 
@@ -20,20 +27,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
   return (
-    <html lang="es" className="h-full overflow-hidden">
-      <body className="bg-background text-foreground h-full min-h-0 overflow-hidden">
-        <SessionProvider>
-          <QueryProvider>
-            <DesktopScaleCompensate>
-              <ConditionalLayout>{children}</ConditionalLayout>
-            </DesktopScaleCompensate>
-          </QueryProvider>
+    <html
+      lang="es"
+      className={`h-full overflow-hidden ${inter.variable}`}
+    >
+      <body className="bg-background text-foreground h-full min-h-0 overflow-hidden font-sans">
+        <SessionProvider session={session}>
+          <RouteAwareShell>{children}</RouteAwareShell>
         </SessionProvider>
       </body>
     </html>

@@ -88,7 +88,7 @@ export async function getPermissionsForRole(
   return map;
 }
 
-/** Union of permission maps for multiple enabled roles. */
+/** Union of permission maps for multiple enabled roles (1 DB query for all roles). */
 export async function getPermissionsForRoles(
   roles: readonly string[] | null | undefined
 ): Promise<RolePermissionMap> {
@@ -102,10 +102,26 @@ export async function getPermissionsForRoles(
     return all;
   }
 
+  const validRoles = roles.filter((r) =>
+    AVAILABLE_ROLES.includes(r as Role)
+  ) as Role[];
+  if (validRoles.length === 0) return empty;
+
+  await ensureRolePermissionDefaults();
+  const rows = await prisma.rolePermission.findMany({
+    where: { role: { in: validRoles } },
+  });
+
   const result = { ...empty };
-  for (const role of roles) {
-    if (!AVAILABLE_ROLES.includes(role as Role)) continue;
-    const map = await getPermissionsForRole(role);
+  for (const role of validRoles) {
+    const map = defaultsForRole(role);
+    for (const row of rows) {
+      if (row.role !== role) continue;
+      const key = row.permissionKey as PermissionKey;
+      if (PERMISSION_KEYS.includes(key)) {
+        map[key] = normalizeEnabled(role, key, row.enabled);
+      }
+    }
     for (const key of PERMISSION_KEYS) {
       if (map[key]) result[key] = true;
     }
@@ -130,10 +146,8 @@ export async function userHasPermission(
 ): Promise<boolean> {
   if (!availableRoles?.length) return false;
   if (availableRoles.includes('Admin')) return true;
-  for (const role of availableRoles) {
-    if (await roleHasPermission(role, key)) return true;
-  }
-  return false;
+  const map = await getPermissionsForRoles(availableRoles);
+  return map[key] === true;
 }
 
 /**

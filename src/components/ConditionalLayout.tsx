@@ -2,16 +2,24 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import NextTopLoader from 'nextjs-toploader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import SidebarNav from '@/components/ui/SidebarNav';
 import ResponsiveMain from '@/components/ResponsiveMain';
-import { ChatSoporteFloatingWidget } from '@/components/support-chat/ChatSoporteFloatingWidget';
 import { ActiveRolePermissionsProvider } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { viewPermissionForPath } from '@/lib/permissions/catalog';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+
+const ChatSoporteFloatingWidget = dynamic(
+  () =>
+    import('@/components/support-chat/ChatSoporteFloatingWidget').then(
+      (m) => m.ChatSoporteFloatingWidget
+    ),
+  { ssr: false }
+);
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -64,15 +72,15 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
     return <div className="h-full min-h-screen">{children}</div>;
   }
 
-  const showPermsGate =
-    (status === 'authenticated' && permsLoading && viewKey) ||
-    (faltaPermisoVista && pathname !== '/inicio');
+  // Never blank the shell while permissions load — sidebar filters when ready.
+  // Only block non-/inicio routes once we know the user lacks the view permission.
+  const showDeniedGate = faltaPermisoVista && pathname !== '/inicio';
 
   return (
     <>
       <NextTopLoader color="#10b981" height={2} showSpinner={false} />
-      {showPermsGate ? (
-        <PermsGateLoading />
+      {showDeniedGate ? (
+        <DeniedViewLoading />
       ) : (
         <>
           <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
@@ -98,7 +106,7 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
   );
 }
 
-function PermsGateLoading() {
+function DeniedViewLoading() {
   usePageTopLoader(true);
   return <div className="h-full min-h-screen bg-background" />;
 }

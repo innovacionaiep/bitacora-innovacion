@@ -13,10 +13,39 @@ import {
   CommentWithRelations,
 } from '@/lib/actions/post-comments';
 import { useSession } from 'next-auth/react';
+import type { Session } from 'next-auth';
 
 interface CommentSectionProps {
   postId: string;
   commentsCount: number;
+}
+
+function buildOptimisticComment(
+  tempId: string,
+  postId: string,
+  user: NonNullable<Session['user']>,
+  contenido: string,
+  parentId?: string | null
+): CommentWithRelations {
+  return {
+    id: tempId,
+    postId,
+    authorId: user.id ?? '',
+    parentId: parentId ?? null,
+    contenido,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    author: {
+      id: user.id ?? '',
+      name: user.name ?? null,
+      email: user.email ?? '',
+      image: user.image ?? null,
+    },
+    likes: [],
+    _count: { likes: 0, replies: 0 },
+    replies: [],
+    isLikedByUser: false,
+  };
 }
 
 export function CommentSection({
@@ -48,15 +77,28 @@ export function CommentSection({
   }, [loadComments]);
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || isSubmitting) return;
+    if (!newComment.trim() || isSubmitting || !user) return;
 
+    const content = newComment.trim();
+    const tempId = `temp-${Date.now()}`;
+    const optimistic = buildOptimisticComment(tempId, postId, user, content);
+
+    setComments((prev) => [...prev, optimistic]);
+    setNewComment('');
+    setTotalComments((prev) => prev + 1);
     setIsSubmitting(true);
-    const result = await createComment(postId, newComment);
+
+    const result = await createComment(postId, content);
 
     if (result.success && result.data) {
-      setComments((prev) => [...prev, result.data!]);
-      setNewComment('');
-      setTotalComments((prev) => prev + 1);
+      setComments((prev) =>
+        prev.map((c) => (c.id === tempId ? result.data! : c))
+      );
+    } else {
+      setComments((prev) => prev.filter((c) => c.id !== tempId));
+      setNewComment(content);
+      setTotalComments((prev) => prev - 1);
+      alert(result.error ?? 'Error al crear el comentario');
     }
     setIsSubmitting(false);
   };
@@ -78,7 +120,25 @@ export function CommentSection({
     setTotalComments((prev) => prev + 1);
   };
 
-  const handleCommentDeleted = (commentId: string) => {
+  const handleCommentReplaced = (
+    tempId: string,
+    comment: CommentWithRelations
+  ) => {
+    setComments((prev) =>
+      prev.map((c) => {
+        if (c.id === tempId) return comment;
+        if (c.replies?.some((r) => r.id === tempId)) {
+          return {
+            ...c,
+            replies: c.replies.map((r) => (r.id === tempId ? comment : r)),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const handleCommentRemoved = (commentId: string) => {
     // Verificar si es un comentario principal o una respuesta
     let found = false;
 
@@ -113,6 +173,10 @@ export function CommentSection({
     if (found) {
       setTotalComments((prev) => prev - 1);
     }
+  };
+
+  const handleCommentDeleted = (commentId: string) => {
+    handleCommentRemoved(commentId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -173,6 +237,8 @@ export function CommentSection({
               comment={comment}
               postId={postId}
               onCommentAdded={handleCommentAdded}
+              onCommentReplaced={handleCommentReplaced}
+              onCommentRemoved={handleCommentRemoved}
               onCommentDeleted={handleCommentDeleted}
             />
           ))}

@@ -12,13 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getProyectos } from '@/lib/actions/proyectos';
+import { getProyectosListadoParaUsuario } from '@/lib/actions/proyectos';
 import { sendReporteProyecto } from '@/lib/actions/reporte-proyecto';
 import { Loader2, FileText } from 'lucide-react';
-import type { ProyectoConVariaciones } from '@/types/proyecto';
+import type { ProyectoListadoItem } from '@/types/proyecto';
 
 export default function ReportesPage() {
-  const [proyectos, setProyectos] = useState<ProyectoConVariaciones[]>([]);
+  const [proyectos, setProyectos] = useState<ProyectoListadoItem[]>([]);
   const [proyectosLoading, setProyectosLoading] = useState(true);
   const [reporteProyectoId, setReporteProyectoId] = useState<string>('');
   const [reporteTo, setReporteTo] = useState('');
@@ -32,7 +32,7 @@ export default function ReportesPage() {
   useEffect(() => {
     async function loadProyectos() {
       setProyectosLoading(true);
-      const result = await getProyectos();
+      const result = await getProyectosListadoParaUsuario();
       if (result.success && result.data) {
         setProyectos(result.data);
       }

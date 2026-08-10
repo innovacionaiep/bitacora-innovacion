@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from './prisma';
@@ -41,19 +42,19 @@ export const REGISTER_ROLES: Exclude<Role, 'Admin'>[] = [
 ];
 
 /**
- * Obtener la sesión del servidor
+ * Obtener la sesión del servidor (deduped per RSC/request via React.cache).
  */
-export async function getSession() {
+export const getSession = cache(async () => {
   return await getServerSession(authOptions);
-}
+});
 
 /**
- * Obtener el usuario autenticado del servidor
+ * Obtener el usuario autenticado del servidor (deduped per RSC/request).
  */
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const session = await getSession();
   return session?.user;
-}
+});
 
 /**
  * Verificar si el usuario tiene un rol específico
