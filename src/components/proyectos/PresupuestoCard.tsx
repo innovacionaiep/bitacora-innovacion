@@ -597,18 +597,12 @@ export function PresupuestoCard({
   const totalPesoPct =
     baseTotal > 0 ? (resumenMacro.totalMonto / baseTotal) * 100 : 0;
 
-  // Modo normal: anchos solo vía <colgroup>.
-  // Item ~2/3 del ancho previo; el tercio liberado va a N° Solicitud/OC/Recepción.
-  // Pantalla completa: Item fijo 250px; Detalle absorbe el resto.
-  const itemColClass = isFullscreen
-    ? 'w-[250px] min-w-[250px] max-w-[250px]'
-    : 'overflow-hidden';
-  const detalleColClass = isFullscreen
-    ? 'min-w-[150px] overflow-hidden'
-    : 'overflow-hidden';
-  const mesColClass = isFullscreen
-    ? 'w-[220px] min-w-[220px] max-w-[220px]'
-    : 'overflow-hidden';
+  // Modo normal y fullscreen: anchos vía <colgroup> en %.
+  // En fullscreen Detalle gana más proporción (los px fijos dejaban Detalle angosto
+  // bajo UI_BASE_SCALE / viewports escalados).
+  const itemColClass = 'overflow-hidden';
+  const detalleColClass = 'min-w-0 overflow-hidden';
+  const mesColClass = 'overflow-hidden';
 
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
@@ -914,17 +908,18 @@ export function PresupuestoCard({
                 style={{ width: '100%', tableLayout: 'fixed' }}
               >
                 <colgroup>
-                  <col style={{ width: isFullscreen ? 100 : '5%' }} />
-                  <col style={{ width: isFullscreen ? 120 : '8%' }} />
-                  <col style={{ width: isFullscreen ? 250 : '13%' }} />
-                  <col style={{ width: isFullscreen ? undefined : '26%' }} />
-                  <col style={{ width: isFullscreen ? 140 : '8%' }} />
-                  <col style={{ width: isFullscreen ? 220 : '7%' }} />
-                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
-                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
-                  <col style={{ width: isFullscreen ? 130 : '7%' }} />
-                  <col style={{ width: isFullscreen ? 150 : '8%' }} />
-                  <col style={{ width: isFullscreen ? 75 : '4%' }} />
+                  {/* Acciones, Cuenta, Item, Detalle*, Monto, Mes, Solicitud, OC, Recepción, Estado, Ver */}
+                  <col style={{ width: isFullscreen ? '4%' : '5%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '8%' }} />
+                  <col style={{ width: isFullscreen ? '11%' : '13%' }} />
+                  <col style={{ width: isFullscreen ? '36%' : '26%' }} />
+                  <col style={{ width: isFullscreen ? '7%' : '8%' }} />
+                  <col style={{ width: isFullscreen ? '8%' : '7%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '7%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '7%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '7%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '8%' }} />
+                  <col style={{ width: isFullscreen ? '4%' : '4%' }} />
                 </colgroup>
                 <TableHeader>
                   <TableRow
