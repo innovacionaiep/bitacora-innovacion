@@ -46,7 +46,7 @@ interface KanbanColumn {
 interface KanbanBoardProps {
   activities: Activity[];
   onStatusChange: (activityId: string, status: KanbanStatus) => Promise<void>;
-  onToggleTaskCompletion: (taskId: string) => Promise<void>;
+  onToggleTaskCompletion: (taskId: string) => void;
   onReorderActivities?: (
     activityId: string,
     targetActivityId: string,
@@ -143,7 +143,7 @@ interface ActivityCardProps {
   activity: Activity;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onToggleTaskCompletion: (taskId: string) => Promise<void>;
+  onToggleTaskCompletion: (taskId: string) => void;
   onActivityTitleClick?: (activity: Activity) => void;
 }
 
@@ -634,7 +634,7 @@ interface KanbanColumnProps {
   activities: Activity[];
   expandedActivities: Set<string>;
   onToggleExpand: (activityId: string) => void;
-  onToggleTaskCompletion: (taskId: string) => Promise<void>;
+  onToggleTaskCompletion: (taskId: string) => void;
   onAddActivity: () => void;
   onActivityTitleClick?: (activity: Activity) => void;
 }

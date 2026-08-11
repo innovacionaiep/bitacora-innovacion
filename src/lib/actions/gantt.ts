@@ -526,58 +526,175 @@ export async function deleteTask(id: string) {
 }
 
 /**
- * Toggle completar tarea
+ * Fija completed de una o más tareas en un solo round-trip (idempotente).
+ * Recalcula progreso de actividades afectadas y avanceGantt una sola vez.
+ */
+export async function setTasksCompletion(
+  updates: Array<{ id: string; completed: boolean }>
+) {
+  try {
+    if (updates.length === 0) {
+      return { success: true, data: [] as Array<{ id: string; completed: boolean; progress: number }> };
+    }
+
+    // Último estado gana por id
+    const desiredById = new Map<string, boolean>();
+    for (const u of updates) {
+      desiredById.set(u.id, u.completed);
+    }
+    const ids = [...desiredById.keys()];
+
+    const tasks = await prisma.task.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        completed: true,
+        activityId: true,
+        name: true,
+        activity: { select: { projectId: true } },
+      },
+    });
+
+    if (tasks.length === 0) {
+      return { success: false, error: 'Tareas no encontradas' };
+    }
+
+    const projectIds = new Set(tasks.map((t) => t.activity.projectId));
+    if (projectIds.size !== 1) {
+      return { success: false, error: 'Actualización inválida' };
+    }
+    const projectId = [...projectIds][0]!;
+
+    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    if (!gate.ok) return { success: false, error: gate.error };
+
+    const toApply = tasks.filter((t) => desiredById.get(t.id) !== t.completed);
+
+    if (toApply.length === 0) {
+      return {
+        success: true,
+        data: ids.map((id) => {
+          const completed = desiredById.get(id)!;
+          return { id, completed, progress: completed ? 100 : 0 };
+        }),
+      };
+    }
+
+    const newlyCompleted = toApply.filter(
+      (t) => desiredById.get(t.id) === true && !t.completed
+    );
+
+    await prisma.$transaction(async (tx) => {
+      await Promise.all(
+        toApply.map((t) => {
+          const completed = desiredById.get(t.id)!;
+          return tx.task.update({
+            where: { id: t.id },
+            data: {
+              completed,
+              progress: completed ? 100 : 0,
+            },
+          });
+        })
+      );
+
+      const activityIds = [...new Set(toApply.map((t) => t.activityId))];
+      const progressByActivity = new Map<string, number>();
+
+      await Promise.all(
+        activityIds.map(async (activityId) => {
+          const [total, completedCount] = await Promise.all([
+            tx.task.count({ where: { activityId } }),
+            tx.task.count({ where: { activityId, completed: true } }),
+          ]);
+          const newProgress =
+            total > 0 ? Math.round((completedCount / total) * 100) : 0;
+          progressByActivity.set(activityId, newProgress);
+          await tx.activity.update({
+            where: { id: activityId },
+            data: { progress: newProgress },
+          });
+        })
+      );
+
+      const activities = await tx.activity.findMany({
+        where: { projectId },
+        select: { id: true, progress: true },
+      });
+      const totalProgress = activities.reduce(
+        (sum, act) => sum + (progressByActivity.get(act.id) ?? act.progress),
+        0
+      );
+      const projectProgress =
+        activities.length > 0
+          ? Math.round(totalProgress / activities.length)
+          : 0;
+
+      await tx.proyecto.update({
+        where: { id: projectId },
+        data: { avanceGantt: projectProgress },
+      });
+    });
+
+    // Historial fuera del path crítico (no bloquea la respuesta al cliente)
+    if (newlyCompleted.length > 0) {
+      void Promise.all(
+        newlyCompleted.map((t) =>
+          createHistorialEntry({
+            proyectoId: projectId,
+            accion: 'Marcar realizada',
+            tabProyecto: 'Actividades',
+            elementoEspecifico: `la tarea: "${t.name}"`,
+            cambioGenerado: '',
+          })
+        )
+      );
+    }
+
+    return {
+      success: true,
+      data: ids.map((id) => {
+        const completed = desiredById.get(id)!;
+        return { id, completed, progress: completed ? 100 : 0 };
+      }),
+    };
+  } catch (error) {
+    console.error('Error setting tasks completion:', error);
+    return { success: false, error: 'Error al actualizar tareas' };
+  }
+}
+
+/**
+ * Fija el estado completed de una tarea (idempotente).
+ */
+export async function setTaskCompletion(id: string, completed: boolean) {
+  const result = await setTasksCompletion([{ id, completed }]);
+  if (!result.success) {
+    return { success: false as const, error: result.error };
+  }
+  return {
+    success: true as const,
+    data: result.data?.[0] ?? {
+      id,
+      completed,
+      progress: completed ? 100 : 0,
+    },
+  };
+}
+
+/**
+ * Toggle completar tarea (compat). Preferir setTaskCompletion con estado explícito.
  */
 export async function toggleTaskCompletion(id: string) {
   try {
     const task = await prisma.task.findUnique({
       where: { id },
-      select: {
-        completed: true,
-        activityId: true,
-        name: true,
-        activity: {
-          select: {
-            name: true,
-            projectId: true,
-          },
-        },
-      },
+      select: { completed: true },
     });
-
     if (!task) {
       return { success: false, error: 'Tarea no encontrada' };
     }
-
-    const gate = await requireProjectAccess(
-      task.activity.projectId,
-      'view.proyectos'
-    );
-    if (!gate.ok) return { success: false, error: gate.error };
-
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data: {
-        completed: !task.completed,
-        progress: !task.completed ? 100 : 0,
-      },
-    });
-
-    // Registrar en historial solo si se marca como completada (no cuando se desmarca)
-    if (updatedTask.completed && !task.completed) {
-      await createHistorialEntry({
-        proyectoId: task.activity.projectId,
-        accion: 'Marcar realizada',
-        tabProyecto: 'Actividades',
-        elementoEspecifico: `la tarea: "${task.name}"`,
-        cambioGenerado: '',
-      });
-    }
-
-    // Recalcular progreso de la actividad
-    await recalculateActivityProgress(task.activityId);
-
-    return { success: true, data: updatedTask };
+    return setTaskCompletion(id, !task.completed);
   } catch (error) {
     console.error('Error toggling task completion:', error);
     return { success: false, error: 'Error al actualizar tarea' };

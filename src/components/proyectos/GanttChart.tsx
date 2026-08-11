@@ -646,6 +646,11 @@ export default function GanttChart({
     setIsFullscreen(!isFullscreen);
   };
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  /** Toast de checkbox: un solo mensaje tras 3s sin más toggles. */
+  const checkboxSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const checkboxSuccessTokenRef = useRef(0);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [showEditActivity, setShowEditActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -784,6 +789,7 @@ export default function GanttChart({
     createTask,
     deleteTask,
     toggleTaskCompletion,
+    whenTaskCompletionSavesIdle,
     calculateProjectProgress,
     reorderActivities,
     updateActivityStatus,
@@ -1039,19 +1045,51 @@ export default function GanttChart({
     setTimeout(() => setSuccessMessage(null), 3000);
   }, []);
 
-  // Toggle completar tarea
+  // Toggle completar tarea: UI optimista inmediata; toast único tras ~0.8s idle
+  // (y solo cuando el batch de guardado en BD terminó).
+  const CHECKBOX_TOAST_IDLE_MS = 800;
+
   const handleToggleTaskCompletion = useCallback(
-    async (taskId: string) => {
+    (taskId: string) => {
       try {
-        await toggleTaskCompletion(taskId);
-        showSuccessMessage('Tarea actualizada exitosamente');
+        toggleTaskCompletion(taskId);
+
+        const token = ++checkboxSuccessTokenRef.current;
+        if (checkboxSuccessTimerRef.current) {
+          clearTimeout(checkboxSuccessTimerRef.current);
+        }
+        checkboxSuccessTimerRef.current = setTimeout(() => {
+          checkboxSuccessTimerRef.current = null;
+          void whenTaskCompletionSavesIdle().then(() => {
+            if (token !== checkboxSuccessTokenRef.current) return;
+            showSuccessMessage('Tarea actualizada exitosamente');
+          });
+        }, CHECKBOX_TOAST_IDLE_MS);
       } catch (error) {
         console.error('Error updating task:', error);
         showSuccessMessage('Error al actualizar la tarea');
       }
     },
-    [toggleTaskCompletion, showSuccessMessage]
+    [toggleTaskCompletion, whenTaskCompletionSavesIdle, showSuccessMessage]
   );
+
+  useEffect(() => {
+    return () => {
+      if (checkboxSuccessTimerRef.current) {
+        clearTimeout(checkboxSuccessTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Si falla el guardado en background, no mostrar el toast de éxito pendiente
+  useEffect(() => {
+    if (!ganttError) return;
+    checkboxSuccessTokenRef.current += 1;
+    if (checkboxSuccessTimerRef.current) {
+      clearTimeout(checkboxSuccessTimerRef.current);
+      checkboxSuccessTimerRef.current = null;
+    }
+  }, [ganttError]);
 
   // Eliminar actividad
   const handleDeleteActivity = useCallback(
@@ -3136,7 +3174,7 @@ export default function GanttChart({
                               <input
                                 type="checkbox"
                                 checked={task.completed}
-                                onChange={async () => {
+                                onChange={() => {
                                   if (task.id.startsWith('temp-')) {
                                     setTempTasks((prev) =>
                                       prev.map((t) =>
@@ -3146,7 +3184,8 @@ export default function GanttChart({
                                       )
                                     );
                                   } else {
-                                    await handleToggleTaskCompletion(task.id);
+                                    const nextCompleted = !task.completed;
+                                    handleToggleTaskCompletion(task.id);
                                     if (selectedActivityForPopup) {
                                       setSelectedActivityForPopup({
                                         ...selectedActivityForPopup,
@@ -3156,7 +3195,10 @@ export default function GanttChart({
                                               t.id === task.id
                                                 ? {
                                                     ...t,
-                                                    completed: !t.completed,
+                                                    completed: nextCompleted,
+                                                    progress: nextCompleted
+                                                      ? 100
+                                                      : 0,
                                                   }
                                                 : t
                                           ) || [],

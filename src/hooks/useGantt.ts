@@ -8,7 +8,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  toggleTaskCompletion as toggleTaskCompletionAction,
+  setTasksCompletion as setTasksCompletionAction,
   reorderActivities,
   calculateProjectProgress,
   updateActivityStatus as updateActivityStatusAction,
@@ -17,6 +17,7 @@ import {
 import { ActivityStatus } from '@prisma/client';
 import { proyectoActivitiesKey } from '@/lib/query-keys';
 import { runOptimisticMutation } from '@/lib/ui/optimistic-mutation';
+
 
 export type Task = {
   id: string;
@@ -62,8 +63,17 @@ export function useGantt(
     );
   });
   const [error, setError] = useState<string | null>(null);
-  const [togglingTasks, setTogglingTasks] = useState<Set<string>>(new Set());
   const loadingRef = useRef(false);
+
+  /** Último estado completed deseado por taskId (aún no confirmado en BD). */
+  const pendingCompletionRef = useRef<Map<string, boolean>>(new Map());
+  /** Último estado completed confirmado en BD por taskId. */
+  const savedCompletionRef = useRef<Map<string, boolean>>(new Map());
+  /** Cola FIFO de taskIds a persistir (sin duplicados; el estado sale de pending). */
+  const completionQueueRef = useRef<string[]>([]);
+  const completionProcessingRef = useRef(false);
+  const completionIdleWaitersRef = useRef<Array<() => void>>([]);
+  const pumpCompletionQueueRef = useRef<() => void>(() => undefined);
 
   const ACTIVITY_COLORS = ['bg-gray-700'];
 
@@ -345,61 +355,240 @@ export function useGantt(
     }
   };
 
-  const toggleTaskCompletionHandler = async (taskId: string) => {
-    if (togglingTasks.has(taskId)) {
+  const patchTaskCompletionLocal = useCallback(
+    (taskId: string, completed: boolean) => {
+      setActivities((prev) => {
+        let changed = false;
+        const next = prev.map((activity) => {
+          const hasTask = activity.tasks.some((t) => t.id === taskId);
+          if (!hasTask) return activity;
+          changed = true;
+          const tasks = activity.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  completed,
+                  progress: completed ? 100 : 0,
+                }
+              : task
+          );
+          return {
+            ...activity,
+            tasks,
+            progress: computeActivityProgress(tasks),
+          };
+        });
+        if (changed && projectId) {
+          queryClient.setQueryData(proyectoActivitiesKey(projectId), next);
+        }
+        return changed ? next : prev;
+      });
+    },
+    [projectId, queryClient]
+  );
+
+  const notifyCompletionIdle = useCallback(() => {
+    if (
+      completionProcessingRef.current ||
+      completionQueueRef.current.length > 0
+    ) {
       return;
     }
+    const waiters = completionIdleWaitersRef.current;
+    completionIdleWaitersRef.current = [];
+    for (const resolve of waiters) resolve();
+  }, []);
 
-    setTogglingTasks((prev) => new Set(prev).add(taskId));
+  const enqueueTaskCompletionSave = useCallback((taskId: string) => {
+    if (!completionQueueRef.current.includes(taskId)) {
+      completionQueueRef.current.push(taskId);
+    }
+    pumpCompletionQueueRef.current();
+  }, []);
 
-    const prevActivities = activities;
-
-    setActivities((prev) =>
-      prev.map((activity) => {
-        const updatedActivity = {
-          ...activity,
-          tasks: activity.tasks.map((task) => {
-            if (task.id === taskId) {
-              return {
-                ...task,
-                completed: !task.completed,
-                progress: !task.completed ? 100 : 0,
-              };
-            }
-            return task;
-          }),
-        };
-
-        const hasTask = activity.tasks.some((t) => t.id === taskId);
-        if (!hasTask) return activity;
-
-        return {
-          ...updatedActivity,
-          progress: computeActivityProgress(updatedActivity.tasks),
-        };
-      })
-    );
+  const pumpCompletionQueue = useCallback(async () => {
+    if (completionProcessingRef.current) return;
+    completionProcessingRef.current = true;
 
     try {
-      const result = await toggleTaskCompletionAction(taskId);
+      while (completionQueueRef.current.length > 0) {
+        // Vaciar cola actual en un solo batch (1 round-trip al servidor)
+        const batchIds = completionQueueRef.current.splice(
+          0,
+          completionQueueRef.current.length
+        );
+        const updates: Array<{ id: string; completed: boolean }> = [];
 
-      if (!result.success) {
-        setActivities(prevActivities);
-        setError(result.error || 'Error al actualizar la tarea');
+        for (const taskId of batchIds) {
+          const desired = pendingCompletionRef.current.get(taskId);
+          if (desired === undefined) continue;
+          if (savedCompletionRef.current.get(taskId) === desired) {
+            pendingCompletionRef.current.delete(taskId);
+            continue;
+          }
+          updates.push({ id: taskId, completed: desired });
+        }
+
+        if (updates.length === 0) continue;
+
+        try {
+          const result = await setTasksCompletionAction(updates);
+
+          if (!result.success) {
+            for (const { id } of updates) {
+              const saved = savedCompletionRef.current.get(id);
+              if (saved !== undefined) {
+                patchTaskCompletionLocal(id, saved);
+              }
+              pendingCompletionRef.current.delete(id);
+            }
+            setError(result.error || 'Error al actualizar la tarea');
+            continue;
+          }
+
+          for (const { id, completed: target } of updates) {
+            savedCompletionRef.current.set(id, target);
+            const latest = pendingCompletionRef.current.get(id);
+            if (latest === undefined || latest === target) {
+              pendingCompletionRef.current.delete(id);
+            } else if (!completionQueueRef.current.includes(id)) {
+              completionQueueRef.current.push(id);
+            }
+          }
+
+          if (projectId) {
+            queryClient.setQueryData(
+              proyectoActivitiesKey(projectId),
+              (prev: Activity[] | undefined) => {
+                if (!prev) return prev;
+                const targetById = new Map(
+                  updates.map((u) => [u.id, u.completed] as const)
+                );
+                return prev.map((activity) => {
+                  let changed = false;
+                  const tasks = activity.tasks.map((task) => {
+                    if (!targetById.has(task.id)) return task;
+                    const latest = pendingCompletionRef.current.get(task.id);
+                    const completed =
+                      latest !== undefined
+                        ? latest
+                        : targetById.get(task.id)!;
+                    if (
+                      task.completed === completed &&
+                      task.progress === (completed ? 100 : 0)
+                    ) {
+                      return task;
+                    }
+                    changed = true;
+                    return {
+                      ...task,
+                      completed,
+                      progress: completed ? 100 : 0,
+                    };
+                  });
+                  if (!changed) return activity;
+                  return {
+                    ...activity,
+                    tasks,
+                    progress: computeActivityProgress(tasks),
+                  };
+                });
+              }
+            );
+          }
+        } catch (err) {
+          for (const { id } of updates) {
+            const saved = savedCompletionRef.current.get(id);
+            if (saved !== undefined) {
+              patchTaskCompletionLocal(id, saved);
+            }
+            pendingCompletionRef.current.delete(id);
+          }
+          setError(
+            err instanceof Error ? err.message : 'Error al actualizar la tarea'
+          );
+        }
       }
-    } catch (err) {
-      setActivities(prevActivities);
-      setError(
-        err instanceof Error ? err.message : 'Error al actualizar la tarea'
-      );
     } finally {
-      setTogglingTasks((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
+      completionProcessingRef.current = false;
+      if (completionQueueRef.current.length > 0) {
+        void pumpCompletionQueueRef.current();
+      } else {
+        notifyCompletionIdle();
+      }
     }
+  }, [notifyCompletionIdle, patchTaskCompletionLocal, projectId, queryClient]);
+
+  pumpCompletionQueueRef.current = () => {
+    void pumpCompletionQueue();
   };
+
+  const whenTaskCompletionSavesIdle = useCallback((): Promise<void> => {
+    if (
+      !completionProcessingRef.current &&
+      completionQueueRef.current.length === 0
+    ) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      completionIdleWaitersRef.current.push(resolve);
+    });
+  }, []);
+
+  const toggleTaskCompletionHandler = useCallback(
+    (taskId: string) => {
+      setError(null);
+
+      setActivities((prev) => {
+        let found = false;
+        let previousCompleted = false;
+        let nextCompleted = false;
+
+        const next = prev.map((activity) => {
+          const taskIndex = activity.tasks.findIndex((t) => t.id === taskId);
+          if (taskIndex === -1) return activity;
+
+          found = true;
+          const task = activity.tasks[taskIndex];
+          previousCompleted = task.completed;
+          nextCompleted = !task.completed;
+
+          const tasks = activity.tasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  completed: nextCompleted,
+                  progress: nextCompleted ? 100 : 0,
+                }
+              : t
+          );
+
+          return {
+            ...activity,
+            tasks,
+            progress: computeActivityProgress(tasks),
+          };
+        });
+
+        if (!found) return prev;
+
+        if (!savedCompletionRef.current.has(taskId)) {
+          savedCompletionRef.current.set(taskId, previousCompleted);
+        }
+        pendingCompletionRef.current.set(taskId, nextCompleted);
+
+        if (projectId) {
+          queryClient.setQueryData(proyectoActivitiesKey(projectId), next);
+        }
+
+        return next;
+      });
+
+      // Encolar de inmediato (sin debounce): el pump serializa en orden
+      enqueueTaskCompletionSave(taskId);
+    },
+    [enqueueTaskCompletionSave, projectId, queryClient]
+  );
 
   const calculateActivityProgress = (activity: Activity): number => {
     return computeActivityProgress(activity.tasks);
@@ -539,11 +728,28 @@ export function useGantt(
       setActivities([]);
       setLoading(false);
       prevProjectIdRef.current = null;
+      pendingCompletionRef.current.clear();
+      savedCompletionRef.current.clear();
+      completionQueueRef.current = [];
+      completionProcessingRef.current = false;
+      const waiters = completionIdleWaitersRef.current;
+      completionIdleWaitersRef.current = [];
+      for (const resolve of waiters) resolve();
       return;
     }
 
     const projectChanged = prevProjectIdRef.current !== projectId;
     prevProjectIdRef.current = projectId;
+
+    if (projectChanged) {
+      pendingCompletionRef.current.clear();
+      savedCompletionRef.current.clear();
+      completionQueueRef.current = [];
+      completionProcessingRef.current = false;
+      const waiters = completionIdleWaitersRef.current;
+      completionIdleWaitersRef.current = [];
+      for (const resolve of waiters) resolve();
+    }
 
     if (initialActivities != null) {
       setActivities(initialActivities);
@@ -583,6 +789,7 @@ export function useGantt(
     updateTask: updateTaskHandler,
     deleteTask: deleteTaskHandler,
     toggleTaskCompletion: toggleTaskCompletionHandler,
+    whenTaskCompletionSavesIdle,
     calculateProjectProgress: calculateProjectProgressHandler,
     updateProjectProgress,
     syncAllActivitiesProgress,
