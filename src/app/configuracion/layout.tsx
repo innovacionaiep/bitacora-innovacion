@@ -8,6 +8,7 @@ import {
   FileCode,
   Shield,
   FileSignature,
+  TrendingUp,
   Wrench,
 } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
@@ -48,6 +49,11 @@ export default async function ConfiguracionLayout({
       href: '/configuracion/convenios',
       label: 'Convenios',
       icon: FileSignature,
+    },
+    {
+      href: '/configuracion/escalamiento',
+      label: 'Escalamiento',
+      icon: TrendingUp,
     },
     {
       href: '/configuracion/mantenimiento',

@@ -55,14 +55,15 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
   const isInicioRoute = pathname === '/inicio';
   const isProyectosRoute = pathname.startsWith('/proyectos');
   const isFondosRoute = pathname.startsWith('/fondos');
+  const isDashboardRoute = pathname.startsWith('/dashboard');
 
   const contentPadding = isNovedadesRoute
     ? ''
-    : isProyectosRoute || isFondosRoute
-      ? 'pt-2 pl-8 pr-8 pb-8'
+    : isProyectosRoute || isFondosRoute || isDashboardRoute
+      ? 'pt-2 pl-8 pr-8 pb-4'
       : 'pt-8 pl-8 pr-8 pb-8';
   const contentOverflow =
-    isNovedadesRoute ? '' : isInicioRoute ? 'overflow-visible' : 'overflow-hidden';
+    isNovedadesRoute ? '' : 'overflow-hidden';
   const contentBg = isInicioRoute ? 'bg-background' : '';
 
   const contentClassName = `flex flex-col flex-1 h-full min-h-0 overflow-x-hidden ${contentPadding} ${contentOverflow} ${contentBg}`.trim();
@@ -81,10 +82,10 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
 
   return (
     <>
-      <div className="flex h-full min-h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex h-full min-h-0 bg-background text-foreground overflow-hidden">
         <SidebarProvider expandOnHover>
           <SidebarNav />
-          <ResponsiveMain className={isInicioRoute ? 'overflow-visible' : undefined}>
+          <ResponsiveMain className={isInicioRoute ? 'overflow-hidden' : undefined}>
             <div className={contentClassName}>
               {isNovedadesRoute ? (
                 children
@@ -104,7 +105,7 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
 
 function DeniedViewLoading() {
   usePageTopLoader(true);
-  return <div className="h-full min-h-screen bg-background" />;
+  return <div className="h-full min-h-0 bg-background" />;
 }
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {

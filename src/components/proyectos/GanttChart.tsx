@@ -122,6 +122,17 @@ import {
 } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+  DETAIL_MODAL_COL_CLASS,
+  DETAIL_MODAL_COL_DIVIDER_CLASS,
+  DETAIL_MODAL_COLUMNS_CLASS,
+  DETAIL_MODAL_CONTENT_CLASS,
+  DETAIL_MODAL_HEADER_ROW_CLASS,
+  DETAIL_MODAL_PROGRESS_BAR_CLASS,
+  DETAIL_MODAL_PROGRESS_WRAP_CLASS,
+  DETAIL_MODAL_TITLE_CLASS,
+} from '@/lib/ui/detail-modal';
+import { cn } from '@/lib/utils';
 
 /** Color del % de avance: negro (0%) → emerald-600 (100%). */
 function getProgressLabelColor(progress: number): string {
@@ -2430,13 +2441,13 @@ export default function GanttChart({
         >
           <DialogContent
             closeButtonPosition="outside-top-right"
-            className="w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
+            className={DETAIL_MODAL_CONTENT_CLASS}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header - nombre + Progreso (o botones en create) */}
             <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 flex items-center gap-2 min-w-0">
+              <div className={DETAIL_MODAL_HEADER_ROW_CLASS}>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   {activityPopupMode === 'create' ? (
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                       <DialogTitle className="sr-only">
@@ -2490,7 +2501,7 @@ export default function GanttChart({
                     </div>
                   ) : (
                     <div className="group/field relative min-w-0 max-w-full pr-8">
-                      <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
+                      <DialogTitle className={DETAIL_MODAL_TITLE_CLASS}>
                         {selectedActivityForPopup?.name || 'Sin nombre'}
                       </DialogTitle>
                       {selectedActivityForPopup && (
@@ -2505,19 +2516,19 @@ export default function GanttChart({
                 {activityPopupMode === 'view' &&
                   selectedActivityForPopup &&
                   editingActivityField !== 'name' && (
-                  <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
-                    <span className="text-base font-medium text-gray-700">
+                  <div className={DETAIL_MODAL_PROGRESS_WRAP_CLASS}>
+                    <span className="text-sm font-medium text-gray-700 @min-[720px]:text-base">
                       Progreso
                     </span>
-                    <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div className={DETAIL_MODAL_PROGRESS_BAR_CLASS}>
                       <div
-                        className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
                         style={{
                           width: `${getActivityProgress(selectedActivityForPopup)}%`,
                         }}
                       />
                     </div>
-                    <span className="text-2xl font-bold text-gray-800 min-w-[4rem] tabular-nums">
+                    <span className="min-w-[3.5rem] text-xl font-bold tabular-nums text-gray-800 @min-[720px]:min-w-[4rem] @min-[720px]:text-2xl">
                       {getActivityProgress(selectedActivityForPopup)}%
                     </span>
                   </div>
@@ -2557,9 +2568,9 @@ export default function GanttChart({
             </div>
 
             {/* Layout de 3 columnas */}
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
+            <div className={DETAIL_MODAL_COLUMNS_CLASS}>
               {/* COLUMNA IZQUIERDA: Descripción + Período */}
-              <div className="space-y-14 overflow-y-auto min-h-0 border-r border-gray-100 pr-6 custom-scrollbar">
+              <div className={cn(DETAIL_MODAL_COL_CLASS, DETAIL_MODAL_COL_DIVIDER_CLASS)}>
                 <div>
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                     Descripción
@@ -2843,7 +2854,14 @@ export default function GanttChart({
               </div>
 
               {/* COLUMNA CENTRAL: Tareas */}
-              <div className="group/tasks flex flex-col min-h-0 overflow-hidden">
+              <div
+                className={cn(
+                  'group/tasks',
+                  DETAIL_MODAL_COL_CLASS,
+                  DETAIL_MODAL_COL_DIVIDER_CLASS,
+                  'flex flex-col space-y-0'
+                )}
+              >
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">
                     Tareas{' '}
@@ -3235,7 +3253,7 @@ export default function GanttChart({
               </div>
 
               {/* COLUMNA DERECHA: Comentarios */}
-              <div className="flex flex-col min-h-0 border-l border-gray-100 pl-6">
+              <div className={cn(DETAIL_MODAL_COL_CLASS, 'flex flex-col space-y-0')}>
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
                   <MessageSquare className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
                   <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900">

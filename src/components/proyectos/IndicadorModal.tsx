@@ -36,6 +36,17 @@ import {
   ActivityFieldSaveCancel,
   ActivityHoverEditButton,
 } from '@/components/proyectos/gantt/ActivityFieldControls';
+import {
+  DETAIL_MODAL_COL_CLASS,
+  DETAIL_MODAL_COL_DIVIDER_CLASS,
+  DETAIL_MODAL_COLUMNS_CLASS,
+  DETAIL_MODAL_CONTENT_CLASS,
+  DETAIL_MODAL_HEADER_ROW_CLASS,
+  DETAIL_MODAL_PROGRESS_BAR_CLASS,
+  DETAIL_MODAL_PROGRESS_WRAP_CLASS,
+  DETAIL_MODAL_TITLE_CLASS,
+} from '@/lib/ui/detail-modal';
+import { cn } from '@/lib/utils';
 
 type IndicadorEditableField =
   | 'nombre'
@@ -527,19 +538,18 @@ export function IndicadorModal({
 
   const body = (
     <>
-        {/* Header con título e indicador de cumplimiento */}
         <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50/90 px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 flex items-center gap-2 min-w-0">
+          <div className={DETAIL_MODAL_HEADER_ROW_CLASS}>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               {editingField === 'nombre' ? (
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <input
                     type="text"
                     value={fieldDraft.nombre}
                     onChange={(e) =>
                       setFieldDraft({ ...fieldDraft, nombre: e.target.value })
                     }
-                    className="h-auto border border-gray-200 bg-white py-1.5 text-2xl font-semibold text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 rounded-md w-full min-w-0 px-3"
+                    className="h-auto w-full min-w-0 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xl font-semibold text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-1 @min-[720px]:text-2xl"
                     autoFocus
                   />
                   <ActivityFieldSaveCancel
@@ -550,7 +560,7 @@ export function IndicadorModal({
                 </div>
               ) : (
                 <div className="group/field relative min-w-0 max-w-full pr-8">
-                  <DialogTitle className="m-0 text-2xl font-semibold text-gray-900 truncate">
+                  <DialogTitle className={DETAIL_MODAL_TITLE_CLASS}>
                     {values.nombre}
                   </DialogTitle>
                   {canEdit && (
@@ -563,11 +573,11 @@ export function IndicadorModal({
               )}
             </div>
             {editingField !== 'nombre' && (
-              <div className="flex items-center space-x-4 flex-shrink-0 pr-2">
-                <span className="text-base font-medium text-gray-700">
+              <div className={DETAIL_MODAL_PROGRESS_WRAP_CLASS}>
+                <span className="text-sm font-medium text-gray-700 @min-[720px]:text-base">
                   Cumplimiento
                 </span>
-                <div className="w-64 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div className={DETAIL_MODAL_PROGRESS_BAR_CLASS}>
                   <div
                     className={`h-full transition-all duration-500 ${
                       porcentajeCumplimiento < 50
@@ -582,7 +592,7 @@ export function IndicadorModal({
                   />
                 </div>
                 <span
-                  className={`text-2xl font-bold min-w-[4rem] tabular-nums ${colorEstado}`}
+                  className={`min-w-[3.5rem] text-xl font-bold tabular-nums @min-[720px]:min-w-[4rem] @min-[720px]:text-2xl ${colorEstado}`}
                 >
                   {Math.round(porcentajeCumplimiento)}%
                 </span>
@@ -592,9 +602,9 @@ export function IndicadorModal({
         </div>
 
         {/* Layout de tres columnas (igual que actividad) */}
-        <div className="grid grid-cols-[1fr_1fr_1fr] gap-6 px-5 py-4 flex-1 min-h-0 overflow-hidden">
+        <div className={DETAIL_MODAL_COLUMNS_CLASS}>
           {/* COLUMNA IZQUIERDA: Descripción, Período, Evidencias */}
-          <div className="space-y-14 overflow-y-auto border-r border-gray-100 pr-6 min-h-0 custom-scrollbar">
+          <div className={cn(DETAIL_MODAL_COL_CLASS, DETAIL_MODAL_COL_DIVIDER_CLASS)}>
             <div>
               <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                 Descripción
@@ -885,7 +895,13 @@ export function IndicadorModal({
           </div>
 
           {/* COLUMNA CENTRO: Forma de cálculo, formato, resultados */}
-          <div className="flex flex-col min-h-0 overflow-y-auto space-y-14 custom-scrollbar">
+          <div
+            className={cn(
+              DETAIL_MODAL_COL_CLASS,
+              DETAIL_MODAL_COL_DIVIDER_CLASS,
+              'flex flex-col'
+            )}
+          >
             <div>
               <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-gray-900 mb-2">
                 Forma de Cálculo
@@ -1069,9 +1085,9 @@ export function IndicadorModal({
           {/* COLUMNA DERECHA: Comentarios */}
           <div
             ref={comentariosContainerRef}
-            className="flex flex-col min-h-0 border-l border-gray-100 pl-6"
+            className={cn(DETAIL_MODAL_COL_CLASS, 'flex flex-col space-y-0')}
           >
-            <div className="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4 flex-shrink-0">
+            <div className="mb-4 flex flex-shrink-0 items-center gap-2 border-b border-gray-100 pb-3">
               <MessageSquare
                 className="h-3.5 w-3.5 text-gray-500"
                 strokeWidth={2}
@@ -1194,7 +1210,7 @@ export function IndicadorModal({
       <DialogContent
         ref={dialogContentRef}
         closeButtonPosition="outside-top-right"
-        className="w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg"
+        className={DETAIL_MODAL_CONTENT_CLASS}
       >
         {body}
       </DialogContent>

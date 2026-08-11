@@ -47,7 +47,8 @@ type ProyectoTabName =
   | 'Indicadores'
   | 'Presupuesto'
   | 'Historial'
-  | 'Seguimiento';
+  | 'Seguimiento'
+  | 'Escalamiento';
 
 export function useParticipantesTab({
   project,

@@ -168,6 +168,7 @@ model Proyecto {
   indicadores        Indicador[]
   historial          HistorialProyecto[]
   snapshotsMensuales SnapshotMensualProyecto[]
+  escalamiento       ProyectoEscalamiento?
   
   // Relación con el Feed de Novedades
   posts              PostProyecto[]
@@ -272,6 +273,8 @@ model Fondo {
   orden             Int     @default(0)
   /** Si true, proyectos de este fondo ven tab Convenio y aparecen en Dashboard → Convenios */
   conveniosEnabled  Boolean @default(false) @map("convenios_enabled")
+  /** Si true, proyectos de este fondo ven tab Escalamiento */
+  escalamientoEnabled Boolean @default(false) @map("escalamiento_enabled")
   lineas            Linea[]
 
   @@map("fondos")
@@ -517,6 +520,21 @@ model DesarrolloTecnico {
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
   @@map("desarrollo_tecnico")
+}
+
+/** Tab Escalamiento: sistematización y expansión por proyecto */
+model ProyectoEscalamiento {
+  id                 String   @id @default(cuid())
+  proyectoId         String   @unique @map("proyecto_id")
+  nuevaInstancia1    String?  @map("nueva_instancia_1") @db.Text
+  nuevaInstancia2    String?  @map("nueva_instancia_2") @db.Text
+  acuerdoContinuidad String?  @map("acuerdo_continuidad") @db.Text
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@map("proyecto_escalamiento")
 }
 
 // Configuración de categorías y subcategorías del desarrollo técnico (editable en Configuración)

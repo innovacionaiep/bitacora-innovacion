@@ -36,7 +36,6 @@ import {
   CircleHelp,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -55,6 +54,7 @@ import {
 import { GeneralTab, GeneralTabHeader } from '@/app/proyectos/tabs/GeneralTab';
 import { ParticipantesTab } from '@/app/proyectos/tabs/ParticipantesTab';
 import { ConvenioTab } from '@/app/proyectos/tabs/ConvenioTab';
+import { EscalamientoTab } from '@/app/proyectos/tabs/EscalamientoTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
 import {
   usePrefetchProyecto,
@@ -77,6 +77,7 @@ import {
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
+import { getNombresFondosConEscalamiento } from '@/lib/actions/escalamiento';
 import { cn } from '@/lib/utils';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
 import {
@@ -95,7 +96,8 @@ type ProyectoTab =
   | 'Indicadores'
   | 'Presupuesto'
   | 'Historial'
-  | 'Seguimiento';
+  | 'Seguimiento'
+  | 'Escalamiento';
 
 const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Convenio', label: 'Convenio' },
@@ -108,6 +110,7 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Presupuesto', label: 'Presupuesto' },
   { id: 'Seguimiento', label: 'Seguimiento' },
   { id: 'Historial', label: 'Historial' },
+  { id: 'Escalamiento', label: 'Escalamiento' },
 ];
 
 export function ProyectosContent({
@@ -137,7 +140,6 @@ export function ProyectosContent({
   });
   const hasAppliedIdFromUrlRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
-  const listScrollRef = useRef<HTMLDivElement>(null);
   /** Bumps on every select/clear so stale async completions are ignored. */
   const selectGenRef = useRef(0);
   /** Keep caches for the last N projects; evict older ones on select. */
@@ -170,6 +172,9 @@ export function ProyectosContent({
   const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
   const [selectedTab, setSelectedTab] = useState<ProyectoTab>('General');
   const [fondosConConvenios, setFondosConConvenios] = useState<string[]>([]);
+  const [fondosConEscalamiento, setFondosConEscalamiento] = useState<string[]>(
+    []
+  );
   const proyectoTourRef = useRef<ProyectoTourHandle>(null);
 
   // Estado para videos de YouTube por proyecto
@@ -294,6 +299,33 @@ export function ProyectosContent({
       ),
     [proyectosIniciales, searchTerm]
   );
+
+  const projectsByFondo = useMemo(() => {
+    const groups = new Map<string, ProyectoListadoItem[]>();
+    for (const project of filteredProjects) {
+      const key = project.fondo?.trim() || 'Sin fondo';
+      const list = groups.get(key);
+      if (list) list.push(project);
+      else groups.set(key, [project]);
+    }
+
+    const fondoOrder = new Map(
+      catalogosGeneral.fondos.map((f, index) => [f.nombre, f.orden ?? index])
+    );
+
+    return Array.from(groups.entries())
+      .map(([fondo, proyectos]) => ({ fondo, proyectos }))
+      .sort((a, b) => {
+        if (a.fondo === 'Sin fondo') return 1;
+        if (b.fondo === 'Sin fondo') return -1;
+        const orderA = fondoOrder.get(a.fondo);
+        const orderB = fondoOrder.get(b.fondo);
+        if (orderA != null && orderB != null) return orderA - orderB;
+        if (orderA != null) return -1;
+        if (orderB != null) return 1;
+        return a.fondo.localeCompare(b.fondo, 'es');
+      });
+  }, [filteredProjects, catalogosGeneral.fondos]);
 
   const rolEnProyectoSeguimiento = useMemo(() => {
     if (!selectedProject) return null;
@@ -578,14 +610,6 @@ export function ProyectosContent({
     }
   };
 
-  const shouldVirtualizeList = filteredProjects.length > 40;
-  const projectRowVirtualizer = useVirtualizer({
-    count: filteredProjects.length,
-    getScrollElement: () => listScrollRef.current,
-    estimateSize: () => 84,
-    overscan: 6,
-  });
-
   const renderProjectListCard = (project: ProyectoListadoItem) => (
     <Card
       className="cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-gray-50"
@@ -593,13 +617,13 @@ export function ProyectosContent({
       onMouseEnter={() => prefetchProyecto(project.id)}
     >
       <CardContent className="p-4">
-        <div className="flex items-center space-x-3">
-          <FolderKanban className="h-5 w-5 text-gray-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0 text-left">
-            <h3 className="font-medium text-sm text-gray-900 truncate">
+        <div className="flex items-start space-x-3">
+          <FolderKanban className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-600" />
+          <div className="min-w-0 flex-1 text-left">
+            <h3 className="text-sm font-medium leading-snug text-gray-900 whitespace-normal break-words">
               {project.proyecto}
             </h3>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="mt-1 text-xs text-gray-500">
               {project.sede} •{' '}
               {project.escuelas?.map((e) => e.escuela.nombre).join(', ') ||
                 'Sin escuela'}
@@ -774,7 +798,8 @@ export function ProyectosContent({
     if (
       selectedTab === 'General' ||
       selectedTab === 'Participantes' ||
-      selectedTab === 'Convenio'
+      selectedTab === 'Convenio' ||
+      selectedTab === 'Escalamiento'
     ) {
       clearTabLoader();
     }
@@ -789,6 +814,11 @@ export function ProyectosContent({
         setFondosConConvenios(res.data);
       }
     });
+    getNombresFondosConEscalamiento().then((res) => {
+      if (!cancelled && res.success) {
+        setFondosConEscalamiento(res.data);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -799,17 +829,31 @@ export function ProyectosContent({
     return fondosConConvenios.includes(selectedProject.fondo);
   }, [selectedProject?.fondo, fondosConConvenios]);
 
+  const proyectoTieneTabEscalamiento = useMemo(() => {
+    if (!selectedProject?.fondo) return false;
+    return fondosConEscalamiento.includes(selectedProject.fondo);
+  }, [selectedProject?.fondo, fondosConEscalamiento]);
+
   const visibleProjectTabs = useMemo(() => {
-    return PROJECT_NAV_TABS.filter(
-      (tab) => tab.id !== 'Convenio' || proyectoTieneTabConvenio
-    );
-  }, [proyectoTieneTabConvenio]);
+    return PROJECT_NAV_TABS.filter((tab) => {
+      if (tab.id === 'Convenio') return proyectoTieneTabConvenio;
+      if (tab.id === 'Escalamiento') return proyectoTieneTabEscalamiento;
+      return true;
+    });
+  }, [proyectoTieneTabConvenio, proyectoTieneTabEscalamiento]);
 
   useEffect(() => {
     if (selectedTab === 'Convenio' && !proyectoTieneTabConvenio) {
       setSelectedTab('General');
     }
-  }, [selectedTab, proyectoTieneTabConvenio]);
+    if (selectedTab === 'Escalamiento' && !proyectoTieneTabEscalamiento) {
+      setSelectedTab('General');
+    }
+  }, [
+    selectedTab,
+    proyectoTieneTabConvenio,
+    proyectoTieneTabEscalamiento,
+  ]);
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
@@ -1729,26 +1773,38 @@ export function ProyectosContent({
                   />
                 </div>
               )}
+              {selectedProject &&
+                proyectoTieneTabEscalamiento &&
+                mountedTabs.has('Escalamiento') && (
+                  <div
+                    className={
+                      selectedTab === 'Escalamiento' ? 'h-full' : 'hidden'
+                    }
+                  >
+                    <EscalamientoTab projectId={selectedProject.id} />
+                  </div>
+                )}
             </div>
           </div>
         ) : (
           /* Pantalla principal / Landing - al entrar o cuando el proyecto seleccionado ya no aplica (ej. cambio de rol) */
-          <div className="flex h-full min-h-0 flex-col overflow-hidden py-6 px-4">
-            <div className="mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="shrink-0 text-center mb-8">
-                <FolderKanban className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
+          <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden px-4 py-6 lg:flex-row lg:gap-8">
+            {/* Panel izquierdo: título, acciones y buscador (~1/3) */}
+            <aside className="flex w-full shrink-0 flex-col lg:w-1/3 lg:max-w-md">
+              <div className="shrink-0 text-center lg:text-left">
+                <FolderKanban className="mx-auto mb-4 h-16 w-16 text-gray-300 lg:mx-0" />
+                <h2 className="mb-2 text-xl font-semibold text-gray-800">
                   Selección de Proyectos
                 </h2>
-                <p className="text-gray-500 mb-6">
+                <p className="mb-6 text-gray-500">
                   Selecciona un proyecto para ver sus detalles o crea uno nuevo
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                <div className="mb-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
                   {canCreateProject && (
                     <Button
                       variant="outline"
                       asChild
-                      className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                      className="rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
                     >
                       <Link
                         href="/proyectos/nuevo"
@@ -1764,7 +1820,7 @@ export function ProyectosContent({
                       type="button"
                       variant="outline"
                       onClick={() => setBulkImportOpen(true)}
-                      className="border-2 border-gray-300 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center gap-2"
+                      className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
                     >
                       <FileSpreadsheet className="h-4 w-4" />
                       <span>Carga masiva</span>
@@ -1782,62 +1838,18 @@ export function ProyectosContent({
               </div>
 
               <div className="relative mb-4 shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Buscar por nombre, sede o escuela..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-2 border-gray-300 rounded-lg focus:border-blue-500"
+                  className="rounded-lg border-2 border-gray-300 pl-10 focus:border-blue-500"
                 />
               </div>
 
-              <div ref={listScrollRef} className="min-h-0 flex-1 overflow-y-auto">
-                {filteredProjects.length > 0 ? (
-                  shouldVirtualizeList ? (
-                    <div
-                      style={{
-                        height: `${projectRowVirtualizer.getTotalSize()}px`,
-                        width: '100%',
-                        position: 'relative',
-                      }}
-                    >
-                      {projectRowVirtualizer.getVirtualItems().map((virtualRow) => {
-                        const project = filteredProjects[virtualRow.index];
-                        return (
-                          <div
-                            key={project.id}
-                            data-index={virtualRow.index}
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              transform: `translateY(${virtualRow.start}px)`,
-                            }}
-                            className="pb-2"
-                          >
-                            {renderProjectListCard(project)}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {filteredProjects.map((project) => (
-                        <div key={project.id}>{renderProjectListCard(project)}</div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <FolderKanban className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>No se encontraron proyectos</p>
-                  </div>
-                )}
-
               {canCreateProject && borradores.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
+                <div className="mt-2 shrink-0 border-t border-gray-200 pt-4 text-center lg:text-left">
+                  <h3 className="mb-3 text-sm font-medium text-gray-700">
                     Borradores
                   </h3>
                   <ul className="space-y-2">
@@ -1845,7 +1857,7 @@ export function ProyectosContent({
                       <li key={b.id}>
                         <Link
                           href={`/proyectos/nuevo?borrador=${b.id}`}
-                          className="text-blue-600 hover:underline text-sm"
+                          className="text-sm text-blue-600 hover:underline"
                         >
                           Continuar editando &quot;{b.nombre}&quot;
                         </Link>
@@ -1854,7 +1866,40 @@ export function ProyectosContent({
                   </ul>
                 </div>
               )}
-              </div>
+            </aside>
+
+            {/* Panel derecho: columnas por Fondo (~2/3), scroll por columna */}
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-auto">
+              {projectsByFondo.length > 0 ? (
+                <div className="flex h-full min-h-[280px] gap-4 pb-2 lg:min-h-0">
+                  {projectsByFondo.map(({ fondo, proyectos }) => (
+                    <section
+                      key={fondo}
+                      className="flex h-full w-[min(100%,20rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50/60"
+                    >
+                      <header className="shrink-0 border-b border-gray-600 bg-gray-600 px-4 py-2">
+                        <h3 className="truncate text-sm font-semibold leading-tight text-white">
+                          {fondo}
+                        </h3>
+                        <p className="mt-0.5 text-xs leading-tight text-gray-200">
+                          {proyectos.length}{' '}
+                          {proyectos.length === 1 ? 'proyecto' : 'proyectos'}
+                        </p>
+                      </header>
+                      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+                        {proyectos.map((project) => (
+                          <div key={project.id}>{renderProjectListCard(project)}</div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-full min-h-[200px] flex-col items-center justify-center text-center text-gray-500">
+                  <FolderKanban className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                  <p>No se encontraron proyectos</p>
+                </div>
+              )}
             </div>
           </div>
         )}

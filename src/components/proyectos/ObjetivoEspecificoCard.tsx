@@ -153,15 +153,16 @@ export function ObjetivoEspecificoCard({
           </div>
         </div>
 
-        {/* Acciones fuera de la tarjeta, arriba a la derecha */}
+        {/* Acciones fuera de la tarjeta, arriba a la derecha.
+            Visibles en hover; el tour fuerza opacidad vía .driver-active-element. */}
         {(onAddIndicador || (canImport && onCargaMasiva)) && (
           <div
             id={tourAnchors ? 'tour-indicadores-agregar-ind' : undefined}
             className={cn(
               'absolute top-0 right-0 z-20 flex items-center gap-1.5 transition-opacity duration-150',
-              addMenuOpen || tourAnchors
+              addMenuOpen
                 ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+                : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 [&.driver-active-element]:opacity-100 [&:has(.driver-active-element)]:opacity-100'
             )}
           >
             {canImport && onCargaMasiva && onAddIndicador ? (

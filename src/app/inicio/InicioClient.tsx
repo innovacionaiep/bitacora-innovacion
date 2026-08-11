@@ -172,7 +172,7 @@ export function InicioClient({
             <PortalHistorialReciente historial={historial} loading={loadingHistorial} />
           </div>
         </div>
-        <div id="tour-alertas" className="flex-1 min-h-0 overflow-hidden p-2">
+        <div id="tour-alertas" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 pb-1">
           <PortalAlertasPendientes
             alertas={alertas}
             loading={loadingAlertas}

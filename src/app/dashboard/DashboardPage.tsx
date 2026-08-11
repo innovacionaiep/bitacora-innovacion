@@ -60,7 +60,7 @@ export default function DashboardPage({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden pt-6 pb-4 gap-5">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden gap-5">
       <nav className="flex flex-wrap items-center gap-1 border-b border-gray-100 shrink-0">
         {VIEWS.map((view) => {
           const active = currentView === view.value;
@@ -87,13 +87,14 @@ export default function DashboardPage({
 
       <div
         className={cn(
-          'min-h-0 flex-1',
-          currentView === 'analisis-participantes' ||
-          currentView === 'lista'
-            ? 'flex flex-col overflow-hidden'
-            : currentView === 'mirada-general'
-              ? 'flex flex-col overflow-y-auto custom-scrollbar'
-              : 'overflow-y-auto custom-scrollbar'
+          'min-h-0 flex-1 overflow-hidden',
+          (currentView === 'analisis-participantes' ||
+            currentView === 'lista' ||
+            currentView === 'mirada-general') &&
+            'flex flex-col',
+          (currentView === 'analisis-escuela' ||
+            currentView === 'analisis-avances') &&
+            'overflow-y-auto custom-scrollbar'
         )}
       >
         {currentView === 'mirada-general' && (

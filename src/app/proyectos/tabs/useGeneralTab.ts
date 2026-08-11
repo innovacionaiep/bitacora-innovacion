@@ -28,7 +28,8 @@ type ProyectoTabName =
   | 'Indicadores'
   | 'Presupuesto'
   | 'Historial'
-  | 'Seguimiento';
+  | 'Seguimiento'
+  | 'Escalamiento';
 
 const EMPTY_CATALOGOS: CatalogosGeneral = {
   escuelas: [],
@@ -81,6 +82,7 @@ export function useGeneralTab({
     id: string;
     proyecto: string;
     sede: string;
+    fondo?: string;
     escuelas?: { escuela: { nombre: string } }[];
   }) => void;
   selectedTab: ProyectoTabName;
@@ -600,6 +602,7 @@ export function useGeneralTab({
         id: updated.id,
         proyecto: updated.proyecto,
         sede: updated.sede,
+        fondo: updated.fondo,
         escuelas: (updated.escuelas ?? []).map((e) => ({
           escuela: { nombre: e.escuela.nombre },
         })),

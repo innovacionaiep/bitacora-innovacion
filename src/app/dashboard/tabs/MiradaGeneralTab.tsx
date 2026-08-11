@@ -50,7 +50,7 @@ export function MiradaGeneralTab({ proyectos }: MiradaGeneralTabProps) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-5 pb-2 overflow-y-auto custom-scrollbar">
+    <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto overscroll-contain custom-scrollbar">
       {/* KPI strip — fixed */}
       <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
         <MetricChip

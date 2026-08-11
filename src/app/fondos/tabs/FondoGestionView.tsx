@@ -411,7 +411,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
       )}
 
       <Dialog open={conveniosOpen} onOpenChange={setConveniosOpen}>
-        <DialogContent className="max-w-4xl w-[min(92vw,56rem)] max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="max-w-6xl w-[min(96vw,72rem)] max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="shrink-0 px-6 pt-6 pb-3 pr-14">
             <DialogTitle className="text-[15px]">
               Convenios — {fondoNombre}
@@ -419,7 +419,10 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-6 pb-6">
             {conveniosOpen ? (
-              <FondoConveniosSection fondoNombre={fondoNombre} />
+              <FondoConveniosSection
+                fondoNombre={fondoNombre}
+                onChanged={invalidate}
+              />
             ) : null}
           </div>
         </DialogContent>

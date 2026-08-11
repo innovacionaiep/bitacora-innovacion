@@ -56,6 +56,7 @@ export function useProyectosParaUsuario(opts?: {
       id: string;
       proyecto: string;
       sede: string;
+      fondo?: string;
       escuelas?: { escuela: { nombre: string } }[];
     }) => {
       queryClient.setQueryData<ProyectoListadoItem[]>(
@@ -68,6 +69,7 @@ export function useProyectosParaUsuario(opts?: {
                   id: item.id,
                   proyecto: item.proyecto,
                   sede: item.sede,
+                  fondo: item.fondo ?? p.fondo,
                   escuelas: item.escuelas ?? p.escuelas,
                 }
               : p

@@ -133,7 +133,8 @@ type ProyectoTabName =
   | 'Indicadores'
   | 'Presupuesto'
   | 'Historial'
-  | 'Seguimiento';
+  | 'Seguimiento'
+  | 'Escalamiento';
 
 function FieldSaveCancel({
   isSaving,
@@ -513,9 +514,6 @@ function BookIndex({
       aria-label="Índice del proyecto"
       className="sticky top-0 pr-2"
     >
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-4 pl-3">
-        Índice
-      </p>
       <ol className="relative space-y-0.5 border-l border-gray-200 ml-1.5">
         {items.map((item) => {
           const isActive = activeId === item.id;
@@ -526,7 +524,8 @@ function BookIndex({
                 type="button"
                 onClick={() => onNavigate(item.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`group relative w-full text-left pl-4 pr-2 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-r-sm ${
+                title={item.label}
+                className={`group relative w-full min-w-0 text-left pl-4 pr-2 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-r-sm ${
                   isActive
                     ? 'text-gray-900'
                     : 'text-gray-400 hover:text-gray-800'
@@ -541,7 +540,7 @@ function BookIndex({
                   }`}
                 />
                 <span
-                  className={`text-[13px] leading-snug block ${
+                  className={`text-[13px] leading-snug block truncate ${
                     isActive ? 'font-medium' : 'font-normal'
                   }`}
                 >
@@ -906,7 +905,7 @@ export function GeneralTabHeader({
                 prev ? { ...prev, proyecto: e.target.value } : prev
               )
             }
-            className="h-10 text-4xl font-bold text-gray-900 text-center px-3 py-2 border border-gray-200 rounded-md focus:border-gray-400 focus-visible:ring-0 w-fit max-w-full min-w-[320px] sm:min-w-[480px] bg-transparent shadow-none"
+            className="h-10 text-3xl font-bold text-gray-900 text-center px-3 py-2 border border-gray-200 rounded-md focus:border-gray-400 focus-visible:ring-0 w-fit max-w-full min-w-[320px] sm:min-w-[480px] bg-transparent shadow-none"
           />
           <FieldSaveCancel
             isSaving={isGeneralSaving}
@@ -920,7 +919,7 @@ export function GeneralTabHeader({
         <div className="flex justify-center w-full min-w-0 max-w-[min(100%,75rem)] mx-auto overflow-visible">
           <div className="group/title relative inline-flex max-w-full min-w-0 items-center overflow-visible">
             <h1
-              className="text-4xl font-bold text-gray-900 truncate text-center leading-tight py-0"
+              className="truncate text-center text-3xl font-bold leading-tight text-gray-900 py-0"
               title={project.proyecto}
             >
               {project.proyecto}

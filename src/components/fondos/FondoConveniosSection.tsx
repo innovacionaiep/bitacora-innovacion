@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
-import { Download, FileDown } from 'lucide-react';
+import { Download, FileDown, Replace, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,9 +15,14 @@ import {
 } from '@/components/ui/table';
 import {
   getConveniosPorFondo,
+  guardarConvenioFirmado,
   type ConvenioDashboardRow,
 } from '@/lib/actions/convenios';
-import { buildCloudinaryDownloadUrl } from '@/lib/convenios-upload';
+import {
+  buildCloudinaryDownloadUrl,
+  CONVENIO_ACCEPT,
+  uploadConvenioFirmado,
+} from '@/lib/convenios-upload';
 import { cn } from '@/lib/utils';
 
 function formatFecha(d: Date | string | null | undefined): string {
@@ -51,27 +56,34 @@ async function fetchAsBlob(url: string, filename: string): Promise<Blob> {
 
 type Props = {
   fondoNombre: string;
+  onChanged?: () => void;
 };
 
-export function FondoConveniosSection({ fondoNombre }: Props) {
+export function FondoConveniosSection({ fondoNombre, onChanged }: Props) {
   const [rows, setRows] = useState<ConvenioDashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [zipping, setZipping] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pendingUploadIdRef = useRef<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await getConveniosPorFondo(fondoNombre);
-    if (!res.success) {
-      setError(res.error || 'Error al cargar convenios');
-      setRows([]);
-    } else {
-      setRows(res.data);
-    }
-    setLoading(false);
-  }, [fondoNombre]);
+  const load = useCallback(
+    async (opts?: { quiet?: boolean }) => {
+      if (!opts?.quiet) setLoading(true);
+      setError(null);
+      const res = await getConveniosPorFondo(fondoNombre);
+      if (!res.success) {
+        setError(res.error || 'Error al cargar convenios');
+        if (!opts?.quiet) setRows([]);
+      } else {
+        setRows(res.data);
+      }
+      if (!opts?.quiet) setLoading(false);
+    },
+    [fondoNombre]
+  );
 
   useEffect(() => {
     void load();
@@ -79,6 +91,50 @@ export function FondoConveniosSection({ fondoNombre }: Props) {
 
   const firmados = useMemo(() => rows.filter((r) => r.firmado), [rows]);
   const pendientes = rows.length - firmados.length;
+
+  const openFilePicker = (proyectoId: string) => {
+    pendingUploadIdRef.current = proyectoId;
+    setError(null);
+    inputRef.current?.click();
+  };
+
+  const handleFile = async (file: File | null) => {
+    const proyectoId = pendingUploadIdRef.current;
+    pendingUploadIdRef.current = null;
+    if (!file || !proyectoId) return;
+
+    const wasFirmado = rows.some((r) => r.id === proyectoId && r.firmado);
+    setUploadingId(proyectoId);
+    setError(null);
+    try {
+      const uploaded = await uploadConvenioFirmado(file, proyectoId);
+      if ('error' in uploaded) {
+        setError(uploaded.error);
+        return;
+      }
+      const saved = await guardarConvenioFirmado({
+        proyectoId,
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        nombreArchivo: uploaded.nombreArchivo,
+      });
+      if (!saved.success) {
+        setError(saved.error || 'No se pudo guardar el convenio.');
+        return;
+      }
+      await load({ quiet: true });
+      onChanged?.();
+    } catch {
+      setError(
+        wasFirmado
+          ? 'Error inesperado al reemplazar el convenio.'
+          : 'Error inesperado al subir el convenio.'
+      );
+    } finally {
+      setUploadingId(null);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
 
   const handleDownloadOne = async (row: ConvenioDashboardRow) => {
     if (!row.convenioFirmadoUrl) return;
@@ -237,18 +293,57 @@ export function FondoConveniosSection({ fondoNombre }: Props) {
                   <TableCell className="text-[13px] text-gray-600 max-w-[180px] truncate">
                     {row.convenioFirmadoNombre || '—'}
                   </TableCell>
-                  <TableCell className="text-right pr-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={!row.firmado || downloadingId === row.id}
-                      onClick={() => handleDownloadOne(row)}
-                      className="h-8 text-[13px] text-gray-600 hover:text-gray-900"
-                    >
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      {downloadingId === row.id ? '…' : 'Descargar'}
-                    </Button>
+                  <TableCell className="text-right pr-4 whitespace-nowrap">
+                    <div className="inline-flex flex-nowrap items-center justify-end gap-0.5">
+                      {row.firmado ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={
+                              downloadingId === row.id ||
+                              uploadingId === row.id ||
+                              zipping
+                            }
+                            onClick={() => handleDownloadOne(row)}
+                            className="h-8 px-2 text-[13px] text-gray-600 hover:text-gray-900"
+                          >
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            {downloadingId === row.id ? '…' : 'Descargar'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={
+                              uploadingId !== null ||
+                              downloadingId === row.id ||
+                              zipping
+                            }
+                            onClick={() => openFilePicker(row.id)}
+                            className="h-8 px-2 text-[13px] text-gray-600 hover:text-gray-900"
+                          >
+                            <Replace className="h-3.5 w-3.5 mr-1" />
+                            {uploadingId === row.id ? 'Subiendo…' : 'Reemplazar'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={
+                            uploadingId !== null || zipping
+                          }
+                          onClick={() => openFilePicker(row.id)}
+                          className="h-8 px-2 text-[13px] text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                        >
+                          <Upload className="h-3.5 w-3.5 mr-1" />
+                          {uploadingId === row.id ? 'Subiendo…' : 'Subir'}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -256,6 +351,16 @@ export function FondoConveniosSection({ fondoNombre }: Props) {
           </Table>
         </div>
       )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={CONVENIO_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          void handleFile(e.target.files?.[0] ?? null);
+        }}
+      />
     </div>
   );
 }

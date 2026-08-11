@@ -85,7 +85,8 @@ type ProyectoTabName =
   | 'Indicadores'
   | 'Presupuesto'
   | 'Historial'
-  | 'Seguimiento';
+  | 'Seguimiento'
+  | 'Escalamiento';
 
 type SortKey =
   | 'rol'

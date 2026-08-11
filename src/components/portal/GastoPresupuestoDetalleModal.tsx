@@ -10,9 +10,9 @@ import { Loader2 } from 'lucide-react';
 import { getItemPresupuestoById } from '@/lib/actions/presupuesto';
 import type { ItemPresupuestoItem } from '@/types/presupuesto';
 import { GastoPresupuestoModal } from '@/components/proyectos/GastoPresupuestoModal';
+import { DETAIL_MODAL_CONTENT_CLASS } from '@/lib/ui/detail-modal';
 
-const PRESUPUESTO_DIALOG_CLASS =
-  'w-[85vw] max-w-[85vw] h-[85vh] gap-0 overflow-hidden flex flex-col border border-gray-200 bg-white p-0 shadow-md sm:rounded-lg';
+const PRESUPUESTO_DIALOG_CLASS = DETAIL_MODAL_CONTENT_CLASS;
 
 export interface GastoPresupuestoDetalleModalProps {
   itemId: string | null;

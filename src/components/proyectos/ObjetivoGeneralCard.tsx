@@ -2,11 +2,12 @@
 
 import { Target, Plus } from 'lucide-react';
 import { ObjetivoEspecificoCard } from './ObjetivoEspecificoCard';
+import { IndicadoresFitScale } from './IndicadoresFitScale';
 import type { ObjetivoGeneralData } from '@/lib/actions/indicadores';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
-/** Ancho fijo de la tarjeta Objetivo General */
+/** Ancho de diseño de la tarjeta Objetivo General (se escala con el contenedor). */
 const OBJETIVO_GENERAL_WIDTH_PX = 1000;
 
 interface ObjetivoGeneralCardProps {
@@ -56,6 +57,8 @@ export function ObjetivoGeneralCard({
     }
   };
 
+  const measureKey = `${objetivoGeneral.id}:${objetivoGeneral.objetivosEspecificos.length}:${objetivoGeneral.objetivosEspecificos.reduce((acc, oe) => acc + oe.indicadores.length, 0)}`;
+
   const objetivoGeneralHeader = (
     <div className="relative z-20 flex shrink-0 items-center gap-3">
       <div
@@ -96,83 +99,79 @@ export function ObjetivoGeneralCard({
     </div>
   );
 
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      {objetivoGeneralHeader}
-
-      {objetivoGeneral.objetivosEspecificos.length > 0 ? (
-        <div
-          id="tour-indicadores-lista"
-          className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-        >
+  const treeBody =
+    objetivoGeneral.objetivosEspecificos.length > 0 ? (
+      <div
+        id="tour-indicadores-lista"
+        className="relative isolate flex min-w-max flex-col gap-16 pb-6 pt-16"
+        style={{ marginLeft: '80px' }}
+      >
+        <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
+        {objetivoGeneral.objetivosEspecificos.map(
+          (objetivoEspecifico, index) => (
+            <div key={objetivoEspecifico.id} className="relative z-10">
+              <ObjetivoEspecificoCard
+                objetivoEspecifico={objetivoEspecifico}
+                numero={index + 1}
+                tourAnchors={index === 0}
+                onIndicadorClick={onIndicadorClick}
+                onDeleteIndicador={onDeleteIndicador}
+                onAddIndicador={
+                  onAddIndicador
+                    ? () => onAddIndicador(objetivoEspecifico.id)
+                    : undefined
+                }
+                onCargaMasiva={onCargaMasiva}
+                canImport={canImport}
+              />
+            </div>
+          )
+        )}
+      </div>
+    ) : (
+      <div
+        id="tour-indicadores-lista"
+        className="relative flex flex-col gap-16 pb-6 pt-16"
+        style={{ marginLeft: '80px' }}
+      >
+        <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
+        <div className="relative z-10 flex items-stretch gap-6">
           <div
-            className="relative isolate flex min-w-max flex-col gap-16 pb-6 pt-16"
-            style={{ marginLeft: '80px' }}
+            className="relative w-[560px] flex-shrink-0 rounded-xl bg-white"
+            style={{ minHeight: '110px' }}
           >
-            <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
-            {objetivoGeneral.objetivosEspecificos.map(
-              (objetivoEspecifico, index) => (
-                <div key={objetivoEspecifico.id} className="relative z-10">
-                  <ObjetivoEspecificoCard
-                    objetivoEspecifico={objetivoEspecifico}
-                    numero={index + 1}
-                    tourAnchors={index === 0}
-                    onIndicadorClick={onIndicadorClick}
-                    onDeleteIndicador={onDeleteIndicador}
-                    onAddIndicador={
-                      onAddIndicador
-                        ? () => onAddIndicador(objetivoEspecifico.id)
-                        : undefined
-                    }
-                    onCargaMasiva={onCargaMasiva}
-                    canImport={canImport}
-                  />
-                </div>
-              )
-            )}
-          </div>
-        </div>
-      ) : (
-        <div
-          id="tour-indicadores-lista"
-          className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-        >
-          <div
-            className="relative flex flex-col gap-16 pb-6 pt-16"
-            style={{ marginLeft: '80px' }}
-          >
-            <div className="pointer-events-none absolute bottom-0 left-[28px] top-0 z-0 w-0.5 bg-gray-300" />
-            <div className="relative z-10 flex items-stretch gap-6">
-              <div
-                className="relative w-[560px] flex-shrink-0 rounded-xl bg-white"
-                style={{ minHeight: '110px' }}
+            <div className="relative flex h-full flex-col justify-center gap-3 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 px-6 py-4 text-gray-900 shadow-md bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
+              <textarea
+                placeholder="Escribe aquí el objetivo específico..."
+                value={nuevoObjetivoTexto}
+                onChange={(e) => setNuevoObjetivoTexto(e.target.value)}
+                className="min-h-[60px] w-full resize-y rounded-lg border border-gray-300 bg-white/60 px-3 py-2 text-[15px] leading-tight text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                rows={2}
+              />
+              <Button
+                type="button"
+                id="tour-indicadores-agregar-oe"
+                onClick={handleAddObjetivo}
+                disabled={!nuevoObjetivoTexto?.trim() || addingObjetivo}
+                className="w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
               >
-                <div className="relative flex h-full flex-col justify-center gap-3 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-100 px-6 py-4 text-gray-900 shadow-md bg-[linear-gradient(to_right,transparent_0%,rgba(107,114,128,0.05)_50%,transparent_100%),linear-gradient(45deg,transparent_25%,rgba(107,114,128,0.02)_25%,rgba(107,114,128,0.02)_50%,transparent_50%,transparent_75%,rgba(107,114,128,0.02)_75%,rgba(107,114,128,0.02)_100%)] bg-[length:100%_100%,20px_20px]">
-                  <textarea
-                    placeholder="Escribe aquí el objetivo específico..."
-                    value={nuevoObjetivoTexto}
-                    onChange={(e) => setNuevoObjetivoTexto(e.target.value)}
-                    className="min-h-[60px] w-full resize-y rounded-lg border border-gray-300 bg-white/60 px-3 py-2 text-[15px] leading-tight text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    rows={2}
-                  />
-                  <Button
-                    type="button"
-                    id="tour-indicadores-agregar-oe"
-                    onClick={handleAddObjetivo}
-                    disabled={!nuevoObjetivoTexto?.trim() || addingObjetivo}
-                    className="w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {addingObjetivo
-                      ? 'Guardando...'
-                      : 'Agregar objetivo específico'}
-                  </Button>
-                </div>
-              </div>
+                <Plus className="h-4 w-4" />
+                {addingObjetivo
+                  ? 'Guardando...'
+                  : 'Agregar objetivo específico'}
+              </Button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    );
+
+  return (
+    <IndicadoresFitScale
+      measureKey={measureKey}
+      header={<div className="pr-3">{objetivoGeneralHeader}</div>}
+    >
+      <div className="pr-3">{treeBody}</div>
+    </IndicadoresFitScale>
   );
 }

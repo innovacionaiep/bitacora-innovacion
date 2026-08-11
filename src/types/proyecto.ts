@@ -81,6 +81,7 @@ export type ProyectoListadoItem = {
   id: string;
   proyecto: string;
   sede: string;
+  fondo: string;
   escuelas: { escuela: { nombre: string } }[];
 };
 

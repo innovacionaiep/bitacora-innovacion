@@ -301,7 +301,7 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            'fixed inset-y-0 top-0 bottom-0 z-10 hidden h-full min-h-svh w-[var(--sidebar-width)] md:flex',
+            'fixed inset-y-0 top-0 bottom-0 z-10 hidden h-full min-h-0 w-[var(--sidebar-width)] md:flex',
             'transition-[width] duration-200 ease-linear',
             'data-[state=collapsed]:w-[var(--sidebar-width-icon)]',
             side === 'left'
