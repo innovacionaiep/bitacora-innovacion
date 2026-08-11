@@ -44,10 +44,23 @@ export function useGantt(
   initialActivities?: Activity[] | null
 ) {
   const queryClient = useQueryClient();
-  const [activities, setActivities] = useState<Activity[]>(
-    initialActivities ?? []
-  );
-  const [loading, setLoading] = useState(false);
+  const [activities, setActivities] = useState<Activity[]>(() => {
+    if (initialActivities != null) return initialActivities;
+    if (!projectId) return [];
+    const cached = queryClient.getQueryData<Activity[]>(
+      proyectoActivitiesKey(projectId)
+    );
+    return cached ?? [];
+  });
+  // true hasta que haya datos iniciales/caché o termine el fetch (evita flash de vacío)
+  const [loading, setLoading] = useState(() => {
+    if (!projectId) return false;
+    if (initialActivities != null) return false;
+    return (
+      queryClient.getQueryData<Activity[]>(proyectoActivitiesKey(projectId)) ==
+      null
+    );
+  });
   const [error, setError] = useState<string | null>(null);
   const [togglingTasks, setTogglingTasks] = useState<Set<string>>(new Set());
   const loadingRef = useRef(false);
@@ -524,6 +537,7 @@ export function useGantt(
   useEffect(() => {
     if (!projectId) {
       setActivities([]);
+      setLoading(false);
       prevProjectIdRef.current = null;
       return;
     }
@@ -533,6 +547,7 @@ export function useGantt(
 
     if (initialActivities != null) {
       setActivities(initialActivities);
+      setLoading(false);
       queryClient.setQueryData(
         proyectoActivitiesKey(projectId),
         initialActivities
@@ -546,10 +561,13 @@ export function useGantt(
     );
     if (cached != null) {
       setActivities(cached);
+      setLoading(false);
       return;
     }
 
     if (projectChanged) {
+      setActivities([]);
+      setLoading(true);
       void loadActivities();
     }
   }, [projectId, initialActivities, loadActivities, queryClient]);

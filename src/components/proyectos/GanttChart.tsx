@@ -2043,7 +2043,14 @@ export default function GanttChart({
                     )}
 
                     {/* Renderizado condicional: Vista Gantt o Kanban */}
-                    {viewMode === 'kanban' ? (
+                    {ganttLoading && activities.length === 0 ? (
+                      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-gray-50">
+                        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                        <p className="text-sm text-gray-500">
+                          Cargando actividades…
+                        </p>
+                      </div>
+                    ) : viewMode === 'kanban' ? (
                       /* Vista Kanban: altura acotada para scroll vertical por columna */
                       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 w-full">
                         <KanbanBoard
