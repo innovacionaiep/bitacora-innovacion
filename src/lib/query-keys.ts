@@ -57,3 +57,18 @@ export const historialFiltrosKey = (projectId: string) =>
 
 export const fondoGestionKey = (fondoNombre: string) =>
   ['fondo-gestion', fondoNombre] as const;
+
+/** Prefixes used for per-project React Query entries (for eviction). */
+export const proyectoDetailQueryFilters = (projectId: string) =>
+  [
+    { queryKey: ['proyecto', projectId] as const },
+    { queryKey: ['proyecto-activities', projectId] as const },
+    { queryKey: ['indicadores', projectId] as const },
+    { queryKey: ['presupuesto', projectId] as const },
+    { queryKey: ['compromisos', projectId] as const },
+    { queryKey: ['reuniones', projectId] as const },
+    { queryKey: ['resumen-tab', projectId] as const },
+    { queryKey: ['historial', projectId] as const },
+    { queryKey: ['historial-filtros', projectId] as const },
+  ] as const;
+

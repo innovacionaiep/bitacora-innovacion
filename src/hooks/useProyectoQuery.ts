@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useRef } from 'react';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   getProyectoBase,
   getProyectoParticipantes,
@@ -13,6 +13,7 @@ import {
   proyectoActivitiesKey,
   proyectoParticipantesKey,
   proyectoDesarrolloTecnicoKey,
+  proyectoDetailQueryFilters,
 } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { ActivityWithTasks } from '@/lib/actions/gantt';
@@ -20,6 +21,9 @@ import type { ActivityWithTasks } from '@/lib/actions/gantt';
 export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
 >;
+
+const PREFETCH_DEBOUNCE_MS = 200;
+const PREFETCH_MAX_CONCURRENT = 2;
 
 async function fetchProyectoBase(
   projectId: string
@@ -76,12 +80,23 @@ export function mergeDesarrolloTecnicoIntoProject(
   };
 }
 
+/** Drop all React Query entries for one project (base, tabs, historial…). */
+export function removeProyectoDetailQueries(
+  queryClient: QueryClient,
+  projectId: string
+) {
+  for (const filter of proyectoDetailQueryFilters(projectId)) {
+    queryClient.removeQueries({ queryKey: [...filter.queryKey] });
+  }
+}
+
 export function useProyectoQuery(projectId: string | null) {
   return useQuery({
     queryKey: projectId ? proyectoBaseKey(projectId) : ['proyecto', 'none'],
     queryFn: () => fetchProyectoBase(projectId!),
     enabled: !!projectId,
     staleTime: 60_000,
+    gcTime: 90_000,
   });
 }
 
@@ -93,6 +108,7 @@ export function useProyectoDesarrolloTecnicoQuery(projectId: string | null) {
     queryFn: () => fetchProyectoDesarrolloTecnico(projectId!),
     enabled: !!projectId,
     staleTime: 60_000,
+    gcTime: 90_000,
   });
 }
 
@@ -104,6 +120,7 @@ export function useProyectoParticipantesQuery(projectId: string | null) {
     queryFn: () => fetchProyectoParticipantes(projectId!),
     enabled: !!projectId,
     staleTime: 60_000,
+    gcTime: 90_000,
   });
 }
 
@@ -115,20 +132,67 @@ export function useProyectoActivitiesQuery(projectId: string | null) {
     queryFn: () => fetchProyectoActivities(projectId!),
     enabled: !!projectId,
     staleTime: 60_000,
+    gcTime: 90_000,
   });
 }
 
+/**
+ * Prefetch project base on hover: debounce + max 2 concurrent to avoid
+ * flooding the network when sweeping the list.
+ */
 export function usePrefetchProyecto() {
   const queryClient = useQueryClient();
+  const inflightRef = useRef(new Set<string>());
+  const queueRef = useRef<string[]>([]);
+  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const pump = useCallback(() => {
+    while (
+      inflightRef.current.size < PREFETCH_MAX_CONCURRENT &&
+      queueRef.current.length > 0
+    ) {
+      const projectId = queueRef.current.shift()!;
+      if (inflightRef.current.has(projectId)) continue;
+      if (queryClient.getQueryData(proyectoBaseKey(projectId))) continue;
+
+      inflightRef.current.add(projectId);
+      void queryClient
+        .prefetchQuery({
+          queryKey: proyectoBaseKey(projectId),
+          queryFn: () => fetchProyectoBase(projectId),
+          staleTime: 60_000,
+          gcTime: 90_000,
+        })
+        .catch(() => {
+          /* ignore prefetch errors */
+        })
+        .finally(() => {
+          inflightRef.current.delete(projectId);
+          pump();
+        });
+    }
+  }, [queryClient]);
+
   return useCallback(
     (projectId: string) => {
-      void queryClient.prefetchQuery({
-        queryKey: proyectoBaseKey(projectId),
-        queryFn: () => fetchProyectoBase(projectId),
-        staleTime: 60_000,
-      });
+      const prev = timersRef.current.get(projectId);
+      if (prev) clearTimeout(prev);
+      timersRef.current.set(
+        projectId,
+        setTimeout(() => {
+          timersRef.current.delete(projectId);
+          if (
+            !queueRef.current.includes(projectId) &&
+            !inflightRef.current.has(projectId) &&
+            !queryClient.getQueryData(proyectoBaseKey(projectId))
+          ) {
+            queueRef.current.push(projectId);
+          }
+          pump();
+        }, PREFETCH_DEBOUNCE_MS)
+      );
     },
-    [queryClient]
+    [pump, queryClient]
   );
 }
 
@@ -140,6 +204,7 @@ export function useFetchProyectoBase() {
         queryKey: proyectoBaseKey(projectId),
         queryFn: () => fetchProyectoBase(projectId),
         staleTime: 60_000,
+        gcTime: 90_000,
       });
     },
     [queryClient]
@@ -154,6 +219,7 @@ export function useFetchProyectoDesarrolloTecnico() {
         queryKey: proyectoDesarrolloTecnicoKey(projectId),
         queryFn: () => fetchProyectoDesarrolloTecnico(projectId),
         staleTime: 60_000,
+        gcTime: 90_000,
       });
     },
     [queryClient]
@@ -168,6 +234,7 @@ export function useFetchProyectoParticipantes() {
         queryKey: proyectoParticipantesKey(projectId),
         queryFn: () => fetchProyectoParticipantes(projectId),
         staleTime: 60_000,
+        gcTime: 90_000,
       });
     },
     [queryClient]
@@ -182,6 +249,7 @@ export function useFetchProyectoActivities() {
         queryKey: proyectoActivitiesKey(projectId),
         queryFn: () => fetchProyectoActivities(projectId),
         staleTime: 60_000,
+        gcTime: 90_000,
       });
     },
     [queryClient]

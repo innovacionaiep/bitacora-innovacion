@@ -32,6 +32,7 @@ import {
   Minimize2,
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
   isLegacyDtFieldKey,
   parseProjectVideoUrl,
@@ -264,36 +265,49 @@ function ProjectVideoEmbed({ url }: { url: string }) {
     let cancelled = false;
     setIsVertical(false);
 
-    const params = new URLSearchParams({ url });
-    void fetch(`/api/video-orientation?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { vertical?: boolean } | null) => {
-        if (!cancelled && data?.vertical) setIsVertical(true);
-      })
-      .catch(() => {
-        /* landscape por defecto */
-      });
+    // Vimeo: oEmbed directo en cliente (CORS *). Evita depender de
+    // /api/video-orientation (auth middleware / fallos cacheados en servidor).
+    if (parsed.provider === 'vimeo' && parsed.pageUrl) {
+      void detectVimeoIsVertical(parsed.pageUrl)
+        .then((vertical) => {
+          if (!cancelled && vertical) setIsVertical(true);
+        })
+        .catch(() => {
+          /* landscape por defecto */
+        });
+    }
 
-    // Solo confiar en Image() si la miniatura ya es portrait (Drive a menudo
-    // entrega thumbs landscape con letterbox; eso lo resuelve la API).
-    if (parsed.provider === 'google-drive' && parsed.videoId) {
-      const img = new Image();
-      img.onload = () => {
-        if (
-          !cancelled &&
-          img.naturalHeight > img.naturalWidth &&
-          img.naturalWidth > 0
-        ) {
-          setIsVertical(true);
-        }
-      };
-      img.src = `https://drive.google.com/thumbnail?id=${encodeURIComponent(parsed.videoId)}&sz=w1000`;
+    // Drive: API (sharp + letterbox) + fallback Image() si la thumb ya es portrait.
+    if (parsed.provider === 'google-drive') {
+      const params = new URLSearchParams({ url });
+      void fetch(`/api/video-orientation?${params.toString()}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { vertical?: boolean } | null) => {
+          if (!cancelled && data?.vertical) setIsVertical(true);
+        })
+        .catch(() => {
+          /* landscape por defecto */
+        });
+
+      if (parsed.videoId) {
+        const img = new Image();
+        img.onload = () => {
+          if (
+            !cancelled &&
+            img.naturalHeight > img.naturalWidth &&
+            img.naturalWidth > 0
+          ) {
+            setIsVertical(true);
+          }
+        };
+        img.src = `https://drive.google.com/thumbnail?id=${encodeURIComponent(parsed.videoId)}&sz=w1000`;
+      }
     }
 
     return () => {
       cancelled = true;
     };
-  }, [url, parsed?.provider, parsed?.isShort, parsed?.videoId]);
+  }, [url, parsed?.provider, parsed?.isShort, parsed?.videoId, parsed?.pageUrl]);
 
   useEffect(() => {
     const onFsChange = () => {

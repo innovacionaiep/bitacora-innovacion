@@ -64,6 +64,7 @@ import {
   setProyectoBaseCache,
   proyectoNeedsDesarrolloTecnicoFetch,
   mergeDesarrolloTecnicoIntoProject,
+  removeProyectoDetailQueries,
 } from '@/hooks/useProyectoQuery';
 import {
   usePrefetchDesarrolloTecnicoConfig,
@@ -72,7 +73,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import {
   proyectoBaseKey,
-  desarrolloTecnicoConfigKey,
 } from '@/lib/query-keys';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
@@ -138,6 +138,11 @@ export function ProyectosContent({
   const hasAppliedIdFromUrlRef = useRef(false);
   const borradoresLoadedRef = useRef(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
+  /** Bumps on every select/clear so stale async completions are ignored. */
+  const selectGenRef = useRef(0);
+  /** Keep caches for the last N projects; evict older ones on select. */
+  const recentProjectIdsRef = useRef<string[]>([]);
+  const LRU_KEEP = 2;
   const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
   const fetchProyectoBase = useFetchProyectoBase();
@@ -151,7 +156,7 @@ export function ProyectosContent({
   const [isResolvingUrlProject, setIsResolvingUrlProject] = useState(
     () => Boolean(searchParams.get('id'))
   );
-  usePageTopLoader(loading || isResolvingUrlProject);
+  const [isSelectingProject, setIsSelectingProject] = useState(false);
   const [mountedTabs, setMountedTabs] = useState<Set<ProyectoTab>>(
     () => new Set(['General'])
   );
@@ -187,18 +192,18 @@ export function ProyectosContent({
     [queryClient]
   );
 
-  const hydrateDesarrolloTecnico = useCallback(
-    async (
-      projectId: string,
-      base: ProyectoWithRelations
-    ): Promise<ProyectoWithRelations> => {
-      if (!proyectoNeedsDesarrolloTecnicoFetch(base)) return base;
-      const dt = await fetchProyectoDesarrolloTecnico(projectId);
-      return mergeDesarrolloTecnicoIntoProject(base, dt);
+  const trackAndEvictProjectCaches = useCallback(
+    (projectId: string) => {
+      const recent = recentProjectIdsRef.current.filter((id) => id !== projectId);
+      recent.unshift(projectId);
+      const evict = recent.splice(LRU_KEEP);
+      recentProjectIdsRef.current = recent;
+      for (const id of evict) {
+        removeProyectoDetailQueries(queryClient, id);
+      }
     },
-    [fetchProyectoDesarrolloTecnico]
+    [queryClient]
   );
-
   const {
     catalogosGeneral,
     catalogosLoading,
@@ -222,6 +227,13 @@ export function ProyectosContent({
     onSaveRevert: () => setShowGeneralSaveToast(false),
     showAddForm,
   });
+
+  usePageTopLoader(
+    loading ||
+      isResolvingUrlProject ||
+      isSelectingProject ||
+      catalogosLoading
+  );
 
   const [formData, setFormData] = useState({
     proyecto: '',
@@ -332,6 +344,8 @@ export function ProyectosContent({
     hasAppliedIdFromUrlRef.current = true;
     setIsResolvingUrlProject(true);
     const tabToSelect = tabFromUrl === 'Seguimiento' ? ('Seguimiento' as const) : null;
+    const gen = ++selectGenRef.current;
+    trackAndEvictProjectCaches(project.id);
     (async () => {
       try {
         const cached = queryClient.getQueryData<ProyectoWithRelations>(
@@ -341,8 +355,9 @@ export function ProyectosContent({
           cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
           fetchDesarrolloTecnicoConfig(),
         ]);
-        const withDt = await hydrateDesarrolloTecnico(project.id, data);
-        setSelectedProjectAndCache(withDt);
+        if (gen !== selectGenRef.current) return;
+        // Paint base immediately; DT hydrates via background effect
+        setSelectedProjectAndCache(data);
         if (tabToSelect) {
           setSelectedTab(tabToSelect);
           setMountedTabs(new Set(['General', tabToSelect]));
@@ -351,13 +366,15 @@ export function ProyectosContent({
           setMountedTabs(new Set(['General']));
         }
         const videoUrl =
-          (withDt as ProyectoWithRelations & { youtubeUrl?: string | null })
+          (data as ProyectoWithRelations & { youtubeUrl?: string | null })
             .youtubeUrl ??
           projectVideos[project.id] ??
           '';
         setTempVideoUrl(videoUrl);
       } finally {
-        setIsResolvingUrlProject(false);
+        if (gen === selectGenRef.current) {
+          setIsResolvingUrlProject(false);
+        }
       }
     })();
   }, [
@@ -366,8 +383,8 @@ export function ProyectosContent({
     loading,
     fetchProyectoBase,
     fetchDesarrolloTecnicoConfig,
-    hydrateDesarrolloTecnico,
     setSelectedProjectAndCache,
+    trackAndEvictProjectCaches,
     queryClient,
   ]);
 
@@ -509,35 +526,55 @@ export function ProyectosContent({
   };
 
   const handleClearProjectSelection = () => {
+    selectGenRef.current += 1;
+    const prevId = selectedProject?.id;
     setSelectedProject(null);
     setSelectedTab('General');
     setMountedTabs(new Set(['General']));
+    setIsSelectingProject(false);
+    topLoader.done(true);
+    if (prevId) {
+      removeProyectoDetailQueries(queryClient, prevId);
+      recentProjectIdsRef.current = recentProjectIdsRef.current.filter(
+        (id) => id !== prevId
+      );
+    }
   };
 
   const handleSelectProject = async (project: ProyectoListadoItem) => {
+    const gen = ++selectGenRef.current;
+    const prevId = selectedProject?.id;
+    if (prevId && prevId !== project.id) {
+      removeProyectoDetailQueries(queryClient, prevId);
+    }
+    trackAndEvictProjectCaches(project.id);
+
     setSelectedTab('General');
     setMountedTabs(new Set(['General']));
-    const cached = queryClient.getQueryData<ProyectoWithRelations>(
-      proyectoBaseKey(project.id)
-    );
-    const dtCached = queryClient.getQueryData(desarrolloTecnicoConfigKey);
-    const needsLoader = !cached || !dtCached;
-    if (needsLoader) topLoader.start();
+    setIsSelectingProject(true);
+    topLoader.start();
     try {
+      const cached = queryClient.getQueryData<ProyectoWithRelations>(
+        proyectoBaseKey(project.id)
+      );
       const [data] = await Promise.all([
         cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
         fetchDesarrolloTecnicoConfig(),
       ]);
-      const withDt = await hydrateDesarrolloTecnico(project.id, data);
-      setSelectedProjectAndCache(withDt);
+      if (gen !== selectGenRef.current) return;
+      // Paint immediately with base; DT loads in background effect
+      setSelectedProjectAndCache(data);
       const videoUrl =
-        (withDt as ProyectoWithRelations & { youtubeUrl?: string | null })
+        (data as ProyectoWithRelations & { youtubeUrl?: string | null })
           .youtubeUrl ??
         projectVideos[project.id] ??
         '';
       setTempVideoUrl(videoUrl);
     } finally {
-      if (needsLoader) topLoader.done(true);
+      if (gen === selectGenRef.current) {
+        setIsSelectingProject(false);
+        topLoader.done(true);
+      }
     }
   };
 
@@ -647,11 +684,12 @@ export function ProyectosContent({
     if (!selectedProject) return;
     if (!proyectoNeedsDesarrolloTecnicoFetch(selectedProject)) return;
     const projectId = selectedProject.id;
+    const gen = selectGenRef.current;
     let cancelled = false;
     (async () => {
       try {
         const dt = await fetchProyectoDesarrolloTecnico(projectId);
-        if (cancelled) return;
+        if (cancelled || gen !== selectGenRef.current) return;
         setSelectedProjectAndCache((prev) => {
           if (!prev || prev.id !== projectId) return prev;
           if (!proyectoNeedsDesarrolloTecnicoFetch(prev)) return prev;
@@ -666,7 +704,11 @@ export function ProyectosContent({
     };
   }, [
     selectedProject?.id,
-    selectedProject,
+    // Only re-run when the selected id changes or base lacks DT key;
+    // reading needsDt from selectedProject without depending on the whole object.
+    selectedProject && proyectoNeedsDesarrolloTecnicoFetch(selectedProject)
+      ? 'needs-dt'
+      : 'has-dt',
     fetchProyectoDesarrolloTecnico,
     setSelectedProjectAndCache,
   ]);

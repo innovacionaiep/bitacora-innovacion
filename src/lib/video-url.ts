@@ -230,10 +230,21 @@ type VimeoOEmbed = {
 
 const vimeoOrientationCache = new Map<string, boolean>();
 
+/** True si algún par de dimensiones (player o thumbnail) es portrait. */
+export function isVerticalFromVimeoOEmbed(data: VimeoOEmbed): boolean {
+  const pairs: Array<[number, number]> = [];
+  if (data.width && data.height) pairs.push([data.width, data.height]);
+  if (data.thumbnail_width && data.thumbnail_height) {
+    pairs.push([data.thumbnail_width, data.thumbnail_height]);
+  }
+  return pairs.some(([w, h]) => h > w && w > 0);
+}
+
 /**
  * Detecta si un video de Vimeo es vertical (alto > ancho) vía oEmbed.
- * Falla en silent → false (se mantiene layout landscape).
- * Seguro para usar en cliente (solo fetch).
+ * Falla en silencio → false (layout landscape). No cachea errores: un fallo
+ * transitorio no debe dejar el video como landscape hasta reiniciar el proceso.
+ * Seguro para usar en cliente (oEmbed de Vimeo permite CORS *).
  */
 export async function detectVimeoIsVertical(
   pageUrl: string
@@ -246,19 +257,14 @@ export async function detectVimeoIsVertical(
 
   try {
     const endpoint = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(key)}`;
-    const res = await fetch(endpoint);
-    if (!res.ok) {
-      vimeoOrientationCache.set(key, false);
-      return false;
-    }
+    const res = await fetch(endpoint, { cache: 'no-store' });
+    if (!res.ok) return false;
+
     const data = (await res.json()) as VimeoOEmbed;
-    const w = data.width ?? data.thumbnail_width ?? 0;
-    const h = data.height ?? data.thumbnail_height ?? 0;
-    const isVertical = h > w && w > 0;
+    const isVertical = isVerticalFromVimeoOEmbed(data);
     vimeoOrientationCache.set(key, isVertical);
     return isVertical;
   } catch {
-    vimeoOrientationCache.set(key, false);
     return false;
   }
 }

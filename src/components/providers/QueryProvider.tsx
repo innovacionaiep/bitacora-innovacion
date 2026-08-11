@@ -10,6 +10,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
+            // Evict inactive project/tab caches sooner (default 5min retains too much)
+            gcTime: 90_000,
             refetchOnWindowFocus: false,
           },
         },
