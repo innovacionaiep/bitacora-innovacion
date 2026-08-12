@@ -82,7 +82,7 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
 
   return (
     <>
-      <div className="flex h-full min-h-0 bg-background text-foreground overflow-hidden">
+      <div className="flex h-full w-full min-h-0 bg-background text-foreground overflow-hidden">
         <SidebarProvider expandOnHover>
           <SidebarNav />
           <ResponsiveMain className={isInicioRoute ? 'overflow-hidden' : undefined}>

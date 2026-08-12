@@ -3,37 +3,68 @@
 import { useLayoutEffect, useState } from 'react';
 import { ScalePortalProvider } from '@/contexts/ScalePortalContext';
 
-/** Tamaño visual estándar ≈ zoom 110% del navegador a DPR 1. */
+/** Ancho de diseño de referencia (la densidad 110% se define respecto a este ancho). */
+export const DESIGN_WIDTH = 1920;
+
+/** Alto de diseño solo para el baseline SSR/hidratación. */
+const DESIGN_HEIGHT = 1080;
+
+/** Densidad visual preferida cuando el viewport tiene DESIGN_WIDTH (≈ zoom 110%). */
 export const UI_BASE_SCALE = 1.1;
 
 interface DesktopScaleCompensateProps {
   children: React.ReactNode;
 }
 
+type ScaleBox = {
+  scale: number;
+  width: number;
+  height: number;
+};
+
+function readViewport(): { width: number; height: number } {
+  const vv = window.visualViewport;
+  return {
+    width: Math.max(1, Math.round(vv?.width ?? window.innerWidth)),
+    height: Math.max(1, Math.round(vv?.height ?? window.innerHeight)),
+  };
+}
+
+function computeScale(viewportWidth: number): number {
+  return Math.max(0.01, (viewportWidth / DESIGN_WIDTH) * UI_BASE_SCALE);
+}
+
+function boxFromViewport(width: number, height: number): ScaleBox {
+  const scale = computeScale(width);
+  return {
+    scale,
+    width: Math.round(width / scale),
+    height: Math.round(height / scale),
+  };
+}
+
+/** Baseline idéntico en server y primer paint del cliente (sin leer window). */
+const SSR_BOX: ScaleBox = boxFromViewport(DESIGN_WIDTH, DESIGN_HEIGHT);
+
 /**
- * Escala global del shell autenticado:
- * - Base 110% (`UI_BASE_SCALE`) como tamaño estándar a zoom 100%.
- * - Compensa DPR del SO/navegador (>1) para mantener esa densidad relativa.
- * Proporciona el contenedor escalado al contexto para que dropdowns/sheets
- * se rendericen dentro y hereden la escala.
+ * Escala global del shell autenticado.
  *
- * SSR + primer paint del cliente usan siempre dprFactor=1 (misma fórmula) para
- * evitar mismatch de hidratación; el DPR real se aplica en useLayoutEffect.
- *
- * Usa `calc(100% / scale)` + `scale()` para que el tamaño visual coincida con el
- * viewport sin desborde por redondeo de floats (evita scrollbar fantasma).
+ * - Escala = (viewportWidth / 1920) × 1.1
+ * - El contenedor interno mide viewport/scale y se transforma para llenar la pantalla.
+ * - SSR + hidratación usan siempre SSR_BOX; el viewport real solo se aplica
+ *   después del mount (evita mismatch en resoluciones chicas como 800×600).
  */
 export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps) {
-  const [mounted, setMounted] = useState(false);
-  const [dpr, setDpr] = useState(1);
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const [box, setBox] = useState<ScaleBox>(SSR_BOX);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null
+  );
 
   useLayoutEffect(() => {
     const sync = () => {
-      const ratio = window.devicePixelRatio || 1;
-      setDpr(ratio > 1 ? ratio : 1);
+      const vp = readViewport();
+      setBox(boxFromViewport(vp.width, vp.height));
     };
-    setMounted(true);
     sync();
     window.addEventListener('resize', sync);
     window.visualViewport?.addEventListener('resize', sync);
@@ -43,25 +74,20 @@ export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps
     };
   }, []);
 
-  // Antes de montar: dprFactor fijo en 1 → HTML idéntico en server y cliente
-  const dprFactor = mounted && dpr > 1 ? dpr : 1;
-  const scale = UI_BASE_SCALE / dprFactor;
-
   return (
     <ScalePortalProvider container={portalContainer}>
       <div
-        className="fixed inset-0 overflow-hidden overscroll-none"
+        className="fixed inset-0 overflow-hidden overscroll-none bg-background"
         style={{ width: '100%', height: '100%' }}
       >
         <div
           ref={(el) => setPortalContainer(el)}
           className="bg-background text-foreground overflow-hidden overscroll-none"
-          // Estilos dependen del DPR del dispositivo tras el mount
           suppressHydrationWarning
           style={{
-            width: `calc(100% / ${scale})`,
-            height: `calc(100% / ${scale})`,
-            transform: `scale(${scale})`,
+            width: box.width,
+            height: box.height,
+            transform: `scale(${box.scale})`,
             transformOrigin: '0 0',
           }}
         >
