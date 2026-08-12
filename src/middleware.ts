@@ -24,6 +24,20 @@ function isStaticAsset(pathname: string) {
   );
 }
 
+/** Imágenes de preview (WhatsApp/OG) deben ser públicas: el crawler no tiene sesión. */
+function isPublicSeoAsset(pathname: string) {
+  return (
+    pathname === '/icon' ||
+    pathname.startsWith('/icon/') ||
+    pathname === '/apple-icon' ||
+    pathname.startsWith('/apple-icon/') ||
+    pathname === '/opengraph-image' ||
+    pathname.startsWith('/opengraph-image/') ||
+    pathname === '/twitter-image' ||
+    pathname.startsWith('/twitter-image/')
+  );
+}
+
 function maintenanceOrigin(req: NextRequest) {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
@@ -50,7 +64,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   const { pathname } = req.nextUrl;
 
   // Salida temprana: no reentrar al chequear estado (evita bucle middleware → API → middleware)
-  if (pathname === MAINTENANCE_STATUS_API || isStaticAsset(pathname)) {
+  if (
+    pathname === MAINTENANCE_STATUS_API ||
+    isStaticAsset(pathname) ||
+    isPublicSeoAsset(pathname)
+  ) {
     return NextResponse.next();
   }
 

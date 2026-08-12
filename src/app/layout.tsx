@@ -1,4 +1,4 @@
-import type { Viewport } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import '@/app/globals.css';
 import { SessionProvider } from '@/components/SessionProvider';
@@ -11,14 +11,27 @@ const inter = Inter({
   display: 'swap',
 });
 
-export const metadata = {
-  title: 'Bitácora - Gestión de Proyectos',
-  description:
-    'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+const siteTitle = 'Bitácora - Dir. Nac. Emprendimiento e I+D';
+const siteDescription =
+  'App para seguimiento de proyectos: Innovación Docente, Reto Innovador, Fondo Impulsa.';
+
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXTAUTH_URL ?? 'https://bitacora-innovacion.vercel.app',
+  ),
+  title: siteTitle,
+  description: siteDescription,
   openGraph: {
-    title: 'Bitácora - Gestión de Proyectos',
-    description:
-      'Plataforma para seguimiento fácil de actividades, presupuesto y más.',
+    title: siteTitle,
+    description: siteDescription,
+    type: 'website',
+    locale: 'es_CL',
+    siteName: 'Bitácora',
+  },
+  twitter: {
+    card: 'summary',
+    title: siteTitle,
+    description: siteDescription,
   },
 };
 
