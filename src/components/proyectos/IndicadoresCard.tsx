@@ -108,7 +108,7 @@ function IndicadoresFullscreenOverlay({
 
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[200] flex items-center gap-2"
+      className="pointer-events-none fixed z-40 flex items-center gap-2"
       style={{ top: pos.top, left: pos.left }}
     >
       <div className="pointer-events-auto">
@@ -416,9 +416,12 @@ export function IndicadoresCard({
     });
   }, [isFullscreen]);
 
+  const indicadorModalOpen =
+    Boolean(selectedIndicador) || showAgregarModal;
+
   const showFullscreenHint = useFullscreenRecommendHint(!loading, {
     active: topLoaderEnabled,
-    enabled: !isFullscreen,
+    enabled: !isFullscreen && !indicadorModalOpen,
   });
 
   if (loading) {
@@ -465,7 +468,7 @@ export function IndicadoresCard({
     >
       {!isFullscreen ? (
         <IndicadoresFullscreenOverlay
-          active={topLoaderEnabled}
+          active={topLoaderEnabled && !indicadorModalOpen}
           showHint={showFullscreenHint}
           onToggle={toggleFullscreen}
         />

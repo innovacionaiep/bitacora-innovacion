@@ -79,14 +79,42 @@ export function FullscreenRecommendHint({
   const [mounted, setMounted] = useState(false);
   const [renderHint, setRenderHint] = useState(false);
   const [opaque, setOpaque] = useState(false);
+  /**
+   * Los diálogos viven en ScalePortal (otro stacking context vs body).
+   * Si se abre un modal durante el tip, se suprime el resto del ciclo.
+   */
+  const [suppressedByDialog, setSuppressedByDialog] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!show) {
+      setSuppressedByDialog(false);
+      return;
+    }
+
+    const syncDialogOpen = () => {
+      if (document.querySelector('[role="dialog"][data-state="open"]')) {
+        setSuppressedByDialog(true);
+      }
+    };
+    syncDialogOpen();
+
+    const mo = new MutationObserver(syncDialogOpen);
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-state'],
+    });
+    return () => mo.disconnect();
+  }, [show]);
+
   // Fade in / fade out manteniendo el nodo montado durante la salida.
   useEffect(() => {
-    if (show) {
+    if (show && !suppressedByDialog) {
       setRenderHint(true);
       const id = requestAnimationFrame(() => {
         requestAnimationFrame(() => setOpaque(true));
@@ -100,10 +128,10 @@ export function FullscreenRecommendHint({
       setCoords(null);
     }, FADE_MS);
     return () => clearTimeout(t);
-  }, [show]);
+  }, [show, suppressedByDialog]);
 
   useLayoutEffect(() => {
-    if (!renderHint) return;
+    if (!renderHint || suppressedByDialog) return;
 
     const update = () => {
       const el = anchorRef.current;
@@ -149,7 +177,7 @@ export function FullscreenRecommendHint({
       ro.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [renderHint, side, sidebarState]);
+  }, [renderHint, side, sidebarState, suppressedByDialog]);
 
   const hintStyle =
     side === 'right'
@@ -167,12 +195,12 @@ export function FullscreenRecommendHint({
         };
 
   const hint =
-    mounted && renderHint && coords
+    mounted && renderHint && coords && !suppressedByDialog
       ? createPortal(
           <div
             role="status"
             className={cn(
-              'pointer-events-none fixed z-[200] whitespace-nowrap rounded-lg bg-gray-500 px-3 py-2 text-xs font-medium text-white shadow-lg transition-opacity ease-out',
+              'pointer-events-none fixed z-40 whitespace-nowrap rounded-lg bg-gray-500 px-3 py-2 text-xs font-medium text-white shadow-lg transition-opacity ease-out',
               opaque ? 'opacity-100' : 'opacity-0'
             )}
             style={hintStyle}
