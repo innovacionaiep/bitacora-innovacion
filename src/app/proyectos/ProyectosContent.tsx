@@ -1284,7 +1284,7 @@ export function ProyectosContent({
             <nav
               aria-label="Secciones del proyecto"
               data-tour="proyecto-tabs-nav"
-              className="flex-shrink-0 mb-5 overflow-x-auto"
+              className="flex-shrink-0 mb-2 overflow-x-auto"
             >
               <div className="flex items-stretch justify-center gap-1 sm:gap-2 min-w-max mx-auto px-2">
                 {visibleProjectTabs.map((tab) => {
@@ -1658,7 +1658,7 @@ export function ProyectosContent({
             </div>
 
             {/* Contenido por tab (keep-alive tras primera visita) */}
-            <div className="flex-1 overflow-hidden mt-6">
+            <div className="flex-1 overflow-hidden mt-4">
               {selectedProject &&
                 proyectoTieneTabConvenio &&
                 mountedTabs.has('Convenio') && (
