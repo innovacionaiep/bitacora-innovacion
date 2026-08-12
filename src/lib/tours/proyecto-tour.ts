@@ -33,7 +33,7 @@ function step(
       title,
       description,
       side: options?.side ?? 'bottom',
-      align: options?.align ?? 'start',
+      align: options?.align ?? 'center',
     },
   };
 }
@@ -149,12 +149,14 @@ const STEPS_BY_TAB: Record<ProyectoTourTab, DriveStep[]> = {
     step(
       '#tour-gantt-board',
       'Actividades',
-      'Timeline o columnas con las actividades y tareas. Expande filas para ver el detalle.'
+      'Timeline o columnas con las actividades y tareas. Expande filas para ver el detalle.',
+      { side: 'bottom', align: 'center' }
     ),
     step(
       '#tour-gantt-agregar',
       'Agregar actividad',
-      'Crea una nueva actividad en el plan. Completa fechas, responsables y evidencias según corresponda.'
+      'Crea una nueva actividad en el plan. Completa fechas, responsables y evidencias según corresponda.',
+      { side: 'bottom', align: 'center' }
     ),
     step(
       '#tour-gantt-footer',
@@ -210,12 +212,14 @@ const STEPS_BY_TAB: Record<ProyectoTourTab, DriveStep[]> = {
     step(
       '#tour-presupuesto-cuentas',
       'Resumen por cuenta',
-      'Distribución del presupuesto por cuentas o categorías para ver dónde está el gasto.'
+      'Distribución del presupuesto por cuentas o categorías para ver dónde está el gasto.',
+      { side: 'bottom', align: 'center' }
     ),
     step(
       '#tour-presupuesto-tabla',
       'Líneas de presupuesto',
-      'Detalle de ítems, montos y gastos asociados. Desde aquí abres el detalle de cada línea.'
+      'Detalle de ítems, montos y gastos asociados. Desde aquí abres el detalle de cada línea.',
+      { side: 'bottom', align: 'center' }
     ),
     step(
       '#tour-presupuesto-agregar',

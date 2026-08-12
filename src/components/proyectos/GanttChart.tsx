@@ -64,6 +64,10 @@ import { PeriodTimeline } from '@/components/ui/period-timeline';
 import { Slider } from '@/components/ui/slider';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
 import {
+  FullscreenRecommendHint,
+  useFullscreenRecommendHint,
+} from '@/components/proyectos/FullscreenRecommendHint';
+import {
   useState,
   useEffect,
   useRef,
@@ -635,16 +639,60 @@ export default function GanttChart({
   const { data: session } = useSession();
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const wantNativeFullscreenRef = useRef(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(
     null
   );
 
-  // Función para alternar pantalla completa
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
+  useEffect(() => {
+    const onFsChange = () => {
+      if (document.fullscreenElement && wantNativeFullscreenRef.current) {
+        setIsFullscreen(true);
+      } else if (!document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      if (wantNativeFullscreenRef.current && document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        void document.exitFullscreen();
+      }
+    };
+  }, []);
+
+  // Fallback CSS-only: Esc cierra si la Fullscreen API no está activa.
+  useEffect(() => {
+    if (!isFullscreen || document.fullscreenElement) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      wantNativeFullscreenRef.current = false;
+      void document.exitFullscreen();
+      return;
+    }
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      return;
+    }
+    wantNativeFullscreenRef.current = true;
+    void document.documentElement.requestFullscreen().catch(() => {
+      wantNativeFullscreenRef.current = false;
+      /* navegador puede bloquear fullscreen → expandir en viewport */
+      setIsFullscreen(true);
+    });
+  }, [isFullscreen]);
+
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   /** Toast de checkbox: un solo mensaje tras 3s sin más toggles. */
   const checkboxSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -676,13 +724,13 @@ export default function GanttChart({
   // Timer para ocultar el tooltip con delay
   const [tooltipTimer, setTooltipTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Estado para controlar el rango visible de meses (6-24 meses)
-  const [visibleMonthsRange, setVisibleMonthsRange] = useState(12);
+  // Estado para controlar el rango visible de meses (6-24 meses, incl. 9)
+  const [visibleMonthsRange, setVisibleMonthsRange] = useState(6);
 
   // Estado para controlar el offset del timeline (meses desde enero 2025); inicializa centrado en hoy
   // Navegación acotada a ene 2026 … ene 2027 (vista 12 meses hasta dic 2027)
   const [timelineOffset, setTimelineOffset] = useState(() =>
-    getTodayCenteredOffset(12)
+    getTodayCenteredOffset(6)
   );
 
   // Refs y estado para manejar el ancho del scrollbar y altura de la línea "hoy"
@@ -800,6 +848,11 @@ export default function GanttChart({
   usePageTopLoader(ganttLoading, {
     completeOnReady: true,
     enabled: topLoaderEnabled,
+  });
+
+  const showFullscreenHint = useFullscreenRecommendHint(!ganttLoading, {
+    active: topLoaderEnabled,
+    enabled: !isFullscreen,
   });
 
   // Estado derivado para determinar si todas las actividades están expandidas
@@ -1817,7 +1870,7 @@ export default function GanttChart({
   return (
     <TooltipProvider>
       <div
-        className={`${isFullscreen ? 'fixed inset-0 z-50 flex h-full min-h-0 flex-col overflow-hidden bg-white p-4' : 'flex h-full min-h-0 flex-col overflow-hidden pt-2 px-4 pb-4'}`}
+        className={`${isFullscreen ? 'fixed inset-0 z-50 flex h-full min-h-0 flex-col overflow-hidden bg-white pt-6 px-10 pb-8' : 'flex h-full min-h-0 flex-col overflow-hidden pt-2 px-4 pb-4'}`}
       >
         {/* Header compacto de progreso */}
         <div className="mb-3 shrink-0">
@@ -1825,31 +1878,33 @@ export default function GanttChart({
             {/* Botones de toggle Gantt/Kanban */}
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
               {/* Botón de pantalla completa */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    id="tour-gantt-fullscreen"
-                    onClick={toggleFullscreen}
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
-                  >
-                    {isFullscreen ? (
-                      <Minimize className="h-4 w-4" />
-                    ) : (
-                      <Maximize className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {isFullscreen
-                      ? 'Salir de pantalla completa'
-                      : 'Ver en pantalla completa'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+              <FullscreenRecommendHint show={showFullscreenHint}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      id="tour-gantt-fullscreen"
+                      onClick={toggleFullscreen}
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                    >
+                      {isFullscreen ? (
+                        <Minimize className="h-4 w-4" />
+                      ) : (
+                        <Maximize className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isFullscreen
+                        ? 'Salir de pantalla completa'
+                        : 'Ver en pantalla completa'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </FullscreenRecommendHint>
 
               {/* Nombre del proyecto en fullscreen (máx. 50 caracteres) — ancho del texto, no flex-1 */}
               {isFullscreen && projectName && (
@@ -1924,7 +1979,7 @@ export default function GanttChart({
                       style={{ width: `${calculateProjectProgress()}%` }}
                     ></div>
                   </div>
-                  <span className="text-4xl font-bold text-emerald-600 tabular-nums">
+                  <span className="text-2xl font-bold text-emerald-600 tabular-nums">
                     {calculateProjectProgress()}%
                   </span>
                 </div>
@@ -2284,6 +2339,16 @@ export default function GanttChart({
                           className="h-8 px-3"
                         >
                           6 meses
+                        </Button>
+                        <Button
+                          onClick={() => setVisibleMonthsRange(9)}
+                          variant={
+                            visibleMonthsRange === 9 ? 'default' : 'outline'
+                          }
+                          size="sm"
+                          className="h-8 px-3"
+                        >
+                          9 meses
                         </Button>
                         <Button
                           onClick={() => setVisibleMonthsRange(12)}

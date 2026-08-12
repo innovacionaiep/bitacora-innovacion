@@ -3,7 +3,7 @@
 const TABLE_HEADER_BG = '#d1d5db';
 const TABLE_HEADER_TEXT = '#374151';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Maximize,
@@ -17,6 +17,10 @@ import {
   X,
   FileSpreadsheet,
 } from 'lucide-react';
+import {
+  FullscreenRecommendHint,
+  useFullscreenRecommendHint,
+} from '@/components/proyectos/FullscreenRecommendHint';
 import {
   Table,
   TableBody,
@@ -267,6 +271,7 @@ export function PresupuestoCard({
 }: PresupuestoCardProps) {
   const queryClient = useQueryClient();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const wantNativeFullscreenRef = useRef(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     cuenta: CuentaPresupuesto;
@@ -325,7 +330,53 @@ export function PresupuestoCard({
     setPresupuestoAdjudicado(presupuestoAdjudicadoInitial);
   }, [presupuestoAdjudicadoInitial]);
 
-  const toggleFullscreen = () => setIsFullscreen((p) => !p);
+  useEffect(() => {
+    const onFsChange = () => {
+      if (document.fullscreenElement && wantNativeFullscreenRef.current) {
+        setIsFullscreen(true);
+      } else if (!document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      if (wantNativeFullscreenRef.current && document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        void document.exitFullscreen();
+      }
+    };
+  }, []);
+
+  // Fallback CSS-only: Esc cierra si la Fullscreen API no está activa.
+  useEffect(() => {
+    if (!isFullscreen || document.fullscreenElement) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      wantNativeFullscreenRef.current = false;
+      void document.exitFullscreen();
+      return;
+    }
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      return;
+    }
+    wantNativeFullscreenRef.current = true;
+    void document.documentElement.requestFullscreen().catch(() => {
+      wantNativeFullscreenRef.current = false;
+      /* navegador puede bloquear fullscreen → expandir en viewport */
+      setIsFullscreen(true);
+    });
+  }, [isFullscreen]);
+
   const startEditingAdjudicado = () => {
     setAdjudicadoDraft(
       presupuestoAdjudicado > 0 ? String(presupuestoAdjudicado) : ''
@@ -581,6 +632,11 @@ export function PresupuestoCard({
     enabled: topLoaderEnabled,
   });
 
+  const showFullscreenHint = useFullscreenRecommendHint(!loading, {
+    active: topLoaderEnabled,
+    enabled: !isFullscreen,
+  });
+
   if (loading) {
     return <div className="h-full min-h-[120px]" />;
   }
@@ -611,31 +667,33 @@ export function PresupuestoCard({
           <div className="flex items-center justify-between w-full min-w-0 gap-4">
             <div className="flex items-center gap-1 min-w-0 flex-1">
               <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      id="tour-presupuesto-fullscreen"
-                      onClick={toggleFullscreen}
-                      variant="ghost"
-                      size="sm"
-                      className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
-                    >
-                      {isFullscreen ? (
-                        <Minimize className="h-4 w-4" />
-                      ) : (
-                        <Maximize className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {isFullscreen
-                        ? 'Salir de pantalla completa'
-                        : 'Ver en pantalla completa'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+                <FullscreenRecommendHint show={showFullscreenHint}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        id="tour-presupuesto-fullscreen"
+                        onClick={toggleFullscreen}
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                      >
+                        {isFullscreen ? (
+                          <Minimize className="h-4 w-4" />
+                        ) : (
+                          <Maximize className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {isFullscreen
+                          ? 'Salir de pantalla completa'
+                          : 'Ver en pantalla completa'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </FullscreenRecommendHint>
                 {isFullscreen && projectName && (
                   <div className="flex min-w-0 max-w-full shrink items-center ml-2 mr-2">
                     <h1
@@ -737,7 +795,7 @@ export function PresupuestoCard({
                       }}
                     />
                   </div>
-                  <span className="text-4xl font-bold text-emerald-600 tabular-nums">
+                  <span className="text-2xl font-bold text-emerald-600 tabular-nums">
                     {resumenMacro.pctGlobalAvance}%
                   </span>
                 </div>
@@ -1225,7 +1283,7 @@ export function PresupuestoCard({
                               </div>
                             ) : (
                               <div
-                                className="whitespace-normal break-words"
+                                className="whitespace-pre-wrap break-words"
                                 style={{ maxWidth: '100%' }}
                               >
                                 {row.detalle ?? '—'}

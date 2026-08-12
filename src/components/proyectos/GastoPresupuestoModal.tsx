@@ -444,7 +444,7 @@ export function GastoPresupuestoModal({
               </div>
             ) : (
               <div className="group/field relative min-w-0 pr-8">
-                <p className="text-[15px] text-gray-800 leading-[1.75] break-words [overflow-wrap:anywhere]">
+                <p className="text-[15px] text-gray-800 leading-[1.75] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                   {values.detalle || 'Sin detalle'}
                 </p>
                 {canEdit && (

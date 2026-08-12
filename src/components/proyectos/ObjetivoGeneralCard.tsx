@@ -83,7 +83,7 @@ export function ObjetivoGeneralCard({
                   style={{ width: `${progresoGeneral}%` }}
                 />
               </div>
-              <span className="text-xl font-bold text-emerald-600">
+              <span className="text-2xl font-bold text-emerald-600">
                 {progresoGeneral}%
               </span>
             </div>

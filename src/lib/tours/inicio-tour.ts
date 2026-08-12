@@ -75,7 +75,7 @@ function step(
       title,
       description,
       side: options?.side ?? 'bottom',
-      align: options?.align ?? 'start',
+      align: options?.align ?? 'center',
     },
   };
 }

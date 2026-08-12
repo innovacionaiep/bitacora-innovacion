@@ -905,7 +905,7 @@ export function GeneralTabHeader({
                 prev ? { ...prev, proyecto: e.target.value } : prev
               )
             }
-            className="h-10 text-3xl font-bold text-gray-900 text-center px-3 py-2 border border-gray-200 rounded-md focus:border-gray-400 focus-visible:ring-0 w-fit max-w-full min-w-[320px] sm:min-w-[480px] bg-transparent shadow-none"
+            className="h-10 text-2xl font-bold text-gray-900 text-center px-3 py-2 border border-gray-200 rounded-md focus:border-gray-400 focus-visible:ring-0 w-fit max-w-full min-w-[320px] sm:min-w-[480px] bg-transparent shadow-none"
           />
           <FieldSaveCancel
             isSaving={isGeneralSaving}
@@ -919,7 +919,7 @@ export function GeneralTabHeader({
         <div className="flex justify-center w-full min-w-0 max-w-[min(100%,75rem)] mx-auto overflow-visible">
           <div className="group/title relative inline-flex max-w-full min-w-0 items-center overflow-visible">
             <h1
-              className="truncate text-center text-3xl font-bold leading-tight text-gray-900 py-0"
+              className="truncate text-center text-2xl font-bold leading-tight text-gray-900 py-0"
               title={project.proyecto}
             >
               {project.proyecto}

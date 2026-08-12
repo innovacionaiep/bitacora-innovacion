@@ -202,6 +202,7 @@ export function IndicadoresTab({
         <IndicadoresCard
           key={refreshKey}
           projectId={project.id}
+          projectName={project.proyecto}
           topLoaderEnabled={topLoaderEnabled}
           canImport={canImport}
           onCargaMasiva={() => setImportOpen(true)}

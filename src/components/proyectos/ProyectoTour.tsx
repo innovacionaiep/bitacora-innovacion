@@ -16,7 +16,10 @@ import {
   PROYECTO_TOUR_POPOVER_CLASS,
 } from '@/lib/tours/proyecto-tour';
 import { filterVisibleTourSteps } from '@/lib/tours/tour-dom';
-import { createBitacoraTourDriver } from '@/lib/tours/driver-scaled-ui';
+import {
+  createBitacoraTourDriver,
+  scrollTourAnchorIntoView,
+} from '@/lib/tours/driver-scaled-ui';
 
 export type ProyectoTourHandle = {
   startTour: () => void;
@@ -63,18 +66,15 @@ export const ProyectoTour = forwardRef<ProyectoTourHandle, ProyectoTourProps>(
 
         const d = createBitacoraTourDriver({
           popoverClass: PROYECTO_TOUR_POPOVER_CLASS,
-          smoothScroll: true,
+
           ...PROYECTO_TOUR_BUTTONS,
           steps,
           // Contenedores con overflow interno (Gantt, tablas): scrollIntoView
           // en el ancla, no solo en window (Driver.js no alcanza nested scroll).
           onHighlightStarted: (element) => {
             if (!(element instanceof HTMLElement)) return;
-            element.scrollIntoView({
-              block: 'center',
-              inline: 'nearest',
-              behavior: 'instant',
-            });
+            // nearest: en 720p, center dejaba ~240px de hueco bajo el ancla.
+            scrollTourAnchorIntoView(element);
           },
           onDestroyed: () => {
             driverRef.current = null;

@@ -1,7 +1,16 @@
 'use client';
 
 import { useIndicadores } from '@/hooks/useIndicadores';
-import { useState, useEffect, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Maximize, Minimize } from 'lucide-react';
 import { ObjetivoGeneralCard } from './ObjetivoGeneralCard';
 import { IndicadorModal } from './IndicadorModal';
 import { AgregarIndicadorModal } from './AgregarIndicadorModal';
@@ -9,9 +18,130 @@ import { IndicadoresTabLoading } from './IndicadoresTabLoading';
 import { deleteIndicador } from '@/lib/actions/indicadores';
 import { createObjetivoEspecifico } from '@/lib/actions/proyectos';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  FullscreenRecommendHint,
+  useFullscreenRecommendHint,
+} from '@/components/proyectos/FullscreenRecommendHint';
+import { useSidebar } from '@/components/ui/sidebar';
+
+const FS_BTN_SIZE = 40;
+const FS_BTN_GAP = 8;
+/** Debe cubrir la transición de ancho del sidebar (~200ms). */
+const SIDEBAR_LAYOUT_SYNC_MS = 250;
+
+interface IndicadoresFullscreenOverlayProps {
+  active: boolean;
+  showHint: boolean;
+  onToggle: () => void;
+}
+
+/** Botón FS en portal fixed: flota encima de la tarjeta OG sin afectar el layout. */
+function IndicadoresFullscreenOverlay({
+  active,
+  showHint,
+  onToggle,
+}: IndicadoresFullscreenOverlayProps) {
+  const { state: sidebarState } = useSidebar();
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!active || !mounted) {
+      setPos(null);
+      return;
+    }
+
+    const update = () => {
+      const og = document.getElementById('tour-indicadores-og');
+      if (!og) {
+        setPos(null);
+        return;
+      }
+      const rect = og.getBoundingClientRect();
+      setPos({
+        top: rect.top - FS_BTN_GAP - FS_BTN_SIZE,
+        left: rect.left,
+      });
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+
+    const og = document.getElementById('tour-indicadores-og');
+    const sidebarEl = document.querySelector<HTMLElement>('.peer[data-state]');
+    const ro = new ResizeObserver(update);
+    if (og) ro.observe(og);
+    if (sidebarEl) ro.observe(sidebarEl);
+
+    // El sidebar anima width sin window.resize: seguir el layout unos frames.
+    let raf = 0;
+    const endAt = performance.now() + SIDEBAR_LAYOUT_SYNC_MS;
+    const tick = () => {
+      update();
+      if (performance.now() < endAt) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [active, mounted, sidebarState]);
+
+  if (!mounted || !active || !pos) return null;
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed z-[200] flex items-center gap-2"
+      style={{ top: pos.top, left: pos.left }}
+    >
+      <div className="pointer-events-auto">
+        <TooltipProvider>
+          <FullscreenRecommendHint show={showHint} side="right">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  id="tour-indicadores-fullscreen"
+                  onClick={onToggle}
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                >
+                  <Maximize className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ver en pantalla completa</p>
+              </TooltipContent>
+            </Tooltip>
+          </FullscreenRecommendHint>
+        </TooltipProvider>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 interface IndicadoresCardProps {
   projectId: string;
+  projectName?: string;
   topLoaderEnabled?: boolean;
   canImport?: boolean;
   onCargaMasiva?: () => void;
@@ -19,6 +149,7 @@ interface IndicadoresCardProps {
 
 export function IndicadoresCard({
   projectId,
+  projectName,
   topLoaderEnabled = true,
   canImport = false,
   onCargaMasiva,
@@ -35,6 +166,8 @@ export function IndicadoresCard({
     addObjetivoEspecificoOptimistic,
     setData,
   } = useIndicadores(projectId);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const wantNativeFullscreenRef = useRef(false);
   const [showAgregarModal, setShowAgregarModal] = useState(false);
   const [objetivoEspecificoPreseleccionado, setObjetivoEspecificoPreseleccionado] =
     useState<string | null>(null);
@@ -238,6 +371,56 @@ export function IndicadoresCard({
     enabled: topLoaderEnabled,
   });
 
+  useEffect(() => {
+    const onFsChange = () => {
+      if (document.fullscreenElement && wantNativeFullscreenRef.current) {
+        setIsFullscreen(true);
+      } else if (!document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      if (wantNativeFullscreenRef.current && document.fullscreenElement) {
+        wantNativeFullscreenRef.current = false;
+        void document.exitFullscreen();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFullscreen || document.fullscreenElement) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      wantNativeFullscreenRef.current = false;
+      void document.exitFullscreen();
+      return;
+    }
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      return;
+    }
+    wantNativeFullscreenRef.current = true;
+    void document.documentElement.requestFullscreen().catch(() => {
+      wantNativeFullscreenRef.current = false;
+      setIsFullscreen(true);
+    });
+  }, [isFullscreen]);
+
+  const showFullscreenHint = useFullscreenRecommendHint(!loading, {
+    active: topLoaderEnabled,
+    enabled: !isFullscreen,
+  });
+
   if (loading) {
     return <IndicadoresTabLoading />;
   }
@@ -273,8 +456,55 @@ export function IndicadoresCard({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-3 pl-5 pr-6">
+    <div
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-50 flex h-full min-h-0 flex-col overflow-hidden bg-white px-10 pb-8 pt-6'
+          : 'relative flex h-full min-h-0 flex-col overflow-hidden'
+      }
+    >
+      {!isFullscreen ? (
+        <IndicadoresFullscreenOverlay
+          active={topLoaderEnabled}
+          showHint={showFullscreenHint}
+          onToggle={toggleFullscreen}
+        />
+      ) : (
+        <div className="mb-6 flex shrink-0 items-start gap-3">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  id="tour-indicadores-fullscreen"
+                  onClick={toggleFullscreen}
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 w-10 shrink-0 rounded-lg transition-all duration-200 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm"
+                >
+                  <Minimize className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Salir de pantalla completa</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {projectName ? (
+            <h1 className="min-w-0 flex-1 text-2xl font-bold leading-snug text-gray-900">
+              {projectName}
+            </h1>
+          ) : null}
+        </div>
+      )}
+
+      <div
+        className={
+          isFullscreen
+            ? 'flex min-h-0 flex-1 flex-col overflow-hidden pl-5 pr-6'
+            : 'flex min-h-0 flex-1 flex-col overflow-hidden pt-3 pl-5 pr-6'
+        }
+      >
         {data.objetivosGenerales.map((objetivoGeneral, index) => (
           <div
             key={objetivoGeneral.id}
