@@ -220,7 +220,8 @@ const STEPS_BY_TAB: Record<ProyectoTourTab, DriveStep[]> = {
     step(
       '#tour-presupuesto-agregar',
       'Agregar línea',
-      'Crea una nueva línea de gasto o ítem presupuestario.'
+      'Crea una nueva línea de gasto o ítem presupuestario.',
+      { side: 'top', align: 'center' }
     ),
     step(
       '#tour-presupuesto-gasto',

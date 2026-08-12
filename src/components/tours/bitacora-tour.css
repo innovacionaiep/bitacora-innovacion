@@ -77,3 +77,9 @@
 .bitacora-tour .driver-popover-arrow-side-bottom {
   border-color: #fff;
 }
+
+/* Host fuera del scale: reactivar clicks en popover (el host es pointer-events-none). */
+#tour-overlay-host .driver-popover,
+#tour-overlay-host .driver-popover * {
+  pointer-events: auto;
+}

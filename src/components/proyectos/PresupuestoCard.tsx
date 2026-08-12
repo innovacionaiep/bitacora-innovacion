@@ -1617,10 +1617,7 @@ export function PresupuestoCard({
                     </TableRow>
                   )}
                   {!isAddingRow && (
-                    <TableRow
-                      id="tour-presupuesto-agregar"
-                      className="border-t-2 border-dashed border-gray-200"
-                    >
+                    <TableRow className="border-t-2 border-dashed border-gray-200">
                       <TableCell colSpan={11} className="py-4">
                         <div className="flex items-center justify-center px-2">
                           {canImport && onCargaMasiva ? (
@@ -1631,6 +1628,7 @@ export function PresupuestoCard({
                                     <DropdownMenuTrigger asChild>
                                       <button
                                         type="button"
+                                        id="tour-presupuesto-agregar"
                                         className="p-3 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer inline-flex items-center justify-center"
                                       >
                                         <Plus className="h-5 w-5 text-gray-700" />
@@ -1666,6 +1664,7 @@ export function PresupuestoCard({
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
+                                    id="tour-presupuesto-agregar"
                                     onClick={() => startAddingRow()}
                                     className="p-3 bg-gray-100 rounded-full hover:bg-green-100 transition-colors cursor-pointer inline-flex items-center justify-center"
                                   >

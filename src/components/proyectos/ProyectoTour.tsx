@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { driver, type Driver } from 'driver.js';
+import type { Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import '@/components/tours/bitacora-tour.css';
 import {
@@ -16,6 +16,7 @@ import {
   PROYECTO_TOUR_POPOVER_CLASS,
 } from '@/lib/tours/proyecto-tour';
 import { filterVisibleTourSteps } from '@/lib/tours/tour-dom';
+import { createBitacoraTourDriver } from '@/lib/tours/driver-scaled-ui';
 
 export type ProyectoTourHandle = {
   startTour: () => void;
@@ -60,29 +61,19 @@ export const ProyectoTour = forwardRef<ProyectoTourHandle, ProyectoTourProps>(
         );
         if (steps.length === 0) return;
 
-        const d = driver({
-          showProgress: true,
-          animate: true,
-          allowClose: true,
-          overlayOpacity: 0.55,
-          stagePadding: 8,
-          stageRadius: 8,
-          smoothScroll: true,
+        const d = createBitacoraTourDriver({
           popoverClass: PROYECTO_TOUR_POPOVER_CLASS,
+          smoothScroll: true,
           ...PROYECTO_TOUR_BUTTONS,
           steps,
           // Contenedores con overflow interno (Gantt, tablas): scrollIntoView
           // en el ancla, no solo en window (Driver.js no alcanza nested scroll).
-          onHighlightStarted: (element, _step, { driver: activeDriver }) => {
+          onHighlightStarted: (element) => {
             if (!(element instanceof HTMLElement)) return;
             element.scrollIntoView({
               block: 'center',
               inline: 'nearest',
               behavior: 'instant',
-            });
-            // Reposicionar stage/popover tras el scroll del contenedor interno
-            requestAnimationFrame(() => {
-              activeDriver.refresh();
             });
           },
           onDestroyed: () => {

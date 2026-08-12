@@ -2,6 +2,10 @@
 
 import { useLayoutEffect, useState } from 'react';
 import { ScalePortalProvider } from '@/contexts/ScalePortalContext';
+import {
+  APP_SCALE_ROOT_ID,
+  TOUR_OVERLAY_HOST_ID,
+} from '@/lib/tours/driver-scaled-ui';
 
 /** Ancho de diseño de referencia (la densidad 110% se define respecto a este ancho). */
 export const DESIGN_WIDTH = 1920;
@@ -53,6 +57,7 @@ const SSR_BOX: ScaleBox = boxFromViewport(DESIGN_WIDTH, DESIGN_HEIGHT);
  * - El contenedor interno mide viewport/scale y se transforma para llenar la pantalla.
  * - SSR + hidratación usan siempre SSR_BOX; el viewport real solo se aplica
  *   después del mount (evita mismatch en resoluciones chicas como 800×600).
+ * - `#tour-overlay-host` queda FUERA del transform para que Driver.js alinee bien.
  */
 export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps) {
   const [box, setBox] = useState<ScaleBox>(SSR_BOX);
@@ -80,9 +85,17 @@ export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps
         className="fixed inset-0 overflow-hidden overscroll-none bg-background"
         style={{ width: '100%', height: '100%' }}
       >
+        {/* Capas de Driver.js: hermana del scale root (sin transform). */}
         <div
+          id={TOUR_OVERLAY_HOST_ID}
+          className="pointer-events-none fixed inset-0 z-[1000000000] overflow-visible"
+          aria-hidden
+        />
+        <div
+          id={APP_SCALE_ROOT_ID}
           ref={(el) => setPortalContainer(el)}
           className="bg-background text-foreground overflow-hidden overscroll-none"
+          data-ui-scale={box.scale}
           suppressHydrationWarning
           style={{
             width: box.width,

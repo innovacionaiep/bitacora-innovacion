@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { driver, type Driver } from 'driver.js';
+import type { Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import '@/components/tours/bitacora-tour.css';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -17,6 +17,7 @@ import {
   INICIO_TOUR_BUTTONS,
   INICIO_TOUR_POPOVER_CLASS,
 } from '@/lib/tours/inicio-tour';
+import { createBitacoraTourDriver } from '@/lib/tours/driver-scaled-ui';
 
 export type InicioTourHandle = {
   startTour: () => void;
@@ -72,13 +73,7 @@ export const InicioTour = forwardRef<InicioTourHandle>(
         const steps = filterExistingSteps(buildInicioTourSteps(can));
         if (steps.length === 0) return;
 
-        const d = driver({
-          showProgress: true,
-          animate: true,
-          allowClose: true,
-          overlayOpacity: 0.55,
-          stagePadding: 8,
-          stageRadius: 8,
+        const d = createBitacoraTourDriver({
           popoverClass: INICIO_TOUR_POPOVER_CLASS,
           ...INICIO_TOUR_BUTTONS,
           steps,
