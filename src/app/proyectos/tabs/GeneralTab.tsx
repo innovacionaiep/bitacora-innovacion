@@ -35,13 +35,6 @@ import {
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
-import {
-  GENERAL_CORE_SECTION_COUNT,
-  GENERAL_DT_SECTION_REVEAL_MS,
-  GENERAL_SECTION_REVEAL_MS,
-  initialGeneralReveal,
-  visibleDtSectionCount,
-} from '@/lib/general-section-reveal';
 import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
   isLegacyDtFieldKey,
@@ -589,76 +582,11 @@ function DtSectionSkeleton({ id }: { id: string }) {
 }
 
 function RevealBody({
-  delayMs = 0,
   children,
 }: {
-  delayMs?: number;
   children: ReactNode;
 }) {
-  return (
-    <div
-      className="animate-in fade-in duration-300"
-      style={{ animationDelay: `${delayMs}ms`, animationFillMode: 'both' }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function useGeneralSectionReveal(
-  projectId: string,
-  isShell: boolean,
-  hasCoreContent: boolean,
-  hasDt: boolean,
-  dtSectionCount: number
-) {
-  const [reveal, setReveal] = useState(() => ({
-    projectId,
-    ...initialGeneralReveal(isShell, hasDt),
-  }));
-
-  if (reveal.projectId !== projectId) {
-    setReveal({ projectId, ...initialGeneralReveal(isShell, hasDt) });
-  }
-
-  const coreRevealed =
-    reveal.projectId === projectId
-      ? reveal.core
-      : initialGeneralReveal(isShell, hasDt).core;
-  const dtRevealed =
-    reveal.projectId === projectId
-      ? reveal.dt
-      : initialGeneralReveal(isShell, hasDt).dt;
-
-  useEffect(() => {
-    if (!hasCoreContent) return;
-    if (coreRevealed >= GENERAL_CORE_SECTION_COUNT) return;
-    const ms = coreRevealed === 0 ? 0 : GENERAL_SECTION_REVEAL_MS;
-    const t = window.setTimeout(() => {
-      setReveal((s) =>
-        s.projectId !== projectId || s.core >= GENERAL_CORE_SECTION_COUNT
-          ? s
-          : { ...s, core: s.core + 1 }
-      );
-    }, ms);
-    return () => window.clearTimeout(t);
-  }, [hasCoreContent, coreRevealed, projectId]);
-
-  useEffect(() => {
-    if (coreRevealed < GENERAL_CORE_SECTION_COUNT) return;
-    if (dtSectionCount <= 0) return;
-    if (dtRevealed >= dtSectionCount) return;
-    const t = window.setTimeout(() => {
-      setReveal((s) =>
-        s.projectId !== projectId || s.dt >= dtSectionCount
-          ? s
-          : { ...s, dt: s.dt + 1 }
-      );
-    }, GENERAL_DT_SECTION_REVEAL_MS);
-    return () => window.clearTimeout(t);
-  }, [coreRevealed, dtRevealed, dtSectionCount, projectId]);
-
-  return { coreRevealed, dtRevealed };
+  return <div className="animate-in fade-in duration-300">{children}</div>;
 }
 
 function BookIndex({
@@ -1169,8 +1097,6 @@ export function GeneralTab({
   const [activeSectionId, setActiveSectionId] = useState(TOC_PREFIX[0].id);
   const {
     data: dtCategorias,
-    isPending: isDtConfigPending,
-    isError: isDtConfigError,
   } = useDesarrolloTecnicoConfigQuery();
 
   const {
@@ -1211,7 +1137,7 @@ export function GeneralTab({
 
   const dtConfigSections = useMemo<DtConfigSection[]>(() => {
     if (!dtCategorias?.length) {
-      return isDtConfigError ? FALLBACK_DT_SECTIONS : [];
+      return FALLBACK_DT_SECTIONS;
     }
     const next: DtConfigSection[] = [];
     let totalSubs = 0;
@@ -1251,7 +1177,7 @@ export function GeneralTab({
     // Config cargada pero todo filtrado por línea → no usar fallback legacy
     if (totalSubs > 0) return [];
     return FALLBACK_DT_SECTIONS;
-  }, [dtCategorias, isDtConfigError, proyectoLineaId]);
+  }, [dtCategorias, proyectoLineaId]);
 
   const tocItems = useMemo<TocItem[]>(
     () => [
@@ -1295,30 +1221,6 @@ export function GeneralTab({
   const isShell = isProyectoGeneralShell(project);
   const hasCoreContent = !isShell;
   const hasDt = 'desarrolloTecnico' in project;
-  const { coreRevealed, dtRevealed } = useGeneralSectionReveal(
-    project.id,
-    isShell,
-    hasCoreContent,
-    hasDt,
-    dtConfigSections.length
-  );
-  const showOg = hasCoreContent && coreRevealed >= 1;
-  const showOes = hasCoreContent && coreRevealed >= 2;
-  const showVideo = hasCoreContent && coreRevealed >= 3;
-  const visibleDt = visibleDtSectionCount(
-    dtRevealed,
-    dtConfigSections.length
-  );
-  const visibleTocItems = useMemo<TocItem[]>(
-    () => [
-      ...TOC_PREFIX,
-      ...dtConfigSections.slice(0, visibleDt).map((section) => ({
-        id: section.sectionId,
-        label: section.title,
-      })),
-    ],
-    [dtConfigSections, visibleDt]
-  );
 
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
@@ -1550,10 +1452,7 @@ export function GeneralTab({
     };
   }, []);
 
-  // Encabezado ya está fuera; aquí se revela de arriba abajo.
-  const showDtTocPlaceholder =
-    isDtConfigPending && dtConfigSections.length === 0;
-
+  // Encabezado, índice y rail primero; el centro se pinta cuando llega cada fetch.
   return (
     <div ref={rootRef} className="h-full min-w-0 overflow-hidden overflow-x-hidden pt-4">
       {/* Índice | Lectura centrada | Metadatos de contexto */}
@@ -1563,15 +1462,8 @@ export function GeneralTab({
             <BookIndex
               activeId={activeSectionId}
               onNavigate={navigateToSection}
-              items={visibleTocItems}
+              items={tocItems}
             />
-            {showDtTocPlaceholder ? (
-              <div className="mt-2 space-y-2.5 pl-3" aria-hidden>
-                <Skeleton className="h-3 w-28 bg-gray-100" />
-                <Skeleton className="h-3 w-36 bg-gray-100" />
-                <Skeleton className="h-3 w-24 bg-gray-100" />
-              </div>
-            ) : null}
           </div>
         </aside>
 
@@ -1585,7 +1477,7 @@ export function GeneralTab({
             className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2"
           >
             <div className="flex gap-1 overflow-x-auto custom-scrollbar py-1 px-1">
-              {visibleTocItems.map((item) => {
+              {tocItems.map((item) => {
                 const isActive = activeSectionId === item.id;
                 return (
                   <button
@@ -1602,14 +1494,6 @@ export function GeneralTab({
                   </button>
                 );
               })}
-              {showDtTocPlaceholder
-                ? [0, 1, 2].map((i) => (
-                    <Skeleton
-                      key={`toc-sk-${i}`}
-                      className="h-6 w-20 shrink-0 bg-gray-100"
-                    />
-                  ))
-                : null}
             </div>
           </div>
 
@@ -1620,7 +1504,7 @@ export function GeneralTab({
               title="Objetivo General"
               icon={<Crosshair />}
             >
-              {!showOg ? (
+              {!hasCoreContent ? (
                 <SectionBodySkeleton />
               ) : isEditing('objetivoGeneral') ? (
                 <div className="min-w-0">
@@ -1700,7 +1584,7 @@ export function GeneralTab({
                 ) : undefined
               }
             >
-              {!showOes ? (
+              {!hasCoreContent ? (
                 <SectionBodySkeleton />
               ) : isEditing('objetivosEspecificos') ? (
                 <div className="space-y-6">
@@ -1812,7 +1696,7 @@ export function GeneralTab({
               title="Video"
               icon={<Video />}
             >
-              {!showVideo ? (
+              {!hasCoreContent ? (
                 <SectionBodySkeleton />
               ) : isEditing('video') ? (
                   <div className="space-y-3">
@@ -1860,7 +1744,7 @@ export function GeneralTab({
 
             {dtConfigSections.length > 0 ? (
               <>
-                {desarrolloSections.slice(0, visibleDt).map((section) => {
+                {desarrolloSections.map((section) => {
                   const bodyReady = hasDt;
                   const hasContent = Boolean(section.content?.trim());
                   const editingThis = isEditing(section.fieldId);
@@ -1938,9 +1822,6 @@ export function GeneralTab({
                     </ReadingSection>
                   );
                 })}
-                {visibleDt < desarrolloSections.length ? (
-                  <DtSectionSkeleton id="dt-sk-next" />
-                ) : null}
               </>
             ) : (
               <DtSectionSkeleton id="dt-sk-0" />

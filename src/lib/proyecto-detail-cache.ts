@@ -88,6 +88,13 @@ export function isProyectoGeneralShell(
   return (project as { __generalShell?: boolean }).__generalShell === true;
 }
 
+/** Animación de Convenio pendiente: apagada en el shell hasta conocer convenioFirmadoUrl. */
+export function isConvenioTabPendiente(
+  project: ProyectoWithRelations
+): boolean {
+  return !isProyectoGeneralShell(project) && !project.convenioFirmadoUrl;
+}
+
 /** Select de lista Gantt: sin _count.evidencias (el modal las carga aparte). */
 export const GET_ACTIVITIES_LIST_SELECT = {
   id: true,

@@ -30,6 +30,7 @@ import {
   touchProyectoDetailLru,
   shellProyectoFromListado,
   isProyectoGeneralShell,
+  isConvenioTabPendiente,
 } from '@/lib/proyecto-detail-cache';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 
@@ -158,6 +159,35 @@ describe('proyectoNeedsDesarrolloTecnicoFetch', () => {
   it('is true for a cache entry that never received DT', () => {
     const withoutDt = { id: 'p1' } as ProyectoWithRelations;
     expect(proyectoNeedsDesarrolloTecnicoFetch(withoutDt)).toBe(true);
+  });
+});
+
+describe('isConvenioTabPendiente', () => {
+  it('is false on the listado shell even if convenioFirmadoUrl is empty', () => {
+    const shell = shellProyectoFromListado({
+      id: 'p1',
+      proyecto: 'Demo',
+      sede: 'Santiago',
+      fondo: 'Fondo A',
+      escuelas: [],
+    });
+    expect(isConvenioTabPendiente(shell)).toBe(false);
+  });
+
+  it('is true only after base load when the project has no signed convenio', () => {
+    const loaded = {
+      id: 'p1',
+      convenioFirmadoUrl: null,
+    } as ProyectoWithRelations;
+    expect(isConvenioTabPendiente(loaded)).toBe(true);
+  });
+
+  it('is false when a signed convenio URL is present', () => {
+    const signed = {
+      id: 'p1',
+      convenioFirmadoUrl: 'https://example.com/c.pdf',
+    } as ProyectoWithRelations;
+    expect(isConvenioTabPendiente(signed)).toBe(false);
   });
 });
 

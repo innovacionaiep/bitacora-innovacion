@@ -80,6 +80,7 @@ import {
   touchProyectoDetailLru,
   shellProyectoFromListado,
   isProyectoGeneralShell,
+  isConvenioTabPendiente,
 } from '@/lib/proyecto-detail-cache';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
@@ -458,7 +459,6 @@ export function ProyectosContent({
       return;
     }
 
-    void fetchProyectoDesarrolloTecnico(project.id);
     void prefetchDesarrolloTecnicoConfig();
 
     if (cached && !isProyectoGeneralShell(cached)) {
@@ -499,7 +499,6 @@ export function ProyectosContent({
     setSelectedProjectAndCache,
     trackAndEvictProjectCaches,
     queryClient,
-    fetchProyectoDesarrolloTecnico,
     prefetchDesarrolloTecnicoConfig,
   ]);
 
@@ -669,7 +668,6 @@ export function ProyectosContent({
       return;
     }
 
-    void fetchProyectoDesarrolloTecnico(project.id);
     void prefetchDesarrolloTecnicoConfig();
 
     if (cached && !isProyectoGeneralShell(cached)) {
@@ -1393,7 +1391,7 @@ export function ProyectosContent({
                   const isActive = selectedTab === tab.id;
                   const convenioPendiente =
                     tab.id === 'Convenio' &&
-                    !selectedProject.convenioFirmadoUrl;
+                    isConvenioTabPendiente(selectedProject);
                   return (
                     <button
                       key={tab.id}
