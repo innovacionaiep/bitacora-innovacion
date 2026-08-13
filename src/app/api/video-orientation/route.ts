@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectVimeoIsVertical, parseVideoUrl } from '@/lib/video-url';
 
-type SharpInstance = typeof import('sharp').default;
+/** sharp tipa con `export =` (sin `.default` en el namespace). */
+type SharpFn = typeof import('sharp');
 
 const driveOrientationCache = new Map<string, boolean>();
 
-async function loadSharp(): Promise<SharpInstance | null> {
+async function loadSharp(): Promise<SharpFn | null> {
   try {
     const mod = await import('sharp');
-    return mod.default;
+    const fn =
+      typeof mod === 'function'
+        ? (mod as SharpFn)
+        : (mod as { default?: SharpFn }).default;
+    return typeof fn === 'function' ? fn : null;
   } catch {
     return null;
   }
@@ -19,7 +24,7 @@ async function loadSharp(): Promise<SharpInstance | null> {
  * (franjas negras laterales). Detecta eso muestreando bordes vs centro.
  */
 async function thumbnailLooksLetterboxedVertical(
-  sharp: SharpInstance,
+  sharp: SharpFn,
   buf: Buffer
 ): Promise<boolean> {
   const { data, info } = await sharp(buf)
