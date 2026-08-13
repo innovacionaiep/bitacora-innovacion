@@ -5,21 +5,40 @@ import {
   proyectoActivitiesKey,
   indicadoresKey,
   presupuestoKey,
+  proyectoParticipantesKey,
+  reunionesKey,
+  historialKey,
+  historialFiltrosKey,
+  escalamientoKey,
   proyectoDetailQueryFilters,
   proyectoTabDataPrefetchKeys,
 } from '@/lib/query-keys';
 import {
   removeProyectoDetailQueries,
   proyectoNeedsDesarrolloTecnicoFetch,
+  setProyectoBaseCache,
+  isPrefetchableProyectoTab,
 } from '@/hooks/useProyectoQuery';
 import {
   GET_PROYECTO_BASE_OPTIONS,
   GET_ACTIVITIES_LIST_SELECT,
   GET_ACTIVITIES_INCLUDE_EVIDENCIAS_COUNT,
+  GET_PROYECTO_SCALAR_SELECT,
   PROYECTO_DETAIL_LRU_KEEP,
   touchProyectoDetailLru,
+  shellProyectoFromListado,
 } from '@/lib/proyecto-detail-cache';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+
+describe('GET_PROYECTO_SCALAR_SELECT', () => {
+  it('selects General scalars without relation blobs', () => {
+    expect(GET_PROYECTO_SCALAR_SELECT.id).toBe(true);
+    expect(GET_PROYECTO_SCALAR_SELECT.proyecto).toBe(true);
+    expect(GET_PROYECTO_SCALAR_SELECT.convenioFirmadoUrl).toBe(true);
+    expect(Object.keys(GET_PROYECTO_SCALAR_SELECT)).not.toContain('activities');
+    expect(Object.keys(GET_PROYECTO_SCALAR_SELECT)).not.toContain('historial');
+  });
+});
 
 describe('GET_PROYECTO_BASE_OPTIONS', () => {
   it('loads desarrollo técnico and skips activities and participantes', () => {
@@ -48,14 +67,52 @@ describe('GET_ACTIVITIES_LIST_SELECT', () => {
 });
 
 describe('proyectoTabDataPrefetchKeys', () => {
-  it('covers activities, indicadores and presupuesto for one project', () => {
+  it('covers Gantt, indicadores, presupuesto and remaining tabs', () => {
     const keys = proyectoTabDataPrefetchKeys('proj-1');
     expect(keys).toEqual([
       proyectoActivitiesKey('proj-1'),
       indicadoresKey('proj-1'),
       presupuestoKey('proj-1'),
+      proyectoParticipantesKey('proj-1'),
+      reunionesKey('proj-1'),
+      historialKey('proj-1', {}),
+      historialFiltrosKey('proj-1'),
+      escalamientoKey('proj-1'),
     ]);
-    expect(keys.some((k) => k[0] === 'historial')).toBe(false);
+  });
+});
+
+describe('isPrefetchableProyectoTab', () => {
+  it('includes Participantes, Seguimiento, Historial and Escalamiento', () => {
+    expect(isPrefetchableProyectoTab('Participantes')).toBe(true);
+    expect(isPrefetchableProyectoTab('Seguimiento')).toBe(true);
+    expect(isPrefetchableProyectoTab('Historial')).toBe(true);
+    expect(isPrefetchableProyectoTab('Escalamiento')).toBe(true);
+    expect(isPrefetchableProyectoTab('Gantt')).toBe(true);
+    expect(isPrefetchableProyectoTab('General')).toBe(false);
+    expect(isPrefetchableProyectoTab('Convenio')).toBe(false);
+  });
+});
+
+describe('shellProyectoFromListado', () => {
+  it('does not write shell into proyectoBaseKey and needs DT fetch', () => {
+    const shell = shellProyectoFromListado({
+      id: 'p1',
+      proyecto: 'Demo',
+      sede: 'Santiago',
+      fondo: 'Fondo A',
+      escuelas: [{ escuela: { nombre: 'Escuela 1' } }],
+    });
+    expect(proyectoNeedsDesarrolloTecnicoFetch(shell)).toBe(true);
+    expect('desarrolloTecnico' in shell).toBe(false);
+    expect(shell.proyecto).toBe('Demo');
+    expect(shell.fondo).toBe('Fondo A');
+    expect(shell.sede).toBe('Santiago');
+    expect(shell.escuelas[0]?.escuela.nombre).toBe('Escuela 1');
+
+    const qc = new QueryClient();
+    setProyectoBaseCache(qc, shell);
+    expect(qc.getQueryData(proyectoBaseKey('p1'))).toBeUndefined();
   });
 });
 
@@ -122,14 +179,15 @@ describe('removeProyectoDetailQueries', () => {
     expect(qc.getQueryData(proyectoBaseKey('other'))).toEqual({ id: 'other' });
   });
 
-  it('covers expected filter prefixes', () => {
+  it('covers expected filter prefixes including escalamiento', () => {
     const filters = proyectoDetailQueryFilters('x');
-    expect(filters.length).toBeGreaterThanOrEqual(8);
+    expect(filters.length).toBeGreaterThanOrEqual(9);
     expect(filters.some((f) => f.queryKey[0] === 'proyecto')).toBe(true);
     expect(filters.some((f) => f.queryKey[0] === 'historial')).toBe(true);
+    expect(filters.some((f) => f.queryKey[0] === 'escalamiento')).toBe(true);
   });
 
-  it('LRU evict drops tab caches (activities, indicadores, presupuesto) of the oldest id', () => {
+  it('LRU evict drops tab caches of the oldest id', () => {
     const qc = new QueryClient();
     const ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
     for (const id of ids) {
@@ -137,6 +195,11 @@ describe('removeProyectoDetailQueries', () => {
       qc.setQueryData(proyectoActivitiesKey(id), []);
       qc.setQueryData(indicadoresKey(id), {});
       qc.setQueryData(presupuestoKey(id), []);
+      qc.setQueryData(proyectoParticipantesKey(id), []);
+      qc.setQueryData(reunionesKey(id), []);
+      qc.setQueryData(historialKey(id, {}), []);
+      qc.setQueryData(historialFiltrosKey(id), {});
+      qc.setQueryData(escalamientoKey(id), {});
     }
 
     let recent: string[] = [];
@@ -152,9 +215,15 @@ describe('removeProyectoDetailQueries', () => {
     expect(qc.getQueryData(proyectoActivitiesKey('p1'))).toBeUndefined();
     expect(qc.getQueryData(indicadoresKey('p1'))).toBeUndefined();
     expect(qc.getQueryData(presupuestoKey('p1'))).toBeUndefined();
+    expect(qc.getQueryData(proyectoParticipantesKey('p1'))).toBeUndefined();
+    expect(qc.getQueryData(reunionesKey('p1'))).toBeUndefined();
+    expect(qc.getQueryData(historialKey('p1', {}))).toBeUndefined();
+    expect(qc.getQueryData(historialFiltrosKey('p1'))).toBeUndefined();
+    expect(qc.getQueryData(escalamientoKey('p1'))).toBeUndefined();
     expect(qc.getQueryData(proyectoBaseKey('p6'))).toEqual({ id: 'p6' });
     expect(qc.getQueryData(proyectoActivitiesKey('p6'))).toEqual([]);
     expect(qc.getQueryData(indicadoresKey('p6'))).toEqual({});
     expect(qc.getQueryData(presupuestoKey('p6'))).toEqual([]);
+    expect(qc.getQueryData(escalamientoKey('p6'))).toEqual({});
   });
 });

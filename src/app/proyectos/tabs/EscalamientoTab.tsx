@@ -1,12 +1,12 @@
 'use client';
 
 import {
-  useCallback,
   useEffect,
   useState,
   type ReactNode,
 } from 'react';
 import { Check, Loader2, Pencil, Plus, Save, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +21,7 @@ import {
   type EscalamientoCampo,
   type EscalamientoData,
 } from '@/lib/actions/escalamiento';
+import { escalamientoKey } from '@/lib/query-keys';
 
 type EscalamientoTabProps = {
   projectId: string;
@@ -206,9 +207,23 @@ function EditableSlot({
 export function EscalamientoTab({ projectId, onSaved }: EscalamientoTabProps) {
   const { can } = useActiveRolePermissions();
   const canEdit = can('projects.edit');
+  const queryClient = useQueryClient();
 
-  const [data, setData] = useState<EscalamientoData>(EMPTY);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: escalamientoKey(projectId),
+    queryFn: async () => {
+      const res = await getEscalamientoProyecto(projectId);
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Error al cargar escalamiento');
+      }
+      return res.data;
+    },
+    staleTime: 60_000,
+    gcTime: 90_000,
+  });
+
+  const data = query.data ?? EMPTY;
+  const loading = query.isPending;
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<EscalamientoCampo | null>(
     null
@@ -217,22 +232,15 @@ export function EscalamientoTab({ projectId, onSaved }: EscalamientoTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await getEscalamientoProyecto(projectId);
-    if (!res.success || !res.data) {
-      setError(res.error || 'Error al cargar escalamiento');
-      setData(EMPTY);
-    } else {
-      setData(res.data);
-    }
-    setLoading(false);
-  }, [projectId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    if (query.isError) {
+      setError(
+        query.error instanceof Error
+          ? query.error.message
+          : 'Error al cargar escalamiento'
+      );
+    }
+  }, [query.isError, query.error]);
 
   useEffect(() => {
     if (!showToast) return;
@@ -267,7 +275,10 @@ export function EscalamientoTab({ projectId, onSaved }: EscalamientoTabProps) {
       return;
     }
     const saved = res.data?.value ?? draftValue.trim();
-    setData((prev) => ({ ...prev, [editingField]: saved }));
+    queryClient.setQueryData<EscalamientoData>(
+      escalamientoKey(projectId),
+      (prev) => ({ ...(prev ?? EMPTY), [editingField]: saved })
+    );
     setEditingField(null);
     setDraftValue('');
     setIsSaving(false);

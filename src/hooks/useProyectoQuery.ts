@@ -18,11 +18,21 @@ import {
   proyectoDetailQueryFilters,
   indicadoresKey,
   presupuestoKey,
+  reunionesKey,
+  historialKey,
+  historialFiltrosKey,
+  escalamientoKey,
 } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { ActivityWithTasks } from '@/lib/actions/gantt';
 import type { ItemPresupuestoItem } from '@/types/presupuesto';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
+import { getReunionesProyecto } from '@/lib/actions/seguimiento';
+import {
+  getHistorialProyecto,
+  getHistorialFiltros,
+} from '@/lib/actions/historial';
+import { getEscalamientoProyecto } from '@/lib/actions/escalamiento';
 
 export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
@@ -87,6 +97,38 @@ async function fetchPresupuestoTab(
     throw new Error(result.error ?? 'Error al cargar presupuesto');
   }
   return result.data.items as ItemPresupuestoItem[];
+}
+
+async function fetchReunionesTab(projectId: string) {
+  const result = await getReunionesProyecto(projectId);
+  if (!result.success) {
+    throw new Error(result.error ?? 'Error al cargar reuniones');
+  }
+  return result.data ?? [];
+}
+
+async function fetchHistorialTab(projectId: string) {
+  const result = await getHistorialProyecto(projectId);
+  if (!result.success) {
+    throw new Error(result.error ?? 'Error al cargar historial');
+  }
+  return result.data ?? [];
+}
+
+async function fetchHistorialFiltrosTab(projectId: string) {
+  const result = await getHistorialFiltros(projectId);
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Error al cargar filtros de historial');
+  }
+  return result.data;
+}
+
+async function fetchEscalamientoTab(projectId: string) {
+  const result = await getEscalamientoProyecto(projectId);
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Error al cargar escalamiento');
+  }
+  return result.data;
 }
 
 export function proyectoNeedsDesarrolloTecnicoFetch(
@@ -282,52 +324,71 @@ export function useFetchProyectoActivities() {
   );
 }
 
-export type PrefetchableProyectoTab = 'Gantt' | 'Indicadores' | 'Presupuesto';
+export type PrefetchableProyectoTab =
+  | 'Gantt'
+  | 'Indicadores'
+  | 'Presupuesto'
+  | 'Participantes'
+  | 'Seguimiento'
+  | 'Historial'
+  | 'Escalamiento';
 
-const TAB_CHUNK_LOADERS: Record<
-  PrefetchableProyectoTab,
-  () => Promise<unknown>
+const TAB_CHUNK_LOADERS: Partial<
+  Record<PrefetchableProyectoTab, () => Promise<unknown>>
 > = {
   Gantt: () => import('@/components/proyectos/GanttChart'),
   Indicadores: () => import('@/components/proyectos/IndicadoresCard'),
   Presupuesto: () => import('@/components/proyectos/PresupuestoCard'),
+  Seguimiento: () => import('@/components/seguimiento/SeguimientoCard'),
+  Historial: () => import('@/components/proyectos/HistorialCard'),
 };
 
 const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Gantt',
   'Indicadores',
   'Presupuesto',
+  'Participantes',
+  'Seguimiento',
+  'Historial',
+  'Escalamiento',
 ];
 
-const TAB_QUERY: Record<
-  PrefetchableProyectoTab,
-  {
-    key: (id: string) => readonly unknown[];
-    queryFn: (id: string) => Promise<unknown>;
-  }
-> = {
-  Gantt: {
-    key: proyectoActivitiesKey,
-    queryFn: fetchProyectoActivities,
-  },
-  Indicadores: {
-    key: indicadoresKey,
-    queryFn: fetchIndicadoresTab,
-  },
-  Presupuesto: {
-    key: presupuestoKey,
-    queryFn: fetchPresupuestoTab,
-  },
+export function isPrefetchableProyectoTab(
+  tab: string
+): tab is PrefetchableProyectoTab {
+  return (ALL_PREFETCH_TABS as string[]).includes(tab);
+}
+
+type TabQuerySpec = {
+  key: (id: string) => readonly unknown[];
+  queryFn: (id: string) => Promise<unknown>;
+};
+
+const TAB_QUERIES: Record<PrefetchableProyectoTab, TabQuerySpec[]> = {
+  Gantt: [{ key: proyectoActivitiesKey, queryFn: fetchProyectoActivities }],
+  Indicadores: [{ key: indicadoresKey, queryFn: fetchIndicadoresTab }],
+  Presupuesto: [{ key: presupuestoKey, queryFn: fetchPresupuestoTab }],
+  Participantes: [
+    { key: proyectoParticipantesKey, queryFn: fetchProyectoParticipantes },
+  ],
+  Seguimiento: [{ key: reunionesKey, queryFn: fetchReunionesTab }],
+  Historial: [
+    { key: (id) => historialKey(id, {}), queryFn: fetchHistorialTab },
+    { key: historialFiltrosKey, queryFn: fetchHistorialFiltrosTab },
+  ],
+  Escalamiento: [{ key: escalamientoKey, queryFn: fetchEscalamientoTab }],
 };
 
 function prefetchTabChunk(tab: PrefetchableProyectoTab) {
-  void TAB_CHUNK_LOADERS[tab]().catch(() => {
+  const load = TAB_CHUNK_LOADERS[tab];
+  if (!load) return;
+  void load().catch(() => {
     /* ignore chunk prefetch errors */
   });
 }
 
 /**
- * After General paints: JS chunks immediately, tab data on idle.
+ * After General is ready: JS chunks + tab data on idle.
  * Hover on a tab button prefetches that tab's chunk+data.
  * Cancel when leaving or switching project.
  */
@@ -353,19 +414,20 @@ export function usePrefetchProyectoTabs() {
   const prefetchTabData = useCallback(
     (projectId: string, tab: PrefetchableProyectoTab, gen: number) => {
       if (gen !== genRef.current) return;
-      const { key, queryFn } = TAB_QUERY[tab];
-      const queryKey = key(projectId);
-      if (queryClient.getQueryData(queryKey)) return;
-      void queryClient
-        .prefetchQuery({
-          queryKey: [...queryKey],
-          queryFn: () => queryFn(projectId),
-          staleTime: 60_000,
-          gcTime: 90_000,
-        })
-        .catch(() => {
-          /* ignore prefetch errors */
-        });
+      for (const { key, queryFn } of TAB_QUERIES[tab]) {
+        const queryKey = key(projectId);
+        if (queryClient.getQueryData(queryKey)) continue;
+        void queryClient
+          .prefetchQuery({
+            queryKey: [...queryKey],
+            queryFn: () => queryFn(projectId),
+            staleTime: 60_000,
+            gcTime: 90_000,
+          })
+          .catch(() => {
+            /* ignore prefetch errors */
+          });
+      }
     },
     [queryClient]
   );
@@ -379,21 +441,19 @@ export function usePrefetchProyectoTabs() {
     (projectId: string) => {
       const gen = ++genRef.current;
       clearIdle();
-      for (const tab of ALL_PREFETCH_TABS) {
-        prefetchTabChunk(tab);
-      }
-      const runData = () => {
+      const runIdle = () => {
         if (gen !== genRef.current) return;
         for (const tab of ALL_PREFETCH_TABS) {
+          prefetchTabChunk(tab);
           prefetchTabData(projectId, tab, gen);
         }
       };
       if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        idleCallbackRef.current = window.requestIdleCallback(runData, {
+        idleCallbackRef.current = window.requestIdleCallback(runIdle, {
           timeout: 2000,
         });
       } else {
-        idleTimeoutRef.current = setTimeout(runData, 300);
+        idleTimeoutRef.current = setTimeout(runIdle, 300);
       }
     },
     [clearIdle, prefetchTabData]
@@ -414,6 +474,7 @@ export function setProyectoBaseCache(
   queryClient: ReturnType<typeof useQueryClient>,
   project: ProyectoWithRelations
 ) {
+  if (!('desarrolloTecnico' in project)) return;
   queryClient.setQueryData(proyectoBaseKey(project.id), project);
   if (project.participantes_rel) {
     queryClient.setQueryData(
@@ -421,10 +482,8 @@ export function setProyectoBaseCache(
       project.participantes_rel
     );
   }
-  if ('desarrolloTecnico' in project) {
-    queryClient.setQueryData(proyectoDesarrolloTecnicoKey(project.id), {
-      desarrolloTecnico: project.desarrolloTecnico ?? null,
-      desarrolloTecnicoValores: project.desarrolloTecnicoValores ?? [],
-    });
-  }
+  queryClient.setQueryData(proyectoDesarrolloTecnicoKey(project.id), {
+    desarrolloTecnico: project.desarrolloTecnico ?? null,
+    desarrolloTecnicoValores: project.desarrolloTecnicoValores ?? [],
+  });
 }

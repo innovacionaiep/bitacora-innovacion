@@ -1,10 +1,84 @@
 /** Política de carga del detalle de proyecto (General) y LRU de caches RQ. */
 
+import type { ProyectoListadoItem, ProyectoWithRelations } from '@/types/proyecto';
+
 export const GET_PROYECTO_BASE_OPTIONS = {
   includeActivities: false,
   includeParticipantes: false,
   includeDesarrolloTecnico: true,
 } as const;
+
+/** Escalares de Proyecto que el detalle General/Convenio necesita (sin relaciones). */
+export const GET_PROYECTO_SCALAR_SELECT = {
+  id: true,
+  proyecto: true,
+  fondo: true,
+  linea: true,
+  sede: true,
+  youtubeUrl: true,
+  focalizacion: true,
+  avanceGantt: true,
+  objetivos: true,
+  presupuestoUsado: true,
+  presupuestoTotal: true,
+  presupuestoAdjudicado: true,
+  participantes: true,
+  convenioFirmadoUrl: true,
+  convenioFirmadoPublicId: true,
+  convenioFirmadoNombre: true,
+  convenioFirmadoAt: true,
+  convenioFirmadoByUserId: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+/**
+ * Encabezado instantáneo desde el listado. Sin clave `desarrolloTecnico`
+ * para no cachearlo como detalle completo ni disparar un segundo viaje de DT.
+ */
+export function shellProyectoFromListado(
+  item: ProyectoListadoItem
+): ProyectoWithRelations {
+  const epoch = new Date(0);
+  const shell = {
+    id: item.id,
+    proyecto: item.proyecto,
+    fondo: item.fondo ?? '',
+    linea: null,
+    sede: item.sede,
+    youtubeUrl: null,
+    focalizacion: null,
+    avanceGantt: 0,
+    objetivos: 0,
+    presupuestoUsado: 0,
+    presupuestoTotal: 0,
+    presupuestoAdjudicado: 0,
+    participantes: 0,
+    convenioFirmadoUrl: null,
+    convenioFirmadoPublicId: null,
+    convenioFirmadoNombre: null,
+    convenioFirmadoAt: null,
+    convenioFirmadoByUserId: null,
+    createdAt: epoch,
+    updatedAt: epoch,
+    escuelas: (item.escuelas ?? []).map((e, i) => ({
+      proyectoId: item.id,
+      escuelaId: `shell-${item.id}-${i}`,
+      escuela: {
+        id: `shell-${item.id}-${i}`,
+        nombre: e.escuela.nombre,
+        codigo: '',
+      },
+    })),
+    carreras: [],
+    asignaturas: [],
+    comunas: [],
+    gruposInteres: [],
+    sociosComunitarios: [],
+    objetivos_rel: [],
+  };
+  return shell as ProyectoWithRelations;
+}
 
 /** Select de lista Gantt: sin _count.evidencias (el modal las carga aparte). */
 export const GET_ACTIVITIES_LIST_SELECT = {

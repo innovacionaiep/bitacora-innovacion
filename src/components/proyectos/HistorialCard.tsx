@@ -73,21 +73,15 @@ export function HistorialCard({
     }
   };
 
-  const filterParams = useMemo(
-    () => ({
-      personaId: filtros.personaId !== 'all' ? filtros.personaId : undefined,
-      accion: filtros.accion !== 'all' ? filtros.accion : undefined,
-      tabProyecto:
-        filtros.tabProyecto !== 'all' ? filtros.tabProyecto : undefined,
-      fechaDesde: filtros.fechaDesde
-        ? toISODate(filtros.fechaDesde)
-        : undefined,
-      fechaHasta: filtros.fechaHasta
-        ? toISODate(filtros.fechaHasta)
-        : undefined,
-    }),
-    [filtros]
-  );
+  const filterParams = useMemo(() => {
+    const next: Record<string, string> = {};
+    if (filtros.personaId !== 'all') next.personaId = filtros.personaId;
+    if (filtros.accion !== 'all') next.accion = filtros.accion;
+    if (filtros.tabProyecto !== 'all') next.tabProyecto = filtros.tabProyecto;
+    if (filtros.fechaDesde) next.fechaDesde = toISODate(filtros.fechaDesde);
+    if (filtros.fechaHasta) next.fechaHasta = toISODate(filtros.fechaHasta);
+    return next;
+  }, [filtros]);
 
   const historialQuery = useQuery({
     queryKey: historialKey(projectId, filterParams),

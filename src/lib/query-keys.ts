@@ -38,19 +38,14 @@ export const indicadoresKey = (projectId: string) =>
 export const presupuestoKey = (projectId: string) =>
   ['presupuesto', projectId] as const;
 
-export function proyectoTabDataPrefetchKeys(projectId: string) {
-  return [
-    proyectoActivitiesKey(projectId),
-    indicadoresKey(projectId),
-    presupuestoKey(projectId),
-  ] as const;
-}
-
 export const compromisosKey = (projectId: string) =>
   ['compromisos', projectId] as const;
 
 export const reunionesKey = (projectId: string) =>
   ['reuniones', projectId] as const;
+
+export const escalamientoKey = (projectId: string) =>
+  ['escalamiento', projectId] as const;
 
 export const resumenTabKey = (projectId: string) =>
   ['resumen-tab', projectId] as const;
@@ -62,6 +57,19 @@ export const historialKey = (
 
 export const historialFiltrosKey = (projectId: string) =>
   ['historial-filtros', projectId] as const;
+
+export function proyectoTabDataPrefetchKeys(projectId: string) {
+  return [
+    proyectoActivitiesKey(projectId),
+    indicadoresKey(projectId),
+    presupuestoKey(projectId),
+    proyectoParticipantesKey(projectId),
+    reunionesKey(projectId),
+    historialKey(projectId, {}),
+    historialFiltrosKey(projectId),
+    escalamientoKey(projectId),
+  ] as const;
+}
 
 export const fondoGestionKey = (fondoNombre: string) =>
   ['fondo-gestion', fondoNombre] as const;
@@ -78,5 +86,6 @@ export const proyectoDetailQueryFilters = (projectId: string) =>
     { queryKey: ['resumen-tab', projectId] as const },
     { queryKey: ['historial', projectId] as const },
     { queryKey: ['historial-filtros', projectId] as const },
+    { queryKey: ['escalamiento', projectId] as const },
   ] as const;
 

@@ -66,7 +66,7 @@ import {
   mergeDesarrolloTecnicoIntoProject,
   removeProyectoDetailQueries,
   usePrefetchProyectoTabs,
-  type PrefetchableProyectoTab,
+  isPrefetchableProyectoTab,
 } from '@/hooks/useProyectoQuery';
 import {
   usePrefetchDesarrolloTecnicoConfig,
@@ -77,7 +77,7 @@ import {
   desarrolloTecnicoConfigKey,
   proyectoBaseKey,
 } from '@/lib/query-keys';
-import { PROYECTO_DETAIL_LRU_KEEP, touchProyectoDetailLru } from '@/lib/proyecto-detail-cache';
+import { PROYECTO_DETAIL_LRU_KEEP, touchProyectoDetailLru, shellProyectoFromListado } from '@/lib/proyecto-detail-cache';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
@@ -116,12 +116,6 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Historial', label: 'Historial' },
   { id: 'Escalamiento', label: 'Escalamiento' },
 ];
-
-function isPrefetchableProyectoTab(
-  tab: ProyectoTab
-): tab is PrefetchableProyectoTab {
-  return tab === 'Gantt' || tab === 'Indicadores' || tab === 'Presupuesto';
-}
 
 export function ProyectosContent({
   initialListado,
@@ -202,7 +196,7 @@ export function ProyectosContent({
     (update: React.SetStateAction<ProyectoWithRelations | null>) => {
       setSelectedProject((prev) => {
         const next = typeof update === 'function' ? update(prev) : update;
-        if (next) {
+        if (next && !proyectoNeedsDesarrolloTecnicoFetch(next)) {
           setProyectoBaseCache(queryClient, next);
         }
         return next;
@@ -387,9 +381,13 @@ export function ProyectosContent({
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
-  // Chunks de tabs al pintar General; datos de Gantt/Indicadores/Presupuesto en idle.
+  // Idle prefetch de otros tabs solo cuando General ya trajo DT (no en shell).
   useEffect(() => {
-    if (!selectedProject?.id) {
+    if (
+      !selectedProject?.id ||
+      isSelectingProject ||
+      proyectoNeedsDesarrolloTecnicoFetch(selectedProject)
+    ) {
       cancelPrefetchTabs();
       return;
     }
@@ -397,7 +395,15 @@ export function ProyectosContent({
     return () => {
       cancelPrefetchTabs();
     };
-  }, [selectedProject?.id, startIdlePrefetchTabs, cancelPrefetchTabs]);
+  }, [
+    selectedProject?.id,
+    isSelectingProject,
+    selectedProject && proyectoNeedsDesarrolloTecnicoFetch(selectedProject)
+      ? 'needs-dt'
+      : 'has-dt',
+    startIdlePrefetchTabs,
+    cancelPrefetchTabs,
+  ]);
 
   // Prefetch config DT al entrar a /proyectos (compartida entre proyectos).
   useEffect(() => {
@@ -424,22 +430,38 @@ export function ProyectosContent({
       return;
     }
     hasAppliedIdFromUrlRef.current = true;
-    setIsResolvingUrlProject(true);
+    setIsResolvingUrlProject(false);
     const tabToSelect = tabFromUrl === 'Seguimiento' ? ('Seguimiento' as const) : null;
     const gen = ++selectGenRef.current;
     trackAndEvictProjectCaches(project.id);
+    if (tabToSelect) {
+      setSelectedTab(tabToSelect);
+      setMountedTabs(new Set(['General', tabToSelect]));
+    } else {
+      setSelectedTab('General');
+      setMountedTabs(new Set(['General']));
+    }
+
+    const cached = queryClient.getQueryData<ProyectoWithRelations>(
+      proyectoBaseKey(project.id)
+    );
+    if (cached && !proyectoNeedsDesarrolloTecnicoFetch(cached)) {
+      setSelectedProjectAndCache(cached);
+      setIsSelectingProject(false);
+      const videoUrl =
+        cached.youtubeUrl ?? projectVideos[project.id] ?? '';
+      setTempVideoUrl(videoUrl);
+      return;
+    }
+
+    setSelectedProject(shellProyectoFromListado(project));
+    setIsSelectingProject(true);
+    topLoader.start();
     (async () => {
       try {
         const data = await loadProyectoGeneralPayload(project.id);
         if (gen !== selectGenRef.current) return;
         setSelectedProjectAndCache(data);
-        if (tabToSelect) {
-          setSelectedTab(tabToSelect);
-          setMountedTabs(new Set(['General', tabToSelect]));
-        } else {
-          setSelectedTab('General');
-          setMountedTabs(new Set(['General']));
-        }
         const videoUrl =
           (data as ProyectoWithRelations & { youtubeUrl?: string | null })
             .youtubeUrl ??
@@ -448,7 +470,8 @@ export function ProyectosContent({
         setTempVideoUrl(videoUrl);
       } finally {
         if (gen === selectGenRef.current) {
-          setIsResolvingUrlProject(false);
+          setIsSelectingProject(false);
+          topLoader.done(true);
         }
       }
     })();
@@ -459,6 +482,7 @@ export function ProyectosContent({
     loadProyectoGeneralPayload,
     setSelectedProjectAndCache,
     trackAndEvictProjectCaches,
+    queryClient,
   ]);
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -613,6 +637,21 @@ export function ProyectosContent({
 
     setSelectedTab('General');
     setMountedTabs(new Set(['General']));
+
+    const cached = queryClient.getQueryData<ProyectoWithRelations>(
+      proyectoBaseKey(project.id)
+    );
+    if (cached && !proyectoNeedsDesarrolloTecnicoFetch(cached)) {
+      setSelectedProjectAndCache(cached);
+      setIsSelectingProject(false);
+      topLoader.done(true);
+      const videoUrl =
+        cached.youtubeUrl ?? projectVideos[project.id] ?? '';
+      setTempVideoUrl(videoUrl);
+      return;
+    }
+
+    setSelectedProject(shellProyectoFromListado(project));
     setIsSelectingProject(true);
     topLoader.start();
     try {
@@ -726,9 +765,10 @@ export function ProyectosContent({
     setSelectedProjectAndCache,
   ]);
 
-  // Fallback: caches viejos de prefetch sin DT. El clic espera base-con-DT.
+  // Fallback: caches viejos de prefetch sin DT. El shell no debe disparar un segundo viaje.
   useEffect(() => {
     if (!selectedProject) return;
+    if (isSelectingProject) return;
     if (!proyectoNeedsDesarrolloTecnicoFetch(selectedProject)) return;
     const projectId = selectedProject.id;
     const gen = selectGenRef.current;
@@ -758,6 +798,7 @@ export function ProyectosContent({
       : 'has-dt',
     fetchProyectoDesarrolloTecnico,
     setSelectedProjectAndCache,
+    isSelectingProject,
   ]);
 
   // Cargar borradores en landing (diferido para no competir con el listado inicial)
@@ -1324,6 +1365,10 @@ export function ProyectosContent({
                       onMouseEnter={() => {
                         if (
                           selectedProject &&
+                          !isSelectingProject &&
+                          !proyectoNeedsDesarrolloTecnicoFetch(
+                            selectedProject
+                          ) &&
                           isPrefetchableProyectoTab(tab.id)
                         ) {
                           prefetchProyectoTab(
@@ -1519,6 +1564,8 @@ export function ProyectosContent({
                       )}
                     </div>
 
+                    {!isSelectingProject && (
+                      <>
                     <span aria-hidden className="text-gray-300 select-none">
                       ·
                     </span>
@@ -1631,6 +1678,8 @@ export function ProyectosContent({
                         </>
                       )}
                     </div>
+                      </>
+                    )}
 
                     {selectedProjectSedeNames.length > 0 && (
                       <>
@@ -1662,9 +1711,12 @@ export function ProyectosContent({
                       </>
                     )}
 
+                    {!isSelectingProject && (
                     <span aria-hidden className="text-gray-300 select-none">
                       ·
                     </span>
+                    )}
+                    {!isSelectingProject && (
                     <span className="inline-flex items-center gap-1.5 text-[13px] font-normal text-gray-500 tracking-wide">
                       <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                       {selectedProject.participantes_rel?.length ??
@@ -1672,8 +1724,9 @@ export function ProyectosContent({
                         0}{' '}
                       participantes
                     </span>
+                    )}
 
-                    {selectedProject.focalizacion && (
+                    {!isSelectingProject && selectedProject.focalizacion && (
                       <>
                         <span
                           aria-hidden

@@ -38,7 +38,10 @@ import {
   isSyncableRole,
   upsertPersonaFromParticipante,
 } from '@/lib/personas/sync-persona';
-import { GET_PROYECTO_BASE_OPTIONS } from '@/lib/proyecto-detail-cache';
+import {
+  GET_PROYECTO_BASE_OPTIONS,
+  GET_PROYECTO_SCALAR_SELECT,
+} from '@/lib/proyecto-detail-cache';
 
 type GeneralTabUpdateData = {
   proyectoId: string;
@@ -559,120 +562,117 @@ export async function getProyecto(
     includeDesarrolloTecnico = false,
   } = options;
   try {
-    const gate = await requireProjectAccess(id);
+    const [gate, proyecto] = await Promise.all([
+      requireProjectAccess(id),
+      prisma.proyecto.findUnique({
+        where: { id },
+        select: {
+          ...GET_PROYECTO_SCALAR_SELECT,
+          ...(includeActivities
+            ? {
+                activities: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    progress: true,
+                    projectId: true,
+                    color: true,
+                    orderIndex: true,
+                    kanbanOrderIndex: true,
+                    status: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    tasks: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        completed: true,
+                        startDate: true,
+                        endDate: true,
+                        progress: true,
+                        activityId: true,
+                        createdAt: true,
+                        updatedAt: true,
+                      },
+                      orderBy: { createdAt: 'asc' },
+                    },
+                  },
+                  orderBy: {
+                    orderIndex: 'asc',
+                  },
+                },
+              }
+            : {}),
+          ...(includeParticipantes
+            ? {
+                participantes_rel: {
+                  include: participantesInclude,
+                },
+              }
+            : {}),
+          // Conteo real para el meta-row del header (sin hidratar la lista completa).
+          _count: { select: { participantes_rel: true } },
+          escuelas: {
+            include: {
+              escuela: { select: { id: true, nombre: true, codigo: true } },
+            },
+          },
+          carreras: {
+            include: {
+              carrera: { select: { id: true, nombre: true } },
+            },
+          },
+          asignaturas: {
+            include: {
+              asignatura: { select: { id: true, nombre: true } },
+            },
+          },
+          comunas: {
+            include: {
+              comuna: { select: { id: true, nombre: true, region: true } },
+            },
+          },
+          gruposInteres: {
+            include: {
+              grupoInteres: {
+                select: { id: true, nombre: true, descripcion: true },
+              },
+            },
+          },
+          sociosComunitarios: {
+            include: {
+              socioComunitario: {
+                select: { id: true, nombre: true, descripcion: true },
+              },
+            },
+          },
+          objetivos_rel: {
+            orderBy: {
+              orden: 'asc',
+            },
+          },
+          ...(includeDesarrolloTecnico
+            ? {
+                desarrolloTecnico: true,
+                desarrolloTecnicoValores: {
+                  select: {
+                    id: true,
+                    proyectoId: true,
+                    subcategoriaId: true,
+                    valor: true,
+                  },
+                },
+              }
+            : {}),
+        },
+      }),
+    ]);
+
     if (!gate.ok) {
       return { success: false, error: gate.error };
     }
-
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id },
-      include: {
-        ...(includeActivities
-          ? {
-              activities: {
-                select: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  progress: true,
-                  projectId: true,
-                  color: true,
-                  orderIndex: true,
-                  kanbanOrderIndex: true,
-                  status: true,
-                  createdAt: true,
-                  updatedAt: true,
-                  tasks: {
-                    select: {
-                      id: true,
-                      name: true,
-                      description: true,
-                      completed: true,
-                      startDate: true,
-                      endDate: true,
-                      progress: true,
-                      activityId: true,
-                      createdAt: true,
-                      updatedAt: true,
-                    },
-                    orderBy: { createdAt: 'asc' },
-                  },
-                },
-                orderBy: {
-                  orderIndex: 'asc',
-                },
-              },
-            }
-          : {}),
-        ...(includeParticipantes
-          ? {
-              participantes_rel: {
-                include: participantesInclude,
-              },
-            }
-          : {}),
-        // Conteo real para el meta-row del header (sin hidratar la lista completa).
-        _count: { select: { participantes_rel: true } },
-        escuelas: {
-          include: {
-            escuela: { select: { id: true, nombre: true, codigo: true } },
-          },
-        },
-        carreras: {
-          include: {
-            carrera: { select: { id: true, nombre: true } },
-          },
-        },
-        asignaturas: {
-          include: {
-            asignatura: { select: { id: true, nombre: true } },
-          },
-        },
-        comunas: {
-          include: {
-            comuna: { select: { id: true, nombre: true, region: true } },
-          },
-        },
-        gruposInteres: {
-          include: {
-            grupoInteres: {
-              select: { id: true, nombre: true, descripcion: true },
-            },
-          },
-        },
-        sociosComunitarios: {
-          include: {
-            socioComunitario: {
-              select: { id: true, nombre: true, descripcion: true },
-            },
-          },
-        },
-        objetivos_rel: {
-          orderBy: {
-            orden: 'asc',
-          },
-        },
-        ...(includeDesarrolloTecnico
-          ? {
-              desarrolloTecnico: true,
-              desarrolloTecnicoValores: {
-                include: {
-                  subcategoria: {
-                    select: {
-                      id: true,
-                      nombre: true,
-                      categoriaId: true,
-                      orden: true,
-                      icono: true,
-                      campoKey: true,
-                    },
-                  },
-                },
-              },
-            }
-          : {}),
-      },
-    });
 
     if (!proyecto) {
       return { success: false, error: 'Proyecto no encontrado' };

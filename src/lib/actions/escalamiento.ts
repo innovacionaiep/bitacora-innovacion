@@ -143,15 +143,26 @@ export async function getNombresFondosConEscalamiento() {
 
 export async function getEscalamientoProyecto(proyectoId: string) {
   try {
-    const gate = await requireProjectAccess(proyectoId);
+    const [gate, proyecto] = await Promise.all([
+      requireProjectAccess(proyectoId),
+      prisma.proyecto.findUnique({
+        where: { id: proyectoId },
+        select: {
+          id: true,
+          fondo: true,
+          escalamiento: {
+            select: {
+              nuevaInstancia1: true,
+              nuevaInstancia2: true,
+              acuerdoContinuidad: true,
+            },
+          },
+        },
+      }),
+    ]);
     if (!gate.ok) {
       return { success: false as const, error: gate.error, data: null };
     }
-
-    const proyecto = await prisma.proyecto.findUnique({
-      where: { id: proyectoId },
-      select: { id: true, fondo: true },
-    });
     if (!proyecto) {
       return {
         success: false as const,
@@ -165,14 +176,7 @@ export async function getEscalamientoProyecto(proyectoId: string) {
       return { success: false as const, error: fondoGate.error, data: null };
     }
 
-    const row = await prisma.proyectoEscalamiento.findUnique({
-      where: { proyectoId },
-      select: {
-        nuevaInstancia1: true,
-        nuevaInstancia2: true,
-        acuerdoContinuidad: true,
-      },
-    });
+    const row = proyecto.escalamiento;
 
     return {
       success: true as const,

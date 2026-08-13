@@ -32,6 +32,8 @@ import {
   Minimize2,
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+import { Skeleton } from '@/components/ui/skeleton';
+import { proyectoNeedsDesarrolloTecnicoFetch } from '@/hooks/useProyectoQuery';
 import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
   isLegacyDtFieldKey,
@@ -539,6 +541,33 @@ function BodyText({
     >
       {children}
     </p>
+  );
+}
+
+function GeneralIndexSkeleton() {
+  return (
+    <div className="sticky top-0 pr-2 space-y-2.5" aria-hidden>
+      <Skeleton className="h-3 w-28 bg-gray-100" />
+      <Skeleton className="h-3 w-36 bg-gray-100" />
+      <Skeleton className="h-3 w-20 bg-gray-100" />
+      <Skeleton className="h-3 w-32 bg-gray-100" />
+      <Skeleton className="h-3 w-24 bg-gray-100" />
+    </div>
+  );
+}
+
+function GeneralReadingSkeleton() {
+  return (
+    <div className="space-y-8 min-w-0 pt-3" aria-busy="true" aria-label="Cargando contenido">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="space-y-3">
+          <Skeleton className="h-4 w-40 bg-gray-100" />
+          <Skeleton className="h-3 w-full bg-gray-100" />
+          <Skeleton className="h-3 w-[92%] bg-gray-100" />
+          <Skeleton className="h-3 w-[78%] bg-gray-100" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1161,6 +1190,10 @@ export function GeneralTab({
       ? generalDraft.desarrolloTecnico
       : project.desarrolloTecnico;
 
+  const showGeneralBodySkeleton =
+    proyectoNeedsDesarrolloTecnicoFetch(project) ||
+    (isDtConfigPending && dtConfigSections.length === 0);
+
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
     for (const v of project.desarrolloTecnicoValores ?? []) {
@@ -1391,10 +1424,8 @@ export function GeneralTab({
     };
   }, []);
 
-  // Evitar paint parcial: fallback DT y luego campos custom (p.ej. Marco teórico).
-  if (isDtConfigPending && dtConfigSections.length === 0) {
-    return null;
-  }
+  // Shell o config DT pendiente: encabezado/chips fuera; cuerpo con skeleton.
+  const showReadingSkeleton = showGeneralBodySkeleton;
 
   return (
     <div ref={rootRef} className="h-full min-w-0 overflow-hidden overflow-x-hidden pt-4">
@@ -1402,11 +1433,15 @@ export function GeneralTab({
       <div className="grid h-full w-full min-w-0 max-w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
         <aside className="hidden lg:flex justify-end pr-6 xl:pr-8 pl-2 h-full min-h-0 min-w-0 overflow-hidden">
           <div id="tour-general-indice" className="w-[15.5rem] max-w-full shrink-0">
-            <BookIndex
-              activeId={activeSectionId}
-              onNavigate={navigateToSection}
-              items={tocItems}
-            />
+            {showReadingSkeleton ? (
+              <GeneralIndexSkeleton />
+            ) : (
+              <BookIndex
+                activeId={activeSectionId}
+                onNavigate={navigateToSection}
+                items={tocItems}
+              />
+            )}
           </div>
         </aside>
 
@@ -1420,27 +1455,38 @@ export function GeneralTab({
             className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2"
           >
             <div className="flex gap-1 overflow-x-auto custom-scrollbar py-1 px-1">
-              {tocItems.map((item) => {
-                const isActive = activeSectionId === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => navigateToSection(item.id)}
-                    className={`shrink-0 px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors ${
-                      isActive
-                        ? 'text-gray-900 font-medium border-b-2 border-emerald-600'
-                        : 'text-gray-500 hover:text-gray-800'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+              {showReadingSkeleton
+                ? [0, 1, 2, 3].map((i) => (
+                    <Skeleton
+                      key={i}
+                      className="h-6 w-20 shrink-0 bg-gray-100"
+                    />
+                  ))
+                : tocItems.map((item) => {
+                    const isActive = activeSectionId === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => navigateToSection(item.id)}
+                        className={`shrink-0 px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors ${
+                          isActive
+                            ? 'text-gray-900 font-medium border-b-2 border-emerald-600'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
             </div>
           </div>
 
           <div className="space-y-8 min-w-0 pt-3 pb-[min(100vh,44rem)]">
+            {showReadingSkeleton ? (
+              <GeneralReadingSkeleton />
+            ) : (
+              <>
             <ReadingSection
               id="objetivo-general"
               tourId="tour-general-objetivo"
@@ -1734,6 +1780,8 @@ export function GeneralTab({
                 </ReadingSection>
               );
             })}
+              </>
+            )}
 
             {/* Metadatos en móvil (en desktop van a la columna derecha) */}
             <div
