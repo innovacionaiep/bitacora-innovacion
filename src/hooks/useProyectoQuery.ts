@@ -24,6 +24,7 @@ import {
   escalamientoKey,
 } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
+import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
 import type { ActivityWithTasks } from '@/lib/actions/gantt';
 import type { ItemPresupuestoItem } from '@/types/presupuesto';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
@@ -142,11 +143,13 @@ export function mergeDesarrolloTecnicoIntoProject(
   project: ProyectoWithRelations,
   dt: ProyectoDesarrolloTecnicoData
 ): ProyectoWithRelations {
-  return {
+  const next: ProyectoWithRelations & { __generalShell?: boolean } = {
     ...project,
     desarrolloTecnico: dt.desarrolloTecnico,
     desarrolloTecnicoValores: dt.desarrolloTecnicoValores,
   };
+  delete next.__generalShell;
+  return next;
 }
 
 /** Drop all React Query entries for one project (base, tabs, historial…). */
@@ -487,7 +490,7 @@ export function setProyectoBaseCache(
   queryClient: ReturnType<typeof useQueryClient>,
   project: ProyectoWithRelations
 ) {
-  if (!('desarrolloTecnico' in project)) return;
+  if (isProyectoGeneralShell(project)) return;
   queryClient.setQueryData(proyectoBaseKey(project.id), project);
   if (project.participantes_rel) {
     queryClient.setQueryData(
@@ -495,6 +498,7 @@ export function setProyectoBaseCache(
       project.participantes_rel
     );
   }
+  if (!('desarrolloTecnico' in project)) return;
   queryClient.setQueryData(proyectoDesarrolloTecnicoKey(project.id), {
     desarrolloTecnico: project.desarrolloTecnico ?? null,
     desarrolloTecnicoValores: project.desarrolloTecnicoValores ?? [],

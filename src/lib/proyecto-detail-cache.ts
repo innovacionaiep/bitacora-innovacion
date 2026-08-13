@@ -5,7 +5,8 @@ import type { ProyectoListadoItem, ProyectoWithRelations } from '@/types/proyect
 export const GET_PROYECTO_BASE_OPTIONS = {
   includeActivities: false,
   includeParticipantes: false,
-  includeDesarrolloTecnico: true,
+  // DT va en paralelo (getProyectoDesarrolloTecnico) para pintar OG/video antes.
+  includeDesarrolloTecnico: false,
 } as const;
 
 /** Escalares de Proyecto que el detalle General/Convenio necesita (sin relaciones). */
@@ -76,8 +77,15 @@ export function shellProyectoFromListado(
     gruposInteres: [],
     sociosComunitarios: [],
     objetivos_rel: [],
+    __generalShell: true,
   };
   return shell as ProyectoWithRelations;
+}
+
+export function isProyectoGeneralShell(
+  project: ProyectoWithRelations
+): boolean {
+  return (project as { __generalShell?: boolean }).__generalShell === true;
 }
 
 /** Select de lista Gantt: sin _count.evidencias (el modal las carga aparte). */

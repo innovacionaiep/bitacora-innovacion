@@ -70,14 +70,17 @@ import {
 } from '@/hooks/useProyectoQuery';
 import {
   usePrefetchDesarrolloTecnicoConfig,
-  useFetchDesarrolloTecnicoConfig,
 } from '@/hooks/useDesarrolloTecnicoConfig';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  desarrolloTecnicoConfigKey,
   proyectoBaseKey,
 } from '@/lib/query-keys';
-import { PROYECTO_DETAIL_LRU_KEEP, touchProyectoDetailLru, shellProyectoFromListado } from '@/lib/proyecto-detail-cache';
+import {
+  PROYECTO_DETAIL_LRU_KEEP,
+  touchProyectoDetailLru,
+  shellProyectoFromListado,
+  isProyectoGeneralShell,
+} from '@/lib/proyecto-detail-cache';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
@@ -161,7 +164,6 @@ export function ProyectosContent({
   const fetchProyectoParticipantes = useFetchProyectoParticipantes();
   const fetchProyectoDesarrolloTecnico = useFetchProyectoDesarrolloTecnico();
   const prefetchDesarrolloTecnicoConfig = usePrefetchDesarrolloTecnicoConfig();
-  const fetchDesarrolloTecnicoConfig = useFetchDesarrolloTecnicoConfig();
   const topLoader = useTopLoader();
   const tabLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Evita flash de la lista al entrar con ?id= (p. ej. botón "Ir" desde Inicio)
@@ -198,7 +200,7 @@ export function ProyectosContent({
     (update: React.SetStateAction<ProyectoWithRelations | null>) => {
       setSelectedProject((prev) => {
         const next = typeof update === 'function' ? update(prev) : update;
-        if (next && !proyectoNeedsDesarrolloTecnicoFetch(next)) {
+        if (next && !isProyectoGeneralShell(next)) {
           setProyectoBaseCache(queryClient, next);
         }
         return next;
@@ -227,20 +229,12 @@ export function ProyectosContent({
       const cached = queryClient.getQueryData<ProyectoWithRelations>(
         proyectoBaseKey(projectId)
       );
-      const dtConfigCached = queryClient.getQueryData(
-        desarrolloTecnicoConfigKey
-      );
-      const baseReady =
-        cached && !proyectoNeedsDesarrolloTecnicoFetch(cached) ? cached : null;
-      const [data] = await Promise.all([
-        baseReady ? Promise.resolve(baseReady) : fetchProyectoBase(projectId),
-        dtConfigCached
-          ? Promise.resolve(dtConfigCached)
-          : fetchDesarrolloTecnicoConfig(),
-      ]);
-      return data;
+      if (cached && !isProyectoGeneralShell(cached)) {
+        return cached;
+      }
+      return fetchProyectoBase(projectId);
     },
-    [queryClient, fetchProyectoBase, fetchDesarrolloTecnicoConfig]
+    [queryClient, fetchProyectoBase]
   );
 
   const {
@@ -271,7 +265,7 @@ export function ProyectosContent({
     loading ||
       isResolvingUrlProject ||
       isSelectingProject ||
-      catalogosLoading
+      (catalogosLoading && !selectedProject)
   );
 
   const [formData, setFormData] = useState({
@@ -459,6 +453,18 @@ export function ProyectosContent({
       return;
     }
 
+    void fetchProyectoDesarrolloTecnico(project.id);
+    void prefetchDesarrolloTecnicoConfig();
+
+    if (cached && !isProyectoGeneralShell(cached)) {
+      setSelectedProjectAndCache(cached);
+      setIsSelectingProject(false);
+      const videoUrl =
+        cached.youtubeUrl ?? projectVideos[project.id] ?? '';
+      setTempVideoUrl(videoUrl);
+      return;
+    }
+
     setSelectedProject(shellProyectoFromListado(project));
     setIsSelectingProject(true);
     topLoader.start();
@@ -488,6 +494,8 @@ export function ProyectosContent({
     setSelectedProjectAndCache,
     trackAndEvictProjectCaches,
     queryClient,
+    fetchProyectoDesarrolloTecnico,
+    prefetchDesarrolloTecnicoConfig,
   ]);
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -647,6 +655,19 @@ export function ProyectosContent({
       proyectoBaseKey(project.id)
     );
     if (cached && !proyectoNeedsDesarrolloTecnicoFetch(cached)) {
+      setSelectedProjectAndCache(cached);
+      setIsSelectingProject(false);
+      topLoader.done(true);
+      const videoUrl =
+        cached.youtubeUrl ?? projectVideos[project.id] ?? '';
+      setTempVideoUrl(videoUrl);
+      return;
+    }
+
+    void fetchProyectoDesarrolloTecnico(project.id);
+    void prefetchDesarrolloTecnicoConfig();
+
+    if (cached && !isProyectoGeneralShell(cached)) {
       setSelectedProjectAndCache(cached);
       setIsSelectingProject(false);
       topLoader.done(true);

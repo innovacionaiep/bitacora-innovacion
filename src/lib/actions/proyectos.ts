@@ -459,7 +459,8 @@ type GetProyectoOptions = {
   includeParticipantes?: boolean;
   /**
    * Si true, incluye desarrolloTecnico y desarrolloTecnicoValores.
-   * Default false en getProyecto; getProyectoBase lo activa (tab General).
+   * Default false; getProyectoBase lo deja en false para pintar OG/video
+   * antes de que llegue DT en paralelo.
    */
   includeDesarrolloTecnico?: boolean;
 };

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import { Skeleton } from '@/components/ui/skeleton';
-import { proyectoNeedsDesarrolloTecnicoFetch } from '@/hooks/useProyectoQuery';
+import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
 import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
   isLegacyDtFieldKey,
@@ -474,6 +475,7 @@ function ReadingSection({
   action,
   children,
   className = '',
+  style,
 }: {
   id?: string;
   tourId?: string;
@@ -482,9 +484,14 @@ function ReadingSection({
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <section id={id} className={`min-w-0 scroll-mt-3 ${className}`}>
+    <section
+      id={id}
+      className={`min-w-0 scroll-mt-3 ${className}`}
+      style={style}
+    >
       <div
         id={tourId}
         className="rounded-lg border border-gray-200 bg-white"
@@ -544,29 +551,49 @@ function BodyText({
   );
 }
 
-function GeneralIndexSkeleton() {
+function SectionBodySkeleton() {
   return (
-    <div className="sticky top-0 pr-2 space-y-2.5" aria-hidden>
-      <Skeleton className="h-3 w-28 bg-gray-100" />
-      <Skeleton className="h-3 w-36 bg-gray-100" />
-      <Skeleton className="h-3 w-20 bg-gray-100" />
-      <Skeleton className="h-3 w-32 bg-gray-100" />
-      <Skeleton className="h-3 w-24 bg-gray-100" />
+    <div className="space-y-2" aria-busy="true">
+      <Skeleton className="h-3 w-full bg-gray-100" />
+      <Skeleton className="h-3 w-[92%] bg-gray-100" />
+      <Skeleton className="h-3 w-[78%] bg-gray-100" />
     </div>
   );
 }
 
-function GeneralReadingSkeleton() {
+function DtSectionSkeleton({ id }: { id: string }) {
   return (
-    <div className="space-y-8 min-w-0 pt-3" aria-busy="true" aria-label="Cargando contenido">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="space-y-3">
-          <Skeleton className="h-4 w-40 bg-gray-100" />
-          <Skeleton className="h-3 w-full bg-gray-100" />
-          <Skeleton className="h-3 w-[92%] bg-gray-100" />
-          <Skeleton className="h-3 w-[78%] bg-gray-100" />
+    <section
+      id={id}
+      className="min-w-0 scroll-mt-3 animate-in fade-in duration-300"
+      aria-busy="true"
+    >
+      <div className="rounded-lg border border-gray-200 bg-white">
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/90 rounded-t-lg">
+          <Skeleton className="h-3.5 w-3.5 bg-gray-100" />
+          <Skeleton className="h-3 w-40 bg-gray-100" />
         </div>
-      ))}
+        <div className="px-5 py-4">
+          <SectionBodySkeleton />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RevealBody({
+  delayMs = 0,
+  children,
+}: {
+  delayMs?: number;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="animate-in fade-in duration-300"
+      style={{ animationDelay: `${delayMs}ms`, animationFillMode: 'both' }}
+    >
+      {children}
     </div>
   );
 }
@@ -643,6 +670,7 @@ type ProjectMetaRailProps = {
   hasCarreras: boolean;
   hasAsignaturas: boolean;
   hasGrupos: boolean;
+  isShell?: boolean;
 } & Pick<
   UseGeneralTabReturn,
   | 'editingField'
@@ -666,6 +694,7 @@ function ProjectMetaRail({
   hasCarreras,
   hasAsignaturas,
   hasGrupos,
+  isShell = false,
   editingField,
   generalDraft,
   setGeneralDraft,
@@ -685,7 +714,9 @@ function ProjectMetaRail({
     <div className="space-y-7">
       <div className="group/field">
         <FieldLabel>Socios Comunitarios</FieldLabel>
-        {hasSocios ? (
+        {isShell ? (
+          <Skeleton className="h-8 w-full bg-gray-100" />
+        ) : hasSocios ? (
           <div className="relative">
             <MetaChipList>
               {project.sociosComunitarios?.map((socioRel, idx) => (
@@ -747,7 +778,9 @@ function ProjectMetaRail({
 
       <div className="group/field">
         <FieldLabel>Comunas</FieldLabel>
-        {isEditing('comunas') ? (
+        {isShell ? (
+          <Skeleton className="h-8 w-full bg-gray-100" />
+        ) : isEditing('comunas') ? (
           <div>
             <MultiSelectNombres
               options={catalogosGeneral.comunas}
@@ -823,7 +856,9 @@ function ProjectMetaRail({
 
       <div className="group/field">
         <FieldLabel>Carreras</FieldLabel>
-        {isEditing('carreras') ? (
+        {isShell ? (
+          <Skeleton className="h-8 w-full bg-gray-100" />
+        ) : isEditing('carreras') ? (
           <div>
             <MultiSelectNombres
               options={catalogosGeneral.carreras}
@@ -861,7 +896,9 @@ function ProjectMetaRail({
 
       <div className="group/field">
         <FieldLabel>Asignaturas</FieldLabel>
-        {isEditing('asignaturas') ? (
+        {isShell ? (
+          <Skeleton className="h-8 w-full bg-gray-100" />
+        ) : isEditing('asignaturas') ? (
           <div>
             <MultiSelectNombres
               options={catalogosGeneral.asignaturas}
@@ -899,7 +936,9 @@ function ProjectMetaRail({
 
       <div className="group/field">
         <FieldLabel>Grupos de Interés</FieldLabel>
-        {isEditing('gruposInteres') ? (
+        {isShell ? (
+          <Skeleton className="h-8 w-full bg-gray-100" />
+        ) : isEditing('gruposInteres') ? (
           <div>
             <MultiSelectNombres
               options={catalogosGeneral.gruposInteres}
@@ -1190,9 +1229,9 @@ export function GeneralTab({
       ? generalDraft.desarrolloTecnico
       : project.desarrolloTecnico;
 
-  const showGeneralBodySkeleton =
-    proyectoNeedsDesarrolloTecnicoFetch(project) ||
-    (isDtConfigPending && dtConfigSections.length === 0);
+  const isShell = isProyectoGeneralShell(project);
+  const hasCoreContent = !isShell;
+  const hasDt = 'desarrolloTecnico' in project;
 
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
@@ -1424,8 +1463,9 @@ export function GeneralTab({
     };
   }, []);
 
-  // Shell o config DT pendiente: encabezado/chips fuera; cuerpo con skeleton.
-  const showReadingSkeleton = showGeneralBodySkeleton;
+  // Encabezado ya está fuera; aquí se revela de arriba abajo.
+  const showDtTocPlaceholder =
+    isDtConfigPending && dtConfigSections.length === 0;
 
   return (
     <div ref={rootRef} className="h-full min-w-0 overflow-hidden overflow-x-hidden pt-4">
@@ -1433,15 +1473,18 @@ export function GeneralTab({
       <div className="grid h-full w-full min-w-0 max-w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
         <aside className="hidden lg:flex justify-end pr-6 xl:pr-8 pl-2 h-full min-h-0 min-w-0 overflow-hidden">
           <div id="tour-general-indice" className="w-[15.5rem] max-w-full shrink-0">
-            {showReadingSkeleton ? (
-              <GeneralIndexSkeleton />
-            ) : (
-              <BookIndex
-                activeId={activeSectionId}
-                onNavigate={navigateToSection}
-                items={tocItems}
-              />
-            )}
+            <BookIndex
+              activeId={activeSectionId}
+              onNavigate={navigateToSection}
+              items={tocItems}
+            />
+            {showDtTocPlaceholder ? (
+              <div className="mt-2 space-y-2.5 pl-3" aria-hidden>
+                <Skeleton className="h-3 w-28 bg-gray-100" />
+                <Skeleton className="h-3 w-36 bg-gray-100" />
+                <Skeleton className="h-3 w-24 bg-gray-100" />
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -1455,45 +1498,44 @@ export function GeneralTab({
             className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2"
           >
             <div className="flex gap-1 overflow-x-auto custom-scrollbar py-1 px-1">
-              {showReadingSkeleton
-                ? [0, 1, 2, 3].map((i) => (
+              {tocItems.map((item) => {
+                const isActive = activeSectionId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => navigateToSection(item.id)}
+                    className={`shrink-0 px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors ${
+                      isActive
+                        ? 'text-gray-900 font-medium border-b-2 border-emerald-600'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+              {showDtTocPlaceholder
+                ? [0, 1, 2].map((i) => (
                     <Skeleton
-                      key={i}
+                      key={`toc-sk-${i}`}
                       className="h-6 w-20 shrink-0 bg-gray-100"
                     />
                   ))
-                : tocItems.map((item) => {
-                    const isActive = activeSectionId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => navigateToSection(item.id)}
-                        className={`shrink-0 px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors ${
-                          isActive
-                            ? 'text-gray-900 font-medium border-b-2 border-emerald-600'
-                            : 'text-gray-500 hover:text-gray-800'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
+                : null}
             </div>
           </div>
 
           <div className="space-y-8 min-w-0 pt-3 pb-[min(100vh,44rem)]">
-            {showReadingSkeleton ? (
-              <GeneralReadingSkeleton />
-            ) : (
-              <>
             <ReadingSection
               id="objetivo-general"
               tourId="tour-general-objetivo"
               title="Objetivo General"
               icon={<Crosshair />}
             >
-              {isEditing('objetivoGeneral') ? (
+              {!hasCoreContent ? (
+                <SectionBodySkeleton />
+              ) : isEditing('objetivoGeneral') ? (
                 <div className="min-w-0">
                   <GeneralTabTextarea
                     value={generalDraft?.objetivoGeneral ?? ''}
@@ -1516,19 +1558,23 @@ export function GeneralTab({
                   />
                 </div>
               ) : hasObjetivoGeneral ? (
-                <div className="group/field relative min-w-0">
-                  <BodyText className="min-w-0">
-                    {objetivoGeneral!.descripcion}
-                  </BodyText>
-                  <HoverEditButton
-                    onClick={() => handleStartEditField('objetivoGeneral')}
-                    tooltip="Editar objetivo general"
-                  />
-                </div>
+                <RevealBody>
+                  <div className="group/field relative min-w-0">
+                    <BodyText className="min-w-0">
+                      {objetivoGeneral!.descripcion}
+                    </BodyText>
+                    <HoverEditButton
+                      onClick={() => handleStartEditField('objetivoGeneral')}
+                      tooltip="Editar objetivo general"
+                    />
+                  </div>
+                </RevealBody>
               ) : (
-                <AddInfoButton
-                  onClick={() => handleStartEditField('objetivoGeneral')}
-                />
+                <RevealBody>
+                  <AddInfoButton
+                    onClick={() => handleStartEditField('objetivoGeneral')}
+                  />
+                </RevealBody>
               )}
             </ReadingSection>
 
@@ -1567,7 +1613,9 @@ export function GeneralTab({
                 ) : undefined
               }
             >
-              {isEditing('objetivosEspecificos') ? (
+              {!hasCoreContent ? (
+                <SectionBodySkeleton />
+              ) : isEditing('objetivosEspecificos') ? (
                 <div className="space-y-6">
                   {(generalDraft?.objetivosEspecificos ?? []).map(
                     (objetivo, index) => (
@@ -1637,33 +1685,37 @@ export function GeneralTab({
                   />
                 </div>
               ) : hasObjetivosEspecificos ? (
-                <div className="group/field relative">
-                  <div className="space-y-5">
-                    {objetivosEspecificos.map((objetivo, index) => (
-                      <div
-                        key={objetivo.id}
-                        className="flex items-center gap-3"
-                      >
-                        <span className="flex-shrink-0 w-6 text-[11px] font-medium text-gray-400 tabular-nums tracking-wide">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <BodyText className="flex-1 min-w-0 pt-0">
-                          {objetivo.descripcion}
-                        </BodyText>
-                      </div>
-                    ))}
+                <RevealBody delayMs={40}>
+                  <div className="group/field relative">
+                    <div className="space-y-5">
+                      {objetivosEspecificos.map((objetivo, index) => (
+                        <div
+                          key={objetivo.id}
+                          className="flex items-center gap-3"
+                        >
+                          <span className="flex-shrink-0 w-6 text-[11px] font-medium text-gray-400 tabular-nums tracking-wide">
+                            {String(index + 1).padStart(2, '0')}
+                          </span>
+                          <BodyText className="flex-1 min-w-0 pt-0">
+                            {objetivo.descripcion}
+                          </BodyText>
+                        </div>
+                      ))}
+                    </div>
+                    <HoverEditButton
+                      onClick={() =>
+                        handleStartEditField('objetivosEspecificos')
+                      }
+                      tooltip="Editar objetivos específicos"
+                    />
                   </div>
-                  <HoverEditButton
-                    onClick={() =>
-                      handleStartEditField('objetivosEspecificos')
-                    }
-                    tooltip="Editar objetivos específicos"
-                  />
-                </div>
+                </RevealBody>
               ) : (
-                <AddInfoButton
-                  onClick={() => handleStartEditField('objetivosEspecificos')}
-                />
+                <RevealBody delayMs={40}>
+                  <AddInfoButton
+                    onClick={() => handleStartEditField('objetivosEspecificos')}
+                  />
+                </RevealBody>
               )}
             </ReadingSection>
 
@@ -1673,7 +1725,9 @@ export function GeneralTab({
               title="Video"
               icon={<Video />}
             >
-                {isEditing('video') ? (
+              {!hasCoreContent ? (
+                <SectionBodySkeleton />
+              ) : isEditing('video') ? (
                   <div className="space-y-3">
                     <Label className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-400">
                       URL del video (YouTube, Vimeo, Drive o SharePoint)
@@ -1694,26 +1748,32 @@ export function GeneralTab({
                   />
                 </div>
               ) : hasVideo ? (
-                <div className="group/field relative">
-                  <HoverEditButton
-                    onClick={() => handleStartEditField('video')}
-                    tooltip="Editar video"
-                  />
-                  <ProjectVideoEmbed url={projVideo} />
-                </div>
+                <RevealBody delayMs={80}>
+                  <div className="group/field relative">
+                    <HoverEditButton
+                      onClick={() => handleStartEditField('video')}
+                      tooltip="Editar video"
+                    />
+                    <ProjectVideoEmbed url={projVideo} />
+                  </div>
+                </RevealBody>
               ) : (
-                <div className="py-1">
-                  <p className="text-[13px] text-gray-400 mb-2">
-                    Sin video asignado
-                  </p>
-                  <AddInfoButton
-                    onClick={() => handleStartEditField('video')}
-                  />
-                </div>
+                <RevealBody delayMs={80}>
+                  <div className="py-1">
+                    <p className="text-[13px] text-gray-400 mb-2">
+                      Sin video asignado
+                    </p>
+                    <AddInfoButton
+                      onClick={() => handleStartEditField('video')}
+                    />
+                  </div>
+                </RevealBody>
               )}
             </ReadingSection>
 
-            {desarrolloSections.map((section) => {
+            {dtConfigSections.length > 0 ? (
+              hasDt ? (
+                desarrolloSections.map((section, index) => {
               const hasContent = Boolean(section.content?.trim());
               const editingThis = isEditing(section.fieldId);
               const draftValue = section.campoKey
@@ -1728,6 +1788,11 @@ export function GeneralTab({
                   id={section.id}
                   title={section.title}
                   icon={<IconByName name={section.icono} />}
+                  className="animate-in fade-in duration-300"
+                  style={{
+                    animationDelay: `${index * 45}ms`,
+                    animationFillMode: 'both',
+                  }}
                 >
                   {editingThis ? (
                     <div>
@@ -1779,9 +1844,29 @@ export function GeneralTab({
                   )}
                 </ReadingSection>
               );
-            })}
-              </>
-            )}
+            })
+              ) : (
+                dtConfigSections.map((section, index) => (
+                  <ReadingSection
+                    key={section.sectionId}
+                    id={section.sectionId}
+                    title={section.title}
+                    icon={<IconByName name={section.icono} />}
+                    className="animate-in fade-in duration-300"
+                    style={{
+                      animationDelay: `${index * 45}ms`,
+                      animationFillMode: 'both',
+                    }}
+                  >
+                    <SectionBodySkeleton />
+                  </ReadingSection>
+                ))
+              )
+            ) : isDtConfigPending || !hasDt ? (
+              [0, 1, 2].map((i) => (
+                <DtSectionSkeleton key={`dt-sk-${i}`} id={`dt-sk-${i}`} />
+              ))
+            ) : null}
 
             {/* Metadatos en móvil (en desktop van a la columna derecha) */}
             <div
@@ -1790,6 +1875,7 @@ export function GeneralTab({
             >
               <ProjectMetaRail
                 project={project}
+                isShell={isShell}
                 sedeNames={sedeNames}
                 hasSocios={hasSocios}
                 hasSede={hasSede}
@@ -1820,6 +1906,7 @@ export function GeneralTab({
           >
             <ProjectMetaRail
               project={project}
+              isShell={isShell}
               sedeNames={sedeNames}
               hasSocios={hasSocios}
               hasSede={hasSede}

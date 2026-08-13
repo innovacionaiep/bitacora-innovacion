@@ -18,6 +18,7 @@ import {
   proyectoNeedsDesarrolloTecnicoFetch,
   setProyectoBaseCache,
   isPrefetchableProyectoTab,
+  mergeDesarrolloTecnicoIntoProject,
 } from '@/hooks/useProyectoQuery';
 import {
   GET_PROYECTO_BASE_OPTIONS,
@@ -27,6 +28,7 @@ import {
   PROYECTO_DETAIL_LRU_KEEP,
   touchProyectoDetailLru,
   shellProyectoFromListado,
+  isProyectoGeneralShell,
 } from '@/lib/proyecto-detail-cache';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 
@@ -41,8 +43,8 @@ describe('GET_PROYECTO_SCALAR_SELECT', () => {
 });
 
 describe('GET_PROYECTO_BASE_OPTIONS', () => {
-  it('loads desarrollo técnico and skips activities and participantes', () => {
-    expect(GET_PROYECTO_BASE_OPTIONS.includeDesarrolloTecnico).toBe(true);
+  it('skips desarrollo técnico, activities and participantes', () => {
+    expect(GET_PROYECTO_BASE_OPTIONS.includeDesarrolloTecnico).toBe(false);
     expect(GET_PROYECTO_BASE_OPTIONS.includeActivities).toBe(false);
     expect(GET_PROYECTO_BASE_OPTIONS.includeParticipantes).toBe(false);
   });
@@ -103,6 +105,7 @@ describe('shellProyectoFromListado', () => {
       fondo: 'Fondo A',
       escuelas: [{ escuela: { nombre: 'Escuela 1' } }],
     });
+    expect(isProyectoGeneralShell(shell)).toBe(true);
     expect(proyectoNeedsDesarrolloTecnicoFetch(shell)).toBe(true);
     expect('desarrolloTecnico' in shell).toBe(false);
     expect(shell.proyecto).toBe('Demo');
@@ -113,6 +116,14 @@ describe('shellProyectoFromListado', () => {
     const qc = new QueryClient();
     setProyectoBaseCache(qc, shell);
     expect(qc.getQueryData(proyectoBaseKey('p1'))).toBeUndefined();
+  });
+
+  it('caches a non-shell base without waiting for DT', () => {
+    const base = { id: 'p1', proyecto: 'Demo' } as ProyectoWithRelations;
+    expect(isProyectoGeneralShell(base)).toBe(false);
+    const qc = new QueryClient();
+    setProyectoBaseCache(qc, base);
+    expect(qc.getQueryData(proyectoBaseKey('p1'))).toEqual(base);
   });
 });
 
@@ -128,6 +139,25 @@ describe('proyectoNeedsDesarrolloTecnicoFetch', () => {
   it('is true for a cache entry that never received DT', () => {
     const withoutDt = { id: 'p1' } as ProyectoWithRelations;
     expect(proyectoNeedsDesarrolloTecnicoFetch(withoutDt)).toBe(true);
+  });
+});
+
+describe('mergeDesarrolloTecnicoIntoProject', () => {
+  it('adds DT and clears the general shell flag', () => {
+    const shell = shellProyectoFromListado({
+      id: 'p1',
+      proyecto: 'Demo',
+      sede: 'Santiago',
+      fondo: 'Fondo A',
+      escuelas: [],
+    });
+    const merged = mergeDesarrolloTecnicoIntoProject(shell, {
+      desarrolloTecnico: null,
+      desarrolloTecnicoValores: [],
+    });
+    expect(isProyectoGeneralShell(merged)).toBe(false);
+    expect('desarrolloTecnico' in merged).toBe(true);
+    expect(merged.desarrolloTecnico).toBeNull();
   });
 });
 
