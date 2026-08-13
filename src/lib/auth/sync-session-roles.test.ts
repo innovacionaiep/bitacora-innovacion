@@ -3,7 +3,17 @@ import {
   buildRoleClaims,
   shouldRefreshJwtRoles,
   JWT_ROLES_REFRESH_INTERVAL_MS,
+  SESSION_ROLES_REFETCH_INTERVAL_SECONDS,
 } from './sync-session-roles';
+
+describe('session poll vs JWT throttle', () => {
+  it('aligns client poll with jwt DB refresh so each poll refreshes once', () => {
+    expect(SESSION_ROLES_REFETCH_INTERVAL_SECONDS).toBe(300);
+    expect(JWT_ROLES_REFRESH_INTERVAL_MS).toBe(
+      SESSION_ROLES_REFETCH_INTERVAL_SECONDS * 1000
+    );
+  });
+});
 
 describe('shouldRefreshJwtRoles', () => {
   it('refreshes when never refreshed', () => {

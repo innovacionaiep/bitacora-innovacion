@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { chunkInBursts, dequeueTab, runInBursts } from '@/lib/idle-burst';
 import {
   ALL_PREFETCH_TABS,
+  IDLE_DATA_PREFETCH_TABS,
   IDLE_TAB_PREFETCH_CONCURRENCY,
 } from '@/hooks/useProyectoQuery';
 
@@ -22,6 +23,15 @@ describe('chunkInBursts', () => {
     expect(bursts.length).toBeGreaterThan(1);
     expect(bursts.every((b) => b.length <= 2)).toBe(true);
     expect(bursts.flat()).toEqual([...ALL_PREFETCH_TABS]);
+  });
+
+  it('fits idle data tabs in a single burst of two', () => {
+    const bursts = chunkInBursts(
+      IDLE_DATA_PREFETCH_TABS,
+      IDLE_TAB_PREFETCH_CONCURRENCY
+    );
+    expect(IDLE_DATA_PREFETCH_TABS).toEqual(['Participantes', 'Gantt']);
+    expect(bursts).toEqual([['Participantes', 'Gantt']]);
   });
 });
 

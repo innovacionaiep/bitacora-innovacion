@@ -379,7 +379,7 @@ export function ProyectosContent({
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
-  // Idle prefetch de otros tabs solo cuando General ya trajo DT (no en shell).
+  // Idle: chunks de tabs + datos de Participantes/Gantt, solo cuando General ya trajo DT.
   useEffect(() => {
     if (!selectedProject?.id) {
       cancelPrefetchTabs();

@@ -18,7 +18,7 @@ export function SessionProvider({
       // Re-hit /api/auth/session so jwt callback can pull fresh roles from DB
       // after an admin enables/disables roles (without forcing re-login).
       refetchInterval={SESSION_ROLES_REFETCH_INTERVAL_SECONDS}
-      refetchOnWindowFocus
+      refetchOnWindowFocus={false}
     >
       {children}
     </NextAuthSessionProvider>

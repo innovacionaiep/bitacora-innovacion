@@ -20,6 +20,7 @@ import {
   isPrefetchableProyectoTab,
   mergeDesarrolloTecnicoIntoProject,
   ALL_PREFETCH_TABS,
+  IDLE_DATA_PREFETCH_TABS,
 } from '@/hooks/useProyectoQuery';
 import {
   GET_PROYECTO_BASE_OPTIONS,
@@ -87,7 +88,7 @@ describe('proyectoTabDataPrefetchKeys', () => {
 });
 
 describe('ALL_PREFETCH_TABS', () => {
-  it('prefetches in pairs: participantes+gantt, indicadores+presupuesto, seguimiento+escalamiento, convenio+historial', () => {
+  it('lists every tab that can be prefetched on click', () => {
     expect(ALL_PREFETCH_TABS).toEqual([
       'Participantes',
       'Gantt',
@@ -98,6 +99,13 @@ describe('ALL_PREFETCH_TABS', () => {
       'Convenio',
       'Historial',
     ]);
+  });
+});
+
+describe('IDLE_DATA_PREFETCH_TABS', () => {
+  it('idles only the first pair so Historial filtros are not prefetched', () => {
+    expect(IDLE_DATA_PREFETCH_TABS).toEqual(['Participantes', 'Gantt']);
+    expect(IDLE_DATA_PREFETCH_TABS).not.toContain('Historial');
   });
 });
 

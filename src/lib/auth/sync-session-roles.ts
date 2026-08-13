@@ -4,11 +4,11 @@
  * refresh, NextAuth JWT (30d) would keep stale availableRoles until re-login.
  */
 
-/** Client SessionProvider poll; keep >= JWT throttle so polls often hit cache. */
-export const SESSION_ROLES_REFETCH_INTERVAL_SECONDS = 60;
+/** Client SessionProvider poll. Aligned with JWT throttle so each poll refreshes once. */
+export const SESSION_ROLES_REFETCH_INTERVAL_SECONDS = 300;
 
-/** Throttle DB role lookups inside the jwt callback (ms). */
-export const JWT_ROLES_REFRESH_INTERVAL_MS = 15_000;
+/** Throttle DB role lookups inside the jwt callback (ms). Match the client poll. */
+export const JWT_ROLES_REFRESH_INTERVAL_MS = 300_000;
 
 export type RoleClaims = {
   availableRoles: string[];

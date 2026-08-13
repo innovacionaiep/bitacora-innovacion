@@ -271,7 +271,7 @@ export async function detectVimeoIsVertical(
 
 /**
  * Orientación vertical sin dependencias nativas (cliente-safe).
- * Google Drive se resuelve en /api/video-orientation (sharp) o vía Image() en UI.
+ * Google Drive se resuelve vía Image() en UI (sin sharp en Functions).
  */
 export async function detectVideoIsVertical(url: string): Promise<boolean> {
   const parsed = parseVideoUrl(url);

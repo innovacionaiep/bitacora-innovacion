@@ -393,9 +393,26 @@ export async function getProyectosParaUsuarioPorRolActivo(
   return getProyectosListadoParaUsuario(activeRoleOverride);
 }
 
+const LISTADO_SELECT = {
+  id: true,
+  proyecto: true,
+  sede: true,
+  fondo: true,
+  escuelas: { include: { escuela: { select: { nombre: true } } } },
+} as const;
+
+async function _getProyectosListadoFromDB(whereIds?: string[]) {
+  return prisma.proyecto.findMany({
+    ...(whereIds && whereIds.length > 0 && { where: { id: { in: whereIds } } }),
+    select: LISTADO_SELECT,
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 /**
  * Listado ligero de proyectos para el selector (solo id, nombre, sede, escuelas).
  * Carga instantánea; los detalles completos se cargan al seleccionar.
+ * Caché keyed por userId + view_all (tag `proyectos` al mutar).
  */
 export async function getProyectosListadoParaUsuario(
   _activeRoleOverride?: string | null
@@ -407,41 +424,36 @@ export async function getProyectosListadoParaUsuario(
     }
 
     const availableRoles = user.availableRoles ?? [];
-    if (await userHasPermission(availableRoles, 'projects.view_all')) {
-      const proyectos = await prisma.proyecto.findMany({
-        select: {
-          id: true,
-          proyecto: true,
-          sede: true,
-          fondo: true,
-          escuelas: { include: { escuela: { select: { nombre: true } } } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      return { success: true, data: proyectos as ProyectoListadoItem[] };
-    }
-
-    const userEmail = user.email ?? null;
-    const proyectoIds = await getProyectoIdsForUserParticipation(
-      user.id,
-      userEmail
+    const canViewAll = await userHasPermission(
+      availableRoles,
+      'projects.view_all'
     );
 
-    if (proyectoIds.length === 0) {
-      return { success: true, data: [] };
-    }
+    const cacheKey = [
+      'proyectos-listado',
+      user.id,
+      canViewAll ? 'all' : 'scoped',
+    ];
 
-    const proyectos = await prisma.proyecto.findMany({
-      where: { id: { in: proyectoIds } },
-      select: {
-        id: true,
-        proyecto: true,
-        sede: true,
-        fondo: true,
-        escuelas: { include: { escuela: { select: { nombre: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
+    const load = async () => {
+      if (canViewAll) {
+        return _getProyectosListadoFromDB();
+      }
+      const userEmail = user.email ?? null;
+      const proyectoIds = await getProyectoIdsForUserParticipation(
+        user.id,
+        userEmail
+      );
+      if (proyectoIds.length === 0) return [];
+      return _getProyectosListadoFromDB(proyectoIds);
+    };
+
+    const cached = unstable_cache(load, cacheKey, {
+      revalidate: 45,
+      tags: ['proyectos', `proyectos-listado-${user.id}`],
     });
+
+    const proyectos = await cached();
     return { success: true, data: proyectos as ProyectoListadoItem[] };
   } catch (error) {
     console.error('❌ [getProyectosListadoParaUsuario] Error:', error);

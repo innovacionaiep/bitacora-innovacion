@@ -319,18 +319,8 @@ function ProjectVideoEmbed({ url }: { url: string }) {
         });
     }
 
-    // Drive: API (sharp + letterbox) + fallback Image() si la thumb ya es portrait.
+    // Drive: orientación vía Image() (evita /api/video-orientation + sharp en Vercel).
     if (parsed.provider === 'google-drive') {
-      const params = new URLSearchParams({ url });
-      void fetch(`/api/video-orientation?${params.toString()}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: { vertical?: boolean } | null) => {
-          if (!cancelled && data?.vertical) setIsVertical(true);
-        })
-        .catch(() => {
-          /* landscape por defecto */
-        });
-
       if (parsed.videoId) {
         const img = new Image();
         img.onload = () => {

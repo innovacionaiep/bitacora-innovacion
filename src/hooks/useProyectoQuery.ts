@@ -351,7 +351,7 @@ const TAB_CHUNK_LOADERS: Partial<
   Convenio: () => import('@/app/proyectos/tabs/ConvenioTab'),
 };
 
-/** Pares: Participantes+Gantt, Indicadores+Presupuesto, Seguimiento+Escalamiento, Convenio+Historial. */
+/** Tabs cuyo chunk JS y/o datos se pueden adelantar (click / idle). */
 export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Participantes',
   'Gantt',
@@ -361,6 +361,12 @@ export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Escalamiento',
   'Convenio',
   'Historial',
+];
+
+/** Idle: solo datos del primer par. El resto espera al clic (`prioritizeTab`). */
+export const IDLE_DATA_PREFETCH_TABS: PrefetchableProyectoTab[] = [
+  'Participantes',
+  'Gantt',
 ];
 
 export function isPrefetchableProyectoTab(
@@ -398,9 +404,15 @@ function prefetchTabChunk(tab: PrefetchableProyectoTab) {
   });
 }
 
+function prefetchAllTabChunks() {
+  for (const tab of ALL_PREFETCH_TABS) {
+    prefetchTabChunk(tab);
+  }
+}
+
 /**
- * Tras DT de General: prefetch idle de a 2 en el orden de ALL_PREFETCH_TABS.
- * Un click de tab se antepone y pausa el siguiente burst. Sin prefetch por hover.
+ * Tras DT de General: chunks JS de todos los tabs; datos idle solo
+ * IDLE_DATA_PREFETCH_TABS. Un click se antepone (`prioritizeTab`).
  */
 export function usePrefetchProyectoTabs() {
   const queryClient = useQueryClient();
@@ -488,7 +500,8 @@ export function usePrefetchProyectoTabs() {
     (projectId: string) => {
       activeProjectIdRef.current = projectId;
       const gen = ++idleGenRef.current;
-      remainingRef.current = [...ALL_PREFETCH_TABS];
+      remainingRef.current = [...IDLE_DATA_PREFETCH_TABS];
+      prefetchAllTabChunks();
       clearIdleTimer();
       const runIdle = () => {
         if (gen !== idleGenRef.current) return;

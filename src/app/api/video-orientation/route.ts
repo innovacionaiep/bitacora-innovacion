@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sharp from 'sharp';
 import { detectVimeoIsVertical, parseVideoUrl } from '@/lib/video-url';
 
+type SharpInstance = typeof import('sharp').default;
+
 const driveOrientationCache = new Map<string, boolean>();
+
+async function loadSharp(): Promise<SharpInstance | null> {
+  try {
+    const mod = await import('sharp');
+    return mod.default;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Drive suele generar miniaturas landscape con el video vertical letterboxed
  * (franjas negras laterales). Detecta eso muestreando bordes vs centro.
  */
 async function thumbnailLooksLetterboxedVertical(
+  sharp: SharpInstance,
   buf: Buffer
 ): Promise<boolean> {
   const { data, info } = await sharp(buf)
@@ -71,6 +82,12 @@ async function detectGoogleDriveIsVertical(fileId: string): Promise<boolean> {
   const cached = driveOrientationCache.get(id);
   if (cached !== undefined) return cached;
 
+  const sharp = await loadSharp();
+  if (!sharp) {
+    driveOrientationCache.set(id, false);
+    return false;
+  }
+
   const thumbUrls = [
     `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1000`,
     `https://lh3.googleusercontent.com/d/${encodeURIComponent(id)}=w1000`,
@@ -96,7 +113,7 @@ async function detectGoogleDriveIsVertical(fileId: string): Promise<boolean> {
       if (w <= 0 || h <= 0) continue;
 
       const isVertical =
-        h > w || (await thumbnailLooksLetterboxedVertical(buf));
+        h > w || (await thumbnailLooksLetterboxedVertical(sharp, buf));
       driveOrientationCache.set(id, isVertical);
       return isVertical;
     } catch {
@@ -111,32 +128,36 @@ async function detectGoogleDriveIsVertical(fileId: string): Promise<boolean> {
 /**
  * GET /api/video-orientation?url=...
  * Devuelve { vertical: boolean } para YouTube Shorts, Vimeo y Google Drive.
- * sharp solo corre aquí (servidor), nunca en el bundle del cliente.
+ * sharp se carga en runtime; si el binario nativo falla, responde landscape.
  */
 export async function GET(request: NextRequest) {
-  const url = request.nextUrl.searchParams.get('url')?.trim();
-  if (!url) {
-    return NextResponse.json(
-      { error: 'Parámetro url requerido' },
-      { status: 400 }
-    );
-  }
+  try {
+    const url = request.nextUrl.searchParams.get('url')?.trim();
+    if (!url) {
+      return NextResponse.json(
+        { error: 'Parámetro url requerido' },
+        { status: 400 }
+      );
+    }
 
-  const parsed = parseVideoUrl(url);
-  if (!parsed) {
+    const parsed = parseVideoUrl(url);
+    if (!parsed) {
+      return NextResponse.json({ vertical: false });
+    }
+
+    if (parsed.isShort) {
+      return NextResponse.json({ vertical: true, provider: parsed.provider });
+    }
+
+    let vertical = false;
+    if (parsed.provider === 'vimeo' && parsed.pageUrl) {
+      vertical = await detectVimeoIsVertical(parsed.pageUrl);
+    } else if (parsed.provider === 'google-drive' && parsed.videoId) {
+      vertical = await detectGoogleDriveIsVertical(parsed.videoId);
+    }
+
+    return NextResponse.json({ vertical, provider: parsed.provider });
+  } catch {
     return NextResponse.json({ vertical: false });
   }
-
-  if (parsed.isShort) {
-    return NextResponse.json({ vertical: true, provider: parsed.provider });
-  }
-
-  let vertical = false;
-  if (parsed.provider === 'vimeo' && parsed.pageUrl) {
-    vertical = await detectVimeoIsVertical(parsed.pageUrl);
-  } else if (parsed.provider === 'google-drive' && parsed.videoId) {
-    vertical = await detectGoogleDriveIsVertical(parsed.videoId);
-  }
-
-  return NextResponse.json({ vertical, provider: parsed.provider });
 }
