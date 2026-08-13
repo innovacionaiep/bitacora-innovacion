@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GENERAL_CORE_SECTION_COUNT,
   initialGeneralReveal,
+  visibleDtSectionCount,
 } from '@/lib/general-section-reveal';
 
 describe('initialGeneralReveal', () => {
@@ -20,5 +21,19 @@ describe('initialGeneralReveal', () => {
     const next = initialGeneralReveal(false, true);
     expect(next.core).toBe(GENERAL_CORE_SECTION_COUNT);
     expect(next.dt).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('visibleDtSectionCount', () => {
+  it('mounts no DT cards until the drip starts', () => {
+    expect(visibleDtSectionCount(0, 8)).toBe(0);
+  });
+
+  it('mounts only the revealed prefix', () => {
+    expect(visibleDtSectionCount(2, 8)).toBe(2);
+  });
+
+  it('mounts all cards on a full cache hit', () => {
+    expect(visibleDtSectionCount(Number.POSITIVE_INFINITY, 8)).toBe(8);
   });
 });

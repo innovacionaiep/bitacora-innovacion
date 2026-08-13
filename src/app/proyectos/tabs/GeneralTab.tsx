@@ -37,8 +37,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
 import {
   GENERAL_CORE_SECTION_COUNT,
+  GENERAL_DT_SECTION_REVEAL_MS,
   GENERAL_SECTION_REVEAL_MS,
   initialGeneralReveal,
+  visibleDtSectionCount,
 } from '@/lib/general-section-reveal';
 import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
@@ -643,19 +645,18 @@ function useGeneralSectionReveal(
   }, [hasCoreContent, coreRevealed, projectId]);
 
   useEffect(() => {
-    if (!hasDt || coreRevealed < GENERAL_CORE_SECTION_COUNT) return;
+    if (coreRevealed < GENERAL_CORE_SECTION_COUNT) return;
     if (dtSectionCount <= 0) return;
     if (dtRevealed >= dtSectionCount) return;
-    const ms = dtRevealed === 0 ? 0 : GENERAL_SECTION_REVEAL_MS;
     const t = window.setTimeout(() => {
       setReveal((s) =>
         s.projectId !== projectId || s.dt >= dtSectionCount
           ? s
           : { ...s, dt: s.dt + 1 }
       );
-    }, ms);
+    }, GENERAL_DT_SECTION_REVEAL_MS);
     return () => window.clearTimeout(t);
-  }, [hasDt, coreRevealed, dtRevealed, dtSectionCount, projectId]);
+  }, [coreRevealed, dtRevealed, dtSectionCount, projectId]);
 
   return { coreRevealed, dtRevealed };
 }
@@ -1304,6 +1305,20 @@ export function GeneralTab({
   const showOg = hasCoreContent && coreRevealed >= 1;
   const showOes = hasCoreContent && coreRevealed >= 2;
   const showVideo = hasCoreContent && coreRevealed >= 3;
+  const visibleDt = visibleDtSectionCount(
+    dtRevealed,
+    dtConfigSections.length
+  );
+  const visibleTocItems = useMemo<TocItem[]>(
+    () => [
+      ...TOC_PREFIX,
+      ...dtConfigSections.slice(0, visibleDt).map((section) => ({
+        id: section.sectionId,
+        label: section.title,
+      })),
+    ],
+    [dtConfigSections, visibleDt]
+  );
 
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
@@ -1548,7 +1563,7 @@ export function GeneralTab({
             <BookIndex
               activeId={activeSectionId}
               onNavigate={navigateToSection}
-              items={tocItems}
+              items={visibleTocItems}
             />
             {showDtTocPlaceholder ? (
               <div className="mt-2 space-y-2.5 pl-3" aria-hidden>
@@ -1570,7 +1585,7 @@ export function GeneralTab({
             className="lg:hidden sticky top-0 z-10 -mx-1 mb-6 bg-white/95 backdrop-blur-sm border-b border-gray-100 pb-2"
           >
             <div className="flex gap-1 overflow-x-auto custom-scrollbar py-1 px-1">
-              {tocItems.map((item) => {
+              {visibleTocItems.map((item) => {
                 const isActive = activeSectionId === item.id;
                 return (
                   <button
@@ -1843,9 +1858,10 @@ export function GeneralTab({
               )}
             </ReadingSection>
 
-            {dtConfigSections.length > 0
-              ? desarrolloSections.map((section, index) => {
-                  const revealed = hasDt && index < dtRevealed;
+            {dtConfigSections.length > 0 ? (
+              <>
+                {desarrolloSections.slice(0, visibleDt).map((section) => {
+                  const bodyReady = hasDt;
                   const hasContent = Boolean(section.content?.trim());
                   const editingThis = isEditing(section.fieldId);
                   const draftValue = section.campoKey
@@ -1861,7 +1877,7 @@ export function GeneralTab({
                       title={section.title}
                       icon={<IconByName name={section.icono} />}
                     >
-                      {!revealed && !editingThis ? (
+                      {!bodyReady && !editingThis ? (
                         <SectionBodySkeleton />
                       ) : editingThis ? (
                         <div>
@@ -1921,12 +1937,14 @@ export function GeneralTab({
                       )}
                     </ReadingSection>
                   );
-                })
-              : isDtConfigPending || !hasDt
-                ? [0, 1, 2].map((i) => (
-                    <DtSectionSkeleton key={`dt-sk-${i}`} id={`dt-sk-${i}`} />
-                  ))
-                : null}
+                })}
+                {visibleDt < desarrolloSections.length ? (
+                  <DtSectionSkeleton id="dt-sk-next" />
+                ) : null}
+              </>
+            ) : (
+              <DtSectionSkeleton id="dt-sk-0" />
+            )}
 
             {/* Metadatos en móvil (en desktop van a la columna derecha) */}
             <div
