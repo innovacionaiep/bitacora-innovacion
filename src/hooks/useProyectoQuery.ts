@@ -40,9 +40,6 @@ export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
 >;
 
-const PREFETCH_DEBOUNCE_MS = 200;
-const PREFETCH_MAX_CONCURRENT = 2;
-
 async function fetchProyectoBase(
   projectId: string
 ): Promise<ProyectoWithRelations> {
@@ -208,66 +205,6 @@ export function useProyectoActivitiesQuery(projectId: string | null) {
   });
 }
 
-/**
- * Prefetch project base on hover: debounce + max 2 concurrent to avoid
- * flooding the network when sweeping the list.
- */
-export function usePrefetchProyecto() {
-  const queryClient = useQueryClient();
-  const inflightRef = useRef(new Set<string>());
-  const queueRef = useRef<string[]>([]);
-  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-
-  const pump = useCallback(() => {
-    while (
-      inflightRef.current.size < PREFETCH_MAX_CONCURRENT &&
-      queueRef.current.length > 0
-    ) {
-      const projectId = queueRef.current.shift()!;
-      if (inflightRef.current.has(projectId)) continue;
-      if (queryClient.getQueryData(proyectoBaseKey(projectId))) continue;
-
-      inflightRef.current.add(projectId);
-      void queryClient
-        .prefetchQuery({
-          queryKey: proyectoBaseKey(projectId),
-          queryFn: () => fetchProyectoBase(projectId),
-          staleTime: 60_000,
-          gcTime: 90_000,
-        })
-        .catch(() => {
-          /* ignore prefetch errors */
-        })
-        .finally(() => {
-          inflightRef.current.delete(projectId);
-          pump();
-        });
-    }
-  }, [queryClient]);
-
-  return useCallback(
-    (projectId: string) => {
-      const prev = timersRef.current.get(projectId);
-      if (prev) clearTimeout(prev);
-      timersRef.current.set(
-        projectId,
-        setTimeout(() => {
-          timersRef.current.delete(projectId);
-          if (
-            !queueRef.current.includes(projectId) &&
-            !inflightRef.current.has(projectId) &&
-            !queryClient.getQueryData(proyectoBaseKey(projectId))
-          ) {
-            queueRef.current.push(projectId);
-          }
-          pump();
-        }, PREFETCH_DEBOUNCE_MS)
-      );
-    },
-    [pump, queryClient]
-  );
-}
-
 export function useFetchProyectoBase() {
   const queryClient = useQueryClient();
   return useCallback(
@@ -363,11 +300,8 @@ export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Historial',
 ];
 
-/** Idle: solo datos del primer par. El resto espera al clic (`prioritizeTab`). */
-export const IDLE_DATA_PREFETCH_TABS: PrefetchableProyectoTab[] = [
-  'Participantes',
-  'Gantt',
-];
+/** Idle no pide datos de tabs (Fluid CPU). El clic usa `prioritizeTab`. */
+export const IDLE_DATA_PREFETCH_TABS: PrefetchableProyectoTab[] = [];
 
 export function isPrefetchableProyectoTab(
   tab: string
@@ -411,8 +345,7 @@ function prefetchAllTabChunks() {
 }
 
 /**
- * Tras DT de General: chunks JS de todos los tabs; datos idle solo
- * IDLE_DATA_PREFETCH_TABS. Un click se antepone (`prioritizeTab`).
+ * Tras DT de General: solo chunks JS de tabs. Los datos van al clic (`prioritizeTab`).
  */
 export function usePrefetchProyectoTabs() {
   const queryClient = useQueryClient();
@@ -501,10 +434,11 @@ export function usePrefetchProyectoTabs() {
       activeProjectIdRef.current = projectId;
       const gen = ++idleGenRef.current;
       remainingRef.current = [...IDLE_DATA_PREFETCH_TABS];
-      prefetchAllTabChunks();
       clearIdleTimer();
       const runIdle = () => {
         if (gen !== idleGenRef.current) return;
+        prefetchAllTabChunks();
+        if (remainingRef.current.length === 0) return;
         void runQueue(projectId, gen);
       };
       if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {

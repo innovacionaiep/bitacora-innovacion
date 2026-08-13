@@ -25,13 +25,13 @@ describe('chunkInBursts', () => {
     expect(bursts.flat()).toEqual([...ALL_PREFETCH_TABS]);
   });
 
-  it('fits idle data tabs in a single burst of two', () => {
+  it('has no idle data bursts when idle tab data is disabled', () => {
     const bursts = chunkInBursts(
       IDLE_DATA_PREFETCH_TABS,
       IDLE_TAB_PREFETCH_CONCURRENCY
     );
-    expect(IDLE_DATA_PREFETCH_TABS).toEqual(['Participantes', 'Gantt']);
-    expect(bursts).toEqual([['Participantes', 'Gantt']]);
+    expect(IDLE_DATA_PREFETCH_TABS).toEqual([]);
+    expect(bursts).toEqual([]);
   });
 });
 

@@ -57,7 +57,6 @@ import { ConvenioTab } from '@/app/proyectos/tabs/ConvenioTab';
 import { EscalamientoTab } from '@/app/proyectos/tabs/EscalamientoTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
 import {
-  usePrefetchProyecto,
   useFetchProyectoBase,
   useFetchProyectoParticipantes,
   useFetchProyectoDesarrolloTecnico,
@@ -155,7 +154,6 @@ export function ProyectosContent({
   /** Keep caches for the last N projects; evict older ones on select. */
   const recentProjectIdsRef = useRef<string[]>([]);
   const queryClient = useQueryClient();
-  const prefetchProyecto = usePrefetchProyecto();
   const {
     startIdlePrefetch: startIdlePrefetchTabs,
     cancel: cancelPrefetchTabs,
@@ -379,7 +377,7 @@ export function ProyectosContent({
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
-  // Idle: chunks de tabs + datos de Participantes/Gantt, solo cuando General ya trajo DT.
+  // Idle: chunks JS de tabs cuando General ya trajo DT. Datos de tabs al clic.
   useEffect(() => {
     if (!selectedProject?.id) {
       cancelPrefetchTabs();
@@ -705,7 +703,6 @@ export function ProyectosContent({
     <Card
       className="cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-gray-50"
       onClick={() => handleSelectProject(project)}
-      onMouseEnter={() => prefetchProyecto(project.id)}
     >
       <CardContent className="p-4">
         <div className="flex items-start space-x-3">

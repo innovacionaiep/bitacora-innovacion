@@ -103,14 +103,13 @@ describe('ALL_PREFETCH_TABS', () => {
 });
 
 describe('IDLE_DATA_PREFETCH_TABS', () => {
-  it('idles only the first pair so Historial filtros are not prefetched', () => {
-    expect(IDLE_DATA_PREFETCH_TABS).toEqual(['Participantes', 'Gantt']);
-    expect(IDLE_DATA_PREFETCH_TABS).not.toContain('Historial');
+  it('does not idle-prefetch tab data (Participantes/Gantt wait for click)', () => {
+    expect(IDLE_DATA_PREFETCH_TABS).toEqual([]);
   });
 });
 
 describe('isPrefetchableProyectoTab', () => {
-  it('includes Convenio and the idle-prefetch pairs, not General', () => {
+  it('includes click-prefetchable tabs, not General', () => {
     expect(isPrefetchableProyectoTab('Participantes')).toBe(true);
     expect(isPrefetchableProyectoTab('Gantt')).toBe(true);
     expect(isPrefetchableProyectoTab('Indicadores')).toBe(true);
