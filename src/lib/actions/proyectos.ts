@@ -19,6 +19,7 @@ import {
   Comuna,
   GrupoInteres,
   SocioComunitario,
+  Prisma,
 } from '@prisma/client';
 import {
   ProyectoFormData,
@@ -547,6 +548,28 @@ const participantesInclude = {
   asignatura: { select: { id: true, nombre: true } },
 } as const;
 
+/** Join Proyecto.linea/fondo (strings) → catálogo Linea, en paralelo al findUnique. */
+async function lookupLineaIdForProyecto(
+  proyectoId: string
+): Promise<string | null> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT l.id
+    FROM lineas l
+    INNER JOIN fondos f ON f.id = l.fondo_id
+    INNER JOIN proyectos p ON p.id = ${proyectoId}
+    WHERE p.linea IS NOT NULL
+      AND btrim(p.linea) <> ''
+      AND l.nombre = btrim(p.linea)
+      AND (
+        p.fondo IS NULL
+        OR btrim(p.fondo) = ''
+        OR f.nombre = btrim(p.fondo)
+      )
+    LIMIT 1
+  `);
+  return rows[0]?.id ?? null;
+}
+
 /**
  * Obtener un proyecto por ID con relaciones del detalle base (selects estrechos).
  * Activities van aparte vía getActivities salvo includeActivities: true.
@@ -562,7 +585,7 @@ export async function getProyecto(
     includeDesarrolloTecnico = false,
   } = options;
   try {
-    const [gate, proyecto] = await Promise.all([
+    const [gate, proyecto, lineaId] = await Promise.all([
       requireProjectAccess(id),
       prisma.proyecto.findUnique({
         where: { id },
@@ -668,6 +691,7 @@ export async function getProyecto(
             : {}),
         },
       }),
+      lookupLineaIdForProyecto(id),
     ]);
 
     if (!gate.ok) {
@@ -680,20 +704,6 @@ export async function getProyecto(
 
     const { _count, ...proyectoSinCount } = proyecto;
     const participantesCount = _count.participantes_rel;
-
-    let lineaId: string | null = null;
-    const lineaNombre = proyecto.linea?.trim();
-    const fondoNombre = proyecto.fondo?.trim();
-    if (lineaNombre) {
-      const linea = await prisma.linea.findFirst({
-        where: {
-          nombre: lineaNombre,
-          ...(fondoNombre ? { fondo: { nombre: fondoNombre } } : {}),
-        },
-        select: { id: true },
-      });
-      lineaId = linea?.id ?? null;
-    }
 
     if (!includeParticipantes) {
       return {

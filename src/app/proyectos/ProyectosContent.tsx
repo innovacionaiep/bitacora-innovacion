@@ -84,6 +84,8 @@ import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
 import { getNombresFondosConEscalamiento } from '@/lib/actions/escalamiento';
 import { cn } from '@/lib/utils';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
+import { runWhenIdle } from '@/lib/idle-burst';
+import { ProyectosListSkeleton } from '@/app/proyectos/ProyectosListSkeleton';
 import {
   ProyectoTour,
   type ProyectoTourHandle,
@@ -405,10 +407,13 @@ export function ProyectosContent({
     cancelPrefetchTabs,
   ]);
 
-  // Prefetch config DT al entrar a /proyectos (compartida entre proyectos).
+  // Prefetch config DT al idle, después del listado (no competir con el primer clic).
   useEffect(() => {
-    prefetchDesarrolloTecnicoConfig();
-  }, [prefetchDesarrolloTecnicoConfig]);
+    if (loading) return;
+    return runWhenIdle(() => {
+      prefetchDesarrolloTecnicoConfig();
+    });
+  }, [loading, prefetchDesarrolloTecnicoConfig]);
 
   // Preseleccionar proyecto cuando se llega con ?id= (ej. desde Inicio "Ir"). Opcional: ?tab=Seguimiento para abrir ese tab.
   useEffect(() => {
@@ -872,21 +877,25 @@ export function ProyectosContent({
   }, [selectedProject?.id, selectedTab]);
 
   useEffect(() => {
+    if (loading) return;
     let cancelled = false;
-    getNombresFondosConConvenios().then((res) => {
-      if (!cancelled && res.success) {
-        setFondosConConvenios(res.data);
-      }
-    });
-    getNombresFondosConEscalamiento().then((res) => {
-      if (!cancelled && res.success) {
-        setFondosConEscalamiento(res.data);
-      }
+    const stop = runWhenIdle(() => {
+      getNombresFondosConConvenios().then((res) => {
+        if (!cancelled && res.success) {
+          setFondosConConvenios(res.data);
+        }
+      });
+      getNombresFondosConEscalamiento().then((res) => {
+        if (!cancelled && res.success) {
+          setFondosConEscalamiento(res.data);
+        }
+      });
     });
     return () => {
       cancelled = true;
+      stop();
     };
-  }, []);
+  }, [loading]);
 
   const proyectoTieneTabConvenio = useMemo(() => {
     if (!selectedProject?.fondo) return false;
@@ -943,7 +952,7 @@ export function ProyectosContent({
   };
 
   if (loading || isResolvingUrlProject) {
-    return <div className="h-full min-h-[200px]" />;
+    return <ProyectosListSkeleton />;
   }
 
   if (error) {

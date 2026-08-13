@@ -12,12 +12,25 @@ import {
 import { proyectosListadoKey, proyectoBaseKey } from '@/lib/query-keys';
 import type { ProyectoListadoItem, ProyectoWithRelations } from '@/types/proyecto';
 import { ProyectosContent } from './ProyectosContent';
+import { ProyectosListSkeleton } from './ProyectosListSkeleton';
 
 type ProyectosPageProps = {
   searchParams: Promise<{ id?: string }>;
 };
 
-export default async function ProyectosPage({ searchParams }: ProyectosPageProps) {
+export default function ProyectosPage({ searchParams }: ProyectosPageProps) {
+  return (
+    <Suspense fallback={<ProyectosListSkeleton />}>
+      <ProyectosHydrated searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function ProyectosHydrated({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
   const { id: proyectoIdFromUrl } = await searchParams;
   const session = await getSession();
   const userId = session?.user?.id ?? null;
@@ -32,7 +45,7 @@ export default async function ProyectosPage({ searchParams }: ProyectosPageProps
 
   let initialListado: ProyectoListadoItem[] | undefined;
   if (session?.user) {
-    await queryClient.prefetchQuery({
+    const listadoTask = queryClient.prefetchQuery({
       queryKey: proyectosListadoKey(userId),
       queryFn: async () => {
         const result = await getProyectosListadoParaUsuario();
@@ -42,30 +55,27 @@ export default async function ProyectosPage({ searchParams }: ProyectosPageProps
         return (result.data ?? []) as ProyectoListadoItem[];
       },
     });
-    initialListado =
-      queryClient.getQueryData<ProyectoListadoItem[]>(
-        proyectosListadoKey(userId)
-      );
-
-    if (proyectoIdFromUrl) {
-      await queryClient.prefetchQuery({
-        queryKey: proyectoBaseKey(proyectoIdFromUrl),
-        queryFn: async () => {
-          const result = await getProyectoBase(proyectoIdFromUrl);
-          if (!result.success || !result.data) {
-            throw new Error(result.error ?? 'Error al cargar proyecto');
-          }
-          return result.data as ProyectoWithRelations;
-        },
-      });
-    }
+    const baseTask = proyectoIdFromUrl
+      ? queryClient.prefetchQuery({
+          queryKey: proyectoBaseKey(proyectoIdFromUrl),
+          queryFn: async () => {
+            const result = await getProyectoBase(proyectoIdFromUrl);
+            if (!result.success || !result.data) {
+              throw new Error(result.error ?? 'Error al cargar proyecto');
+            }
+            return result.data as ProyectoWithRelations;
+          },
+        })
+      : Promise.resolve();
+    await Promise.all([listadoTask, baseTask]);
+    initialListado = queryClient.getQueryData<ProyectoListadoItem[]>(
+      proyectosListadoKey(userId)
+    );
   }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={<div className="h-full min-h-[200px]" />}>
-        <ProyectosContent initialListado={initialListado} />
-      </Suspense>
+      <ProyectosContent initialListado={initialListado} />
     </HydrationBoundary>
   );
 }

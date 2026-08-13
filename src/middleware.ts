@@ -49,8 +49,8 @@ async function fetchMaintenanceEnabled(req: NextRequest): Promise<boolean> {
   try {
     const res = await fetch(`${maintenanceOrigin(req)}${MAINTENANCE_STATUS_API}`, {
       headers: { 'x-maintenance-check': '1' },
-      // Evita martillar la BD en cada request; el apagado puede tardar ~5s
-      next: { revalidate: 5 },
+      // Evita martillar la BD en cada request; el apagado puede tardar ~60s
+        next: { revalidate: 60 },
     });
     if (!res.ok) return false;
     const data = (await res.json()) as { enabled?: boolean };

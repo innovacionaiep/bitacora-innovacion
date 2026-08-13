@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import {
@@ -15,6 +15,10 @@ import type {
   ProyectoListadoItem,
 } from '@/types/proyecto';
 import { proyectosListadoKey } from '@/lib/query-keys';
+import {
+  readPersistedProyectosListado,
+  writePersistedProyectosListado,
+} from '@/lib/proyecto-listado-persist';
 
 /**
  * Hook que carga un listado ligero de proyectos (todas las participaciones del usuario).
@@ -28,6 +32,11 @@ export function useProyectosParaUsuario(opts?: {
   const userId = session?.user?.id ?? null;
   const queryClient = useQueryClient();
 
+  const persistedListado = useMemo(
+    () => readPersistedProyectosListado(userId),
+    [userId]
+  );
+
   const query = useQuery({
     queryKey: proyectosListadoKey(userId),
     queryFn: async () => {
@@ -38,9 +47,14 @@ export function useProyectosParaUsuario(opts?: {
       return (result.data ?? []) as ProyectoListadoItem[];
     },
     staleTime: 60_000,
-    initialData: opts?.initialListado,
+    initialData: opts?.initialListado ?? persistedListado,
     enabled: status !== 'loading' && (!!session?.user || !!opts?.initialListado),
   });
+
+  useEffect(() => {
+    if (!userId || !query.data) return;
+    writePersistedProyectosListado(userId, query.data);
+  }, [userId, query.data]);
 
   const fetchProyectos = useCallback(
     async (_opts?: { silent?: boolean; activeRole?: string | null }) => {

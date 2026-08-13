@@ -33,6 +33,7 @@ import {
   getHistorialFiltros,
 } from '@/lib/actions/historial';
 import { getEscalamientoProyecto } from '@/lib/actions/escalamiento';
+import { runInBursts } from '@/lib/idle-burst';
 
 export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
@@ -324,6 +325,8 @@ export function useFetchProyectoActivities() {
   );
 }
 
+export const IDLE_TAB_PREFETCH_CONCURRENCY = 2;
+
 export type PrefetchableProyectoTab =
   | 'Gantt'
   | 'Indicadores'
@@ -343,7 +346,7 @@ const TAB_CHUNK_LOADERS: Partial<
   Historial: () => import('@/components/proyectos/HistorialCard'),
 };
 
-const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
+export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Gantt',
   'Indicadores',
   'Presupuesto',
@@ -412,22 +415,26 @@ export function usePrefetchProyectoTabs() {
   }, []);
 
   const prefetchTabData = useCallback(
-    (projectId: string, tab: PrefetchableProyectoTab, gen: number) => {
+    async (projectId: string, tab: PrefetchableProyectoTab, gen: number) => {
       if (gen !== genRef.current) return;
+      const pending: Promise<unknown>[] = [];
       for (const { key, queryFn } of TAB_QUERIES[tab]) {
         const queryKey = key(projectId);
         if (queryClient.getQueryData(queryKey)) continue;
-        void queryClient
-          .prefetchQuery({
-            queryKey: [...queryKey],
-            queryFn: () => queryFn(projectId),
-            staleTime: 60_000,
-            gcTime: 90_000,
-          })
-          .catch(() => {
-            /* ignore prefetch errors */
-          });
+        pending.push(
+          queryClient
+            .prefetchQuery({
+              queryKey: [...queryKey],
+              queryFn: () => queryFn(projectId),
+              staleTime: 60_000,
+              gcTime: 90_000,
+            })
+            .catch(() => {
+              /* ignore prefetch errors */
+            })
+        );
       }
+      if (pending.length > 0) await Promise.all(pending);
     },
     [queryClient]
   );
@@ -443,10 +450,16 @@ export function usePrefetchProyectoTabs() {
       clearIdle();
       const runIdle = () => {
         if (gen !== genRef.current) return;
-        for (const tab of ALL_PREFETCH_TABS) {
-          prefetchTabChunk(tab);
-          prefetchTabData(projectId, tab, gen);
-        }
+        void runInBursts(
+          ALL_PREFETCH_TABS,
+          IDLE_TAB_PREFETCH_CONCURRENCY,
+          async (tab) => {
+            if (gen !== genRef.current) return;
+            prefetchTabChunk(tab);
+            await prefetchTabData(projectId, tab, gen);
+          },
+          () => gen !== genRef.current
+        );
       };
       if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         idleCallbackRef.current = window.requestIdleCallback(runIdle, {
@@ -462,7 +475,7 @@ export function usePrefetchProyectoTabs() {
   const prefetchTab = useCallback(
     (projectId: string, tab: PrefetchableProyectoTab) => {
       prefetchTabChunk(tab);
-      prefetchTabData(projectId, tab, genRef.current);
+      void prefetchTabData(projectId, tab, genRef.current);
     },
     [prefetchTabData]
   );
