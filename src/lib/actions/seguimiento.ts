@@ -125,7 +125,7 @@ export async function addCompromiso(
       proyectoId,
       accion: 'Agregar compromiso',
       tabProyecto: 'Seguimiento',
-      elementoEspecifico: descripcion.substring(0, 80),
+      elementoEspecifico: '',
       cambioGenerado: descripcion,
     });
 
@@ -209,7 +209,7 @@ export async function updateCompromiso(
         )
           ?.toString()
           .substring(0, 80) ?? '',
-      cambioGenerado: 'Compromiso actualizado',
+      cambioGenerado: '',
     });
 
     revalidatePath('/proyectos');
@@ -277,7 +277,7 @@ export async function deleteCompromiso(compromisoId: string) {
       elementoEspecifico:
         (compromiso.titulo ?? compromiso.descripcion)?.substring(0, 80) ??
         'Compromiso',
-      cambioGenerado: 'Compromiso eliminado',
+      cambioGenerado: '',
     });
 
     revalidatePath('/proyectos');
@@ -340,9 +340,7 @@ export async function toggleCompromiso(compromisoId: string) {
       accion: compromiso.completado ? 'Actualizar' : 'Marcar realizada',
       tabProyecto: 'Seguimiento',
       elementoEspecifico: compromiso.descripcion.substring(0, 80),
-      cambioGenerado: compromiso.completado
-        ? 'Compromiso marcado como pendiente'
-        : 'Compromiso completado',
+      cambioGenerado: compromiso.completado ? 'Marcado como pendiente' : '',
     });
 
     revalidatePath('/proyectos');
@@ -583,12 +581,10 @@ export async function addReunion(
 
     await createHistorialEntry({
       proyectoId,
-      accion: 'Agregar',
+      accion: 'Agregar reunión',
       tabProyecto: 'Seguimiento',
       elementoEspecifico: `Reunión N° ${numero}`,
-      cambioGenerado: resumen
-        ? resumen.substring(0, 200)
-        : `Reunión N° ${numero} creada`,
+      cambioGenerado: resumen ? resumen.substring(0, 200) : '',
     });
 
     revalidatePath('/proyectos');
@@ -693,7 +689,12 @@ export async function updateReunion(
       accion: 'Actualizar',
       tabProyecto: 'Seguimiento',
       elementoEspecifico: `Reunión N° ${updated.numero}`,
-      cambioGenerado: 'Reunión actualizada',
+      cambioGenerado:
+        data.resumen !== undefined && data.resumen.trim()
+          ? data.resumen.trim()
+          : data.fecha !== undefined
+            ? data.fecha.toLocaleDateString('es-CL')
+            : '',
     });
 
     revalidatePath('/proyectos');

@@ -70,9 +70,7 @@ export async function createEvidenciaIndicador(
       accion: 'Subir evidencia',
       tabProyecto: 'Indicadores',
       elementoEspecifico: `Indicador "${indicador.nombre}"`,
-      cambioGenerado: data.nombreArchivo
-        ? `Evidencia subida: ${data.nombreArchivo}`
-        : 'Nueva evidencia subida',
+      cambioGenerado: data.nombreArchivo ?? '',
     });
 
     revalidatePath('/proyectos');
@@ -147,9 +145,7 @@ export async function deleteEvidenciaIndicador(id: string) {
       accion: 'Eliminar evidencia',
       tabProyecto: 'Indicadores',
       elementoEspecifico: `Indicador "${evidencia.indicador.nombre}"`,
-      cambioGenerado: evidencia.nombreArchivo
-        ? `Evidencia eliminada: ${evidencia.nombreArchivo}`
-        : 'Evidencia eliminada',
+      cambioGenerado: evidencia.nombreArchivo ?? '',
     });
 
     revalidatePath('/proyectos');

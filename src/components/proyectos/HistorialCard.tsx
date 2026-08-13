@@ -26,6 +26,7 @@ import { parse, format, subMonths } from 'date-fns';
 import { DEFAULT_AVATAR } from '@/lib/avatars';
 import { historialKey, historialFiltrosKey } from '@/lib/query-keys';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import { historialASegmentos } from '@/lib/historial-mensaje';
 
 interface HistorialCardProps {
   projectId: string;
@@ -167,133 +168,47 @@ export function HistorialCard({
   const formatResumen = (entry: HistorialEntry) => {
     const persona =
       entry.user.name || entry.user.email || 'Usuario desconocido';
-
-    // Conjugar verbos
-    const conjugaciones: Record<string, string> = {
-      Crear: 'creado',
-      Comentar: 'comentado',
-      Actualizar: 'actualizado',
-      'Marcar realizada': 'marcado realizada',
-      'Agregar participante': 'Registrado',
-      'Eliminar participante': 'Eliminado',
-      Validar: 'validado',
-      Eliminar: 'eliminado',
-      'Subir evidencia': 'subido nuevas evidencias',
-      'Eliminar evidencia': 'eliminado evidencias',
-      'Cambio de estado en kanban': 'cambiado',
+    const segmentos = historialASegmentos({
+      persona,
+      accion: entry.accion,
+      tabProyecto: entry.tabProyecto,
+      elementoEspecifico: entry.elementoEspecifico,
+      cambioGenerado: entry.cambioGenerado,
+    });
+    const clasePorRol: Record<string, string> = {
+      persona: 'font-medium text-gray-900',
+      verbo: 'font-medium text-orange-700',
+      tab: 'font-medium text-emerald-700',
+      objeto: 'font-medium text-gray-800 not-italic',
+      detalle: 'font-medium text-violet-700',
     };
-    const accionConjugada =
-      conjugaciones[entry.accion] || entry.accion.toLowerCase();
-
-    const tabTexto = entry.tabProyecto;
-
-    // Extraer el nombre del elemento específico
-    let elementoNombre: React.ReactNode = entry.elementoEspecifico;
-
-    // Si contiene "Tarea " con formato: Tarea "nombre" de Actividad "actividad"
-    if (
-      entry.elementoEspecifico.includes('Tarea "') &&
-      entry.elementoEspecifico.includes(' de Actividad "')
-    ) {
-      const match = entry.elementoEspecifico.match(
-        /Tarea "([^"]+)" de Actividad "([^"]+)"/
-      );
-      if (match) {
-        const [, tareaNombre, actividadNombre] = match;
-        elementoNombre = (
-          <>
-            la tarea{' '}
-            <strong className="font-medium text-gray-800 not-italic">
-              {tareaNombre}
-            </strong>{' '}
-            de la actividad{' '}
-            <strong className="font-medium text-gray-800 not-italic">
-              {actividadNombre}
-            </strong>
-          </>
-        );
-      }
-    } else if (entry.elementoEspecifico.includes('Tarea "')) {
-      // Solo tarea sin actividad
-      const tareaMatch = entry.elementoEspecifico.match(/Tarea "([^"]+)"/);
-      if (tareaMatch) {
-        elementoNombre = (
-          <>
-            la tarea{' '}
-            <strong className="font-medium text-gray-800 not-italic">
-              {tareaMatch[1]}
-            </strong>
-          </>
-        );
-      }
-    } else if (entry.elementoEspecifico.includes('Indicador "')) {
-      const indicadorMatch =
-        entry.elementoEspecifico.match(/Indicador "([^"]+)"/);
-      if (indicadorMatch) {
-        elementoNombre = (
-          <>
-            el indicador{' '}
-            <strong className="font-medium text-gray-800 not-italic">
-              {indicadorMatch[1]}
-            </strong>
-          </>
-        );
-      }
-    } else if (entry.elementoEspecifico.includes('Actividad "')) {
-      const actividadMatch =
-        entry.elementoEspecifico.match(/Actividad "([^"]+)"/);
-      if (actividadMatch) {
-        elementoNombre = (
-          <>
-            la actividad{' '}
-            <strong className="font-medium text-gray-800 not-italic">
-              {actividadMatch[1]}
-            </strong>
-          </>
-        );
-      }
-    } else {
-      // Si no tiene formato conocido, usar tal cual pero en negrita
-      elementoNombre = (
-        <strong className="font-medium text-gray-800">
-          {entry.elementoEspecifico}
-        </strong>
-      );
-    }
-
-    // Determinar si mostrar cambioGenerado (no para "Marcar realizada")
-    const mostrarCambio =
-      entry.accion !== 'Marcar realizada' &&
-      entry.cambioGenerado &&
-      entry.cambioGenerado.trim() !== '';
 
     return (
       <div className="flex items-start gap-2.5">
-        {/* Avatar */}
         <img
           src={DEFAULT_AVATAR}
           alt={persona}
           className="h-7 w-7 rounded-full flex-shrink-0 ring-1 ring-gray-200 object-cover"
         />
-
-        {/* Texto del resumen */}
         <div className="flex-1">
-          <strong className="font-medium text-gray-900">{persona}</strong> ha{' '}
-          <strong className="font-medium text-orange-700">
-            {accionConjugada}
-          </strong>{' '}
-          en{' '}
-          <strong className="font-medium text-emerald-700">{tabTexto}</strong>{' '}
-          {elementoNombre}
-          {mostrarCambio && (
-            <>
-              : {'"'}
-              <span className="font-medium text-violet-700">
-                {entry.cambioGenerado}
-              </span>
-              {'"'}
-            </>
-          )}
+          {segmentos.map((seg, i) => {
+            const clase = clasePorRol[seg.role];
+            if (seg.role === 'persona' || seg.role === 'verbo' || seg.role === 'objeto') {
+              return (
+                <strong key={i} className={clase}>
+                  {seg.text}
+                </strong>
+              );
+            }
+            if (clase) {
+              return (
+                <span key={i} className={clase}>
+                  {seg.text}
+                </span>
+              );
+            }
+            return <span key={i}>{seg.text}</span>;
+          })}
         </div>
       </div>
     );

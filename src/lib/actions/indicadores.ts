@@ -524,7 +524,7 @@ export async function createIndicador(
       accion: 'Crear',
       tabProyecto: 'Indicadores',
       elementoEspecifico: `Indicador "${data.nombre}"`,
-      cambioGenerado: `Indicador creado (objetivo específico seleccionado)`,
+      cambioGenerado: '',
     });
 
     await sincronizarObjetivosProyecto(proyectoId);
@@ -572,7 +572,7 @@ export async function deleteIndicador(
       accion: 'Eliminar',
       tabProyecto: 'Indicadores',
       elementoEspecifico: `Indicador "${nombre}"`,
-      cambioGenerado: 'Indicador eliminado',
+      cambioGenerado: '',
     });
 
     await sincronizarObjetivosProyecto(proyectoId);

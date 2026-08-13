@@ -277,8 +277,8 @@ export async function createItemPresupuesto(
       proyectoId: projectId,
       accion: 'Agregar gasto',
       tabProyecto: 'Presupuesto',
-      elementoEspecifico: data.item,
-      cambioGenerado: `Gasto creado: ${data.item} (${data.cuenta}, $${data.monto})`,
+      elementoEspecifico: `Gasto "${data.item}"`,
+      cambioGenerado: `${data.cuenta}, $${Number(data.monto).toLocaleString('es-CL')}`,
     });
 
     await syncPresupuestoProyecto(projectId);
@@ -366,7 +366,7 @@ export async function updateItemPresupuesto(
         proyectoId: updated.proyectoId,
         accion: 'Actualizar',
         tabProyecto: 'Presupuesto',
-        elementoEspecifico: updated.item,
+        elementoEspecifico: `Gasto "${updated.item}"`,
         cambioGenerado: partes.join('; '),
       });
     }
@@ -408,8 +408,8 @@ export async function deleteItemPresupuesto(
       proyectoId: item.proyectoId,
       accion: 'Eliminar gasto',
       tabProyecto: 'Presupuesto',
-      elementoEspecifico: item.item,
-      cambioGenerado: 'Gasto eliminado del presupuesto',
+      elementoEspecifico: `Gasto "${item.item}"`,
+      cambioGenerado: '',
     });
 
     await syncPresupuestoProyecto(item.proyectoId);

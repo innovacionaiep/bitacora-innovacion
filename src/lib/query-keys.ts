@@ -38,6 +38,14 @@ export const indicadoresKey = (projectId: string) =>
 export const presupuestoKey = (projectId: string) =>
   ['presupuesto', projectId] as const;
 
+export function proyectoTabDataPrefetchKeys(projectId: string) {
+  return [
+    proyectoActivitiesKey(projectId),
+    indicadoresKey(projectId),
+    presupuestoKey(projectId),
+  ] as const;
+}
+
 export const compromisosKey = (projectId: string) =>
   ['compromisos', projectId] as const;
 

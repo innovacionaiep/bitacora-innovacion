@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
+import { GET_ACTIVITIES_LIST_SELECT } from '@/lib/proyecto-detail-cache';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
@@ -49,20 +50,13 @@ export async function getActivities(projectId: string) {
 
     const activities = await prisma.activity.findMany({
       where: { projectId },
-      include: {
-        tasks: {
-          orderBy: {
-            createdAt: 'asc',
-          },
-        },
-        _count: { select: { evidencias: true } },
-      },
+      select: GET_ACTIVITIES_LIST_SELECT,
       orderBy: {
         orderIndex: 'asc',
       },
     });
 
-    return { success: true, data: activities };
+    return { success: true, data: activities as ActivityWithTasks[] };
   } catch (error) {
     console.error('Error getting activities:', error);
     return { success: false, error: 'Error al obtener actividades' };
@@ -115,8 +109,8 @@ export async function createActivity(
       proyectoId: data.projectId,
       accion: 'Crear',
       tabProyecto: 'Actividades',
-      elementoEspecifico: 'la actividad',
-      cambioGenerado: activity.name,
+      elementoEspecifico: `Actividad "${activity.name}"`,
+      cambioGenerado: '',
     });
 
     return { success: true, data: activity };
@@ -190,11 +184,14 @@ export async function updateActivity(id: string, data: Partial<ActivityData>) {
       if (data.description !== undefined)
         cambioValores.push(activity.description ?? '');
       if (data.color !== undefined) cambioValores.push(activity.color);
+      const identificaActividad = data.name === undefined;
       await createHistorialEntry({
         proyectoId: activityBefore.projectId,
         accion: 'Actualizar',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `${campoTexto} de la actividad "${activity.name}"`,
+        elementoEspecifico: identificaActividad
+          ? `${campoTexto} de la actividad "${activity.name}"`
+          : `${campoTexto} de la actividad`,
         cambioGenerado: cambioValores.join('; '),
       });
     }
@@ -373,8 +370,8 @@ export async function createTask(
       proyectoId: task.activity.projectId,
       accion: 'Crear',
       tabProyecto: 'Actividades',
-      elementoEspecifico: 'la tarea',
-      cambioGenerado: task.name,
+      elementoEspecifico: `Tarea "${task.name}"`,
+      cambioGenerado: '',
     });
 
     // Recalcular progreso de la actividad
@@ -462,11 +459,14 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
           : '';
         cambioValores.push(start && end ? `${start} - ${end}` : start || end);
       }
+      const identificaTarea = data.name === undefined;
       await createHistorialEntry({
         proyectoId: taskBefore.activity.projectId,
         accion: 'Actualizar',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `${campoTexto} de la tarea "${task.name}"`,
+        elementoEspecifico: identificaTarea
+          ? `${campoTexto} de la tarea "${task.name}"`
+          : `${campoTexto} de la tarea`,
         cambioGenerado: cambioValores.join('; '),
       });
     }
@@ -644,7 +644,7 @@ export async function setTasksCompletion(
             proyectoId: projectId,
             accion: 'Marcar realizada',
             tabProyecto: 'Actividades',
-            elementoEspecifico: `la tarea: "${t.name}"`,
+            elementoEspecifico: `Tarea "${t.name}"`,
             cambioGenerado: '',
           })
         )
@@ -830,8 +830,8 @@ export async function updateActivityStatus(
         proyectoId: activityBefore.projectId,
         accion: 'Cambio de estado en kanban',
         tabProyecto: 'Actividades',
-        elementoEspecifico: `el estado de la actividad "${activity.name}"`,
-        cambioGenerado: STATUS_LABELS[status],
+        elementoEspecifico: `el estado de la actividad "${activity.name}" a ${STATUS_LABELS[status]}`,
+        cambioGenerado: '',
       });
     }
 

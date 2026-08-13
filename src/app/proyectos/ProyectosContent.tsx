@@ -65,6 +65,8 @@ import {
   proyectoNeedsDesarrolloTecnicoFetch,
   mergeDesarrolloTecnicoIntoProject,
   removeProyectoDetailQueries,
+  usePrefetchProyectoTabs,
+  type PrefetchableProyectoTab,
 } from '@/hooks/useProyectoQuery';
 import {
   usePrefetchDesarrolloTecnicoConfig,
@@ -72,8 +74,10 @@ import {
 } from '@/hooks/useDesarrolloTecnicoConfig';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  desarrolloTecnicoConfigKey,
   proyectoBaseKey,
 } from '@/lib/query-keys';
+import { PROYECTO_DETAIL_LRU_KEEP, touchProyectoDetailLru } from '@/lib/proyecto-detail-cache';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
 import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
@@ -113,6 +117,12 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Escalamiento', label: 'Escalamiento' },
 ];
 
+function isPrefetchableProyectoTab(
+  tab: ProyectoTab
+): tab is PrefetchableProyectoTab {
+  return tab === 'Gantt' || tab === 'Indicadores' || tab === 'Presupuesto';
+}
+
 export function ProyectosContent({
   initialListado,
 }: {
@@ -144,9 +154,13 @@ export function ProyectosContent({
   const selectGenRef = useRef(0);
   /** Keep caches for the last N projects; evict older ones on select. */
   const recentProjectIdsRef = useRef<string[]>([]);
-  const LRU_KEEP = 2;
   const queryClient = useQueryClient();
   const prefetchProyecto = usePrefetchProyecto();
+  const {
+    startIdlePrefetch: startIdlePrefetchTabs,
+    cancel: cancelPrefetchTabs,
+    prefetchTab: prefetchProyectoTab,
+  } = usePrefetchProyectoTabs();
   const fetchProyectoBase = useFetchProyectoBase();
   const fetchProyectoParticipantes = useFetchProyectoParticipantes();
   const fetchProyectoDesarrolloTecnico = useFetchProyectoDesarrolloTecnico();
@@ -199,9 +213,11 @@ export function ProyectosContent({
 
   const trackAndEvictProjectCaches = useCallback(
     (projectId: string) => {
-      const recent = recentProjectIdsRef.current.filter((id) => id !== projectId);
-      recent.unshift(projectId);
-      const evict = recent.splice(LRU_KEEP);
+      const { recent, evict } = touchProyectoDetailLru(
+        recentProjectIdsRef.current,
+        projectId,
+        PROYECTO_DETAIL_LRU_KEEP
+      );
       recentProjectIdsRef.current = recent;
       for (const id of evict) {
         removeProyectoDetailQueries(queryClient, id);
@@ -209,6 +225,28 @@ export function ProyectosContent({
     },
     [queryClient]
   );
+
+  const loadProyectoGeneralPayload = useCallback(
+    async (projectId: string) => {
+      const cached = queryClient.getQueryData<ProyectoWithRelations>(
+        proyectoBaseKey(projectId)
+      );
+      const dtConfigCached = queryClient.getQueryData(
+        desarrolloTecnicoConfigKey
+      );
+      const baseReady =
+        cached && !proyectoNeedsDesarrolloTecnicoFetch(cached) ? cached : null;
+      const [data] = await Promise.all([
+        baseReady ? Promise.resolve(baseReady) : fetchProyectoBase(projectId),
+        dtConfigCached
+          ? Promise.resolve(dtConfigCached)
+          : fetchDesarrolloTecnicoConfig(),
+      ]);
+      return data;
+    },
+    [queryClient, fetchProyectoBase, fetchDesarrolloTecnicoConfig]
+  );
+
   const {
     catalogosGeneral,
     catalogosLoading,
@@ -349,6 +387,18 @@ export function ProyectosContent({
     }
   }, [proyectosIniciales, selectedProject?.id]);
 
+  // Chunks de tabs al pintar General; datos de Gantt/Indicadores/Presupuesto en idle.
+  useEffect(() => {
+    if (!selectedProject?.id) {
+      cancelPrefetchTabs();
+      return;
+    }
+    startIdlePrefetchTabs(selectedProject.id);
+    return () => {
+      cancelPrefetchTabs();
+    };
+  }, [selectedProject?.id, startIdlePrefetchTabs, cancelPrefetchTabs]);
+
   // Prefetch config DT al entrar a /proyectos (compartida entre proyectos).
   useEffect(() => {
     prefetchDesarrolloTecnicoConfig();
@@ -380,15 +430,8 @@ export function ProyectosContent({
     trackAndEvictProjectCaches(project.id);
     (async () => {
       try {
-        const cached = queryClient.getQueryData<ProyectoWithRelations>(
-          proyectoBaseKey(project.id)
-        );
-        const [data] = await Promise.all([
-          cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
-          fetchDesarrolloTecnicoConfig(),
-        ]);
+        const data = await loadProyectoGeneralPayload(project.id);
         if (gen !== selectGenRef.current) return;
-        // Paint base immediately; DT hydrates via background effect
         setSelectedProjectAndCache(data);
         if (tabToSelect) {
           setSelectedTab(tabToSelect);
@@ -413,11 +456,9 @@ export function ProyectosContent({
     proyectosIniciales,
     searchParams,
     loading,
-    fetchProyectoBase,
-    fetchDesarrolloTecnicoConfig,
+    loadProyectoGeneralPayload,
     setSelectedProjectAndCache,
     trackAndEvictProjectCaches,
-    queryClient,
   ]);
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -559,26 +600,15 @@ export function ProyectosContent({
 
   const handleClearProjectSelection = () => {
     selectGenRef.current += 1;
-    const prevId = selectedProject?.id;
     setSelectedProject(null);
     setSelectedTab('General');
     setMountedTabs(new Set(['General']));
     setIsSelectingProject(false);
     topLoader.done(true);
-    if (prevId) {
-      removeProyectoDetailQueries(queryClient, prevId);
-      recentProjectIdsRef.current = recentProjectIdsRef.current.filter(
-        (id) => id !== prevId
-      );
-    }
   };
 
   const handleSelectProject = async (project: ProyectoListadoItem) => {
     const gen = ++selectGenRef.current;
-    const prevId = selectedProject?.id;
-    if (prevId && prevId !== project.id) {
-      removeProyectoDetailQueries(queryClient, prevId);
-    }
     trackAndEvictProjectCaches(project.id);
 
     setSelectedTab('General');
@@ -586,15 +616,8 @@ export function ProyectosContent({
     setIsSelectingProject(true);
     topLoader.start();
     try {
-      const cached = queryClient.getQueryData<ProyectoWithRelations>(
-        proyectoBaseKey(project.id)
-      );
-      const [data] = await Promise.all([
-        cached ? Promise.resolve(cached) : fetchProyectoBase(project.id),
-        fetchDesarrolloTecnicoConfig(),
-      ]);
+      const data = await loadProyectoGeneralPayload(project.id);
       if (gen !== selectGenRef.current) return;
-      // Paint immediately with base; DT loads in background effect
       setSelectedProjectAndCache(data);
       const videoUrl =
         (data as ProyectoWithRelations & { youtubeUrl?: string | null })
@@ -703,7 +726,7 @@ export function ProyectosContent({
     setSelectedProjectAndCache,
   ]);
 
-  // Desarrollo técnico: carga diferida tras getProyectoBase (p. ej. prefetch sin DT).
+  // Fallback: caches viejos de prefetch sin DT. El clic espera base-con-DT.
   useEffect(() => {
     if (!selectedProject) return;
     if (!proyectoNeedsDesarrolloTecnicoFetch(selectedProject)) return;
@@ -1298,6 +1321,17 @@ export function ProyectosContent({
                       type="button"
                       data-tour={`proyecto-tab-${tab.id}`}
                       onClick={() => handleSelectTab(tab.id)}
+                      onMouseEnter={() => {
+                        if (
+                          selectedProject &&
+                          isPrefetchableProyectoTab(tab.id)
+                        ) {
+                          prefetchProyectoTab(
+                            selectedProject.id,
+                            tab.id
+                          );
+                        }
+                      }}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
                         'group relative px-3 text-[13px] tracking-wide whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm',

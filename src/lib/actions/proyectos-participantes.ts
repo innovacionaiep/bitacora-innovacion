@@ -198,8 +198,8 @@ export async function addParticipanteProyecto(
       proyectoId,
       accion: 'Agregar participante',
       tabProyecto: 'Participantes',
-      elementoEspecifico: `a un nuevo ${data.rol}`,
-      cambioGenerado: data.nombre ?? '',
+      elementoEspecifico: `${data.nombre?.trim() || 'Participante'} como ${data.rol}`,
+      cambioGenerado: '',
     });
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
@@ -416,13 +416,14 @@ export async function updateParticipanteProyecto(
       where: { id: participanteId },
       data: updateData,
     });
-    const nombreParticipante = existing.nombre || existing.rol || 'Participante';
+    const nombreParticipante =
+      resolvedNombre || existing.nombre || existing.rol || 'Participante';
     await createHistorialEntry({
       proyectoId: existing.proyectoId,
       accion: 'Actualizar',
       tabProyecto: 'Participantes',
-      elementoEspecifico: `los datos del ${existing.rol}`,
-      cambioGenerado: nombreParticipante,
+      elementoEspecifico: `${nombreParticipante} (${finalRol})`,
+      cambioGenerado: '',
     });
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: existing.proyectoId },
@@ -466,8 +467,8 @@ export async function deleteParticipanteProyecto(participanteId: string) {
       proyectoId: existing.proyectoId,
       accion: 'Eliminar participante',
       tabProyecto: 'Participantes',
-      elementoEspecifico: `al ${existing.rol}`,
-      cambioGenerado: nombreParticipante,
+      elementoEspecifico: `${nombreParticipante} (${existing.rol})`,
+      cambioGenerado: '',
     });
     revalidatePath('/proyectos');
     revalidateTag('proyectos');

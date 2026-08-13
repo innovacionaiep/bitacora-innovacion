@@ -69,8 +69,8 @@ export async function createEvidenciaActividad(
       proyectoId: activity.projectId,
       accion: 'Subir evidencia',
       tabProyecto: 'Actividades',
-      elementoEspecifico: `para la actividad "${activity.name}"`,
-      cambioGenerado: '',
+      elementoEspecifico: `Actividad "${activity.name}"`,
+      cambioGenerado: data.nombreArchivo ?? '',
     });
 
     revalidatePath('/proyectos');
@@ -155,8 +155,8 @@ export async function deleteEvidenciaActividad(id: string) {
       proyectoId: evidencia.actividad.projectId,
       accion: 'Eliminar evidencia',
       tabProyecto: 'Actividades',
-      elementoEspecifico: `para la actividad "${evidencia.actividad.name}"`,
-      cambioGenerado: '',
+      elementoEspecifico: `Actividad "${evidencia.actividad.name}"`,
+      cambioGenerado: evidencia.nombreArchivo ?? '',
     });
 
     revalidatePath('/proyectos');

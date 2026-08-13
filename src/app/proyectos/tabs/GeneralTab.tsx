@@ -244,7 +244,45 @@ function ProjectVideoEmbed({ url }: { url: string }) {
   const parsed = parseProjectVideoUrl(url);
   const [isVertical, setIsVertical] = useState(Boolean(parsed?.isShort));
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [shouldLoadIframe, setShouldLoadIframe] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setShouldLoadIframe(false);
+    const el = stageRef.current;
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let io: IntersectionObserver | undefined;
+
+    const enable = () => setShouldLoadIframe(true);
+
+    if (typeof IntersectionObserver !== 'undefined' && el) {
+      io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            enable();
+            io?.disconnect();
+          }
+        },
+        { rootMargin: '80px' }
+      );
+      io.observe(el);
+    }
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(enable, { timeout: 2000 });
+    } else {
+      timeoutId = setTimeout(enable, 300);
+    }
+
+    return () => {
+      io?.disconnect();
+      if (idleId != null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+  }, [url]);
 
   useEffect(() => {
     if (!parsed) {
@@ -359,7 +397,8 @@ function ProjectVideoEmbed({ url }: { url: string }) {
             : 'relative w-full max-w-full sm:max-w-[min(100%,36rem)] mx-auto aspect-video bg-black rounded-md overflow-hidden isolate'
         }
       >
-        <iframe
+        {shouldLoadIframe ? (
+          <iframe
           className={
             isDriveVertical
               ? // Preview Drive 16:9 con vertical al centro: ensanchar y subir un poco
@@ -373,6 +412,9 @@ function ProjectVideoEmbed({ url }: { url: string }) {
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
+        ) : (
+          <div className="absolute inset-0 bg-black" aria-hidden />
+        )}
 
         {isDriveVertical ? (
           <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-end gap-1 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-8 pointer-events-none">
@@ -1023,6 +1065,9 @@ export function GeneralTab({
 
   /** Si el proyecto no tiene línea (o no matchea catálogo), se muestran todos los elementos. */
   const proyectoLineaId = useMemo(() => {
+    if ('lineaId' in project && project.lineaId !== undefined) {
+      return project.lineaId ?? null;
+    }
     const lineaNombre = project.linea?.trim();
     if (!lineaNombre) return null;
     const match = catalogosGeneral.lineas.find(
@@ -1031,7 +1076,7 @@ export function GeneralTab({
         (!project.fondo?.trim() || l.fondoNombre === project.fondo.trim())
     );
     return match?.id ?? null;
-  }, [project.linea, project.fondo, catalogosGeneral.lineas]);
+  }, [project.lineaId, project.linea, project.fondo, catalogosGeneral.lineas]);
 
   const dtConfigSections = useMemo<DtConfigSection[]>(() => {
     if (!dtCategorias?.length) {

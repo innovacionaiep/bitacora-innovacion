@@ -8,15 +8,21 @@ import {
   getProyectoDesarrolloTecnico,
 } from '@/lib/actions/proyectos';
 import { getActivities } from '@/lib/actions/gantt';
+import { getIndicadoresByProyecto } from '@/lib/actions/indicadores';
+import { getPresupuestoByProyecto } from '@/lib/actions/presupuesto';
 import {
   proyectoBaseKey,
   proyectoActivitiesKey,
   proyectoParticipantesKey,
   proyectoDesarrolloTecnicoKey,
   proyectoDetailQueryFilters,
+  indicadoresKey,
+  presupuestoKey,
 } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { ActivityWithTasks } from '@/lib/actions/gantt';
+import type { ItemPresupuestoItem } from '@/types/presupuesto';
+import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 
 export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
@@ -61,6 +67,26 @@ async function fetchProyectoActivities(
     throw new Error(result.error ?? 'Error al cargar actividades');
   }
   return (result.data ?? []) as ActivityWithTasks[];
+}
+
+async function fetchIndicadoresTab(
+  projectId: string
+): Promise<IndicadoresProyectoData> {
+  const result = await getIndicadoresByProyecto(projectId);
+  if (!result.success || !result.data) {
+    throw new Error(result.error || 'Error al cargar indicadores');
+  }
+  return result.data;
+}
+
+async function fetchPresupuestoTab(
+  projectId: string
+): Promise<ItemPresupuestoItem[]> {
+  const result = await getPresupuestoByProyecto(projectId);
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Error al cargar presupuesto');
+  }
+  return result.data.items as ItemPresupuestoItem[];
 }
 
 export function proyectoNeedsDesarrolloTecnicoFetch(
@@ -254,6 +280,134 @@ export function useFetchProyectoActivities() {
     },
     [queryClient]
   );
+}
+
+export type PrefetchableProyectoTab = 'Gantt' | 'Indicadores' | 'Presupuesto';
+
+const TAB_CHUNK_LOADERS: Record<
+  PrefetchableProyectoTab,
+  () => Promise<unknown>
+> = {
+  Gantt: () => import('@/components/proyectos/GanttChart'),
+  Indicadores: () => import('@/components/proyectos/IndicadoresCard'),
+  Presupuesto: () => import('@/components/proyectos/PresupuestoCard'),
+};
+
+const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
+  'Gantt',
+  'Indicadores',
+  'Presupuesto',
+];
+
+const TAB_QUERY: Record<
+  PrefetchableProyectoTab,
+  {
+    key: (id: string) => readonly unknown[];
+    queryFn: (id: string) => Promise<unknown>;
+  }
+> = {
+  Gantt: {
+    key: proyectoActivitiesKey,
+    queryFn: fetchProyectoActivities,
+  },
+  Indicadores: {
+    key: indicadoresKey,
+    queryFn: fetchIndicadoresTab,
+  },
+  Presupuesto: {
+    key: presupuestoKey,
+    queryFn: fetchPresupuestoTab,
+  },
+};
+
+function prefetchTabChunk(tab: PrefetchableProyectoTab) {
+  void TAB_CHUNK_LOADERS[tab]().catch(() => {
+    /* ignore chunk prefetch errors */
+  });
+}
+
+/**
+ * After General paints: JS chunks immediately, tab data on idle.
+ * Hover on a tab button prefetches that tab's chunk+data.
+ * Cancel when leaving or switching project.
+ */
+export function usePrefetchProyectoTabs() {
+  const queryClient = useQueryClient();
+  const genRef = useRef(0);
+  const idleCallbackRef = useRef<number | null>(null);
+  const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearIdle = useCallback(() => {
+    if (idleCallbackRef.current != null && typeof window !== 'undefined') {
+      if ('cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleCallbackRef.current);
+      }
+      idleCallbackRef.current = null;
+    }
+    if (idleTimeoutRef.current != null) {
+      clearTimeout(idleTimeoutRef.current);
+      idleTimeoutRef.current = null;
+    }
+  }, []);
+
+  const prefetchTabData = useCallback(
+    (projectId: string, tab: PrefetchableProyectoTab, gen: number) => {
+      if (gen !== genRef.current) return;
+      const { key, queryFn } = TAB_QUERY[tab];
+      const queryKey = key(projectId);
+      if (queryClient.getQueryData(queryKey)) return;
+      void queryClient
+        .prefetchQuery({
+          queryKey: [...queryKey],
+          queryFn: () => queryFn(projectId),
+          staleTime: 60_000,
+          gcTime: 90_000,
+        })
+        .catch(() => {
+          /* ignore prefetch errors */
+        });
+    },
+    [queryClient]
+  );
+
+  const cancel = useCallback(() => {
+    genRef.current += 1;
+    clearIdle();
+  }, [clearIdle]);
+
+  const startIdlePrefetch = useCallback(
+    (projectId: string) => {
+      const gen = ++genRef.current;
+      clearIdle();
+      for (const tab of ALL_PREFETCH_TABS) {
+        prefetchTabChunk(tab);
+      }
+      const runData = () => {
+        if (gen !== genRef.current) return;
+        for (const tab of ALL_PREFETCH_TABS) {
+          prefetchTabData(projectId, tab, gen);
+        }
+      };
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        idleCallbackRef.current = window.requestIdleCallback(runData, {
+          timeout: 2000,
+        });
+      } else {
+        idleTimeoutRef.current = setTimeout(runData, 300);
+      }
+    },
+    [clearIdle, prefetchTabData]
+  );
+
+  const prefetchTab = useCallback(
+    (projectId: string, tab: PrefetchableProyectoTab) => {
+      prefetchTabChunk(tab);
+      prefetchTabData(projectId, tab, genRef.current);
+    },
+    [prefetchTabData]
+  );
+
+  return { startIdlePrefetch, cancel, prefetchTab };
 }
 
 export function setProyectoBaseCache(

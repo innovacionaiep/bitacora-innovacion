@@ -46,6 +46,7 @@ import {
   resumenTabKey,
 } from '@/lib/query-keys';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import { historialASegmentos } from '@/lib/historial-mensaje';
 
 const CUENTA_LABEL: Record<CuentaPresupuesto, string> = {
   RRHH: 'RRHH',
@@ -228,20 +229,6 @@ export function ResumenProyectoCard({
     });
   };
 
-  /** Mismo formato que en Inicio (PortalHistorialReciente) */
-  const CONJUGACIONES_HISTORIAL: Record<string, string> = {
-    Crear: 'creado',
-    Comentar: 'comentado',
-    Actualizar: 'actualizado',
-    'Marcar realizada': 'marcado realizada',
-    'Agregar participante': 'Registrado',
-    'Eliminar participante': 'Eliminado',
-    Validar: 'validado',
-    Eliminar: 'eliminado',
-    'Subir evidencia': 'subido nuevas evidencias',
-    'Eliminar evidencia': 'eliminado evidencias',
-    'Cambio de estado en kanban': 'cambiado',
-  };
   const formatFechaHistorial = (fecha: Date | string) => {
     const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
     return d.toLocaleDateString('es-CL', {
@@ -705,9 +692,13 @@ export function ResumenProyectoCard({
                     {historial.map((entry) => {
                       const persona =
                         entry.user?.name || entry.user?.email || 'Usuario';
-                      const accionConjugada =
-                        CONJUGACIONES_HISTORIAL[entry.accion] ||
-                        entry.accion.toLowerCase();
+                      const segmentos = historialASegmentos({
+                        persona,
+                        accion: entry.accion,
+                        tabProyecto: entry.tabProyecto,
+                        elementoEspecifico: entry.elementoEspecifico,
+                        cambioGenerado: entry.cambioGenerado,
+                      });
                       return (
                         <li
                           key={entry.id}
@@ -723,21 +714,32 @@ export function ResumenProyectoCard({
                               {formatFechaHistorial(entry.fecha)}
                             </p>
                             <p>
-                              <strong>{persona}</strong> ha{' '}
-                              <span className="text-primary font-medium">
-                                {accionConjugada}
-                              </span>{' '}
-                              en {entry.tabProyecto}:{' '}
-                              <strong className="line-clamp-2">
-                                {entry.elementoEspecifico}
-                              </strong>
-                              {entry.cambioGenerado &&
-                                entry.accion !== 'Marcar realizada' && (
-                                  <span className="text-muted-foreground">
-                                    {' '}
-                                    — {entry.cambioGenerado}
-                                  </span>
-                                )}
+                              {segmentos.map((seg, i) => {
+                                if (seg.role === 'persona' || seg.role === 'objeto') {
+                                  return <strong key={i}>{seg.text}</strong>;
+                                }
+                                if (seg.role === 'verbo') {
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="text-primary font-medium"
+                                    >
+                                      {seg.text}
+                                    </span>
+                                  );
+                                }
+                                if (seg.role === 'detalle') {
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="text-muted-foreground"
+                                    >
+                                      {seg.text}
+                                    </span>
+                                  );
+                                }
+                                return <span key={i}>{seg.text}</span>;
+                              })}
                             </p>
                           </div>
                         </li>

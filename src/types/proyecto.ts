@@ -63,6 +63,8 @@ export type ProyectoWithRelations = Proyecto & {
   desarrolloTecnicoValores?: (DesarrolloTecnicoValor & {
     subcategoria?: DesarrolloTecnicoSubcategoria;
   })[];
+  /** Id de catálogo Linea (fondo + nombre). Null si no hay línea o no matchea. */
+  lineaId?: string | null;
 };
 
 // Tipo extendido con variaciones mensuales para el dashboard

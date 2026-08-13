@@ -38,6 +38,7 @@ import {
   isSyncableRole,
   upsertPersonaFromParticipante,
 } from '@/lib/personas/sync-persona';
+import { GET_PROYECTO_BASE_OPTIONS } from '@/lib/proyecto-detail-cache';
 
 type GeneralTabUpdateData = {
   proyectoId: string;
@@ -454,7 +455,7 @@ type GetProyectoOptions = {
   includeParticipantes?: boolean;
   /**
    * Si true, incluye desarrolloTecnico y desarrolloTecnicoValores.
-   * Default false: el cliente los carga vía getProyectoDesarrolloTecnico.
+   * Default false en getProyecto; getProyectoBase lo activa (tab General).
    */
   includeDesarrolloTecnico?: boolean;
 };
@@ -558,6 +559,11 @@ export async function getProyecto(
     includeDesarrolloTecnico = false,
   } = options;
   try {
+    const gate = await requireProjectAccess(id);
+    if (!gate.ok) {
+      return { success: false, error: gate.error };
+    }
+
     const proyecto = await prisma.proyecto.findUnique({
       where: { id },
       include: {
@@ -675,6 +681,20 @@ export async function getProyecto(
     const { _count, ...proyectoSinCount } = proyecto;
     const participantesCount = _count.participantes_rel;
 
+    let lineaId: string | null = null;
+    const lineaNombre = proyecto.linea?.trim();
+    const fondoNombre = proyecto.fondo?.trim();
+    if (lineaNombre) {
+      const linea = await prisma.linea.findFirst({
+        where: {
+          nombre: lineaNombre,
+          ...(fondoNombre ? { fondo: { nombre: fondoNombre } } : {}),
+        },
+        select: { id: true },
+      });
+      lineaId = linea?.id ?? null;
+    }
+
     if (!includeParticipantes) {
       return {
         success: true,
@@ -683,6 +703,7 @@ export async function getProyecto(
           // El Int denormalizado suele quedar desfasado; usar conteo real de la relación.
           participantes: participantesCount,
           participantes_rel: undefined,
+          lineaId,
         } as ProyectoWithRelations,
       };
     }
@@ -700,6 +721,7 @@ export async function getProyecto(
         ...proyectoSinCount,
         participantes: participantesEnriquecidos.length,
         participantes_rel: participantesEnriquecidos,
+        lineaId,
       } as ProyectoWithRelations,
     };
   } catch (error) {
@@ -710,17 +732,14 @@ export async function getProyecto(
 
 /**
  * Detalle base para seleccionar proyecto (General / header / Convenio).
- * Sin activities ni participantes.
+ * Incluye desarrollo técnico (el tab por defecto lo necesita). Sin activities ni participantes.
  */
 export async function getProyectoBase(id: string) {
-  return getProyecto(id, {
-    includeActivities: false,
-    includeParticipantes: false,
-  });
+  return getProyecto(id, { ...GET_PROYECTO_BASE_OPTIONS });
 }
 
 /**
- * Solo desarrollo técnico del proyecto (carga diferida tras getProyectoBase).
+ * Solo desarrollo técnico del proyecto (hidratar caches viejos sin DT).
  */
 export async function getProyectoDesarrolloTecnico(proyectoId: string) {
   try {
@@ -1796,10 +1815,10 @@ export async function createObjetivoEspecifico(
     });
     await createHistorialEntry({
       proyectoId,
-      accion: 'Actualizar',
+      accion: 'Crear',
       tabProyecto: 'Indicadores',
-      elementoEspecifico: 'Objetivos Específicos del proyecto',
-      cambioGenerado: `Objetivo específico agregado: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? '…' : ''}`,
+      elementoEspecifico: 'un objetivo específico',
+      cambioGenerado: trimmed,
     });
     revalidateTag('proyectos-dashboard');
     return { success: true };
