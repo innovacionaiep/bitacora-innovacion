@@ -743,7 +743,7 @@ export async function getProyecto(
 
 /**
  * Detalle base para seleccionar proyecto (General / header / Convenio).
- * Incluye desarrollo técnico (el tab por defecto lo necesita). Sin activities ni participantes.
+ * Sin desarrollo técnico: DT se pide en paralelo para revelar OG/video antes.
  */
 export async function getProyectoBase(id: string) {
   return getProyecto(id, { ...GET_PROYECTO_BASE_OPTIONS });

@@ -34,7 +34,7 @@ import {
   getHistorialFiltros,
 } from '@/lib/actions/historial';
 import { getEscalamientoProyecto } from '@/lib/actions/escalamiento';
-import { runInBursts } from '@/lib/idle-burst';
+import { dequeueTab } from '@/lib/idle-burst';
 
 export type ProyectoDesarrolloTecnicoData = NonNullable<
   Awaited<ReturnType<typeof getProyectoDesarrolloTecnico>>['data']
@@ -331,13 +331,14 @@ export function useFetchProyectoActivities() {
 export const IDLE_TAB_PREFETCH_CONCURRENCY = 2;
 
 export type PrefetchableProyectoTab =
+  | 'Participantes'
   | 'Gantt'
   | 'Indicadores'
   | 'Presupuesto'
-  | 'Participantes'
   | 'Seguimiento'
-  | 'Historial'
-  | 'Escalamiento';
+  | 'Escalamiento'
+  | 'Convenio'
+  | 'Historial';
 
 const TAB_CHUNK_LOADERS: Partial<
   Record<PrefetchableProyectoTab, () => Promise<unknown>>
@@ -347,16 +348,19 @@ const TAB_CHUNK_LOADERS: Partial<
   Presupuesto: () => import('@/components/proyectos/PresupuestoCard'),
   Seguimiento: () => import('@/components/seguimiento/SeguimientoCard'),
   Historial: () => import('@/components/proyectos/HistorialCard'),
+  Convenio: () => import('@/app/proyectos/tabs/ConvenioTab'),
 };
 
+/** Pares: Participantes+Gantt, Indicadores+Presupuesto, Seguimiento+Escalamiento, Convenio+Historial. */
 export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
+  'Participantes',
   'Gantt',
   'Indicadores',
   'Presupuesto',
-  'Participantes',
   'Seguimiento',
-  'Historial',
   'Escalamiento',
+  'Convenio',
+  'Historial',
 ];
 
 export function isPrefetchableProyectoTab(
@@ -371,18 +375,19 @@ type TabQuerySpec = {
 };
 
 const TAB_QUERIES: Record<PrefetchableProyectoTab, TabQuerySpec[]> = {
-  Gantt: [{ key: proyectoActivitiesKey, queryFn: fetchProyectoActivities }],
-  Indicadores: [{ key: indicadoresKey, queryFn: fetchIndicadoresTab }],
-  Presupuesto: [{ key: presupuestoKey, queryFn: fetchPresupuestoTab }],
   Participantes: [
     { key: proyectoParticipantesKey, queryFn: fetchProyectoParticipantes },
   ],
+  Gantt: [{ key: proyectoActivitiesKey, queryFn: fetchProyectoActivities }],
+  Indicadores: [{ key: indicadoresKey, queryFn: fetchIndicadoresTab }],
+  Presupuesto: [{ key: presupuestoKey, queryFn: fetchPresupuestoTab }],
   Seguimiento: [{ key: reunionesKey, queryFn: fetchReunionesTab }],
+  Escalamiento: [{ key: escalamientoKey, queryFn: fetchEscalamientoTab }],
+  Convenio: [],
   Historial: [
     { key: (id) => historialKey(id, {}), queryFn: fetchHistorialTab },
     { key: historialFiltrosKey, queryFn: fetchHistorialFiltrosTab },
   ],
-  Escalamiento: [{ key: escalamientoKey, queryFn: fetchEscalamientoTab }],
 };
 
 function prefetchTabChunk(tab: PrefetchableProyectoTab) {
@@ -394,17 +399,19 @@ function prefetchTabChunk(tab: PrefetchableProyectoTab) {
 }
 
 /**
- * After General is ready: JS chunks + tab data on idle.
- * Hover on a tab button prefetches that tab's chunk+data.
- * Cancel when leaving or switching project.
+ * Tras DT de General: prefetch idle de a 2 en el orden de ALL_PREFETCH_TABS.
+ * Un click de tab se antepone y pausa el siguiente burst. Sin prefetch por hover.
  */
 export function usePrefetchProyectoTabs() {
   const queryClient = useQueryClient();
-  const genRef = useRef(0);
+  const idleGenRef = useRef(0);
+  const activeProjectIdRef = useRef<string | null>(null);
+  const remainingRef = useRef<PrefetchableProyectoTab[]>([]);
+  const priorityWaitRef = useRef(Promise.resolve());
   const idleCallbackRef = useRef<number | null>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearIdle = useCallback(() => {
+  const clearIdleTimer = useCallback(() => {
     if (idleCallbackRef.current != null && typeof window !== 'undefined') {
       if ('cancelIdleCallback' in window) {
         window.cancelIdleCallback(idleCallbackRef.current);
@@ -418,8 +425,8 @@ export function usePrefetchProyectoTabs() {
   }, []);
 
   const prefetchTabData = useCallback(
-    async (projectId: string, tab: PrefetchableProyectoTab, gen: number) => {
-      if (gen !== genRef.current) return;
+    async (projectId: string, tab: PrefetchableProyectoTab) => {
+      if (activeProjectIdRef.current !== projectId) return;
       const pending: Promise<unknown>[] = [];
       for (const { key, queryFn } of TAB_QUERIES[tab]) {
         const queryKey = key(projectId);
@@ -442,27 +449,50 @@ export function usePrefetchProyectoTabs() {
     [queryClient]
   );
 
+  const cancelIdle = useCallback(() => {
+    idleGenRef.current += 1;
+    remainingRef.current = [];
+    clearIdleTimer();
+  }, [clearIdleTimer]);
+
   const cancel = useCallback(() => {
-    genRef.current += 1;
-    clearIdle();
-  }, [clearIdle]);
+    cancelIdle();
+    activeProjectIdRef.current = null;
+    priorityWaitRef.current = Promise.resolve();
+  }, [cancelIdle]);
+
+  const runQueue = useCallback(
+    async (projectId: string, gen: number) => {
+      while (gen === idleGenRef.current) {
+        await priorityWaitRef.current;
+        if (gen !== idleGenRef.current) return;
+        if (activeProjectIdRef.current !== projectId) return;
+        const burst = remainingRef.current.splice(
+          0,
+          IDLE_TAB_PREFETCH_CONCURRENCY
+        );
+        if (burst.length === 0) return;
+        await Promise.all(
+          burst.map(async (tab) => {
+            if (gen !== idleGenRef.current) return;
+            prefetchTabChunk(tab);
+            await prefetchTabData(projectId, tab);
+          })
+        );
+      }
+    },
+    [prefetchTabData]
+  );
 
   const startIdlePrefetch = useCallback(
     (projectId: string) => {
-      const gen = ++genRef.current;
-      clearIdle();
+      activeProjectIdRef.current = projectId;
+      const gen = ++idleGenRef.current;
+      remainingRef.current = [...ALL_PREFETCH_TABS];
+      clearIdleTimer();
       const runIdle = () => {
-        if (gen !== genRef.current) return;
-        void runInBursts(
-          ALL_PREFETCH_TABS,
-          IDLE_TAB_PREFETCH_CONCURRENCY,
-          async (tab) => {
-            if (gen !== genRef.current) return;
-            prefetchTabChunk(tab);
-            await prefetchTabData(projectId, tab, gen);
-          },
-          () => gen !== genRef.current
-        );
+        if (gen !== idleGenRef.current) return;
+        void runQueue(projectId, gen);
       };
       if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         idleCallbackRef.current = window.requestIdleCallback(runIdle, {
@@ -472,18 +502,27 @@ export function usePrefetchProyectoTabs() {
         idleTimeoutRef.current = setTimeout(runIdle, 300);
       }
     },
-    [clearIdle, prefetchTabData]
+    [clearIdleTimer, runQueue]
   );
 
-  const prefetchTab = useCallback(
+  const prioritizeTab = useCallback(
     (projectId: string, tab: PrefetchableProyectoTab) => {
+      activeProjectIdRef.current = projectId;
+      remainingRef.current = dequeueTab(remainingRef.current, tab);
       prefetchTabChunk(tab);
-      void prefetchTabData(projectId, tab, genRef.current);
+      const pending = prefetchTabData(projectId, tab);
+      priorityWaitRef.current = Promise.all([
+        priorityWaitRef.current,
+        pending,
+      ]).then(
+        () => undefined,
+        () => undefined
+      );
     },
     [prefetchTabData]
   );
 
-  return { startIdlePrefetch, cancel, prefetchTab };
+  return { startIdlePrefetch, cancel, cancelIdle, prioritizeTab };
 }
 
 export function setProyectoBaseCache(

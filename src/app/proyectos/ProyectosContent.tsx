@@ -158,7 +158,8 @@ export function ProyectosContent({
   const {
     startIdlePrefetch: startIdlePrefetchTabs,
     cancel: cancelPrefetchTabs,
-    prefetchTab: prefetchProyectoTab,
+    cancelIdle: cancelIdlePrefetchTabs,
+    prioritizeTab: prioritizePrefetchTab,
   } = usePrefetchProyectoTabs();
   const fetchProyectoBase = useFetchProyectoBase();
   const fetchProyectoParticipantes = useFetchProyectoParticipantes();
@@ -379,17 +380,20 @@ export function ProyectosContent({
 
   // Idle prefetch de otros tabs solo cuando General ya trajo DT (no en shell).
   useEffect(() => {
+    if (!selectedProject?.id) {
+      cancelPrefetchTabs();
+      return;
+    }
     if (
-      !selectedProject?.id ||
       isSelectingProject ||
       proyectoNeedsDesarrolloTecnicoFetch(selectedProject)
     ) {
-      cancelPrefetchTabs();
+      cancelIdlePrefetchTabs();
       return;
     }
     startIdlePrefetchTabs(selectedProject.id);
     return () => {
-      cancelPrefetchTabs();
+      cancelIdlePrefetchTabs();
     };
   }, [
     selectedProject?.id,
@@ -399,6 +403,7 @@ export function ProyectosContent({
       : 'has-dt',
     startIdlePrefetchTabs,
     cancelPrefetchTabs,
+    cancelIdlePrefetchTabs,
   ]);
 
   // Prefetch config DT al idle, después del listado (no competir con el primer clic).
@@ -747,6 +752,9 @@ export function ProyectosContent({
       }
     }
     setSelectedTab(tab);
+    if (selectedProject && isPrefetchableProyectoTab(tab)) {
+      prioritizePrefetchTab(selectedProject.id, tab);
+    }
   };
 
   // Seguimiento (rol) y Presupuesto (editar adjudicado) necesitan participantes_rel
@@ -1392,21 +1400,6 @@ export function ProyectosContent({
                       type="button"
                       data-tour={`proyecto-tab-${tab.id}`}
                       onClick={() => handleSelectTab(tab.id)}
-                      onMouseEnter={() => {
-                        if (
-                          selectedProject &&
-                          !isSelectingProject &&
-                          !proyectoNeedsDesarrolloTecnicoFetch(
-                            selectedProject
-                          ) &&
-                          isPrefetchableProyectoTab(tab.id)
-                        ) {
-                          prefetchProyectoTab(
-                            selectedProject.id,
-                            tab.id
-                          );
-                        }
-                      }}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
                         'group relative px-3 text-[13px] tracking-wide whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm',

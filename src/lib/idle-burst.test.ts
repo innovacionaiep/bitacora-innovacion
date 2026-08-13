@@ -1,9 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { chunkInBursts, runInBursts } from '@/lib/idle-burst';
+import { chunkInBursts, dequeueTab, runInBursts } from '@/lib/idle-burst';
 import {
   ALL_PREFETCH_TABS,
   IDLE_TAB_PREFETCH_CONCURRENCY,
 } from '@/hooks/useProyectoQuery';
+
+describe('dequeueTab', () => {
+  it('pulls the clicked tab out of the remaining idle queue', () => {
+    expect(dequeueTab(['A', 'B', 'C', 'D'], 'C')).toEqual(['A', 'B', 'D']);
+  });
+});
 
 describe('chunkInBursts', () => {
   it('never puts more than concurrency items in one burst', () => {

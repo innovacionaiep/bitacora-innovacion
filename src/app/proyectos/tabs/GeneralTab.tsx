@@ -35,6 +35,11 @@ import {
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
+import {
+  GENERAL_CORE_SECTION_COUNT,
+  GENERAL_SECTION_REVEAL_MS,
+  initialGeneralReveal,
+} from '@/lib/general-section-reveal';
 import { detectVimeoIsVertical } from '@/lib/video-url';
 import {
   isLegacyDtFieldKey,
@@ -596,6 +601,63 @@ function RevealBody({
       {children}
     </div>
   );
+}
+
+function useGeneralSectionReveal(
+  projectId: string,
+  isShell: boolean,
+  hasCoreContent: boolean,
+  hasDt: boolean,
+  dtSectionCount: number
+) {
+  const [reveal, setReveal] = useState(() => ({
+    projectId,
+    ...initialGeneralReveal(isShell, hasDt),
+  }));
+
+  if (reveal.projectId !== projectId) {
+    setReveal({ projectId, ...initialGeneralReveal(isShell, hasDt) });
+  }
+
+  const coreRevealed =
+    reveal.projectId === projectId
+      ? reveal.core
+      : initialGeneralReveal(isShell, hasDt).core;
+  const dtRevealed =
+    reveal.projectId === projectId
+      ? reveal.dt
+      : initialGeneralReveal(isShell, hasDt).dt;
+
+  useEffect(() => {
+    if (!hasCoreContent) return;
+    if (coreRevealed >= GENERAL_CORE_SECTION_COUNT) return;
+    const ms = coreRevealed === 0 ? 0 : GENERAL_SECTION_REVEAL_MS;
+    const t = window.setTimeout(() => {
+      setReveal((s) =>
+        s.projectId !== projectId || s.core >= GENERAL_CORE_SECTION_COUNT
+          ? s
+          : { ...s, core: s.core + 1 }
+      );
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [hasCoreContent, coreRevealed, projectId]);
+
+  useEffect(() => {
+    if (!hasDt || coreRevealed < GENERAL_CORE_SECTION_COUNT) return;
+    if (dtSectionCount <= 0) return;
+    if (dtRevealed >= dtSectionCount) return;
+    const ms = dtRevealed === 0 ? 0 : GENERAL_SECTION_REVEAL_MS;
+    const t = window.setTimeout(() => {
+      setReveal((s) =>
+        s.projectId !== projectId || s.dt >= dtSectionCount
+          ? s
+          : { ...s, dt: s.dt + 1 }
+      );
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [hasDt, coreRevealed, dtRevealed, dtSectionCount, projectId]);
+
+  return { coreRevealed, dtRevealed };
 }
 
 function BookIndex({
@@ -1232,6 +1294,16 @@ export function GeneralTab({
   const isShell = isProyectoGeneralShell(project);
   const hasCoreContent = !isShell;
   const hasDt = 'desarrolloTecnico' in project;
+  const { coreRevealed, dtRevealed } = useGeneralSectionReveal(
+    project.id,
+    isShell,
+    hasCoreContent,
+    hasDt,
+    dtConfigSections.length
+  );
+  const showOg = hasCoreContent && coreRevealed >= 1;
+  const showOes = hasCoreContent && coreRevealed >= 2;
+  const showVideo = hasCoreContent && coreRevealed >= 3;
 
   const valoresBySubId = useMemo(() => {
     const map = new Map<string, string>();
@@ -1533,7 +1605,7 @@ export function GeneralTab({
               title="Objetivo General"
               icon={<Crosshair />}
             >
-              {!hasCoreContent ? (
+              {!showOg ? (
                 <SectionBodySkeleton />
               ) : isEditing('objetivoGeneral') ? (
                 <div className="min-w-0">
@@ -1613,7 +1685,7 @@ export function GeneralTab({
                 ) : undefined
               }
             >
-              {!hasCoreContent ? (
+              {!showOes ? (
                 <SectionBodySkeleton />
               ) : isEditing('objetivosEspecificos') ? (
                 <div className="space-y-6">
@@ -1685,7 +1757,7 @@ export function GeneralTab({
                   />
                 </div>
               ) : hasObjetivosEspecificos ? (
-                <RevealBody delayMs={40}>
+                <RevealBody>
                   <div className="group/field relative">
                     <div className="space-y-5">
                       {objetivosEspecificos.map((objetivo, index) => (
@@ -1711,7 +1783,7 @@ export function GeneralTab({
                   </div>
                 </RevealBody>
               ) : (
-                <RevealBody delayMs={40}>
+                <RevealBody>
                   <AddInfoButton
                     onClick={() => handleStartEditField('objetivosEspecificos')}
                   />
@@ -1725,7 +1797,7 @@ export function GeneralTab({
               title="Video"
               icon={<Video />}
             >
-              {!hasCoreContent ? (
+              {!showVideo ? (
                 <SectionBodySkeleton />
               ) : isEditing('video') ? (
                   <div className="space-y-3">
@@ -1748,7 +1820,7 @@ export function GeneralTab({
                   />
                 </div>
               ) : hasVideo ? (
-                <RevealBody delayMs={80}>
+                <RevealBody>
                   <div className="group/field relative">
                     <HoverEditButton
                       onClick={() => handleStartEditField('video')}
@@ -1758,7 +1830,7 @@ export function GeneralTab({
                   </div>
                 </RevealBody>
               ) : (
-                <RevealBody delayMs={80}>
+                <RevealBody>
                   <div className="py-1">
                     <p className="text-[13px] text-gray-400 mb-2">
                       Sin video asignado
@@ -1771,102 +1843,90 @@ export function GeneralTab({
               )}
             </ReadingSection>
 
-            {dtConfigSections.length > 0 ? (
-              hasDt ? (
-                desarrolloSections.map((section, index) => {
-              const hasContent = Boolean(section.content?.trim());
-              const editingThis = isEditing(section.fieldId);
-              const draftValue = section.campoKey
-                ? (generalDraft?.desarrolloTecnico[section.campoKey] ?? '')
-                : (generalDraft?.desarrolloTecnicoExtra[
-                    section.subcategoriaId
-                  ] ?? '');
+            {dtConfigSections.length > 0
+              ? desarrolloSections.map((section, index) => {
+                  const revealed = hasDt && index < dtRevealed;
+                  const hasContent = Boolean(section.content?.trim());
+                  const editingThis = isEditing(section.fieldId);
+                  const draftValue = section.campoKey
+                    ? (generalDraft?.desarrolloTecnico[section.campoKey] ?? '')
+                    : (generalDraft?.desarrolloTecnicoExtra[
+                        section.subcategoriaId
+                      ] ?? '');
 
-              return (
-                <ReadingSection
-                  key={section.id}
-                  id={section.id}
-                  title={section.title}
-                  icon={<IconByName name={section.icono} />}
-                  className="animate-in fade-in duration-300"
-                  style={{
-                    animationDelay: `${index * 45}ms`,
-                    animationFillMode: 'both',
-                  }}
-                >
-                  {editingThis ? (
-                    <div>
-                      <GeneralTabTextarea
-                        value={draftValue}
-                        onChange={(e) =>
-                          setGeneralDraft((prev) => {
-                            if (!prev) return prev;
-                            if (section.campoKey) {
-                              return {
-                                ...prev,
-                                desarrolloTecnico: {
-                                  ...prev.desarrolloTecnico,
-                                  [section.campoKey]: e.target.value,
-                                },
-                              };
+                  return (
+                    <ReadingSection
+                      key={section.id}
+                      id={section.id}
+                      title={section.title}
+                      icon={<IconByName name={section.icono} />}
+                    >
+                      {!revealed && !editingThis ? (
+                        <SectionBodySkeleton />
+                      ) : editingThis ? (
+                        <div>
+                          <GeneralTabTextarea
+                            value={draftValue}
+                            onChange={(e) =>
+                              setGeneralDraft((prev) => {
+                                if (!prev) return prev;
+                                if (section.campoKey) {
+                                  return {
+                                    ...prev,
+                                    desarrolloTecnico: {
+                                      ...prev.desarrolloTecnico,
+                                      [section.campoKey]: e.target.value,
+                                    },
+                                  };
+                                }
+                                return {
+                                  ...prev,
+                                  desarrolloTecnicoExtra: {
+                                    ...prev.desarrolloTecnicoExtra,
+                                    [section.subcategoriaId]: e.target.value,
+                                  },
+                                };
+                              })
                             }
-                            return {
-                              ...prev,
-                              desarrolloTecnicoExtra: {
-                                ...prev.desarrolloTecnicoExtra,
-                                [section.subcategoriaId]: e.target.value,
-                              },
-                            };
-                          })
-                        }
-                        className="text-[15px] leading-[1.75] border-0 border-b border-gray-200 rounded-none focus:border-gray-400 bg-transparent shadow-none px-0 break-words max-w-full"
-                      />
-                      <FieldSaveCancel
-                        isSaving={isGeneralSaving}
-                        onSave={handleSaveGeneralTab}
-                        onCancel={handleCancelGeneralEdit}
-                      />
-                    </div>
-                  ) : hasContent ? (
-                    <div className="group/field relative">
-                      <div className="text-[15px] text-gray-800 leading-[1.75] whitespace-pre-wrap break-words [overflow-wrap:anywhere] min-w-0">
-                        {section.content}
-                      </div>
-                      <HoverEditButton
-                        onClick={() => handleStartEditField(section.fieldId)}
-                        tooltip={`Editar ${section.title.toLowerCase()}`}
-                      />
-                    </div>
-                  ) : (
-                    <AddInfoButton
-                      onClick={() => handleStartEditField(section.fieldId)}
-                    />
-                  )}
-                </ReadingSection>
-              );
-            })
-              ) : (
-                dtConfigSections.map((section, index) => (
-                  <ReadingSection
-                    key={section.sectionId}
-                    id={section.sectionId}
-                    title={section.title}
-                    icon={<IconByName name={section.icono} />}
-                    className="animate-in fade-in duration-300"
-                    style={{
-                      animationDelay: `${index * 45}ms`,
-                      animationFillMode: 'both',
-                    }}
-                  >
-                    <SectionBodySkeleton />
-                  </ReadingSection>
-                ))
-              )
-            ) : isDtConfigPending || !hasDt ? (
-              [0, 1, 2].map((i) => (
-                <DtSectionSkeleton key={`dt-sk-${i}`} id={`dt-sk-${i}`} />
-              ))
-            ) : null}
+                            className="text-[15px] leading-[1.75] border-0 border-b border-gray-200 rounded-none focus:border-gray-400 bg-transparent shadow-none px-0 break-words max-w-full"
+                          />
+                          <FieldSaveCancel
+                            isSaving={isGeneralSaving}
+                            onSave={handleSaveGeneralTab}
+                            onCancel={handleCancelGeneralEdit}
+                          />
+                        </div>
+                      ) : hasContent ? (
+                        <RevealBody>
+                          <div className="group/field relative">
+                            <div className="text-[15px] text-gray-800 leading-[1.75] whitespace-pre-wrap break-words [overflow-wrap:anywhere] min-w-0">
+                              {section.content}
+                            </div>
+                            <HoverEditButton
+                              onClick={() =>
+                                handleStartEditField(section.fieldId)
+                              }
+                              tooltip={`Editar ${section.title.toLowerCase()}`}
+                            />
+                          </div>
+                        </RevealBody>
+                      ) : (
+                        <RevealBody>
+                          <AddInfoButton
+                            onClick={() =>
+                              handleStartEditField(section.fieldId)
+                            }
+                          />
+                        </RevealBody>
+                      )}
+                    </ReadingSection>
+                  );
+                })
+              : isDtConfigPending || !hasDt
+                ? [0, 1, 2].map((i) => (
+                    <DtSectionSkeleton key={`dt-sk-${i}`} id={`dt-sk-${i}`} />
+                  ))
+                : null}
 
             {/* Metadatos en móvil (en desktop van a la columna derecha) */}
             <div

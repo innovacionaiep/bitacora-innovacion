@@ -19,6 +19,7 @@ import {
   setProyectoBaseCache,
   isPrefetchableProyectoTab,
   mergeDesarrolloTecnicoIntoProject,
+  ALL_PREFETCH_TABS,
 } from '@/hooks/useProyectoQuery';
 import {
   GET_PROYECTO_BASE_OPTIONS,
@@ -84,15 +85,33 @@ describe('proyectoTabDataPrefetchKeys', () => {
   });
 });
 
+describe('ALL_PREFETCH_TABS', () => {
+  it('prefetches in pairs: participantes+gantt, indicadores+presupuesto, seguimiento+escalamiento, convenio+historial', () => {
+    expect(ALL_PREFETCH_TABS).toEqual([
+      'Participantes',
+      'Gantt',
+      'Indicadores',
+      'Presupuesto',
+      'Seguimiento',
+      'Escalamiento',
+      'Convenio',
+      'Historial',
+    ]);
+  });
+});
+
 describe('isPrefetchableProyectoTab', () => {
-  it('includes Participantes, Seguimiento, Historial and Escalamiento', () => {
+  it('includes Convenio and the idle-prefetch pairs, not General', () => {
     expect(isPrefetchableProyectoTab('Participantes')).toBe(true);
-    expect(isPrefetchableProyectoTab('Seguimiento')).toBe(true);
-    expect(isPrefetchableProyectoTab('Historial')).toBe(true);
-    expect(isPrefetchableProyectoTab('Escalamiento')).toBe(true);
     expect(isPrefetchableProyectoTab('Gantt')).toBe(true);
+    expect(isPrefetchableProyectoTab('Indicadores')).toBe(true);
+    expect(isPrefetchableProyectoTab('Presupuesto')).toBe(true);
+    expect(isPrefetchableProyectoTab('Seguimiento')).toBe(true);
+    expect(isPrefetchableProyectoTab('Escalamiento')).toBe(true);
+    expect(isPrefetchableProyectoTab('Convenio')).toBe(true);
+    expect(isPrefetchableProyectoTab('Historial')).toBe(true);
     expect(isPrefetchableProyectoTab('General')).toBe(false);
-    expect(isPrefetchableProyectoTab('Convenio')).toBe(false);
+    expect(isPrefetchableProyectoTab('Resumen')).toBe(false);
   });
 });
 

@@ -1,3 +1,8 @@
+/** Quita `tab` de la cola idle para que un click lo anteponga. */
+export function dequeueTab<T>(queue: readonly T[], tab: T): T[] {
+  return queue.filter((item) => item !== tab);
+}
+
 export function chunkInBursts<T>(items: readonly T[], size: number): T[][] {
   const n = Math.max(1, size);
   const out: T[][] = [];
