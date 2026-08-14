@@ -69,7 +69,6 @@ DATABASE_URL=
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=
 CONFIG_UNLOCK_PASSWORD=
-NOVEDADES_UNLOCK_PASSWORD=
 ```
 
 Variables habituales adicionales: Cloudinary, Supabase (URL/anon key) y SMTP si usas reportes por correo.

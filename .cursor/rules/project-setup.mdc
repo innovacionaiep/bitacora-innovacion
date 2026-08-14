@@ -104,4 +104,4 @@ prisma/
 - `NEXTAUTH_SECRET` - Secret para NextAuth
 - `NEXTAUTH_URL` - URL de la aplicación
 - `CONFIG_UNLOCK_PASSWORD` - Desbloqueo del panel Admin (usuarios/proyectos); sin default
-- `NOVEDADES_UNLOCK_PASSWORD` - Acceso a Novedades/Soporte; sin default
+- Novedades/Soporte: contraseña fija `bitacora` en código (no usa env)

@@ -5,6 +5,15 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { userHasPermission } from '@/lib/permissions/check';
 import { requireProjectAccess } from '@/lib/authz/guards';
+import {
+  applyFilaPatch,
+  describeFilaCambio,
+  isEscalamientoNumero,
+  mergePlanAccion,
+  serializePlanAccion,
+  type EscalamientoFila,
+  type EscalamientoFilaPatch,
+} from '@/lib/escalamiento-plan';
 import { createHistorialEntry } from './historial';
 
 export type FondoEscalamientoConfig = {
@@ -14,30 +23,9 @@ export type FondoEscalamientoConfig = {
   escalamientoEnabled: boolean;
 };
 
-export type EscalamientoCampo =
-  | 'nuevaInstancia1'
-  | 'nuevaInstancia2'
-  | 'acuerdoContinuidad';
-
 export type EscalamientoData = {
-  nuevaInstancia1: string;
-  nuevaInstancia2: string;
-  acuerdoContinuidad: string;
+  filas: EscalamientoFila[];
 };
-
-const CAMPO_LABELS: Record<EscalamientoCampo, string> = {
-  nuevaInstancia1: 'Nuevas instancias potenciales identificadas (1)',
-  nuevaInstancia2: 'Nuevas instancias potenciales identificadas (2)',
-  acuerdoContinuidad: 'Acuerdos o compromisos de continuidad o expansión',
-};
-
-function truncateCambio(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return 'contenido vaciado';
-  return trimmed.length > 120
-    ? `${trimmed.slice(0, 120)}…`
-    : trimmed;
-}
 
 async function assertFondoEscalamientoEnabled(fondoNombre: string) {
   const fondoOk = await prisma.fondo.findFirst({
@@ -152,9 +140,7 @@ export async function getEscalamientoProyecto(proyectoId: string) {
           fondo: true,
           escalamiento: {
             select: {
-              nuevaInstancia1: true,
-              nuevaInstancia2: true,
-              acuerdoContinuidad: true,
+              planAccion: true,
             },
           },
         },
@@ -176,14 +162,10 @@ export async function getEscalamientoProyecto(proyectoId: string) {
       return { success: false as const, error: fondoGate.error, data: null };
     }
 
-    const row = proyecto.escalamiento;
-
     return {
       success: true as const,
       data: {
-        nuevaInstancia1: row?.nuevaInstancia1 ?? '',
-        nuevaInstancia2: row?.nuevaInstancia2 ?? '',
-        acuerdoContinuidad: row?.acuerdoContinuidad ?? '',
+        filas: mergePlanAccion(proyecto.escalamiento?.planAccion),
       } satisfies EscalamientoData,
     };
   } catch (e) {
@@ -196,22 +178,26 @@ export async function getEscalamientoProyecto(proyectoId: string) {
   }
 }
 
-export async function updateEscalamientoCampo(
+export async function updateEscalamientoFila(
   proyectoId: string,
-  field: EscalamientoCampo,
-  value: string
+  numero: number,
+  patch: EscalamientoFilaPatch
 ) {
   try {
     const gate = await requireProjectAccess(proyectoId, 'projects.edit');
     if (!gate.ok) return { success: false as const, error: gate.error };
 
-    if (!CAMPO_LABELS[field]) {
-      return { success: false as const, error: 'Campo inválido' };
+    if (!isEscalamientoNumero(numero)) {
+      return { success: false as const, error: 'Número de acción inválido' };
     }
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
-      select: { id: true, fondo: true },
+      select: {
+        id: true,
+        fondo: true,
+        escalamiento: { select: { planAccion: true } },
+      },
     });
     if (!proyecto) {
       return { success: false as const, error: 'Proyecto no encontrado' };
@@ -222,39 +208,36 @@ export async function updateEscalamientoCampo(
       return { success: false as const, error: fondoGate.error };
     }
 
-    const trimmed = value.trim();
-    const fieldValue = trimmed || null;
+    const current = mergePlanAccion(proyecto.escalamiento?.planAccion);
+    const applied = applyFilaPatch(current, numero, patch);
+    if (!applied.ok) {
+      return { success: false as const, error: applied.error };
+    }
+
+    const planAccion = serializePlanAccion(applied.filas) as object;
 
     await prisma.proyectoEscalamiento.upsert({
       where: { proyectoId },
-      create: {
-        proyectoId,
-        nuevaInstancia1: field === 'nuevaInstancia1' ? fieldValue : null,
-        nuevaInstancia2: field === 'nuevaInstancia2' ? fieldValue : null,
-        acuerdoContinuidad:
-          field === 'acuerdoContinuidad' ? fieldValue : null,
-      },
-      update: { [field]: fieldValue },
+      create: { proyectoId, planAccion },
+      update: { planAccion },
     });
 
+    const { elemento, cambio } = describeFilaCambio(numero, patch);
     await createHistorialEntry({
       proyectoId,
       accion: 'Actualizar',
       tabProyecto: 'Escalamiento',
-      elementoEspecifico: CAMPO_LABELS[field],
-      cambioGenerado: truncateCambio(trimmed),
+      elementoEspecifico: elemento,
+      cambioGenerado: cambio,
     });
 
     revalidatePath('/proyectos');
     return {
       success: true as const,
-      data: {
-        field,
-        value: trimmed,
-      },
+      data: { filas: applied.filas } satisfies EscalamientoData,
     };
   } catch (e) {
-    console.error('[updateEscalamientoCampo]', e);
+    console.error('[updateEscalamientoFila]', e);
     return {
       success: false as const,
       error: 'Error al guardar escalamiento',

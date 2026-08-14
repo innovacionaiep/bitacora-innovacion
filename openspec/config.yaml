@@ -21,7 +21,7 @@ context: |
   Package manager: ALWAYS pnpm (never npm/yarn). Informal docs: docs/PLAN-PORTAL-INICIO.md, docs/SISTEMA-ROLES.md, docs/PERFORMANCE-DB-INDICES.md.
 
   Absolute DB policy: never delete/truncate DB data, never run/expand seeds, never insert fake DB rows (.cursor/rules/no-db-destructive-or-seed.mdc). Tests MUST NOT write to the real database; use in-memory mocks/stubs only.
-  Secrets: CONFIG_UNLOCK_PASSWORD and NOVEDADES_UNLOCK_PASSWORD are required (fail-closed; no hardcoded defaults). Never store or display reversible passwords.
+  Secrets: CONFIG_UNLOCK_PASSWORD is required (fail-closed; no hardcoded default). Novedades/Soporte gate password is hardcoded (`bitacora`). Never store or display reversible user passwords.
   Testing: Vitest + Testing Library (jsdom). Strict TDD enabled. Unit layer primary; no E2E runner yet.
 
   Style: ESLint (next/core-web-vitals + prettier) + Prettier; PascalCase components; 'use client' only when needed.

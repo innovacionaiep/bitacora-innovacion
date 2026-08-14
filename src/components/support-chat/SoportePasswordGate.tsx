@@ -10,7 +10,7 @@ import { Lock } from 'lucide-react';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 /**
- * Misma contraseña que Novedades (NOVEDADES_UNLOCK_PASSWORD).
+ * Misma contraseña que Novedades (bitacora).
  * Al verificar, muestra el panel de chat de soporte.
  */
 export function SoportePasswordGate() {
@@ -30,10 +30,6 @@ export function SoportePasswordGate() {
     if (!result.success) {
       if (result.error === 'Contraseña incorrecta') {
         setError('Contraseña incorrecta');
-      } else if (result.error?.includes('NOVEDADES_UNLOCK_PASSWORD')) {
-        setError(
-          'La contraseña de desbloqueo no está configurada en el servidor (NOVEDADES_UNLOCK_PASSWORD).'
-        );
       } else if (result.error === 'Sin permisos') {
         setError('No tienes permisos para acceder al chat de soporte.');
       } else {

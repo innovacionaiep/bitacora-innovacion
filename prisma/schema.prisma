@@ -529,6 +529,8 @@ model ProyectoEscalamiento {
   nuevaInstancia1    String?  @map("nueva_instancia_1") @db.Text
   nuevaInstancia2    String?  @map("nueva_instancia_2") @db.Text
   acuerdoContinuidad String?  @map("acuerdo_continuidad") @db.Text
+  /** Plan de 8 acciones: campos editables por fila (JSON) */
+  planAccion         Json?    @map("plan_accion")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

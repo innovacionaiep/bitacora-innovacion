@@ -9,7 +9,7 @@ import {
 
 /**
  * Verifica la contraseña de acceso a Novedades / Soporte.
- * Requiere view.novedades o view.soporte. Fail-closed si falta NOVEDADES_UNLOCK_PASSWORD.
+ * Requiere view.novedades o view.soporte.
  */
 export async function verifyNovedadesPassword(
   password: string
@@ -31,14 +31,7 @@ export async function verifyNovedadesPassword(
     return { success: false, error: 'Sin permisos' };
   }
 
-  const expected = getNovedadesUnlockPassword();
-  if (!expected) {
-    return {
-      success: false,
-      error: 'NOVEDADES_UNLOCK_PASSWORD no está configurada en el servidor',
-    };
-  }
-  if (!secretsMatch(password, expected)) {
+  if (!secretsMatch(password, getNovedadesUnlockPassword())) {
     return { success: false, error: 'Contraseña incorrecta' };
   }
   return { success: true };

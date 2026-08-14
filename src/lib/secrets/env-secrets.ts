@@ -1,5 +1,6 @@
 /**
- * Fail-closed secret helpers (no hardcoded defaults).
+ * Secret helpers. Config unlock is fail-closed (env only).
+ * Novedades/Soporte uses a hardcoded gate password.
  */
 
 export function readRequiredEnv(name: string): string | null {
@@ -13,9 +14,11 @@ export function getConfigUnlockPassword(): string | null {
   return readRequiredEnv('CONFIG_UNLOCK_PASSWORD');
 }
 
-/** Novedades / Soporte gate password. */
-export function getNovedadesUnlockPassword(): string | null {
-  return readRequiredEnv('NOVEDADES_UNLOCK_PASSWORD');
+/** Contraseña de Novedades / Soporte (fija; no depende de env). */
+export const NOVEDADES_GATE_PASSWORD = 'bitacora';
+
+export function getNovedadesUnlockPassword(): string {
+  return NOVEDADES_GATE_PASSWORD;
 }
 
 export function secretsMatch(

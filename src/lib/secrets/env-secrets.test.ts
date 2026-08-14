@@ -15,10 +15,14 @@ afterEach(() => {
 });
 
 describe('readRequiredEnv / fail-closed secrets', () => {
-  it('returns null when env is missing (no default)', () => {
+  it('returns null when config env is missing (no default)', () => {
     delete process.env.CONFIG_UNLOCK_PASSWORD;
     expect(getConfigUnlockPassword()).toBeNull();
-    expect(getNovedadesUnlockPassword()).toBeNull();
+  });
+
+  it('returns hardcoded novedades/soporte gate password', () => {
+    delete process.env.NOVEDADES_UNLOCK_PASSWORD;
+    expect(getNovedadesUnlockPassword()).toBe('bitacora');
   });
 
   it('returns trimmed value when set', () => {
@@ -31,12 +35,12 @@ describe('readRequiredEnv / fail-closed secrets', () => {
     expect(secretsMatch('bitacora', getConfigUnlockPassword())).toBe(false);
   });
 
-  it('accepts exact match only when configured', () => {
+  it('accepts bitacora for novedades/soporte regardless of env', () => {
     process.env.NOVEDADES_UNLOCK_PASSWORD = 'novedades-secret';
+    expect(secretsMatch('bitacora', getNovedadesUnlockPassword())).toBe(true);
     expect(secretsMatch('novedades-secret', getNovedadesUnlockPassword())).toBe(
-      true
+      false
     );
-    expect(secretsMatch('bitacora', getNovedadesUnlockPassword())).toBe(false);
   });
 
   it('treats whitespace-only as missing', () => {
