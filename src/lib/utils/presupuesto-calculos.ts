@@ -186,13 +186,26 @@ export function mergeDeltaEnResumen(
   };
 }
 
+/** % del tab Presupuesto: fila total (% Solicitado / % Ejecutado) y barra global. */
+export function computeAvancePresupuestoDesglose(
+  items: Array<ItemBase & { item: string }>,
+  presupuestoAdjudicado = 0
+): { solicitado: number; ejecutado: number; global: number } {
+  const itemsGasto = items.filter((i) => !isDeltaPresupuestoItem(i));
+  const resumen = computeResumenPresupuesto(itemsGasto);
+  const delta = computeDeltaSaldo(presupuestoAdjudicado, itemsGasto);
+  const merged = mergeDeltaEnResumen(resumen, delta);
+  return {
+    solicitado: Math.round(merged.pctTotalSolicitado),
+    ejecutado: Math.round(merged.pctTotalEjecutado),
+    global: merged.pctGlobalAvance,
+  };
+}
+
 /** Mismo % de progreso que la barra del tab Presupuesto (con delta y promedios solicitado/ejecutado). */
 export function computeAvancePresupuestoPct(
   items: Array<ItemBase & { item: string }>,
   presupuestoAdjudicado = 0
 ): number {
-  const itemsGasto = items.filter((i) => !isDeltaPresupuestoItem(i));
-  const resumen = computeResumenPresupuesto(itemsGasto);
-  const delta = computeDeltaSaldo(presupuestoAdjudicado, itemsGasto);
-  return mergeDeltaEnResumen(resumen, delta).pctGlobalAvance;
+  return computeAvancePresupuestoDesglose(items, presupuestoAdjudicado).global;
 }

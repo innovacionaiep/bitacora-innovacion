@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LucideIcon } from 'lucide-react';
 import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
   FolderKanban,
   Gauge,
   ListTodo,
@@ -35,6 +38,14 @@ import {
   type FondoCoordinadorResumen,
 } from '@/lib/actions/operaciones-fondo';
 import { fondoGestionKey } from '@/lib/query-keys';
+import { formatPresupuestoMonto } from '@/lib/utils/presupuesto-calculos';
+import {
+  clampPct,
+  nextFondoTableSort,
+  sortFondoGestionProyectos,
+  type FondoTableSort,
+  type FondoTableSortKey,
+} from '@/lib/fondo-gestion-table';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -89,16 +100,19 @@ function KpiStatChip({
 function AvanceTripleChip({
   gantt,
   indicadores,
-  presupuesto,
+  solicitado,
+  ejecutado,
 }: {
   gantt: number;
   indicadores: number;
-  presupuesto: number;
+  solicitado: number;
+  ejecutado: number;
 }) {
   const rows = [
     { label: 'Gantt', value: gantt, bar: 'bg-emerald-500' },
     { label: 'Indicadores', value: indicadores, bar: 'bg-blue-500' },
-    { label: 'Presupuesto', value: presupuesto, bar: 'bg-amber-500' },
+    { label: 'Solicitado', value: solicitado, bar: 'bg-amber-500' },
+    { label: 'Ejecutado', value: ejecutado, bar: 'bg-orange-600' },
   ] as const;
 
   return (
@@ -250,9 +264,87 @@ function ActividadesMasivasChip({
   );
 }
 
-function PctCell({ value }: { value: number }) {
+function PctBarCell({
+  value,
+  barClass,
+}: {
+  value: number;
+  barClass: string;
+}) {
+  const v = clampPct(value);
   return (
-    <span className="text-[13px] tabular-nums text-gray-700">{value}%</span>
+    <div className="flex min-w-[108px] items-center gap-2">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className={cn('h-full rounded-full transition-all', barClass)}
+          style={{ width: `${v}%` }}
+        />
+      </div>
+      <span className="w-8 text-right text-[11px] tabular-nums text-gray-700">
+        {v}%
+      </span>
+    </div>
+  );
+}
+
+function SortableHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+  align = 'left',
+}: {
+  label: string;
+  sortKey: FondoTableSortKey;
+  sort: FondoTableSort;
+  onSort: (key: FondoTableSortKey) => void;
+  className?: string;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === sortKey;
+  const ariaSort = !active
+    ? 'none'
+    : sort.dir === 'asc'
+      ? 'ascending'
+      : 'descending';
+
+  return (
+    <TableHead
+      aria-sort={ariaSort}
+      className={cn(
+        'text-[12px] font-medium text-gray-500 uppercase tracking-wide',
+        className
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'inline-flex w-full items-center gap-1 rounded-sm py-0.5 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+          align === 'right' ? 'justify-end' : 'justify-start',
+          active && 'text-gray-800'
+        )}
+      >
+        <span>{label}</span>
+        {active && sort.dir === 'asc' ? (
+          <ChevronUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        ) : active && sort.dir === 'desc' ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" strokeWidth={2} />
+        )}
+      </button>
+    </TableHead>
+  );
+}
+
+function MoneyCell({ value }: { value: number | undefined }) {
+  const monto = Number(value ?? 0);
+  return (
+    <span className="text-[13px] tabular-nums text-gray-700">
+      {formatPresupuestoMonto(monto)}
+    </span>
   );
 }
 
@@ -261,6 +353,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [coordsOpen, setCoordsOpen] = useState(false);
   const [conveniosOpen, setConveniosOpen] = useState(false);
+  const [sort, setSort] = useState<FondoTableSort>({ key: null, dir: 'asc' });
 
   const {
     data,
@@ -275,7 +368,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
       }
       return res.data;
     },
-    staleTime: 60_000,
+    staleTime: 0,
   });
 
   const invalidate = () =>
@@ -284,6 +377,15 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
     });
 
   usePageTopLoader(isLoading && !data);
+
+  const kpis = data?.kpis;
+  const proyectos = data?.proyectos ?? [];
+  const proyectosOrdenados = useMemo(
+    () => sortFondoGestionProyectos(proyectos, sort),
+    [proyectos, sort]
+  );
+  const coordinadores = data?.coordinadores ?? [];
+  const showConvenios = data?.conveniosEnabled ?? conveniosEnabled;
 
   if (isLoading && !data) {
     return <div className="h-full min-h-[200px] bg-background" />;
@@ -298,11 +400,6 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
     );
   }
 
-  const kpis = data?.kpis;
-  const proyectos = data?.proyectos ?? [];
-  const coordinadores = data?.coordinadores ?? [];
-  const showConvenios = data?.conveniosEnabled ?? conveniosEnabled;
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
       <div className="shrink-0">
@@ -311,7 +408,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
         </h2>
       </div>
 
-      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-stretch min-w-0 xl:h-[9.25rem]">
+      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-stretch min-w-0 xl:h-[11.25rem]">
         <div className="flex h-full min-h-0 flex-col gap-2">
           <KpiStatChip
             label="Proyectos"
@@ -338,7 +435,8 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
         <AvanceTripleChip
           gantt={kpis?.avanceGanttPromedio ?? 0}
           indicadores={kpis?.avanceIndicadoresPromedio ?? 0}
-          presupuesto={kpis?.avancePresupuestoPromedio ?? 0}
+          solicitado={kpis?.avancePresupuestoSolicitadoPromedio ?? 0}
+          ejecutado={kpis?.avancePresupuestoEjecutadoPromedio ?? 0}
         />
         <CoordinadoresFondoChip
           coordinadores={coordinadores}
@@ -362,28 +460,67 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm">
               <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide pl-4">
-                  Proyecto
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
-                  Línea
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
-                  Sede
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide text-right">
-                  Gantt
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide text-right">
-                  Indicadores
-                </TableHead>
-                <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide text-right pr-4">
-                  Presupuesto
-                </TableHead>
+                <SortableHead
+                  label="Proyecto"
+                  sortKey="proyecto"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  className="pl-4"
+                />
+                <SortableHead
+                  label="Línea"
+                  sortKey="linea"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                />
+                <SortableHead
+                  label="Sede"
+                  sortKey="sede"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                />
+                <SortableHead
+                  label="Presupuesto adjudicado"
+                  sortKey="presupuestoAdjudicado"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="right"
+                  className="whitespace-nowrap"
+                />
+                <SortableHead
+                  label="Gantt"
+                  sortKey="gantt"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="right"
+                />
+                <SortableHead
+                  label="Indicadores"
+                  sortKey="indicadores"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="right"
+                />
+                <SortableHead
+                  label="Ppto. solicitado"
+                  sortKey="presupuestoSolicitado"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="right"
+                  className="whitespace-nowrap"
+                />
+                <SortableHead
+                  label="Ppto. ejecutado"
+                  sortKey="presupuestoEjecutado"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="right"
+                  className="pr-4 whitespace-nowrap"
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {proyectos.map((p) => (
+              {proyectosOrdenados.map((p) => (
                 <TableRow key={p.id} className="hover:bg-gray-50/50">
                   <TableCell className="pl-4 text-[13px] text-gray-800 font-medium max-w-[260px] whitespace-normal break-words">
                     {p.proyecto}
@@ -394,14 +531,29 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                   <TableCell className="text-[13px] text-gray-600">
                     {p.sede || '—'}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <PctCell value={p.avanceGantt} />
+                  <TableCell className="text-right whitespace-nowrap">
+                    <MoneyCell value={p.presupuestoAdjudicado} />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <PctCell value={p.avanceIndicadores} />
+                  <TableCell>
+                    <PctBarCell value={p.avanceGantt} barClass="bg-emerald-500" />
                   </TableCell>
-                  <TableCell className="text-right pr-4">
-                    <PctCell value={p.avancePresupuesto} />
+                  <TableCell>
+                    <PctBarCell
+                      value={p.avanceIndicadores}
+                      barClass="bg-blue-500"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <PctBarCell
+                      value={p.avancePresupuestoSolicitado}
+                      barClass="bg-amber-500"
+                    />
+                  </TableCell>
+                  <TableCell className="pr-4">
+                    <PctBarCell
+                      value={p.avancePresupuestoEjecutado}
+                      barClass="bg-orange-600"
+                    />
                   </TableCell>
                 </TableRow>
               ))}

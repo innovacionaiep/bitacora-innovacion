@@ -1,0 +1,31 @@
+@keyframes vitrina-marquee {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.vitrina-marquee-down,
+.vitrina-marquee-up {
+  animation-name: vitrina-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.vitrina-marquee-up {
+  animation-direction: reverse;
+}
+
+.vitrina-marquee-paused .vitrina-marquee-down,
+.vitrina-marquee-paused .vitrina-marquee-up {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrina-marquee-down,
+  .vitrina-marquee-up {
+    animation: none;
+  }
+}

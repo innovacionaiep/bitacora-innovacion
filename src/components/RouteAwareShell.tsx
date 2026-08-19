@@ -15,7 +15,7 @@ const AuthenticatedShell = dynamic(
 const AUTH_PREFIXES = ['/auth/login', '/auth/register', '/auth/forgot-password'];
 
 /**
- * On auth/mantenimiento routes, skip QueryProvider + ConditionalLayout + Chat
+ * On auth/mantenimiento/vitrina routes, skip QueryProvider + ConditionalLayout + Chat
  * so the login cold start does not download the authenticated shell chunk.
  * GlobalTopLoader stays mounted on all routes (incl. auth → post-login).
  */
@@ -23,7 +23,9 @@ export function RouteAwareShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLightRoute =
     AUTH_PREFIXES.some((r) => pathname.startsWith(r)) ||
-    pathname === '/mantenimiento';
+    pathname === '/mantenimiento' ||
+    pathname === '/vitrina' ||
+    pathname.startsWith('/vitrina/');
 
   return (
     <>

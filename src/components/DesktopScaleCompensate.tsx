@@ -40,10 +40,13 @@ function computeScale(viewportWidth: number): number {
 
 function boxFromViewport(width: number, height: number): ScaleBox {
   const scale = computeScale(width);
+  // ceil + 1px: Math.round puede dejar el layer más corto que el viewport, y el
+  // borde del transform se antialias contra el fondo blanco (franja de 1px bajo
+  // el sidebar). El overflow extra lo recorta overflow-hidden del contenedor.
   return {
     scale,
-    width: Math.round(width / scale),
-    height: Math.round(height / scale),
+    width: Math.ceil(width / scale) + 1,
+    height: Math.ceil(height / scale) + 1,
   };
 }
 

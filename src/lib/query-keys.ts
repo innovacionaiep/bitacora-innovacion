@@ -72,7 +72,7 @@ export function proyectoTabDataPrefetchKeys(projectId: string) {
 }
 
 export const fondoGestionKey = (fondoNombre: string) =>
-  ['fondo-gestion', fondoNombre] as const;
+  ['fondo-gestion', fondoNombre, 'v3'] as const;
 
 /** Prefixes used for per-project React Query entries (for eviction). */
 export const proyectoDetailQueryFilters = (projectId: string) =>

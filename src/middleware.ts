@@ -72,8 +72,13 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     return NextResponse.next();
   }
 
-  // Auth routes: never wait on maintenance fetch (cold start / login path)
-  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
+  // Auth + landing oculta de vitrina: públicas, sin sesión
+  if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/api/auth') ||
+    pathname === '/vitrina' ||
+    pathname.startsWith('/vitrina/')
+  ) {
     return NextResponse.next();
   }
 

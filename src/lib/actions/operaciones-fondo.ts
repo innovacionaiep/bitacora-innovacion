@@ -5,7 +5,10 @@ import { getSession } from '@/lib/auth-utils';
 import { userHasPermission } from '@/lib/permissions/check';
 import { createActivity, createTask } from '@/lib/actions/gantt';
 import { addParticipanteProyecto } from '@/lib/actions/proyectos-participantes';
-import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
+import {
+  computeAvancePresupuestoDesglose,
+  isDeltaPresupuestoItem,
+} from '@/lib/utils/presupuesto-calculos';
 
 async function assertCanManageFondos() {
   const session = await getSession();
@@ -103,11 +106,14 @@ export type FondoGestionProyecto = {
   proyecto: string;
   linea: string | null;
   sede: string;
+  presupuestoAdjudicado: number;
   avanceGantt: number;
   /** % objetivo general (promedio de OEs/indicadores), campo `objetivos`. */
   avanceIndicadores: number;
-  /** % alineado con tab Presupuesto (pctGlobalAvance). */
-  avancePresupuesto: number;
+  /** % Solicitado del tab Presupuesto (fila total, con delta). */
+  avancePresupuestoSolicitado: number;
+  /** % Ejecutado del tab Presupuesto (fila total, con delta). */
+  avancePresupuestoEjecutado: number;
   convenioFirmado: boolean;
 };
 
@@ -130,7 +136,8 @@ export type FondoGestionData = {
     total: number;
     avanceGanttPromedio: number;
     avanceIndicadoresPromedio: number;
-    avancePresupuestoPromedio: number;
+    avancePresupuestoSolicitadoPromedio: number;
+    avancePresupuestoEjecutadoPromedio: number;
     conveniosFirmados: number;
     conveniosPendientes: number;
   };
@@ -164,6 +171,7 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
         avanceGantt: true,
         objetivos: true,
         presupuestoAdjudicado: true,
+        presupuestoTotal: true,
         convenioFirmadoUrl: true,
       },
       orderBy: { proyecto: 'asc' },
@@ -205,19 +213,35 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
       itemsByProyecto.set(item.proyectoId, list);
     }
 
-    const proyectos: FondoGestionProyecto[] = rows.map((p) => ({
-      id: p.id,
-      proyecto: p.proyecto,
-      linea: p.linea,
-      sede: p.sede,
-      avanceGantt: p.avanceGantt,
-      avanceIndicadores: p.objetivos,
-      avancePresupuesto: computeAvancePresupuestoPct(
-        itemsByProyecto.get(p.id) ?? [],
-        p.presupuestoAdjudicado ?? 0
-      ),
-      convenioFirmado: Boolean(p.convenioFirmadoUrl),
-    }));
+    const proyectos: FondoGestionProyecto[] = rows.map((p) => {
+      const items = itemsByProyecto.get(p.id) ?? [];
+      const adjudicadoCampo = p.presupuestoAdjudicado ?? 0;
+      const totalDeclarado = items
+        .filter((i) => !isDeltaPresupuestoItem(i))
+        .reduce((s, i) => s + i.monto, 0);
+      const presupuestoAdjudicado =
+        adjudicadoCampo > 0
+          ? adjudicadoCampo
+          : (p.presupuestoTotal ?? 0) > 0
+            ? (p.presupuestoTotal ?? 0)
+            : totalDeclarado;
+      const avancePresupuesto = computeAvancePresupuestoDesglose(
+        items,
+        adjudicadoCampo
+      );
+      return {
+        id: p.id,
+        proyecto: p.proyecto,
+        linea: p.linea,
+        sede: p.sede,
+        presupuestoAdjudicado,
+        avanceGantt: p.avanceGantt,
+        avanceIndicadores: p.objetivos,
+        avancePresupuestoSolicitado: avancePresupuesto.solicitado,
+        avancePresupuestoEjecutado: avancePresupuesto.ejecutado,
+        convenioFirmado: Boolean(p.convenioFirmadoUrl),
+      };
+    });
 
     const total = proyectos.length;
     const byEmail = new Map<
@@ -279,7 +303,12 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
           total,
           avanceGanttPromedio: avg((p) => p.avanceGantt),
           avanceIndicadoresPromedio: avg((p) => p.avanceIndicadores),
-          avancePresupuestoPromedio: avg((p) => p.avancePresupuesto),
+          avancePresupuestoSolicitadoPromedio: avg(
+            (p) => p.avancePresupuestoSolicitado
+          ),
+          avancePresupuestoEjecutadoPromedio: avg(
+            (p) => p.avancePresupuestoEjecutado
+          ),
           conveniosFirmados,
           conveniosPendientes,
         },
