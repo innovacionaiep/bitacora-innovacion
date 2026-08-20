@@ -3,7 +3,7 @@ export const VITRINA_AI_DEFAULT_MODEL = 'openai/gpt-4o-mini';
 export const VITRINA_AI_MAX_MESSAGE_CHARS = 500;
 export const VITRINA_AI_MAX_HISTORY = 6;
 export const VITRINA_AI_MAX_TOOL_ROUNDS = 4;
-export const VITRINA_AI_MAX_TOKENS = 400;
+export const VITRINA_AI_MAX_TOKENS = 1024;
 
 export type VitrinaAiStored = {
   enc: string;

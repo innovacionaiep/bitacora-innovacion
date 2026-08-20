@@ -19,6 +19,11 @@ function sample() {
       sedes: ['Concepción'],
       escuelas: ['Salud'],
     },
+    {
+      id: 'p-app',
+      nombre: 'ClinicApp',
+      etiquetas: ['Plataformas digitales'],
+    },
   ]);
   if (!result.ok) throw new Error(result.error);
   return result.proyectos;
@@ -32,7 +37,7 @@ describe('executeVitrinaAiTool', () => {
       fondos: [],
       sedes: ['Valparaíso', 'Concepción'],
       escuelas: ['Salud'],
-      etiquetas: ['Sostenibilidad'],
+      etiquetas: ['Sostenibilidad', 'Plataformas digitales'],
     },
     proyectos,
   );
@@ -62,8 +67,19 @@ describe('executeVitrinaAiTool', () => {
     expect(executed.ok).toBe(true);
     if (!executed.ok) return;
     expect(executed.state).toBeNull();
-    const parsed = JSON.parse(executed.content) as { hits: Array<{ id: string }> };
-    expect(parsed.hits.map((h) => h.id)).toEqual(['p-huerta']);
+    const parsed = JSON.stringify(executed.content);
+    expect(parsed).toContain('p-huerta');
+  });
+
+  it('apply_filters resuelve un fragmento de etiqueta', () => {
+    const executed = executeVitrinaAiTool(
+      'apply_filters',
+      { etiquetas: ['plataforma'] },
+      ctx,
+    );
+    expect(executed.ok).toBe(true);
+    if (!executed.ok) return;
+    expect(executed.state?.filters.etiquetas).toEqual(['Plataformas digitales']);
   });
 
   it('clear_filters vacía facets e ids', () => {

@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const maxDuration = 60;
+
 export default async function VitrinaPage() {
   const [videos, proyectos, session, catalogs, aiStatus] = await Promise.all([
     readVitrinaVideos(),

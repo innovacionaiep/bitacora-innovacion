@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 import {
   buildVitrinaAiIndex,
+  resolveCatalogValues,
   searchVitrinaAiIndex,
 } from '@/lib/vitrina-ai-index';
 
@@ -71,7 +72,39 @@ describe('searchVitrinaAiIndex', () => {
     expect(hits.map((h) => h.id)).toEqual(['p-huerta']);
   });
 
+  it('encuentra "plataforma" aunque la etiqueta esté en plural', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        id: 'p-app',
+        nombre: 'ClinicApp',
+        etiquetas: ['Plataformas digitales'],
+      },
+      {
+        id: 'p-verde',
+        nombre: 'Hidrógeno verde',
+        etiquetas: ['Energías renovables'],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+    const hits = searchVitrinaAiIndex(
+      buildVitrinaAiIndex(result.proyectos),
+      'necesito ver proyectos de plataforma',
+    );
+    expect(hits.map((h) => h.id)).toEqual(['p-app']);
+  });
+
   it('no inventa proyectos si nada coincide', () => {
     expect(searchVitrinaAiIndex(index, 'astrofísica cuántica')).toEqual([]);
+  });
+});
+
+describe('resolveCatalogValues', () => {
+  it('resuelve un fragmento a la etiqueta canónica', () => {
+    expect(
+      resolveCatalogValues(
+        ['plataforma'],
+        ['Plataformas digitales', 'Sostenibilidad'],
+      ),
+    ).toEqual(['Plataformas digitales']);
   });
 });

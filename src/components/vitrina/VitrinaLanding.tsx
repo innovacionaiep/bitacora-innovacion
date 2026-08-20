@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   VITRINA_HERO,
-  VITRINA_NAV_LINKS,
   type VitrinaVideo,
 } from '@/components/vitrina/vitrina-content';
 import { VitrinaImpactPattern } from '@/components/vitrina/VitrinaImpactSketch';
@@ -262,21 +261,6 @@ export function VitrinaLanding({
           )}
           aria-hidden={headerCompact}
         >
-          <nav
-            className="hidden items-center gap-6 md:flex"
-            aria-label="Navegación de vitrina"
-          >
-            {VITRINA_NAV_LINKS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="text-sm font-medium whitespace-nowrap text-white/80"
-                tabIndex={headerCompact ? -1 : undefined}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
           <Link
             href="/auth/login"
             tabIndex={headerCompact ? -1 : undefined}

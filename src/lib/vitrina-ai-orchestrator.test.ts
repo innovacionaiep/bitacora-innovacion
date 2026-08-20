@@ -124,4 +124,73 @@ describe('runVitrinaAiOrchestrator', () => {
     });
     expect(result.ok).toBe(false);
   });
+
+  it('si el modelo niega coincidencias, igual aplica la búsqueda preliminar', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-app',
+        nombre: 'ClinicApp',
+        etiquetas: ['Plataformas digitales'],
+        descripcion: 'App clínica',
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const appCatalogs = buildVitrinaAiCatalogs(
+      {
+        fondos: [],
+        sedes: [],
+        escuelas: [],
+        etiquetas: ['Plataformas digitales'],
+      },
+      apps,
+    );
+
+    let round = 0;
+    const fetchImpl = vi.fn(async () => {
+      round += 1;
+      if (round === 1) {
+        return jsonResponse({
+          choices: [
+            {
+              finish_reason: 'tool_calls',
+              message: {
+                role: 'assistant',
+                tool_calls: [toolCall('c1', 'clear_filters', {})],
+              },
+            },
+          ],
+        });
+      }
+      return jsonResponse({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content:
+                "No se encontraron proyectos que incluyan la etiqueta 'Plataformas digitales'. Se han eliminado los filtros.",
+            },
+          },
+        ],
+      });
+    });
+
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'necesito ver proyectos de plataforma',
+      history: [],
+      proyectos: apps,
+      catalogs: appCatalogs,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(true);
+    expect(result.matchIds).toEqual(['p-app']);
+    expect(result.reply).toContain('ClinicApp');
+    expect(result.reply).not.toMatch(/no se encontraron/i);
+  });
 });

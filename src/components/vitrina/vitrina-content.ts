@@ -1,11 +1,5 @@
 /** Contenido de marketing de la landing oculta. No proviene de la BD ni de proyectos reales. */
 
-export const VITRINA_NAV_LINKS = [
-  'Ver proyectos',
-  'Cómo funciona',
-  'Novedades',
-] as const;
-
 export const VITRINA_HERO = {
   kicker: 'Dirección Nacional de Emprendimiento e I+D',
   headlineLead: 'Proyectos de impacto',

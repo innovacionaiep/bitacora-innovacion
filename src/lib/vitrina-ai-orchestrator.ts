@@ -1,5 +1,6 @@
 import {
   EMPTY_VITRINA_FILTERS,
+  vitrinaFiltersAreActive,
   type VitrinaProjectFilters,
 } from '@/lib/vitrina-project-filters';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
@@ -10,7 +11,9 @@ import {
 } from '@/lib/vitrina-ai-settings';
 import {
   buildVitrinaAiIndex,
+  searchVitrinaAiIndex,
   type VitrinaAiCatalogs,
+  type VitrinaAiIndexItem,
 } from '@/lib/vitrina-ai-index';
 import {
   executeVitrinaAiTool,
@@ -74,10 +77,64 @@ const SYSTEM_PROMPT = `Eres el asistente de la vitrina pública de Bitácora.
 Ayudas a visitantes a encontrar proyectos publicados en la vitrina (no en el resto de Bitácora).
 Reglas:
 - Usa las tools. No inventes proyectos, ids, sedes, fondos ni etiquetas.
-- Primero search_projects y/o list_catalog. Luego apply_filters o clear_filters antes de responder.
-- apply_filters debe usar nombres del catálogo (o muy cercanos) y, si la búsqueda es por descripción, también projectIds.
+- El índice y la búsqueda preliminar del sistema son la fuente de verdad: si listan coincidencias, NO digas que no hay resultados.
+- Primero search_projects si hace falta detalle. Luego apply_filters con projectIds de esas coincidencias.
+- apply_filters debe usar nombres del catálogo (o fragmentos: "plataforma" → "Plataformas digitales") y projectIds.
 - Responde en español, en 1 a 3 frases, con el recuento y por qué coinciden.
-- Si no hay coincidencias, dilo y llama clear_filters o apply_filters con projectIds vacío.`;
+- Solo llama clear_filters si el visitante pide ver todos o la búsqueda preliminar está vacía.`;
+
+function formatIndexForPrompt(index: VitrinaAiIndexItem[]): string {
+  if (index.length === 0) return 'No hay proyectos publicados en la vitrina.';
+  return index
+    .map((item) => {
+      const tags = item.etiquetas.join(', ') || '—';
+      const desc = item.descripcion.replace(/\s+/g, ' ').slice(0, 160);
+      return `- id:${item.id} | ${item.nombre} | sedes:${item.sedes.join(', ') || '—'} | etiquetas:${tags} | desc:${desc}`;
+    })
+    .join('\n');
+}
+
+export function reconcileVitrinaAiState(
+  state: VitrinaAiToolState,
+  applied: boolean,
+  fallbackIds: string[],
+): { state: VitrinaAiToolState; applied: boolean } {
+  if (fallbackIds.length === 0) {
+    return { state, applied };
+  }
+  const hasFacet = vitrinaFiltersAreActive(state.filters);
+  const ids = state.matchIds;
+  const emptyIds = ids != null && ids.length === 0;
+  const noIds = ids == null;
+  if (emptyIds || (noIds && !hasFacet)) {
+    return {
+      state: { filters: state.filters, matchIds: fallbackIds },
+      applied: true,
+    };
+  }
+  return { state, applied };
+}
+
+export function correctiveReplyIfNeeded(
+  reply: string,
+  matchIds: string[] | null,
+  index: VitrinaAiIndexItem[],
+): string {
+  if (!matchIds || matchIds.length === 0) return reply;
+  const names = index
+    .filter((item) => matchIds.includes(item.id))
+    .map((item) => item.nombre);
+  if (names.length === 0) return reply;
+  const denied =
+    /no se encontr|no hay coinciden|ningún proyecto|ningun proyecto|se han eliminado/i.test(
+      reply,
+    );
+  if (!denied) return reply;
+  if (names.length === 1) {
+    return `Encontré 1 proyecto que coincide: ${names[0]}.`;
+  }
+  return `Encontré ${names.length} proyectos que coinciden: ${names.join(', ')}.`;
+}
 
 function takeHistory(history: VitrinaAiChatTurn[]): VitrinaAiChatTurn[] {
   return history
@@ -155,6 +212,8 @@ export async function runVitrinaAiOrchestrator(
 ): Promise<VitrinaAiOrchestratorResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const index = buildVitrinaAiIndex(input.proyectos);
+  const preliminaryHits = searchVitrinaAiIndex(index, input.userMessage);
+  const fallbackIds = preliminaryHits.map((hit) => hit.id);
   const ctx = {
     index,
     catalogs: input.catalogs,
@@ -166,9 +225,25 @@ export async function runVitrinaAiOrchestrator(
     matchIds: null,
   };
   let applied = false;
+  let lastSearchIds: string[] = fallbackIds;
+
+  const preliminaryNote =
+    preliminaryHits.length > 0
+      ? `Búsqueda preliminar para este mensaje (${preliminaryHits.length}): ${preliminaryHits
+          .map((hit) => `${hit.nombre} [${hit.id}]`)
+          .join('; ')}.`
+      : 'Búsqueda preliminar: sin coincidencias de texto.';
 
   const messages: OrMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'system',
+      content: `${SYSTEM_PROMPT}
+
+Índice de la vitrina:
+${formatIndexForPrompt(index)}
+
+${preliminaryNote}`,
+    },
     ...takeHistory(input.history).map((turn) => ({
       role: turn.role,
       content: turn.content,
@@ -202,6 +277,19 @@ export async function runVitrinaAiOrchestrator(
           parseToolArgs(toolCall.function?.arguments),
           ctx,
         );
+        if (name === 'search_projects') {
+          try {
+            const parsed = JSON.parse(executed.content) as {
+              hits?: Array<{ id?: string }>;
+            };
+            const ids = (parsed.hits ?? [])
+              .map((hit) => hit.id)
+              .filter((id): id is string => Boolean(id));
+            if (ids.length > 0) lastSearchIds = ids;
+          } catch {
+            /* keep preliminary ids */
+          }
+        }
         if (executed.state) {
           state = executed.state;
           applied = true;
@@ -216,22 +304,31 @@ export async function runVitrinaAiOrchestrator(
     }
 
     const reply = call.choice.message?.content?.trim();
+    const reconciled = reconcileVitrinaAiState(state, applied, lastSearchIds);
     return {
       ok: true,
-      reply:
+      reply: correctiveReplyIfNeeded(
         reply ||
-        'Revisé los proyectos de la vitrina. Si quieres, describe un poco más lo que buscas.',
-      filters: state.filters,
-      matchIds: state.matchIds,
-      applied,
+          'Revisé los proyectos de la vitrina. Si quieres, describe un poco más lo que buscas.',
+        reconciled.state.matchIds,
+        index,
+      ),
+      filters: reconciled.state.filters,
+      matchIds: reconciled.state.matchIds,
+      applied: reconciled.applied,
     };
   }
 
+  const reconciled = reconcileVitrinaAiState(state, applied, lastSearchIds);
   return {
     ok: true,
-    reply: 'Revisé los proyectos de la vitrina y actualicé los filtros.',
-    filters: state.filters,
-    matchIds: state.matchIds,
-    applied,
+    reply: correctiveReplyIfNeeded(
+      'Revisé los proyectos de la vitrina y actualicé los filtros.',
+      reconciled.state.matchIds,
+      index,
+    ),
+    filters: reconciled.state.filters,
+    matchIds: reconciled.state.matchIds,
+    applied: reconciled.applied,
   };
 }

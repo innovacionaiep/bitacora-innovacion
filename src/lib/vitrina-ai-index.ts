@@ -34,24 +34,33 @@ export type VitrinaAiSearchHit = {
 const STOPWORDS = new Set([
   'a',
   'al',
+  'ahora',
   'busco',
   'con',
   'de',
   'del',
   'el',
   'en',
+  'incluye',
   'la',
   'las',
   'los',
+  'mostrar',
+  'necesito',
+  'otro',
+  'otra',
   'para',
   'por',
   'proyecto',
   'proyectos',
   'que',
+  'quiero',
+  'sea',
   'un',
   'una',
   'unas',
   'unos',
+  'ver',
   'y',
 ]);
 
@@ -68,6 +77,19 @@ export function tokenizeVitrinaQuery(query: string): string[] {
   const tokens = folded.split(/[^a-z0-9]+/).filter(Boolean);
   const meaningful = tokens.filter((token) => !STOPWORDS.has(token));
   return meaningful.length > 0 ? [...new Set(meaningful)] : [...new Set(tokens)];
+}
+
+function tokenMatchesWord(token: string, word: string): boolean {
+  if (!token || !word) return false;
+  if (token === word) return true;
+  if (token.length >= 4 && word.startsWith(token)) return true;
+  if (word.length >= 4 && token.startsWith(word)) return true;
+  return false;
+}
+
+function haystackMatchesToken(haystack: string, token: string): boolean {
+  const words = haystack.split(/[^a-z0-9]+/).filter(Boolean);
+  return words.some((word) => tokenMatchesWord(token, word));
 }
 
 export function buildVitrinaAiIndex(
@@ -136,7 +158,7 @@ export function searchVitrinaAiIndex(
       const haystack = foldVitrinaText(values.join(' '));
       if (!haystack) continue;
       for (const token of tokens) {
-        if (haystack.includes(token)) {
+        if (haystackMatchesToken(haystack, token)) {
           score += field === 'nombre' ? 3 : 1;
           matched.add(field);
         }
@@ -160,15 +182,37 @@ export function resolveCatalogValues(
   catalog: string[],
 ): string[] {
   if (!input || input.length === 0) return [];
-  const byFold = new Map(catalog.map((name) => [foldVitrinaText(name), name]));
+  const foldedCatalog = catalog.map((name) => ({
+    name,
+    fold: foldVitrinaText(name),
+  }));
   const out: string[] = [];
   const seen = new Set<string>();
+
+  const push = (name: string) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    out.push(name);
+  };
+
   for (const raw of input) {
     if (typeof raw !== 'string') continue;
-    const canonical = byFold.get(foldVitrinaText(raw));
-    if (!canonical || seen.has(canonical)) continue;
-    seen.add(canonical);
-    out.push(canonical);
+    const folded = foldVitrinaText(raw);
+    if (!folded) continue;
+
+    const exact = foldedCatalog.find((item) => item.fold === folded);
+    if (exact) {
+      push(exact.name);
+      continue;
+    }
+
+    if (folded.length < 4) continue;
+    const fuzzy = foldedCatalog.filter(
+      (item) =>
+        item.fold.split(/[^a-z0-9]+/).some((word) => tokenMatchesWord(folded, word)) ||
+        item.fold.includes(folded),
+    );
+    for (const item of fuzzy) push(item.name);
   }
   return out;
 }
