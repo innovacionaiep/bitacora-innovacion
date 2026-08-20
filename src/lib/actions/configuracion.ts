@@ -6,6 +6,7 @@ import {
   requireAdmin,
   requirePermission,
 } from '@/lib/authz/guards';
+import { namesToImportAgainstExisting } from '@/lib/catalog-import-names';
 
 const CONFIG_PATH = '/configuracion/validacion';
 
@@ -767,5 +768,124 @@ export async function updateLinea(
   } catch (e) {
     console.error(e);
     return { success: false, error: 'Error al actualizar línea' };
+  }
+}
+
+// ----- Etiquetas (solo vitrina; no se asignan a Proyecto de la app) -----
+export async function getEtiquetas() {
+  return prisma.etiqueta.findMany({
+    orderBy: { nombre: 'asc' },
+  });
+}
+
+export async function createEtiqueta(nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    const trimmed = nombre.trim();
+    if (!trimmed) {
+      return { success: false, error: 'El nombre es obligatorio' };
+    }
+    const duplicate = await prisma.etiqueta.findFirst({
+      where: { nombre: { equals: trimmed, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return { success: false, error: 'Ya existe una etiqueta con ese nombre' };
+    }
+    await prisma.etiqueta.create({ data: { nombre: trimmed } });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/vitrina');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al crear etiqueta' };
+  }
+}
+
+export async function updateEtiqueta(id: string, nombre: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    const trimmed = nombre.trim();
+    if (!trimmed) {
+      return { success: false, error: 'El nombre es obligatorio' };
+    }
+    const duplicate = await prisma.etiqueta.findFirst({
+      where: {
+        nombre: { equals: trimmed, mode: 'insensitive' },
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return {
+        success: false,
+        error: 'Ya existe otra etiqueta con ese nombre',
+      };
+    }
+    await prisma.etiqueta.update({
+      where: { id },
+      data: { nombre: trimmed },
+    });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/vitrina');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al actualizar etiqueta' };
+  }
+}
+
+export async function deleteEtiqueta(id: string) {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    await prisma.etiqueta.delete({ where: { id } });
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/vitrina');
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al eliminar etiqueta' };
+  }
+}
+
+/** Importa etiquetas desde nombres (xlsx). Crea las que no existan (case-insensitive). */
+export async function importEtiquetasFromNames(
+  nombres: string[]
+): Promise<{
+  success: boolean;
+  created?: number;
+  skipped?: number;
+  error?: string;
+}> {
+  const gate = await requirePermission('view.ajustes');
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    const existentes = await prisma.etiqueta.findMany({
+      select: { nombre: true },
+    });
+    const { toCreate, skipped } = namesToImportAgainstExisting(
+      nombres,
+      existentes.map((e) => e.nombre)
+    );
+    for (const nombre of toCreate) {
+      await prisma.etiqueta.create({ data: { nombre } });
+    }
+    revalidatePath(CONFIG_PATH);
+    revalidatePath('/vitrina');
+    return {
+      success: true,
+      created: toCreate.length,
+      skipped,
+    };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: 'Error al importar etiquetas' };
   }
 }

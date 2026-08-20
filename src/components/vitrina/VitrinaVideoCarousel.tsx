@@ -4,7 +4,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, X } from 'lucide-react';
 import { parseVideoUrl } from '@/lib/video-url';
-import { buildVitrinaColumnLists } from '@/lib/vitrina-marquee';
+import {
+  buildVitrinaColumnLists,
+  vitrinaMarqueeRepeats,
+} from '@/lib/vitrina-marquee';
+import { cn } from '@/lib/utils';
+import {
+  layoutScaleFromSizes,
+  unscaleRelativeRect,
+} from '@/lib/vitrina-transition';
+import { useScalePortalContainer } from '@/contexts/ScalePortalContext';
 import type { VitrinaVideo } from '@/components/vitrina/vitrina-content';
 import '@/components/vitrina/vitrina-marquee.css';
 
@@ -18,9 +27,6 @@ type CarouselItem = VitrinaVideo & {
 const COL_COUNT = 3;
 const MARQUEE_DURATION_S = 22;
 const HOVER_SCALE = 1.5;
-const CARD_GAP_PX = 28;
-const CARD_WIDTH_RATIO = 0.82;
-const MAX_REPEATS = 8;
 
 type HoverClone = {
   key: string;
@@ -65,27 +71,27 @@ function toCarouselItem(video: VitrinaVideo): CarouselItem | null {
   };
 }
 
-function repeatsForHalf(
-  viewportH: number,
-  colWidth: number,
-  itemsInCol: number,
-) {
-  const cardH = colWidth * CARD_WIDTH_RATIO * (9 / 16);
-  const setH = Math.max(itemsInCol, 1) * (cardH + CARD_GAP_PX);
-  if (setH <= 0) return 4;
-  return Math.min(MAX_REPEATS, Math.max(1, Math.ceil(viewportH / setH) + 1));
-}
-
 function Poster({ src }: { src: string | null }) {
   if (!src) {
-    return <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-slate-900" />;
+    return <div className="absolute inset-0 bg-slate-900" />;
   }
   return (
-    <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />
+    <img
+      src={src}
+      alt=""
+      decoding="async"
+      className="absolute inset-0 h-full w-full object-cover"
+    />
   );
 }
 
-export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
+export function VitrinaVideoCarousel({
+  videos,
+  live = true,
+}: {
+  videos: VitrinaVideo[];
+  live?: boolean;
+}) {
   const items = useMemo(
     () => videos.map(toCarouselItem).filter((v): v is CarouselItem => v != null),
     [videos],
@@ -94,11 +100,14 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
   const columns = useMemo(() => buildVitrinaColumnLists(items), [items]);
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  const portalContainer = useScalePortalContainer();
   const [vimeoThumbs, setVimeoThumbs] = useState<Record<string, string>>({});
   const [hover, setHover] = useState<HoverClone | null>(null);
   const [lightbox, setLightbox] = useState<CarouselItem | null>(null);
-  const [repeats, setRepeats] = useState(4);
+  const [repeats, setRepeats] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const vimeoThumbsRef = useRef(vimeoThumbs);
+  vimeoThumbsRef.current = vimeoThumbs;
 
   useEffect(() => {
     setMounted(true);
@@ -106,7 +115,7 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
 
   useEffect(() => {
     const missing = items.filter(
-      (item) => item.provider === 'vimeo' && !vimeoThumbs[item.url],
+      (item) => item.provider === 'vimeo' && !vimeoThumbsRef.current[item.url],
     );
     if (missing.length === 0) return;
 
@@ -131,7 +140,7 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
     return () => {
       cancelled = true;
     };
-  }, [items, vimeoThumbs]);
+  }, [items]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -142,7 +151,7 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
       const colW = wrap.clientWidth / COL_COUNT;
       if (h < 80 || colW < 40) return;
       const minItems = Math.max(1, ...columns.map((c) => c.length));
-      const next = repeatsForHalf(h, colW, minItems);
+      const next = vitrinaMarqueeRepeats(h, colW, minItems);
       setRepeats((prev) => (prev === next ? prev : next));
     };
 
@@ -157,13 +166,15 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
     if (!wrap) return;
     const wr = wrap.getBoundingClientRect();
     const r = el.getBoundingClientRect();
+    const scale = layoutScaleFromSizes(wr.width, wrap.offsetWidth);
+    const layout = unscaleRelativeRect(wr, r, scale);
     setHover({
       key,
       item,
-      left: r.left - wr.left,
-      top: r.top - wr.top,
-      width: r.width,
-      height: r.height,
+      left: layout.left,
+      top: layout.top,
+      width: layout.width,
+      height: layout.height,
     });
   };
 
@@ -191,6 +202,10 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox]);
 
+  useEffect(() => {
+    if (!live) setHover(null);
+  }, [live]);
+
   if (items.length === 0) {
     return (
       <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-sm text-slate-400">
@@ -199,7 +214,7 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
     );
   }
 
-  const paused = hover != null || lightbox != null;
+  const paused = !live || hover != null || lightbox != null;
   const hoverThumb = hover
     ? hover.item.thumbnailUrl ?? vimeoThumbs[hover.item.url] ?? null
     : null;
@@ -211,9 +226,11 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
   return (
     <div
       ref={wrapRef}
-      className={`relative h-[min(76vh,46rem)] w-full overflow-visible ${
-        paused ? 'vitrina-marquee-paused' : ''
-      }`}
+      className={cn(
+        'relative h-[min(76cqh,46rem)] w-full overflow-visible',
+        paused && 'vitrina-marquee-paused',
+        !live && 'vitrina-carousel-idle',
+      )}
       onMouseLeave={closeHover}
     >
       <div className="grid h-full grid-cols-3 gap-1.5 overflow-hidden">
@@ -224,7 +241,12 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
             (MARQUEE_DURATION_S * Math.max(1, colItems.length / 6) * repeats) / 2;
 
           return (
-            <div key={col} className="relative h-full overflow-hidden">
+            <div
+              key={col}
+              className={`relative h-full overflow-hidden ${
+                col === 2 ? 'pt-[5.5rem]' : ''
+              }`}
+            >
               <div
                 className={goingDown ? 'vitrina-marquee-down' : 'vitrina-marquee-up'}
                 style={{ animationDuration: `${durationS}s` }}
@@ -235,17 +257,14 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
                       colItems.map((item, i) => {
                         const key = `${col}-${copy}-${rep}-${i}-${item.url}`;
                         const thumb = item.thumbnailUrl ?? vimeoThumbs[item.url] ?? null;
-                        const isSource = hover?.key === key;
 
                         return (
                           <article
                             key={key}
-                            className={`relative mx-auto aspect-video w-[82%] overflow-hidden rounded-xl bg-slate-900 shadow-md transition-opacity duration-300 ${
-                              paused && !isSource
-                                ? 'grayscale brightness-75 opacity-45'
-                                : 'grayscale brightness-75'
-                            }`}
-                            onMouseEnter={(e) => openHover(key, item, e.currentTarget)}
+                            className="relative mx-auto aspect-video w-[82%] overflow-hidden rounded-xl bg-slate-900 shadow-md"
+                            onMouseEnter={(e) =>
+                              openHover(key, item, e.currentTarget)
+                            }
                             onClick={() => openLightbox(item)}
                           >
                             <Poster src={thumb} />
@@ -328,7 +347,7 @@ export function VitrinaVideoCarousel({ videos }: { videos: VitrinaVideo[] }) {
                 />
               </div>
             </div>,
-            document.body,
+            portalContainer ?? document.body,
           )
         : null}
     </div>

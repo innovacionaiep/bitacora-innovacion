@@ -200,6 +200,7 @@ export function TrendingSection({
       </div>
 
       <Tabs
+        id="novedades-trending"
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as TrendingTab)}
         className="w-full"

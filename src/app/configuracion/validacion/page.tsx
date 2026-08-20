@@ -22,6 +22,7 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import * as Config from '@/lib/actions/configuracion';
+import { parseCatalogNamesFromSheetRows } from '@/lib/catalog-import-names';
 import {
   Plus,
   Pencil,
@@ -39,7 +40,8 @@ type CatalogKind =
   | 'asignatura'
   | 'grupo'
   | 'fondo'
-  | 'linea';
+  | 'linea'
+  | 'etiqueta';
 
 type ValidacionTab = Exclude<CatalogKind, 'linea'>;
 
@@ -68,6 +70,9 @@ export default function ConfiguracionValidacionPage() {
   const [lineas, setLineas] = useState<
     Awaited<ReturnType<typeof Config.getLineas>>
   >([]);
+  const [etiquetas, setEtiquetas] = useState<
+    Awaited<ReturnType<typeof Config.getEtiquetas>>
+  >([]);
   const [activeTab, setActiveTab] = useState<ValidacionTab>('sede');
   const [loadedTabs, setLoadedTabs] = useState<Set<ValidacionTab>>(
     () => new Set()
@@ -94,6 +99,9 @@ export default function ConfiguracionValidacionPage() {
   const [uploadingAsignaturasXlsx, setUploadingAsignaturasXlsx] = useState(false);
   const [importAsignaturasResult, setImportAsignaturasResult] = useState<string | null>(null);
   const fileInputAsignaturasRef = useRef<HTMLInputElement>(null);
+  const [uploadingEtiquetasXlsx, setUploadingEtiquetasXlsx] = useState(false);
+  const [importEtiquetasResult, setImportEtiquetasResult] = useState<string | null>(null);
+  const fileInputEtiquetasRef = useRef<HTMLInputElement>(null);
   const [expandedFondos, setExpandedFondos] = useState<Set<string>>(new Set());
 
   const lineasByFondoId = useMemo(() => {
@@ -150,6 +158,9 @@ export default function ConfiguracionValidacionPage() {
           setExpandedFondos(new Set(f.map((fondo) => fondo.id)));
           break;
         }
+        case 'etiqueta':
+          setEtiquetas(await Config.getEtiquetas());
+          break;
       }
       setLoadedTabs((prev) => new Set(prev).add(tab));
     } catch {
@@ -285,6 +296,12 @@ export default function ConfiguracionValidacionPage() {
             formOrden
           );
         break;
+      case 'etiqueta':
+        if (sheetMode === 'add')
+          res = await Config.createEtiqueta(formNombre);
+        else if (editId)
+          res = await Config.updateEtiqueta(editId, formNombre);
+        break;
     }
     if (res.success) {
       setSheetOpen(false);
@@ -317,13 +334,7 @@ export default function ConfiguracionValidacionPage() {
         header: 1,
         defval: '',
       }) as unknown[][];
-      const isHeader =
-        rows.length > 1 &&
-        String((rows[0]?.[0] ?? '')).trim().toLowerCase() === 'nombre';
-      const dataRows = isHeader ? rows.slice(1) : rows;
-      const nombres = dataRows
-        .map((row) => String((row && row[0]) ?? '').trim())
-        .filter(Boolean);
+      const nombres = parseCatalogNamesFromSheetRows(rows);
       if (nombres.length === 0) {
         setError('No se encontraron nombres en la primera columna del archivo.');
         return;
@@ -374,13 +385,7 @@ export default function ConfiguracionValidacionPage() {
         header: 1,
         defval: '',
       }) as unknown[][];
-      const isHeader =
-        rows.length > 1 &&
-        String((rows[0]?.[0] ?? '')).trim().toLowerCase() === 'nombre';
-      const dataRows = isHeader ? rows.slice(1) : rows;
-      const nombres = dataRows
-        .map((row) => String((row && row[0]) ?? '').trim())
-        .filter(Boolean);
+      const nombres = parseCatalogNamesFromSheetRows(rows);
       if (nombres.length === 0) {
         setError('No se encontraron nombres en la primera columna del archivo.');
         return;
@@ -405,6 +410,57 @@ export default function ConfiguracionValidacionPage() {
       setError('Error al leer el archivo. Asegúrate de que sea un Excel (.xlsx) válido.');
     } finally {
       setUploadingAsignaturasXlsx(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleEtiquetasXlsxChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportEtiquetasResult(null);
+    setUploadingEtiquetasXlsx(true);
+    setError(null);
+    try {
+      const XLSX = await import('xlsx');
+      const data = new Uint8Array(await file.arrayBuffer());
+      const wb = XLSX.read(data, { type: 'array' });
+      const firstSheet = wb.SheetNames[0];
+      if (!firstSheet) {
+        setError('El archivo no contiene hojas.');
+        return;
+      }
+      const ws = wb.Sheets[firstSheet];
+      const rows = XLSX.utils.sheet_to_json(ws, {
+        header: 1,
+        defval: '',
+      }) as unknown[][];
+      const nombres = parseCatalogNamesFromSheetRows(rows);
+      if (nombres.length === 0) {
+        setError('No se encontraron nombres en la primera columna del archivo.');
+        return;
+      }
+      const res = await Config.importEtiquetasFromNames(nombres);
+      if (res.success) {
+        const created = res.created ?? 0;
+        const skipped = res.skipped ?? 0;
+        if (created > 0 || skipped > 0) {
+          setImportEtiquetasResult(
+            `Se cargaron ${created} etiqueta(s) nueva(s). ${skipped} ya existían.`
+          );
+        } else {
+          setImportEtiquetasResult('No había etiquetas nuevas que agregar.');
+        }
+        void loadCatalog('etiqueta');
+      } else {
+        setError(res.error ?? 'Error al importar');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al leer el archivo. Asegúrate de que sea un Excel (.xlsx) válido.');
+    } finally {
+      setUploadingEtiquetasXlsx(false);
       e.target.value = '';
     }
   };
@@ -435,6 +491,9 @@ export default function ConfiguracionValidacionPage() {
       case 'fondo':
         res = await Config.deleteFondo(id);
         break;
+      case 'etiqueta':
+        res = await Config.deleteEtiqueta(id);
+        break;
     }
     if (res.success) void loadCatalog(catalogTab(cat));
     else setError(res.error ?? 'Error');
@@ -452,6 +511,7 @@ export default function ConfiguracionValidacionPage() {
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
         <Tabs
+          id="validacion-catalogos"
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as ValidacionTab)}
           className="w-full"
@@ -464,6 +524,7 @@ export default function ConfiguracionValidacionPage() {
             <TabsTrigger value="asignatura">Asignaturas</TabsTrigger>
             <TabsTrigger value="grupo">Grupos de interés</TabsTrigger>
             <TabsTrigger value="fondo">Fondos</TabsTrigger>
+            <TabsTrigger value="etiqueta">Etiquetas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sede" className="mt-4">
@@ -936,6 +997,76 @@ export default function ConfiguracionValidacionPage() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="etiqueta" className="mt-4">
+            {tabContentLoading && activeTab === 'etiqueta' ? (
+              renderTabLoading()
+            ) : (
+            <>
+            <div className="flex justify-end gap-2 mb-2 flex-wrap items-center">
+              <input
+                ref={fileInputEtiquetasRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={handleEtiquetasXlsxChange}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={uploadingEtiquetasXlsx}
+                onClick={() => fileInputEtiquetasRef.current?.click()}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                {uploadingEtiquetasXlsx ? 'Cargando...' : 'Cargar xlsx'}
+              </Button>
+              <Button size="sm" onClick={() => openAdd('etiqueta')}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Estas etiquetas se usan en la landing vitrina. No se asignan a
+              los proyectos que se gestionan en la app. El Excel debe traer
+              los nombres en la primera columna (encabezado opcional:
+              Nombre o Etiqueta).
+            </p>
+            {importEtiquetasResult && (
+              <p className="text-sm text-green-600 mb-2">{importEtiquetasResult}</p>
+            )}
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="w-[120px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {etiquetas.map((tag) => (
+                  <TableRow key={tag.id}>
+                    <TableCell>{tag.nombre}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit('etiqueta', tag.id, tag)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete('etiqueta', tag.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -953,6 +1084,7 @@ export default function ConfiguracionValidacionPage() {
               {catalog === 'grupo' && 'Grupo de interés'}
               {catalog === 'fondo' && 'Fondo'}
               {catalog === 'linea' && 'Línea'}
+              {catalog === 'etiqueta' && 'Etiqueta'}
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-4 py-4">
@@ -963,7 +1095,8 @@ export default function ConfiguracionValidacionPage() {
               catalog === 'asignatura' ||
               catalog === 'grupo' ||
               catalog === 'fondo' ||
-              catalog === 'linea') && (
+              catalog === 'linea' ||
+              catalog === 'etiqueta') && (
               <div className="space-y-2">
                 <Label>Nombre</Label>
                 <Input

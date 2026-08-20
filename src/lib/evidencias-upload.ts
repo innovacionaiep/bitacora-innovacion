@@ -5,6 +5,12 @@
  * PDF: máximo 2 MB.
  */
 
+import {
+  MAX_IMAGE_BYTES,
+  compressImageToMaxKb,
+  jpegUploadName,
+} from '@/lib/compress-image';
+
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 const UPLOAD_PRESET_RAW =
@@ -17,7 +23,6 @@ const EVIDENCIAS_PRESET_IMAGE =
 const EVIDENCIAS_PRESET_RAW =
   process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS_RAW;
 const EVIDENCIAS_FOLDER = 'evidencias_actividades';
-const MAX_IMAGE_BYTES = 250 * 1024; // 250 KB
 const MAX_PDF_BYTES = 2 * 1024 * 1024; // 2 MB
 
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg'];
@@ -28,71 +33,6 @@ export interface UploadEvidenciaResult {
   publicId: string;
   tipo: 'image' | 'pdf';
   nombreArchivo?: string;
-}
-
-/**
- * Comprime una imagen a máximo 250 KB usando canvas (client-side).
- * Reduce calidad y, si hace falta, dimensiones.
- */
-async function compressImageToMaxKb(
-  file: File,
-  maxBytes: number
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = document.createElement('img');
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let width = img.naturalWidth;
-      let height = img.naturalHeight;
-      const maxSide = 1600;
-      if (width > maxSide || height > maxSide) {
-        if (width >= height) {
-          height = Math.round((height * maxSide) / width);
-          width = maxSide;
-        } else {
-          width = Math.round((width * maxSide) / height);
-          height = maxSide;
-        }
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx2 = canvas.getContext('2d');
-      if (!ctx2) {
-        reject(new Error('Canvas no disponible'));
-        return;
-      }
-      ctx2.drawImage(img, 0, 0, width, height);
-
-      let quality = 0.85;
-      const tryCompress = (): void => {
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Error al comprimir imagen'));
-              return;
-            }
-            if (blob.size <= maxBytes || quality <= 0.2) {
-              resolve(blob);
-              return;
-            }
-            quality -= 0.1;
-            tryCompress();
-          },
-          'image/jpeg',
-          quality
-        );
-      };
-      tryCompress();
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Error al cargar imagen'));
-    };
-    img.src = url;
-  });
 }
 
 /**
@@ -118,7 +58,7 @@ export async function uploadEvidenciaImage(
   }
 
   const formData = new FormData();
-  formData.append('file', blob, file.name.replace(/\.[^.]+$/, '.jpg'));
+  formData.append('file', blob, jpegUploadName(file.name));
   formData.append('upload_preset', preset);
   if (!EVIDENCIAS_PRESET_IMAGE) formData.append('folder', EVIDENCIAS_FOLDER);
 

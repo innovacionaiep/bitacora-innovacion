@@ -18,6 +18,8 @@ export const UI_BASE_SCALE = 1.1;
 
 interface DesktopScaleCompensateProps {
   children: React.ReactNode;
+  /** Densidad en DESIGN_WIDTH. Default 1.1 (app). Vitrina usa 1. */
+  baseScale?: number;
 }
 
 type ScaleBox = {
@@ -34,12 +36,16 @@ function readViewport(): { width: number; height: number } {
   };
 }
 
-function computeScale(viewportWidth: number): number {
-  return Math.max(0.01, (viewportWidth / DESIGN_WIDTH) * UI_BASE_SCALE);
+function computeScale(viewportWidth: number, baseScale: number): number {
+  return Math.max(0.01, (viewportWidth / DESIGN_WIDTH) * baseScale);
 }
 
-function boxFromViewport(width: number, height: number): ScaleBox {
-  const scale = computeScale(width);
+function boxFromViewport(
+  width: number,
+  height: number,
+  baseScale: number,
+): ScaleBox {
+  const scale = computeScale(width, baseScale);
   // ceil + 1px: Math.round puede dejar el layer más corto que el viewport, y el
   // borde del transform se antialias contra el fondo blanco (franja de 1px bajo
   // el sidebar). El overflow extra lo recorta overflow-hidden del contenedor.
@@ -50,20 +56,22 @@ function boxFromViewport(width: number, height: number): ScaleBox {
   };
 }
 
-/** Baseline idéntico en server y primer paint del cliente (sin leer window). */
-const SSR_BOX: ScaleBox = boxFromViewport(DESIGN_WIDTH, DESIGN_HEIGHT);
-
 /**
- * Escala global del shell autenticado.
+ * Escala global del shell autenticado (y de vitrina con baseScale distinto).
  *
- * - Escala = (viewportWidth / 1920) × 1.1
+ * - Escala = (viewportWidth / 1920) × baseScale (default 1.1)
  * - El contenedor interno mide viewport/scale y se transforma para llenar la pantalla.
- * - SSR + hidratación usan siempre SSR_BOX; el viewport real solo se aplica
- *   después del mount (evita mismatch en resoluciones chicas como 800×600).
+ * - SSR + hidratación usan el baseline 1920×1080 con el mismo baseScale; el
+ *   viewport real solo se aplica después del mount.
  * - `#tour-overlay-host` queda FUERA del transform para que Driver.js alinee bien.
  */
-export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps) {
-  const [box, setBox] = useState<ScaleBox>(SSR_BOX);
+export function DesktopScaleCompensate({
+  children,
+  baseScale = UI_BASE_SCALE,
+}: DesktopScaleCompensateProps) {
+  const [box, setBox] = useState<ScaleBox>(() =>
+    boxFromViewport(DESIGN_WIDTH, DESIGN_HEIGHT, baseScale),
+  );
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null
   );
@@ -71,7 +79,7 @@ export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps
   useLayoutEffect(() => {
     const sync = () => {
       const vp = readViewport();
-      setBox(boxFromViewport(vp.width, vp.height));
+      setBox(boxFromViewport(vp.width, vp.height, baseScale));
     };
     sync();
     window.addEventListener('resize', sync);
@@ -80,7 +88,7 @@ export function DesktopScaleCompensate({ children }: DesktopScaleCompensateProps
       window.removeEventListener('resize', sync);
       window.visualViewport?.removeEventListener('resize', sync);
     };
-  }, []);
+  }, [baseScale]);
 
   return (
     <ScalePortalProvider container={portalContainer}>

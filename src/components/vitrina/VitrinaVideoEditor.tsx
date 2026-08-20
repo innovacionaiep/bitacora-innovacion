@@ -25,14 +25,12 @@ export function VitrinaVideoEditor({ videos }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [urls, setUrls] = useState<string[]>(() => videos.map((v) => v.url));
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setUrls(videos.map((v) => v.url));
-      setPassword('');
       setError('');
     }
   }, [open, videos]);
@@ -52,7 +50,7 @@ export function VitrinaVideoEditor({ videos }: Props) {
   async function handleSave() {
     setError('');
     setSaving(true);
-    const result = await saveVitrinaVideos({ urls, password });
+    const result = await saveVitrinaVideos({ urls });
     setSaving(false);
     if (!result.success) {
       setError(result.error ?? 'No se pudo guardar');
@@ -74,7 +72,7 @@ export function VitrinaVideoEditor({ videos }: Props) {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90%] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>URLs de videos de la vitrina</DialogTitle>
           </DialogHeader>
@@ -117,18 +115,6 @@ export function VitrinaVideoEditor({ videos }: Props) {
                 Añadir URL
               </Button>
             ) : null}
-            <div className="space-y-1.5 pt-2">
-              <Label htmlFor="vitrina-videos-password">Contraseña</Label>
-              <Input
-                id="vitrina-videos-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Contraseña de Novedades"
-                disabled={saving}
-                autoComplete="current-password"
-              />
-            </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
           </div>
           <DialogFooter>

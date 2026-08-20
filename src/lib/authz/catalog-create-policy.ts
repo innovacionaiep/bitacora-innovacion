@@ -11,7 +11,8 @@ export type CatalogCreateKind =
   | 'escuela'
   | 'carrera'
   | 'grupo_interes'
-  | 'asignatura';
+  | 'asignatura'
+  | 'etiqueta';
 
 /** True si crear el catálogo exige view.ajustes (solo Admin). */
 export function catalogCreateRequiresAjustes(kind: CatalogCreateKind): boolean {

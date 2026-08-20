@@ -12,12 +12,14 @@ const DELETE_MS = 32;
 export function useVitrinaTypewriter(
   items: readonly VitrinaRotatingItem[],
   intervalMs = 2000,
+  paused = false,
 ) {
   const [index, setIndex] = useState(0);
   const [displayed, setDisplayed] = useState('');
   const [phase, setPhase] = useState<VitrinaTypewriterPhase>('typing');
 
   useEffect(() => {
+    if (paused) return;
     const item = items[index];
     if (!item || items.length === 0) return;
 
@@ -63,7 +65,7 @@ export function useVitrinaTypewriter(
       setDisplayed((text) => text.slice(0, -1));
     }, DELETE_MS);
     return () => window.clearTimeout(id);
-  }, [displayed, index, items, intervalMs, phase]);
+  }, [displayed, index, items, intervalMs, phase, paused]);
 
   const current = items[index];
   const progress = current

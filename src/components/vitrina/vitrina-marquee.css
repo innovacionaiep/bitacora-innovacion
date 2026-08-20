@@ -18,9 +18,21 @@
   animation-direction: reverse;
 }
 
+.vitrina-marquee-down article,
+.vitrina-marquee-up article {
+  filter: grayscale(1) brightness(0.75);
+}
+
 .vitrina-marquee-paused .vitrina-marquee-down,
 .vitrina-marquee-paused .vitrina-marquee-up {
   animation-play-state: paused;
+}
+
+.vitrina-carousel-idle {
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  contain-intrinsic-size: auto 46rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

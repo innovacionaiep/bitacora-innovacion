@@ -22,8 +22,8 @@ export type ParsedVideoUrl = {
   /** Nombre de archivo u título si se puede inferir. */
   title?: string;
   /**
-   * Microsoft SharePoint/Stream no permiten iframe (login.microsoftonline
-   * bloquea framing). Mostrar CTA para abrir en pestaña nueva.
+   * Si true, no embebible en iframe (p. ej. 1drv.ms o login de Microsoft).
+   * Stream/embed.aspx de SharePoint sí se puede iframear.
    */
   externalOnly?: boolean;
 };
@@ -149,32 +149,58 @@ function isSharePointHost(hostname: string): boolean {
   );
 }
 
+function filenameFromSharePointId(fileId: string | null): string | undefined {
+  if (!fileId) return undefined;
+  let decoded = fileId;
+  try {
+    decoded = decodeURIComponent(fileId);
+  } catch {
+    /* ya viene decodificado */
+  }
+  const base = decoded.split('/').filter(Boolean).pop();
+  return base ? base.replace(/\+/g, ' ') : undefined;
+}
+
 /**
- * SharePoint / OneDrive / Stream: se reconocen y guardan, pero no se embeben
- * en iframe. El login de Microsoft (login.microsoftonline.com) envía
- * X-Frame-Options y rechaza la conexión dentro de la app.
+ * Stream en SharePoint: stream.aspx (barra de direcciones) se convierte a
+ * embed.aspx, que sí permite iframe. 1drv.ms y otros enlaces cortos siguen
+ * como CTA externo porque el login de Microsoft bloquea framing.
  */
 function parseSharePointUrl(url: string): ParsedVideoUrl | null {
   const trimmed = url.trim();
   const urlObj = tryParseUrl(trimmed);
   if (!urlObj || !isSharePointHost(urlObj.hostname)) return null;
 
-  const path = urlObj.pathname.toLowerCase();
+  const path = urlObj.pathname;
+  const pathLower = path.toLowerCase();
   const href = urlObj.href;
+  const fileId = urlObj.searchParams.get('id');
+  const uniqueId =
+    urlObj.searchParams.get('UniqueId') || urlObj.searchParams.get('uniqueId');
+  const title = filenameFromSharePointId(fileId);
 
-  let title: string | undefined;
+  const isStreamPlayer =
+    pathLower.includes('/stream.aspx') || pathLower.includes('/videoembed.aspx');
+  const isEmbedPage = pathLower.includes('/embed.aspx');
 
-  // stream.aspx?id=/path/to/file.mp4
-  if (path.includes('stream.aspx')) {
-    const fileId = urlObj.searchParams.get('id');
-    if (fileId) {
-      const decoded = decodeURIComponent(fileId);
-      const base = decoded.split('/').filter(Boolean).pop();
-      if (base) title = base.replace(/\+/g, ' ');
-    }
+  if (isStreamPlayer || isEmbedPage) {
+    const embedPath = path
+      .replace(/stream\.aspx/i, 'embed.aspx')
+      .replace(/videoembed\.aspx/i, 'embed.aspx');
+    const embed = new URL(embedPath, urlObj.origin);
+    if (fileId) embed.searchParams.set('id', fileId);
+    if (uniqueId) embed.searchParams.set('UniqueId', uniqueId);
+    embed.searchParams.set('embed', '{"ust":true,"hv":"CopyEmbedCode"}');
+
+    return {
+      provider: 'sharepoint',
+      embedUrl: embed.href,
+      pageUrl: href,
+      title,
+      videoId: uniqueId || fileId || undefined,
+    };
   }
 
-  // Links de compartir :v: / :u: — dejar la URL original para abrir en el navegador
   return {
     provider: 'sharepoint',
     embedUrl: href,

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   Users,
   FolderKanban,
+  Handshake,
   ListChecks,
   FileCode,
   Shield,
@@ -34,6 +35,11 @@ export default async function ConfiguracionLayout({
   const navItems = [
     { href: '/configuracion/usuarios', label: 'Usuarios', icon: Users },
     { href: '/configuracion/proyectos', label: 'Proyectos', icon: FolderKanban },
+    {
+      href: '/configuracion/socios-comunitarios',
+      label: 'Socios comunitarios',
+      icon: Handshake,
+    },
     { href: '/configuracion/roles', label: 'Roles', icon: Shield },
     {
       href: '/configuracion/validacion',

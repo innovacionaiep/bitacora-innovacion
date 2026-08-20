@@ -1,20 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  getNovedadesUnlockPassword,
-  secretsMatch,
-} from '@/lib/secrets/env-secrets';
+import { requireAdmin } from '@/lib/authz/guards';
 import { normalizeVitrinaVideos } from '@/lib/vitrina-videos';
 import { writeVitrinaVideos } from '@/lib/vitrina-videos-store';
 
 export async function saveVitrinaVideos(input: {
   urls: string[];
-  password: string;
 }): Promise<{ success: boolean; error?: string }> {
-  if (!secretsMatch(input.password ?? '', getNovedadesUnlockPassword())) {
-    return { success: false, error: 'Contraseña incorrecta' };
-  }
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
 
   const normalized = normalizeVitrinaVideos(input.urls);
   if (!normalized.ok) {

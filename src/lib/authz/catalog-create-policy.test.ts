@@ -13,5 +13,6 @@ describe('catalogCreateRequiresAjustes', () => {
     expect(catalogCreateRequiresAjustes('carrera')).toBe(true);
     expect(catalogCreateRequiresAjustes('grupo_interes')).toBe(true);
     expect(catalogCreateRequiresAjustes('asignatura')).toBe(true);
+    expect(catalogCreateRequiresAjustes('etiqueta')).toBe(true);
   });
 });

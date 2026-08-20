@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   repeatingIconMaskUri,
@@ -10,17 +11,25 @@ import { useVitrinaIconSvg } from '@/hooks/useVitrinaIconSvg';
 export function VitrinaImpactPattern({
   word,
   progress,
+  frozen = false,
   className,
 }: {
   word: string;
   progress: number;
+  frozen?: boolean;
   className?: string;
 }) {
   const icon = useVitrinaIconSvg(word);
   const { color } = vitrinaImpactIcon(word);
-  if (!icon || icon.paths.length === 0) return null;
+  const mask = useMemo(
+    () =>
+      icon && icon.paths.length > 0
+        ? repeatingIconMaskUri(icon.paths, icon.viewBox)
+        : null,
+    [icon],
+  );
+  if (!icon || !mask) return null;
 
-  const mask = repeatingIconMaskUri(icon.paths, icon.viewBox);
   const maxOpacity =
     word === 'educativo' || word === 'tecnológico' ? 0.32 : 0.2;
 
@@ -42,7 +51,9 @@ export function VitrinaImpactPattern({
         maskSize: '72px 72px',
         WebkitMaskPosition: 'left top',
         maskPosition: 'left top',
-        transition: 'opacity 55ms linear, background-color 400ms ease',
+        transition: frozen
+          ? 'none'
+          : 'opacity 55ms linear, background-color 400ms ease',
       }}
     />
   );

@@ -27,3 +27,22 @@ export function buildVitrinaColumnLists<T>(items: T[]): [T[], T[], T[]] {
   const center = items.slice(leftN + rightN);
   return [left, center, right];
 }
+
+export const VITRINA_MARQUEE_MAX_REPEATS = 8;
+export const VITRINA_MARQUEE_CARD_GAP_PX = 28;
+export const VITRINA_MARQUEE_CARD_WIDTH_RATIO = 0.82;
+
+/** Copias del set por mitad de loop: las justas para cubrir el viewport. */
+export function vitrinaMarqueeRepeats(
+  viewportH: number,
+  colWidth: number,
+  itemsInCol: number,
+): number {
+  const cardH = colWidth * VITRINA_MARQUEE_CARD_WIDTH_RATIO * (9 / 16);
+  const setH = Math.max(itemsInCol, 1) * (cardH + VITRINA_MARQUEE_CARD_GAP_PX);
+  if (setH <= 0) return 1;
+  return Math.min(
+    VITRINA_MARQUEE_MAX_REPEATS,
+    Math.max(1, Math.ceil(viewportH / setH)),
+  );
+}

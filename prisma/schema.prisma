@@ -402,6 +402,14 @@ model GrupoInteres {
   @@map("grupos_interes")
 }
 
+// Etiquetas de vitrina (catálogo de marketing; no se asignan a Proyecto de la app)
+model Etiqueta {
+  id     String @id @default(cuid())
+  nombre String
+
+  @@map("etiquetas")
+}
+
 model ProyectoGrupoInteres {
   proyectoId     String @map("proyecto_id")
   grupoInteresId String @map("grupo_interes_id")
@@ -413,14 +421,16 @@ model ProyectoGrupoInteres {
   @@map("proyecto_grupos_interes")
 }
 
-// Socios Comunitarios (many-to-many, texto libre)
+// Socios Comunitarios (catálogo global, many-to-many con proyectos)
 model SocioComunitario {
-  id          String  @id @default(cuid())
-  nombre      String
-  descripcion String?
+  id             String  @id @default(cuid())
+  nombre         String
+  descripcion    String?
+  nombreContacto String? @map("nombre_contacto")
+  email          String?
 
-  proyectos           ProyectoSocioComunitario[]
-  participantes      ProyectoParticipante[]
+  proyectos      ProyectoSocioComunitario[]
+  participantes  ProyectoParticipante[]
 
   @@map("socios_comunitarios")
 }

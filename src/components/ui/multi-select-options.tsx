@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
 
 export const MULTI_SELECT_SEP = '|';
 
@@ -64,6 +65,20 @@ export function MultiSelectOptions({
     setOpen(next);
     if (!next) setSearch('');
   };
+
+  const optionsListCleanup = React.useRef<(() => void) | null>(null);
+  const setOptionsListRef = React.useCallback((node: HTMLDivElement | null) => {
+    optionsListCleanup.current?.();
+    optionsListCleanup.current = null;
+    if (node) optionsListCleanup.current = containWheelScroll(node);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      optionsListCleanup.current?.();
+      optionsListCleanup.current = null;
+    };
+  }, []);
 
   const toggle = (optionValue: string) => {
     const current = parseValues(value);
@@ -123,7 +138,10 @@ export function MultiSelectOptions({
                 </div>
               </div>
             )}
-            <div className="max-h-[280px] overflow-y-auto p-2 space-y-1">
+            <div
+              ref={setOptionsListRef}
+              className="max-h-[280px] overflow-y-auto overscroll-contain p-2 space-y-1"
+            >
               {filteredOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2 px-1">
                   Sin resultados
