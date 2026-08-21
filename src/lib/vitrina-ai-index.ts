@@ -24,6 +24,24 @@ export type VitrinaAiCatalogs = VitrinaProjectFilters & {
   socios: string[];
 };
 
+export type VitrinaAiFacetConstraints = {
+  fondos: string[];
+  sedes: string[];
+  escuelas: string[];
+  etiquetas: string[];
+  lineas: string[];
+  socios: string[];
+};
+
+export const EMPTY_VITRINA_FACET_CONSTRAINTS: VitrinaAiFacetConstraints = {
+  fondos: [],
+  sedes: [],
+  escuelas: [],
+  etiquetas: [],
+  lineas: [],
+  socios: [],
+};
+
 export type VitrinaAiSearchHit = {
   id: string;
   nombre: string;
@@ -35,12 +53,25 @@ const STOPWORDS = new Set([
   'a',
   'al',
   'ahora',
+  'alguna',
+  'algunas',
+  'alguno',
+  'algunos',
   'busco',
   'con',
+  'cuantas',
+  'cuantos',
+  'curso',
   'de',
   'del',
   'el',
   'en',
+  'es',
+  'esos',
+  'esas',
+  'estos',
+  'estas',
+  'hay',
   'incluye',
   'la',
   'las',
@@ -56,6 +87,7 @@ const STOPWORDS = new Set([
   'que',
   'quiero',
   'sea',
+  'son',
   'un',
   'una',
   'unas',
@@ -79,11 +111,21 @@ export function tokenizeVitrinaQuery(query: string): string[] {
   return meaningful.length > 0 ? [...new Set(meaningful)] : [...new Set(tokens)];
 }
 
+function sharedPrefixLength(left: string, right: string): number {
+  const max = Math.min(left.length, right.length);
+  let i = 0;
+  while (i < max && left[i] === right[i]) i += 1;
+  return i;
+}
+
 function tokenMatchesWord(token: string, word: string): boolean {
   if (!token || !word) return false;
   if (token === word) return true;
   if (token.length >= 4 && word.startsWith(token)) return true;
   if (word.length >= 4 && token.startsWith(word)) return true;
+  if (token.length >= 6 && word.length >= 6 && sharedPrefixLength(token, word) >= 6) {
+    return true;
+  }
   return false;
 }
 
@@ -108,6 +150,34 @@ export function buildVitrinaAiIndex(
     encargadoNombre: proyecto.encargadoNombre,
     encargadoCargo: proyecto.encargadoCargo,
   }));
+}
+
+export function summarizeVitrinaAiFacets(index: VitrinaAiIndexItem[]): string {
+  const fields: Array<[string, (item: VitrinaAiIndexItem) => string[]]> = [
+    ['fondos', (item) => item.fondos],
+    ['lineas', (item) => item.lineas],
+    ['sedes', (item) => item.sedes],
+    ['escuelas', (item) => item.escuelas],
+    ['socios', (item) => item.socios],
+    ['etiquetas', (item) => item.etiquetas],
+  ];
+  const parts = fields.map(([label, getValues]) => {
+    const counts = new Map<string, number>();
+    for (const item of index) {
+      for (const value of getValues(item)) {
+        const name = value.trim();
+        if (!name) continue;
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    if (counts.size === 0) return `${label}: —`;
+    const listed = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+      .map(([name, n]) => `${name} (${n})`)
+      .join(', ');
+    return `${label}: ${listed}`;
+  });
+  return `Recuentos:\n${parts.join('\n')}`;
 }
 
 export function buildVitrinaAiCatalogs(
@@ -142,28 +212,185 @@ function fieldValues(item: VitrinaAiIndexItem): Record<string, string[]> {
   };
 }
 
+export type VitrinaAiSearchScope = 'all' | 'description' | 'topic';
+
+const FACET_WORD_STOP = new Set([
+  'fondo',
+  'fondos',
+  'sede',
+  'sedes',
+  'escuela',
+  'escuelas',
+  'etiqueta',
+  'etiquetas',
+  'linea',
+  'lineas',
+  'socio',
+  'socios',
+]);
+
+const FACET_KEYS: Array<keyof VitrinaAiFacetConstraints> = [
+  'fondos',
+  'sedes',
+  'escuelas',
+  'etiquetas',
+  'lineas',
+  'socios',
+];
+
+function uniqueNames(names: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of names) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
+}
+
+export function facetConstraintsFromQuery(
+  query: string,
+  catalogs: VitrinaAiCatalogs | undefined,
+): { constraints: VitrinaAiFacetConstraints; leftover: string[] } {
+  if (!catalogs) {
+    return {
+      constraints: { ...EMPTY_VITRINA_FACET_CONSTRAINTS },
+      leftover: tokenizeVitrinaQuery(query),
+    };
+  }
+
+  const constraints: VitrinaAiFacetConstraints = {
+    fondos: [],
+    sedes: [],
+    escuelas: [],
+    etiquetas: [],
+    lineas: [],
+    socios: [],
+  };
+  const leftover: string[] = [];
+
+  for (const token of tokenizeVitrinaQuery(query)) {
+    if (FACET_WORD_STOP.has(token)) continue;
+    let matched = false;
+    for (const key of FACET_KEYS) {
+      const resolved = resolveCatalogValues([token], catalogs[key] ?? []);
+      if (resolved.length === 0) continue;
+      constraints[key].push(...resolved);
+      matched = true;
+    }
+    if (!matched) leftover.push(token);
+  }
+
+  for (const key of FACET_KEYS) {
+    constraints[key] = uniqueNames(constraints[key]);
+  }
+
+  return { constraints, leftover };
+}
+
+export function facetConstraintsAreActive(
+  constraints: VitrinaAiFacetConstraints,
+): boolean {
+  return FACET_KEYS.some((key) => constraints[key].length > 0);
+}
+
+export function itemMatchesFacetConstraints(
+  item: VitrinaAiIndexItem,
+  constraints: VitrinaAiFacetConstraints,
+): boolean {
+  const groups: Array<[string[], string[]]> = [
+    [constraints.fondos, item.fondos],
+    [constraints.sedes, item.sedes],
+    [constraints.escuelas, item.escuelas],
+    [constraints.etiquetas, item.etiquetas],
+    [constraints.lineas, item.lineas],
+    [constraints.socios, item.socios],
+  ];
+  for (const [need, have] of groups) {
+    if (need.length === 0) continue;
+    if (!need.some((name) => have.includes(name))) return false;
+  }
+  return true;
+}
+
+function fieldAllowedForScope(field: string, scope: VitrinaAiSearchScope): boolean {
+  if (scope === 'description') return field === 'descripcion';
+  if (scope === 'topic') {
+    return field === 'descripcion' || field === 'etiquetas' || field === 'nombre';
+  }
+  return true;
+}
+
 export function searchVitrinaAiIndex(
   index: VitrinaAiIndexItem[],
   query: string,
+  scope: VitrinaAiSearchScope = 'all',
+  catalogs?: VitrinaAiCatalogs,
 ): VitrinaAiSearchHit[] {
-  const tokens = tokenizeVitrinaQuery(query);
-  if (tokens.length === 0) return [];
+  const { constraints, leftover } = facetConstraintsFromQuery(query, catalogs);
+  const structural: VitrinaAiFacetConstraints =
+    scope === 'topic' || scope === 'description'
+      ? { ...constraints, etiquetas: [] }
+      : constraints;
+  const hasFacets = catalogs ? facetConstraintsAreActive(structural) : false;
+  const tokens =
+    scope === 'topic' || scope === 'description' || !catalogs
+      ? tokenizeVitrinaQuery(query)
+      : leftover;
+  if (tokens.length === 0 && !hasFacets) return [];
 
   const hits: VitrinaAiSearchHit[] = [];
   for (const item of index) {
+    if (hasFacets && !itemMatchesFacetConstraints(item, structural)) continue;
+
     const matched = new Set<string>();
     let score = 0;
-    const fields = fieldValues(item);
-    for (const [field, values] of Object.entries(fields)) {
-      const haystack = foldVitrinaText(values.join(' '));
-      if (!haystack) continue;
-      for (const token of tokens) {
-        if (haystackMatchesToken(haystack, token)) {
-          score += field === 'nombre' ? 3 : 1;
-          matched.add(field);
-        }
+    if (hasFacets) {
+      if (structural.fondos.length) {
+        score += 1;
+        matched.add('fondos');
+      }
+      if (structural.sedes.length) {
+        score += 1;
+        matched.add('sedes');
+      }
+      if (structural.escuelas.length) {
+        score += 1;
+        matched.add('escuelas');
+      }
+      if (structural.etiquetas.length) {
+        score += 1;
+        matched.add('etiquetas');
+      }
+      if (structural.lineas.length) {
+        score += 1;
+        matched.add('lineas');
+      }
+      if (structural.socios.length) {
+        score += 1;
+        matched.add('socios');
       }
     }
+
+    if (tokens.length > 0) {
+      const fields = fieldValues(item);
+      let tokenHits = 0;
+      for (const [field, values] of Object.entries(fields)) {
+        if (!fieldAllowedForScope(field, scope)) continue;
+        const haystack = foldVitrinaText(values.join(' '));
+        if (!haystack) continue;
+        for (const token of tokens) {
+          if (haystackMatchesToken(haystack, token)) {
+            score += field === 'nombre' ? 3 : 1;
+            matched.add(field);
+            tokenHits += 1;
+          }
+        }
+      }
+      if (tokenHits === 0) continue;
+    }
+
     if (score > 0) {
       hits.push({
         id: item.id,

@@ -137,6 +137,8 @@ function clientKeyFromHeaders(headerList: Headers): string {
 export async function chatVitrinaAgent(input: {
   message: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  filters?: VitrinaProjectFilters;
+  matchIds?: string[] | null;
 }): Promise<{
   success: boolean;
   reply?: string;
@@ -186,6 +188,8 @@ export async function chatVitrinaAgent(input: {
     history: Array.isArray(input.history) ? input.history : [],
     proyectos,
     catalogs: buildVitrinaAiCatalogs(filterCatalogs, proyectos),
+    currentFilters: input.filters,
+    currentMatchIds: input.matchIds,
     referer: readRequiredEnv('NEXTAUTH_URL') || undefined,
   });
 

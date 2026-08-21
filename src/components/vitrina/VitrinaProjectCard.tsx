@@ -214,7 +214,6 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
               })
             }
             className="absolute inset-0 h-full w-full"
-            maskClassName="[mask-image:linear-gradient(to_top,transparent_0%,black_28%)] [-webkit-mask-image:linear-gradient(to_top,transparent_0%,black_28%)]"
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-t from-transparent to-slate-200" />

@@ -1,7 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Send, Sparkles } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
+import { ChevronDown, Send, Sparkles } from 'lucide-react';
 import { chatVitrinaAgent } from '@/lib/actions/vitrina-ai';
 import {
   VITRINA_AI_MAX_HISTORY,
@@ -9,21 +15,51 @@ import {
 } from '@/lib/vitrina-ai-settings';
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
 import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
+import { parseVitrinaAiInlineMarkdown } from '@/lib/vitrina-ai-chat-format';
 import { cn } from '@/lib/utils';
 
 type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
+function VitrinaAiMessageBody({
+  role,
+  content,
+}: {
+  role: ChatTurn['role'];
+  content: string;
+}) {
+  if (role === 'user') return content;
+  return parseVitrinaAiInlineMarkdown(content).map((segment, index) =>
+    segment.type === 'bold' ? (
+      <strong key={index} className="font-semibold text-slate-800">
+        {segment.value}
+      </strong>
+    ) : (
+      <span key={index}>{segment.value}</span>
+    ),
+  );
+}
+
+const FLOAT_POS = 'absolute bottom-5 right-12 z-20';
+const PANEL_SHADOW =
+  'shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)]';
+
 export function VitrinaAiChat({
   configured,
+  filters,
+  matchIds,
   onResult,
 }: {
   configured: boolean;
+  filters: VitrinaProjectFilters;
+  matchIds: string[] | null;
   onResult: (filters: VitrinaProjectFilters, matchIds: string[] | null) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
   const threadCleanup = useRef<(() => void) | null>(null);
 
@@ -43,9 +79,13 @@ export function VitrinaAiChat({
 
   useEffect(() => {
     const node = threadRef.current;
-    if (!node) return;
+    if (!node || !open) return;
     node.scrollTop = node.scrollHeight;
-  }, [turns, pending]);
+  }, [turns, pending, open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -56,11 +96,18 @@ export function VitrinaAiChat({
     setDraft('');
     setError('');
     setPending(true);
+    setOpen(true);
     const history = turns.slice(-VITRINA_AI_MAX_HISTORY);
     setTurns((current) => [...current, { role: 'user', content: message }]);
 
-    const result = await chatVitrinaAgent({ message, history });
+    const result = await chatVitrinaAgent({
+      message,
+      history,
+      filters,
+      matchIds,
+    });
     setPending(false);
+    setOpen(true);
 
     if (!result.success) {
       setError(result.error ?? 'No pude consultar el asistente');
@@ -74,15 +121,60 @@ export function VitrinaAiChat({
     }
   }
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={cn(
+          FLOAT_POS,
+          PANEL_SHADOW,
+          'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-200/70',
+        )}
+        aria-expanded={false}
+        aria-controls="vitrina-ai-chat-panel"
+      >
+        <span className="inline-flex items-center gap-1">
+          <span className="text-sm font-medium text-violet-500">IA</span>
+          <Sparkles className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
+        </span>
+        {pending ? 'Buscando…' : '¿Qué andas buscando?'}
+      </button>
+    );
+  }
+
   return (
     <form
-      className="flex h-full min-h-0 flex-col border-t border-slate-200 bg-slate-100"
+      id="vitrina-ai-chat-panel"
+      className={cn(
+        FLOAT_POS,
+        PANEL_SHADOW,
+        'flex h-[36rem] w-[20.5rem] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100',
+      )}
       onSubmit={(event) => void handleSubmit(event)}
-      aria-label="Chat con I.A."
+      aria-label="Chat con IA"
     >
+      <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-3">
+        <p className="flex min-w-0 items-center gap-2 text-sm leading-snug text-slate-700">
+          <span className="inline-flex items-center gap-1">
+            <span className="font-medium text-violet-500">IA</span>
+            <Sparkles className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
+          </span>
+          ¿Qué andas buscando?
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-white hover:text-slate-800"
+          aria-label="Colapsar chat"
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
       <div
         ref={setThreadNode}
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-4"
+        className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-3"
       >
         {turns.map((turn, index) => (
           <p
@@ -94,7 +186,7 @@ export function VitrinaAiChat({
                 : 'mr-2 bg-white text-slate-700',
             )}
           >
-            {turn.content}
+            <VitrinaAiMessageBody role={turn.role} content={turn.content} />
           </p>
         ))}
         {pending ? (
@@ -104,16 +196,10 @@ export function VitrinaAiChat({
         ) : null}
       </div>
 
-      <div className="shrink-0 px-5 pb-4 pt-3">
-        <p className="flex items-start gap-2 text-sm leading-snug text-slate-700">
-          <Sparkles
-            className="mt-0.5 h-4 w-4 shrink-0 text-violet-500"
-            aria-hidden
-          />
-          ¿Qué andas buscando?
-        </p>
-        <div className="mt-3 flex items-center rounded-full border border-slate-200 bg-white px-3 py-2">
+      <div className="shrink-0 px-4 pb-4">
+        <div className="flex items-center rounded-full border border-slate-200 bg-white px-3 py-2">
           <input
+            ref={inputRef}
             type="text"
             value={draft}
             maxLength={VITRINA_AI_MAX_MESSAGE_CHARS}

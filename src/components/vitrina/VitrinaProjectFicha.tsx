@@ -604,11 +604,13 @@ export function VitrinaProjectFicha({
               onCancel={cancelEdit}
               onSave={() => void saveEdit()}
               saving={busy}
-              className="mt-auto w-full"
+              className="mt-auto mb-8 w-full"
               editButtonClassName="left-0 right-auto"
             >
               <section className="text-right">
-                <SectionLabel>Encargado</SectionLabel>
+                <SectionLabel className="justify-end normal-case">
+                  Encargado/a
+                </SectionLabel>
                 <div className="mt-1.5">
                   <p className="text-sm font-medium text-slate-900">
                     {draft.encargadoNombre.trim() || (
@@ -893,14 +895,21 @@ function CatalogField({
 function SectionLabel({
   children,
   field,
+  className,
 }: {
   children: ReactNode;
   field?: CatalogFieldKey;
+  className?: string;
 }) {
   const Icon = field ? CATALOG_ICONS[field] : null;
   const iconClass = field ? CATALOG_ICON_CLASS[field] : '';
   return (
-    <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+    <p
+      className={cn(
+        'flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase',
+        className
+      )}
+    >
       {Icon ? (
         <Icon className={`h-3.5 w-3.5 shrink-0 ${iconClass}`} aria-hidden />
       ) : null}

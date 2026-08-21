@@ -8,6 +8,7 @@ import {
   searchVitrinaAiIndex,
   type VitrinaAiCatalogs,
   type VitrinaAiIndexItem,
+  type VitrinaAiSearchScope,
 } from '@/lib/vitrina-ai-index';
 
 export type VitrinaAiToolState = {
@@ -19,6 +20,7 @@ export type VitrinaAiToolContext = {
   index: VitrinaAiIndexItem[];
   catalogs: VitrinaAiCatalogs;
   proyectos: VitrinaProyecto[];
+  searchScope?: VitrinaAiSearchScope;
 };
 
 export type VitrinaAiToolResult =
@@ -31,7 +33,7 @@ export const VITRINA_AI_TOOL_DEFINITIONS = [
     function: {
       name: 'search_projects',
       description:
-        'Busca proyectos de la vitrina por texto libre en nombre, descripción y metadata.',
+        'Busca proyectos de la vitrina por texto libre en nombre, descripción, fondos, sedes, escuelas, etiquetas y demás metadata.',
       parameters: {
         type: 'object',
         properties: {
@@ -58,7 +60,7 @@ export const VITRINA_AI_TOOL_DEFINITIONS = [
     function: {
       name: 'apply_filters',
       description:
-        'Filtra las tarjetas de la vitrina. Usa nombres canónicos o cercanos y, si hace falta, ids concretos.',
+        'Filtra las tarjetas de la vitrina solo si el visitante pide ver, mostrar o buscar esos proyectos. No la uses para preguntas de recuento. Usa nombres canónicos o cercanos y, si hace falta, ids concretos.',
       parameters: {
         type: 'object',
         properties: {
@@ -66,6 +68,8 @@ export const VITRINA_AI_TOOL_DEFINITIONS = [
           sedes: { type: 'array', items: { type: 'string' } },
           escuelas: { type: 'array', items: { type: 'string' } },
           etiquetas: { type: 'array', items: { type: 'string' } },
+          lineas: { type: 'array', items: { type: 'string' } },
+          socios: { type: 'array', items: { type: 'string' } },
           projectIds: { type: 'array', items: { type: 'string' } },
         },
       },
@@ -103,17 +107,26 @@ export function executeVitrinaAiTool(
 
   if (name === 'search_projects') {
     const query = typeof args.query === 'string' ? args.query : '';
-    const hits = searchVitrinaAiIndex(ctx.index, query).slice(0, 12);
+    const hits = searchVitrinaAiIndex(
+      ctx.index,
+      query,
+      ctx.searchScope ?? 'all',
+      ctx.catalogs,
+    ).slice(0, 12);
     return {
       ok: true,
       content: JSON.stringify({
         query,
         total: hits.length,
-        hits: hits.map((hit) => ({
-          id: hit.id,
-          nombre: hit.nombre,
-          matched: hit.matched,
-        })),
+        hits: hits.map((hit) => {
+          const item = ctx.index.find((row) => row.id === hit.id);
+          return {
+            id: hit.id,
+            nombre: hit.nombre,
+            fondos: item?.fondos ?? [],
+            matched: hit.matched,
+          };
+        }),
       }),
       state: null,
     };
@@ -152,12 +165,39 @@ export function executeVitrinaAiTool(
         ctx.catalogs.etiquetas,
       ),
     };
+    const lineas = resolveCatalogValues(
+      asStringArray(args.lineas),
+      ctx.catalogs.lineas,
+    );
+    const socios = resolveCatalogValues(
+      asStringArray(args.socios),
+      ctx.catalogs.socios,
+    );
+    let matchIds: string[] | null =
+      args.projectIds == null ? null : projectIds;
+    if (lineas.length > 0 || socios.length > 0) {
+      const extraIds = ctx.index
+        .filter((item) => {
+          const okLinea =
+            lineas.length === 0 ||
+            item.lineas.some((name) => lineas.includes(name));
+          const okSocio =
+            socios.length === 0 ||
+            item.socios.some((name) => socios.includes(name));
+          return okLinea && okSocio;
+        })
+        .map((item) => item.id);
+      matchIds =
+        matchIds == null
+          ? extraIds
+          : matchIds.filter((id) => extraIds.includes(id));
+    }
     return {
       ok: true,
-      content: JSON.stringify({ filters, projectIds }),
+      content: JSON.stringify({ filters, projectIds, lineas, socios }),
       state: {
         filters,
-        matchIds: args.projectIds == null ? null : projectIds,
+        matchIds,
       },
     };
   }

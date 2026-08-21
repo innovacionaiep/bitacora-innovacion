@@ -82,6 +82,37 @@ describe('executeVitrinaAiTool', () => {
     expect(executed.state?.filters.etiquetas).toEqual(['Plataformas digitales']);
   });
 
+  it('apply_filters recorta por línea vía matchIds sin tocar el sidebar', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        id: 'p-a',
+        nombre: 'Alpha',
+        lineas: ['Línea verde'],
+      },
+      {
+        id: 'p-b',
+        nombre: 'Beta',
+        lineas: ['Otra línea'],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+    const proyectos = result.proyectos;
+    const index = buildVitrinaAiIndex(proyectos);
+    const catalogs = buildVitrinaAiCatalogs(
+      { fondos: [], sedes: [], escuelas: [], etiquetas: [] },
+      proyectos,
+    );
+    const executed = executeVitrinaAiTool(
+      'apply_filters',
+      { lineas: ['verde'] },
+      { index, catalogs, proyectos },
+    );
+    expect(executed.ok).toBe(true);
+    if (!executed.ok) return;
+    expect(executed.state?.filters).toEqual(EMPTY_VITRINA_FILTERS);
+    expect(executed.state?.matchIds).toEqual(['p-a']);
+  });
+
   it('clear_filters vacía facets e ids', () => {
     const executed = executeVitrinaAiTool('clear_filters', {}, ctx);
     expect(executed.ok).toBe(true);

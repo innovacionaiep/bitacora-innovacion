@@ -1,16 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, GraduationCap, Landmark, MapPin, Tag, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, GraduationCap, Landmark, Mail, MapPin, Tag, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
 import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
 import {
   vitrinaAiFilterIsActive,
   vitrinaDiscoveryIsActive,
   type VitrinaProjectFilters,
 } from '@/lib/vitrina-project-filters';
+import { VITRINA_HERO } from '@/components/vitrina/vitrina-content';
 import { cn } from '@/lib/utils';
 
 type Facet = keyof VitrinaProjectFilters;
@@ -71,20 +71,18 @@ export function VitrinaProjectsSidebar({
   options,
   filters,
   matchIds,
-  aiConfigured,
   aiFilterActive,
   onToggle,
   onClear,
-  onAiResult,
+  onBack,
 }: {
   options: VitrinaProjectFilters;
   filters: VitrinaProjectFilters;
   matchIds: string[] | null;
-  aiConfigured: boolean;
   aiFilterActive: boolean;
   onToggle: (facet: Facet, value: string) => void;
   onClear: () => void;
-  onAiResult: (filters: VitrinaProjectFilters, matchIds: string[] | null) => void;
+  onBack: () => void;
 }) {
   const active = vitrinaDiscoveryIsActive(filters, matchIds);
   const showAiLabel = vitrinaAiFilterIsActive(aiFilterActive);
@@ -95,7 +93,17 @@ export function VitrinaProjectsSidebar({
       className="flex h-full min-h-0 w-64 shrink-0 flex-col bg-white shadow-[6px_0_18px_-8px_rgba(15,23,42,0.28)]"
       aria-label="Descubre proyectos"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-8">
+      <div className="shrink-0 px-5 pt-6">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-500 hover:text-slate-800"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          Volver
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-8 pt-8">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold tracking-tight text-slate-900">
@@ -103,7 +111,7 @@ export function VitrinaProjectsSidebar({
             </h2>
             {showAiLabel ? (
               <p className="mt-1 text-xs leading-snug text-violet-600">
-                Filtro inteligente aplicado (I.A)
+                Filtro inteligente aplicado (IA)
               </p>
             ) : null}
           </div>
@@ -137,9 +145,17 @@ export function VitrinaProjectsSidebar({
         );
       })}
       </div>
-
-      <div className="flex h-[42%] min-h-[14rem] shrink-0 flex-col">
-        <VitrinaAiChat configured={aiConfigured} onResult={onAiResult} />
+      <div className="shrink-0 border-t border-slate-100 px-5 pb-6 pt-4">
+        <p className="text-[10px] font-medium leading-snug text-slate-500">
+          {VITRINA_HERO.kicker}
+        </p>
+        <a
+          href="mailto:centroinnovacion@aiep.cl"
+          className="mt-2 inline-flex max-w-full items-center gap-1.5 text-[11px] text-slate-400 hover:text-violet-600"
+        >
+          <Mail className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">centroinnovacion@aiep.cl</span>
+        </a>
       </div>
     </aside>
   );

@@ -11,6 +11,7 @@ import { VitrinaProjectFicha } from '@/components/vitrina/VitrinaProjectFicha';
 import { VitrinaProjectsEditor } from '@/components/vitrina/VitrinaProjectsEditor';
 import { VitrinaProjectsGrid } from '@/components/vitrina/VitrinaProjectsGrid';
 import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSidebar';
+import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
 import { VitrinaRotatingWord } from '@/components/vitrina/VitrinaRotatingWord';
 import { VitrinaVideoCarousel } from '@/components/vitrina/VitrinaVideoCarousel';
 import { VitrinaVideoEditor } from '@/components/vitrina/VitrinaVideoEditor';
@@ -367,8 +368,8 @@ export function VitrinaLanding({
                 options={filterOptions}
                 filters={filters}
                 matchIds={aiMatchIds}
-                aiConfigured={aiConfigured}
                 aiFilterActive={aiApplied}
+                onBack={goToHero}
                 onToggle={(facet, value) => {
                   setFilters((current) => ({
                     ...current,
@@ -380,24 +381,31 @@ export function VitrinaLanding({
                   setAiMatchIds(null);
                   setAiApplied(false);
                 }}
-                onAiResult={(nextFilters, nextMatchIds) => {
-                  setFilters(nextFilters);
-                  setAiMatchIds(nextMatchIds);
-                  setAiApplied(
-                    vitrinaDiscoveryIsActive(nextFilters, nextMatchIds),
-                  );
-                }}
               />
-              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                <VitrinaProjectsGrid
-                  proyectos={proyectosFiltrados}
-                  canEdit={canEdit}
-                  emptyHint={
-                    proyectos.length > 0
-                      ? 'No hay proyectos que coincidan con los filtros.'
-                      : undefined
-                  }
-                  onOpen={(id) => setFicha(id)}
+              <div className="relative min-h-0 min-w-0 flex-1">
+                <div className="h-full min-h-0 overflow-y-auto pb-[38rem]">
+                  <VitrinaProjectsGrid
+                    proyectos={proyectosFiltrados}
+                    canEdit={canEdit}
+                    emptyHint={
+                      proyectos.length > 0
+                        ? 'No hay proyectos que coincidan con los filtros.'
+                        : undefined
+                    }
+                    onOpen={(id) => setFicha(id)}
+                  />
+                </div>
+                <VitrinaAiChat
+                  configured={aiConfigured}
+                  filters={filters}
+                  matchIds={aiMatchIds}
+                  onResult={(nextFilters, nextMatchIds) => {
+                    setFilters(nextFilters);
+                    setAiMatchIds(nextMatchIds);
+                    setAiApplied(
+                      vitrinaDiscoveryIsActive(nextFilters, nextMatchIds),
+                    );
+                  }}
                 />
               </div>
             </div>

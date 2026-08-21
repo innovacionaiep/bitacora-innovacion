@@ -11,15 +11,27 @@ import {
 } from '@/lib/vitrina-ai-settings';
 import {
   buildVitrinaAiIndex,
+  facetConstraintsAreActive,
+  facetConstraintsFromQuery,
   searchVitrinaAiIndex,
+  summarizeVitrinaAiFacets,
   type VitrinaAiCatalogs,
   type VitrinaAiIndexItem,
+  type VitrinaAiSearchHit,
+  type VitrinaAiSearchScope,
 } from '@/lib/vitrina-ai-index';
 import {
   executeVitrinaAiTool,
   VITRINA_AI_TOOL_DEFINITIONS,
   type VitrinaAiToolState,
 } from '@/lib/vitrina-ai-tools';
+import {
+  classifyVitrinaAiIntent,
+  isVitrinaAiChatMetaQuery,
+  isVitrinaAiTopicQuery,
+  vitrinaAiIntentAllowsFilters,
+  vitrinaAiQueryRefersToPrevious,
+} from '@/lib/vitrina-ai-intent';
 
 export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -35,6 +47,8 @@ export type VitrinaAiOrchestratorInput = {
   history: VitrinaAiChatTurn[];
   proyectos: VitrinaProyecto[];
   catalogs: VitrinaAiCatalogs;
+  currentFilters?: VitrinaProjectFilters;
+  currentMatchIds?: string[] | null;
   referer?: string;
   fetchImpl?: typeof fetch;
 };
@@ -77,29 +91,128 @@ const SYSTEM_PROMPT = `Eres el asistente de la vitrina pública de Bitácora.
 Ayudas a visitantes a encontrar proyectos publicados en la vitrina (no en el resto de Bitácora).
 Reglas:
 - Usa las tools. No inventes proyectos, ids, sedes, fondos ni etiquetas.
-- El índice y la búsqueda preliminar del sistema son la fuente de verdad: si listan coincidencias, NO digas que no hay resultados.
-- Primero search_projects si hace falta detalle. Luego apply_filters con projectIds de esas coincidencias.
+- El índice, los Recuentos y la búsqueda preliminar del sistema son la fuente de verdad: si listan coincidencias, NO digas que no hay resultados.
+- Los fondos van en cada línea del índice (campo fondos) y en Recuentos. Un fondo no es el nombre del proyecto: si Recuentos lista el fondo, hay proyectos de ese fondo.
+- "En curso" significa publicados ahora en esta vitrina, no el estado operativo de Bitácora.
+- Pregunta informativa (cuántos hay, qué fondos hay, cómo funciona un proyecto): responde con Recuentos/índice. NO llames apply_filters ni clear_filters.
+- Pregunta de tema (si es de electricidad, pueblos originarios, de qué trata): cuenta si la descripción O una etiqueta lo dicen de forma explícita. Prohibido inferir el tema desde escuela, fondo o sede: "Ingeniería, Energía y Tecnología" es una escuela, no el contenido del proyecto.
+- Pedido de ver/mostrar/buscar/filtrar tarjetas: primero search_projects si hace falta detalle, luego apply_filters con nombres del catálogo o projectIds.
 - apply_filters debe usar nombres del catálogo (o fragmentos: "plataforma" → "Plataformas digitales") y projectIds.
 - Responde en español, en 1 a 3 frases, con el recuento y por qué coinciden.
-- Solo llama clear_filters si el visitante pide ver todos o la búsqueda preliminar está vacía.`;
+- Solo llama clear_filters si pide ver todos.`;
 
 function formatIndexForPrompt(index: VitrinaAiIndexItem[]): string {
   if (index.length === 0) return 'No hay proyectos publicados en la vitrina.';
-  return index
+  const lines = index
     .map((item) => {
-      const tags = item.etiquetas.join(', ') || '—';
-      const desc = item.descripcion.replace(/\s+/g, ' ').slice(0, 160);
-      return `- id:${item.id} | ${item.nombre} | sedes:${item.sedes.join(', ') || '—'} | etiquetas:${tags} | desc:${desc}`;
+      const desc = item.descripcion.replace(/\s+/g, ' ').slice(0, 400);
+      return `- id:${item.id} | ${item.nombre} | fondos:${item.fondos.join(', ') || '—'} | lineas:${item.lineas.join(', ') || '—'} | sedes:${item.sedes.join(', ') || '—'} | escuelas:${item.escuelas.join(', ') || '—'} | socios:${item.socios.join(', ') || '—'} | etiquetas:${item.etiquetas.join(', ') || '—'} | encargado:${item.encargadoNombre || '—'} | desc:${desc}`;
     })
     .join('\n');
+  return `${summarizeVitrinaAiFacets(index)}\n${lines}`;
+}
+
+export function formatVitrinaAiHelpReply(): string {
+  return 'Puedo ayudarte a explorar los proyectos de esta vitrina: decirte cuántos hay de un fondo, sede o escuela, buscar un tema si aparece en la descripción o en una etiqueta, o mostrar las tarjetas si me pides verlas. ¿Qué te gustaría encontrar?';
+}
+
+export function formatVitrinaAiTopicReply(
+  hits: VitrinaAiSearchHit[],
+  index: VitrinaAiIndexItem[] = [],
+): string {
+  if (hits.length === 0) {
+    return 'No: ningún proyecto menciona ese tema de forma explícita en su descripción ni en sus etiquetas. El nombre de una escuela o fondo no implica el contenido del proyecto.';
+  }
+  const names = hits.map((hit) => hit.nombre).join(', ');
+  const first = index.find((item) => item.id === hits[0].id);
+  const how =
+    first?.descripcion.replace(/\s+/g, ' ').trim().slice(0, 220) ?? '';
+  const where =
+    hits[0].matched.includes('etiquetas') && !hits[0].matched.includes('descripcion')
+      ? 'en su etiqueta'
+      : 'en su descripción o etiqueta';
+  if (hits.length === 1) {
+    if (how) {
+      return `Sí, 1 proyecto lo menciona de forma explícita ${where}: ${names}. ${how}`;
+    }
+    return `Sí, 1 proyecto lo menciona de forma explícita ${where}: ${names}.`;
+  }
+  return `Sí, ${hits.length} proyectos lo mencionan de forma explícita en su descripción o etiqueta: ${names}.`;
+}
+
+export function formatVitrinaAiFacetReply(hits: VitrinaAiSearchHit[]): string {
+  if (hits.length === 0) {
+    return 'No hay proyectos en la vitrina que coincidan con eso.';
+  }
+  if (hits.length === 1) {
+    return `Sí, hay 1 proyecto: ${hits[0].nombre}.`;
+  }
+  return `Sí, hay ${hits.length} proyectos: ${hits.map((hit) => hit.nombre).join(', ')}.`;
+}
+
+function poolIndexForQuery(
+  index: VitrinaAiIndexItem[],
+  userMessage: string,
+  history: VitrinaAiChatTurn[],
+  catalogs: VitrinaAiCatalogs,
+  currentMatchIds: string[] | null,
+): VitrinaAiIndexItem[] {
+  if (!vitrinaAiQueryRefersToPrevious(userMessage, history.length)) return index;
+  if (currentMatchIds && currentMatchIds.length > 0) {
+    const allowed = new Set(currentMatchIds);
+    const pooled = index.filter((item) => allowed.has(item.id));
+    if (pooled.length > 0) return pooled;
+  }
+  const lastUser = [...history].reverse().find((turn) => turn.role === 'user');
+  if (!lastUser?.content.trim()) return index;
+  const previousHits = searchVitrinaAiIndex(
+    index,
+    lastUser.content,
+    'all',
+    catalogs,
+  );
+  if (previousHits.length === 0) return index;
+  const allowed = new Set(previousHits.map((hit) => hit.id));
+  return index.filter((item) => allowed.has(item.id));
+}
+
+function intentNote(
+  intent: ReturnType<typeof classifyVitrinaAiIntent>,
+  preliminaryHits: { id: string; nombre: string }[],
+): string {
+  if (intent === 'detail') {
+    return 'Esta pregunta es sobre el contenido de un proyecto ya visto: no cambies filtros.';
+  }
+  if (intent === 'ask') {
+    return 'Esta es una pregunta informativa (recuento o catálogo): responde con Recuentos/índice. NO llames apply_filters ni clear_filters.';
+  }
+  if (preliminaryHits.length > 0) {
+    return `Búsqueda preliminar para este mensaje (${preliminaryHits.length}): ${preliminaryHits
+      .map((hit) => `${hit.nombre} [${hit.id}]`)
+      .join('; ')}.`;
+  }
+  return 'Búsqueda preliminar: sin coincidencias de texto.';
+}
+
+function idsForReplyCorrection(
+  intent: ReturnType<typeof classifyVitrinaAiIntent>,
+  allowFilterChange: boolean,
+  reconciledIds: string[] | null,
+  fallbackIds: string[],
+  currentMatchIds: string[] | null,
+): string[] | null {
+  if (allowFilterChange) return reconciledIds;
+  if (intent === 'ask' && fallbackIds.length > 0) return fallbackIds;
+  return currentMatchIds;
 }
 
 export function reconcileVitrinaAiState(
   state: VitrinaAiToolState,
   applied: boolean,
   fallbackIds: string[],
+  allowFallback: boolean,
 ): { state: VitrinaAiToolState; applied: boolean } {
-  if (fallbackIds.length === 0) {
+  if (!allowFallback || fallbackIds.length === 0) {
     return { state, applied };
   }
   const hasFacet = vitrinaFiltersAreActive(state.filters);
@@ -126,7 +239,7 @@ export function correctiveReplyIfNeeded(
     .map((item) => item.nombre);
   if (names.length === 0) return reply;
   const denied =
-    /no se encontr|no hay coinciden|ningún proyecto|ningun proyecto|se han eliminado/i.test(
+    /no se encontr|no hay coinciden|no hay proyecto|ningún proyecto|ningun proyecto|se han eliminado|no aparece/i.test(
       reply,
     );
   if (!denied) return reply;
@@ -212,27 +325,92 @@ export async function runVitrinaAiOrchestrator(
 ): Promise<VitrinaAiOrchestratorResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const index = buildVitrinaAiIndex(input.proyectos);
-  const preliminaryHits = searchVitrinaAiIndex(index, input.userMessage);
+  const history = takeHistory(input.history);
+  const intent = classifyVitrinaAiIntent(
+    input.userMessage,
+    history.length,
+    input.catalogs,
+  );
+  const allowFilterChange = vitrinaAiIntentAllowsFilters(intent);
+  const isTopic = isVitrinaAiTopicQuery(input.userMessage, input.catalogs);
+  const searchScope: VitrinaAiSearchScope = isTopic ? 'topic' : 'all';
+  const currentFilters = input.currentFilters ?? EMPTY_VITRINA_FILTERS;
+  const currentMatchIds =
+    input.currentMatchIds === undefined ? null : input.currentMatchIds;
+  const pool = poolIndexForQuery(
+    index,
+    input.userMessage,
+    history,
+    input.catalogs,
+    currentMatchIds,
+  );
+  const preliminaryHits = searchVitrinaAiIndex(
+    pool,
+    input.userMessage,
+    searchScope,
+    input.catalogs,
+  );
   const fallbackIds = preliminaryHits.map((hit) => hit.id);
   const ctx = {
     index,
     catalogs: input.catalogs,
     proyectos: input.proyectos,
+    searchScope,
   };
 
+  const { leftover, constraints } = facetConstraintsFromQuery(
+    input.userMessage,
+    input.catalogs,
+  );
+  const facetAsk =
+    intent === 'ask' &&
+    !isTopic &&
+    leftover.length === 0 &&
+    facetConstraintsAreActive(constraints);
+
+  if (isVitrinaAiChatMetaQuery(input.userMessage, input.catalogs)) {
+    return {
+      ok: true,
+      reply: formatVitrinaAiHelpReply(),
+      filters: currentFilters,
+      matchIds: currentMatchIds,
+      applied: false,
+    };
+  }
+
+  if (isTopic && !allowFilterChange) {
+    return {
+      ok: true,
+      reply: formatVitrinaAiTopicReply(preliminaryHits, index),
+      filters: currentFilters,
+      matchIds: currentMatchIds,
+      applied: false,
+    };
+  }
+
+  if (facetAsk && !allowFilterChange) {
+    return {
+      ok: true,
+      reply: formatVitrinaAiFacetReply(preliminaryHits),
+      filters: currentFilters,
+      matchIds: currentMatchIds,
+      applied: false,
+    };
+  }
+
   let state: VitrinaAiToolState = {
-    filters: EMPTY_VITRINA_FILTERS,
-    matchIds: null,
+    filters: currentFilters,
+    matchIds: currentMatchIds,
   };
   let applied = false;
   let lastSearchIds: string[] = fallbackIds;
 
-  const preliminaryNote =
-    preliminaryHits.length > 0
-      ? `Búsqueda preliminar para este mensaje (${preliminaryHits.length}): ${preliminaryHits
-          .map((hit) => `${hit.nombre} [${hit.id}]`)
-          .join('; ')}.`
-      : 'Búsqueda preliminar: sin coincidencias de texto.';
+  const currentNote =
+    currentMatchIds && currentMatchIds.length > 0
+      ? `Filtro actual de tarjetas (ids): ${currentMatchIds.join(', ')}.`
+      : 'No hay recorte por ids en las tarjetas.';
+
+  const preliminaryNote = intentNote(intent, preliminaryHits);
 
   const messages: OrMessage[] = [
     {
@@ -242,9 +420,10 @@ export async function runVitrinaAiOrchestrator(
 Índice de la vitrina:
 ${formatIndexForPrompt(index)}
 
+${currentNote}
 ${preliminaryNote}`,
     },
-    ...takeHistory(input.history).map((turn) => ({
+    ...history.map((turn) => ({
       role: turn.role,
       content: turn.content,
     })),
@@ -290,7 +469,7 @@ ${preliminaryNote}`,
             /* keep preliminary ids */
           }
         }
-        if (executed.state) {
+        if (executed.state && allowFilterChange) {
           state = executed.state;
           applied = true;
         }
@@ -304,31 +483,72 @@ ${preliminaryNote}`,
     }
 
     const reply = call.choice.message?.content?.trim();
-    const reconciled = reconcileVitrinaAiState(state, applied, lastSearchIds);
+    if (intent === 'reset') {
+      return {
+        ok: true,
+        reply:
+          reply || 'Listo, quité los filtros. Ya puedes ver todos los proyectos.',
+        filters: EMPTY_VITRINA_FILTERS,
+        matchIds: null,
+        applied: true,
+      };
+    }
+    const reconciled = reconcileVitrinaAiState(
+      state,
+      applied,
+      lastSearchIds,
+      allowFilterChange,
+    );
     return {
       ok: true,
       reply: correctiveReplyIfNeeded(
         reply ||
           'Revisé los proyectos de la vitrina. Si quieres, describe un poco más lo que buscas.',
-        reconciled.state.matchIds,
+        idsForReplyCorrection(
+          intent,
+          allowFilterChange,
+          reconciled.state.matchIds,
+          fallbackIds,
+          currentMatchIds,
+        ),
         index,
       ),
-      filters: reconciled.state.filters,
-      matchIds: reconciled.state.matchIds,
-      applied: reconciled.applied,
+      filters: allowFilterChange ? reconciled.state.filters : currentFilters,
+      matchIds: allowFilterChange ? reconciled.state.matchIds : currentMatchIds,
+      applied: allowFilterChange ? reconciled.applied : false,
     };
   }
 
-  const reconciled = reconcileVitrinaAiState(state, applied, lastSearchIds);
+  if (intent === 'reset') {
+    return {
+      ok: true,
+      reply: 'Listo, quité los filtros. Ya puedes ver todos los proyectos.',
+      filters: EMPTY_VITRINA_FILTERS,
+      matchIds: null,
+      applied: true,
+    };
+  }
+  const reconciled = reconcileVitrinaAiState(
+    state,
+    applied,
+    lastSearchIds,
+    allowFilterChange,
+  );
   return {
     ok: true,
     reply: correctiveReplyIfNeeded(
       'Revisé los proyectos de la vitrina y actualicé los filtros.',
-      reconciled.state.matchIds,
+      idsForReplyCorrection(
+        intent,
+        allowFilterChange,
+        reconciled.state.matchIds,
+        fallbackIds,
+        currentMatchIds,
+      ),
       index,
     ),
-    filters: reconciled.state.filters,
-    matchIds: reconciled.state.matchIds,
-    applied: reconciled.applied,
+    filters: allowFilterChange ? reconciled.state.filters : currentFilters,
+    matchIds: allowFilterChange ? reconciled.state.matchIds : currentMatchIds,
+    applied: allowFilterChange ? reconciled.applied : false,
   };
 }
