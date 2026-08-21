@@ -77,6 +77,7 @@ export async function setSubcategoriaLineaEnabled(
     }
 
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/configuracion/lineas');
     revalidatePath('/proyectos');
     return { success: true };
   } catch (e) {

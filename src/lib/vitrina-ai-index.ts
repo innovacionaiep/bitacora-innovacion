@@ -53,6 +53,7 @@ const STOPWORDS = new Set([
   'a',
   'al',
   'ahora',
+  'algun',
   'alguna',
   'algunas',
   'alguno',
@@ -104,11 +105,58 @@ export function foldVitrinaText(value: string): string {
     .trim();
 }
 
+const TOPIC_FILLERS = new Set([
+  'aborda',
+  'abordar',
+  'abordan',
+  'acerca',
+  'como',
+  'cual',
+  'cuales',
+  'dice',
+  'dicen',
+  'forma',
+  'hace',
+  'hacen',
+  'hacer',
+  'manera',
+  'menciona',
+  'mencionan',
+  'relacionada',
+  'relacionadas',
+  'relacionado',
+  'relacionados',
+  'si',
+  'sobre',
+  'tema',
+  'trabaja',
+  'trabajan',
+  'trabajar',
+  'vinculada',
+  'vinculado',
+]);
+
+const TOKEN_ALIASES: Record<string, string[]> = {
+  abeja: ['abeja', 'abejas', 'apicola', 'apicolas', 'apicultura'],
+  abejas: ['abeja', 'abejas', 'apicola', 'apicolas', 'apicultura'],
+  apicola: ['abeja', 'abejas', 'apicola', 'apicolas', 'apicultura'],
+  apicolas: ['abeja', 'abejas', 'apicola', 'apicolas', 'apicultura'],
+  apicultura: ['abeja', 'abejas', 'apicola', 'apicolas', 'apicultura'],
+};
+
+function aliasesForToken(token: string): string[] {
+  return TOKEN_ALIASES[token] ?? [token];
+}
+
 export function tokenizeVitrinaQuery(query: string): string[] {
   const folded = foldVitrinaText(query);
   const tokens = folded.split(/[^a-z0-9]+/).filter(Boolean);
   const meaningful = tokens.filter((token) => !STOPWORDS.has(token));
   return meaningful.length > 0 ? [...new Set(meaningful)] : [...new Set(tokens)];
+}
+
+function tokenizeTopicQuery(query: string): string[] {
+  return tokenizeVitrinaQuery(query).filter((token) => !TOPIC_FILLERS.has(token));
 }
 
 function sharedPrefixLength(left: string, right: string): number {
@@ -335,9 +383,11 @@ export function searchVitrinaAiIndex(
       : constraints;
   const hasFacets = catalogs ? facetConstraintsAreActive(structural) : false;
   const tokens =
-    scope === 'topic' || scope === 'description' || !catalogs
-      ? tokenizeVitrinaQuery(query)
-      : leftover;
+    scope === 'topic' || scope === 'description'
+      ? tokenizeTopicQuery(query)
+      : catalogs
+        ? leftover
+        : tokenizeVitrinaQuery(query);
   if (tokens.length === 0 && !hasFacets) return [];
 
   const hits: VitrinaAiSearchHit[] = [];
@@ -375,19 +425,24 @@ export function searchVitrinaAiIndex(
 
     if (tokens.length > 0) {
       const fields = fieldValues(item);
+      const requireAllTokens = scope === 'topic' || scope === 'description';
+      const matchedTokens = new Set<string>();
       let tokenHits = 0;
       for (const [field, values] of Object.entries(fields)) {
         if (!fieldAllowedForScope(field, scope)) continue;
         const haystack = foldVitrinaText(values.join(' '));
         if (!haystack) continue;
         for (const token of tokens) {
-          if (haystackMatchesToken(haystack, token)) {
+          const aliases = requireAllTokens ? aliasesForToken(token) : [token];
+          if (aliases.some((alias) => haystackMatchesToken(haystack, alias))) {
             score += field === 'nombre' ? 3 : 1;
             matched.add(field);
+            matchedTokens.add(token);
             tokenHits += 1;
           }
         }
       }
+      if (requireAllTokens && matchedTokens.size < tokens.length) continue;
       if (tokenHits === 0) continue;
     }
 

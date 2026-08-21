@@ -11,6 +11,7 @@ import {
   FileSignature,
   TrendingUp,
   Wrench,
+  GitBranch,
 } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
 import { userHasPermission } from '@/lib/permissions/check';
@@ -45,6 +46,11 @@ export default async function ConfiguracionLayout({
       href: '/configuracion/validacion',
       label: 'Validación de datos',
       icon: ListChecks,
+    },
+    {
+      href: '/configuracion/lineas',
+      label: 'Líneas',
+      icon: GitBranch,
     },
     {
       href: '/configuracion/desarrollo-tecnico',

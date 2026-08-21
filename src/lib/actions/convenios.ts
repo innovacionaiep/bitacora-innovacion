@@ -12,13 +12,11 @@ import {
   DEFAULT_CONVENIO_BRUTO_URL,
 } from '@/lib/convenios-constants';
 import { createHistorialEntry } from './historial';
-
-export type FondoConvenioConfig = {
-  id: string;
-  nombre: string;
-  orden: number;
-  conveniosEnabled: boolean;
-};
+import { getLineaTabFlagsForProyecto } from '@/lib/linea-modulos-db';
+import {
+  convenioEnabledKeys,
+  proyectoAplicaConvenio,
+} from '@/lib/linea-modulos';
 
 export type ConvenioDashboardRow = {
   id: string;
@@ -135,100 +133,33 @@ export async function getConvenioBrutoMeta() {
   return { success: true as const, data: { url, filename, publicId } };
 }
 
-export async function getFondosConveniosConfig() {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autenticado', data: [] as FondoConvenioConfig[] };
-    }
-    const canAjustes = await userHasPermission(
-      user.availableRoles ?? [],
-      'view.ajustes'
-    );
-    if (!canAjustes) {
-      return { success: false, error: 'Sin permiso', data: [] as FondoConvenioConfig[] };
-    }
-    const fondos = await prisma.fondo.findMany({
-      orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
-      select: {
-        id: true,
-        nombre: true,
-        orden: true,
-        conveniosEnabled: true,
-      },
-    });
-    return { success: true, data: fondos as FondoConvenioConfig[] };
-  } catch (e) {
-    console.error('[getFondosConveniosConfig]', e);
-    return {
-      success: false,
-      error: 'Error al obtener fondos',
-      data: [] as FondoConvenioConfig[],
-    };
-  }
-}
-
-export async function setFondoConveniosEnabled(
-  fondoId: string,
-  enabled: boolean
+async function assertProyectoConvenioEnabled(
+  fondo: string,
+  linea: string | null | undefined
 ) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autenticado' };
-    }
-    const canAjustes = await userHasPermission(
-      user.availableRoles ?? [],
-      'view.ajustes'
-    );
-    if (!canAjustes) {
-      return { success: false, error: 'Sin permiso' };
-    }
-    await prisma.fondo.update({
-      where: { id: fondoId },
-      data: { conveniosEnabled: enabled },
-    });
-    revalidatePath('/configuracion/convenios');
-    revalidatePath('/proyectos');
-    revalidatePath('/dashboard');
-    return { success: true };
-  } catch (e) {
-    console.error('[setFondoConveniosEnabled]', e);
-    return { success: false, error: 'Error al actualizar fondo' };
-  }
-}
-
-/** Nombres de fondos con convenios habilitados. */
-export async function getNombresFondosConConvenios() {
-  try {
-    const fondos = await prisma.fondo.findMany({
-      where: { conveniosEnabled: true },
-      select: { nombre: true },
-    });
+  const flags = await getLineaTabFlagsForProyecto(fondo, linea);
+  if (!flags?.tabConvenioEnabled) {
     return {
-      success: true as const,
-      data: fondos.map((f) => f.nombre),
+      ok: false as const,
+      error:
+        'Los convenios no están habilitados para la línea de este proyecto',
     };
-  } catch (e) {
-    console.error('[getNombresFondosConConvenios]', e);
-    return { success: false as const, error: 'Error', data: [] as string[] };
   }
+  return { ok: true as const };
 }
 
-export async function proyectoTieneConvenios(fondoNombre: string) {
-  try {
-    if (!fondoNombre?.trim()) {
-      return { success: true as const, enabled: false };
-    }
-    const fondo = await prisma.fondo.findFirst({
-      where: { nombre: fondoNombre.trim(), conveniosEnabled: true },
-      select: { id: true },
-    });
-    return { success: true as const, enabled: Boolean(fondo) };
-  } catch (e) {
-    console.error('[proyectoTieneConvenios]', e);
-    return { success: false as const, enabled: false, error: 'Error' };
-  }
+async function loadConvenioEnabledKeys() {
+  const lineas = await prisma.linea.findMany({
+    where: { tabConvenioEnabled: true },
+    select: { nombre: true, fondo: { select: { nombre: true } } },
+  });
+  return convenioEnabledKeys(
+    lineas.map((l) => ({
+      nombre: l.nombre,
+      fondoNombre: l.fondo.nombre,
+      tabConvenioEnabled: true,
+    }))
+  );
 }
 
 export async function guardarConvenioFirmado(data: {
@@ -247,6 +178,7 @@ export async function guardarConvenioFirmado(data: {
       select: {
         id: true,
         fondo: true,
+        linea: true,
         proyecto: true,
         convenioFirmadoPublicId: true,
       },
@@ -255,15 +187,12 @@ export async function guardarConvenioFirmado(data: {
       return { success: false, error: 'Proyecto no encontrado' };
     }
 
-    const fondoOk = await prisma.fondo.findFirst({
-      where: { nombre: proyecto.fondo, conveniosEnabled: true },
-      select: { id: true },
-    });
-    if (!fondoOk) {
-      return {
-        success: false,
-        error: 'Los convenios no están habilitados para el fondo de este proyecto',
-      };
+    const lineaGate = await assertProyectoConvenioEnabled(
+      proyecto.fondo,
+      proyecto.linea
+    );
+    if (!lineaGate.ok) {
+      return { success: false, error: lineaGate.error };
     }
 
     if (
@@ -324,6 +253,7 @@ export async function eliminarConvenioFirmado(proyectoId: string) {
       select: {
         id: true,
         fondo: true,
+        linea: true,
         convenioFirmadoPublicId: true,
         convenioFirmadoNombre: true,
         convenioFirmadoUrl: true,
@@ -336,15 +266,12 @@ export async function eliminarConvenioFirmado(proyectoId: string) {
       return { success: false, error: 'No hay convenio firmado para eliminar' };
     }
 
-    const fondoOk = await prisma.fondo.findFirst({
-      where: { nombre: proyecto.fondo, conveniosEnabled: true },
-      select: { id: true },
-    });
-    if (!fondoOk) {
-      return {
-        success: false,
-        error: 'Los convenios no están habilitados para el fondo de este proyecto',
-      };
+    const lineaGate = await assertProyectoConvenioEnabled(
+      proyecto.fondo,
+      proyecto.linea
+    );
+    if (!lineaGate.ok) {
+      return { success: false, error: lineaGate.error };
     }
 
     if (proyecto.convenioFirmadoPublicId) {
@@ -400,12 +327,8 @@ export async function getConveniosDashboard() {
       };
     }
 
-    const fondosEnabled = await prisma.fondo.findMany({
-      where: { conveniosEnabled: true },
-      select: { nombre: true },
-    });
-    const nombresFondos = fondosEnabled.map((f) => f.nombre);
-    if (nombresFondos.length === 0) {
+    const keys = await loadConvenioEnabledKeys();
+    if (keys.size === 0) {
       return { success: true, data: [] as ConvenioDashboardRow[] };
     }
 
@@ -417,13 +340,13 @@ export async function getConveniosDashboard() {
 
     const proyectos = await prisma.proyecto.findMany({
       where: {
-        fondo: { in: nombresFondos },
         ...(accessible === 'all' ? {} : { id: { in: accessible } }),
       },
       select: {
         id: true,
         proyecto: true,
         fondo: true,
+        linea: true,
         convenioFirmadoUrl: true,
         convenioFirmadoNombre: true,
         convenioFirmadoAt: true,
@@ -431,15 +354,17 @@ export async function getConveniosDashboard() {
       orderBy: { proyecto: 'asc' },
     });
 
-    const data: ConvenioDashboardRow[] = proyectos.map((p) => ({
-      id: p.id,
-      proyecto: p.proyecto,
-      fondo: p.fondo,
-      firmado: Boolean(p.convenioFirmadoUrl),
-      convenioFirmadoUrl: p.convenioFirmadoUrl,
-      convenioFirmadoNombre: p.convenioFirmadoNombre,
-      convenioFirmadoAt: p.convenioFirmadoAt,
-    }));
+    const data: ConvenioDashboardRow[] = proyectos
+      .filter((p) => proyectoAplicaConvenio(p.fondo, p.linea, keys))
+      .map((p) => ({
+        id: p.id,
+        proyecto: p.proyecto,
+        fondo: p.fondo,
+        firmado: Boolean(p.convenioFirmadoUrl),
+        convenioFirmadoUrl: p.convenioFirmadoUrl,
+        convenioFirmadoNombre: p.convenioFirmadoNombre,
+        convenioFirmadoAt: p.convenioFirmadoAt,
+      }));
 
     return { success: true, data };
   } catch (e) {
@@ -485,15 +410,17 @@ export async function getConveniosPorFondo(fondoNombre: string) {
 
     const fondo = await prisma.fondo.findFirst({
       where: { nombre },
-      select: { conveniosEnabled: true },
+      select: { id: true },
     });
-    if (!fondo?.conveniosEnabled) {
+    if (!fondo) {
       return {
         success: false,
-        error: 'Este fondo no tiene convenios habilitados',
+        error: 'Fondo no encontrado',
         data: [] as ConvenioDashboardRow[],
       };
     }
+
+    const keys = await loadConvenioEnabledKeys();
 
     const accessible = await getAccessibleProyectoIds(
       user.id,
@@ -510,6 +437,7 @@ export async function getConveniosPorFondo(fondoNombre: string) {
         id: true,
         proyecto: true,
         fondo: true,
+        linea: true,
         convenioFirmadoUrl: true,
         convenioFirmadoNombre: true,
         convenioFirmadoAt: true,
@@ -517,15 +445,17 @@ export async function getConveniosPorFondo(fondoNombre: string) {
       orderBy: { proyecto: 'asc' },
     });
 
-    const data: ConvenioDashboardRow[] = proyectos.map((p) => ({
-      id: p.id,
-      proyecto: p.proyecto,
-      fondo: p.fondo,
-      firmado: Boolean(p.convenioFirmadoUrl),
-      convenioFirmadoUrl: p.convenioFirmadoUrl,
-      convenioFirmadoNombre: p.convenioFirmadoNombre,
-      convenioFirmadoAt: p.convenioFirmadoAt,
-    }));
+    const data: ConvenioDashboardRow[] = proyectos
+      .filter((p) => proyectoAplicaConvenio(p.fondo, p.linea, keys))
+      .map((p) => ({
+        id: p.id,
+        proyecto: p.proyecto,
+        fondo: p.fondo,
+        firmado: Boolean(p.convenioFirmadoUrl),
+        convenioFirmadoUrl: p.convenioFirmadoUrl,
+        convenioFirmadoNombre: p.convenioFirmadoNombre,
+        convenioFirmadoAt: p.convenioFirmadoAt,
+      }));
 
     return { success: true, data };
   } catch (e) {

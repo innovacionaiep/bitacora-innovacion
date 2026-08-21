@@ -132,7 +132,7 @@ export type ProyectoFormData = {
 
 // Payload completo del formulario "Crear proyecto" (borrador + createProyectoCompleto)
 export type ProyectoFormPayload = ProyectoFormData & {
-  /** Rol de participación del creador en este proyecto (obligatorio). */
+  /** @deprecated Ya no se pide al crear; se ignora. */
   miRolEnProyecto?:
     | 'Encargado'
     | 'Coordinador'

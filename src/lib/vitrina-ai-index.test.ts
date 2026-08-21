@@ -171,6 +171,33 @@ describe('searchVitrinaAiIndex', () => {
     expect(hits[0]?.matched).toContain('etiquetas');
   });
 
+  it('no confunde un verbo de la pregunta con el tema (abejas)', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        id: 'p-bee',
+        nombre: 'Beehappy: Reservorio Apícola Ecológico y Regenerativo',
+        descripcion: 'Reservorio apícola ecológico y regenerativo',
+        etiquetas: ['Biodiversidad', 'Medioambiente'],
+        fondos: ['Fondo Impulsa'],
+      },
+      {
+        id: 'p-fin',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion:
+          'Gestión financiera para microemprendedoras y trabajo decente con perspectiva de género',
+        etiquetas: ['Contabilidad y finanzas', 'Pymes'],
+        fondos: ['Fondo Impulsa'],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+    const hits = searchVitrinaAiIndex(
+      buildVitrinaAiIndex(result.proyectos),
+      '¿algun proyecto trabaja con abejas?',
+      'topic',
+    );
+    expect(hits.map((h) => h.id)).toEqual(['p-bee']);
+  });
+
   it('exige fondo y sede a la vez si ambos están en la consulta', () => {
     const result = normalizeVitrinaProyectos([
       {

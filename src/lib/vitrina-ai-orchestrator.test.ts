@@ -560,6 +560,48 @@ describe('runVitrinaAiOrchestrator', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('abejas no incluye un proyecto de finanzas solo porque la pregunta dice trabaja', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-bee',
+        nombre: 'Beehappy: Reservorio Apícola Ecológico y Regenerativo',
+        descripcion: 'Reservorio apícola ecológico',
+        etiquetas: ['Biodiversidad'],
+      },
+      {
+        id: 'p-fin',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion: 'App de gestión financiera y trabajo decente para microemprendedoras',
+        etiquetas: ['Contabilidad y finanzas'],
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn();
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: '¿algun proyecto trabaja con abejas?',
+      history: [],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: [],
+          sedes: [],
+          escuelas: [],
+          etiquetas: ['Biodiversidad', 'Contabilidad y finanzas'],
+        },
+        apps,
+      ),
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.reply).toMatch(/Beehappy/i);
+    expect(result.reply).not.toMatch(/Finanzas Pro-Comunales/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('un saludo no se responde como búsqueda de tema', async () => {
     const fetchImpl = vi.fn();
     const result = await runVitrinaAiOrchestrator({

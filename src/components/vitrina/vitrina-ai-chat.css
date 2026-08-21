@@ -1,0 +1,87 @@
+@property --vitrina-ai-halo-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes vitrina-ai-halo-spin {
+  to {
+    --vitrina-ai-halo-angle: 360deg;
+  }
+}
+
+@keyframes vitrina-ai-halo-breathe {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.vitrina-ai-halo {
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px rgb(196 181 253 / 0.28),
+    0 0 18px 3px rgb(167 139 250 / 0.14),
+    0 0 36px 8px rgb(139 92 246 / 0.08);
+}
+
+.vitrina-ai-halo__ring,
+.vitrina-ai-halo__glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.vitrina-ai-halo__ring {
+  inset: -2px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--vitrina-ai-halo-angle),
+    transparent 0%,
+    transparent 58%,
+    rgb(221 214 254 / 0.05) 68%,
+    rgb(196 181 253 / 0.45) 80%,
+    rgb(237 233 254 / 0.95) 88%,
+    rgb(167 139 250 / 0.85) 93%,
+    rgb(139 92 246 / 0.35) 97%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: vitrina-ai-halo-spin 7s linear infinite;
+}
+
+.vitrina-ai-halo__glow {
+  inset: -12px;
+  background: conic-gradient(
+    from var(--vitrina-ai-halo-angle),
+    transparent 0%,
+    transparent 62%,
+    rgb(196 181 253 / 0) 72%,
+    rgb(167 139 250 / 0.22) 84%,
+    rgb(221 214 254 / 0.4) 90%,
+    rgb(139 92 246 / 0.18) 96%,
+    transparent 100%
+  );
+  filter: blur(12px);
+  animation:
+    vitrina-ai-halo-spin 7s linear infinite,
+    vitrina-ai-halo-breathe 4.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrina-ai-halo__ring,
+  .vitrina-ai-halo__glow {
+    animation: none;
+  }
+
+  .vitrina-ai-halo__glow {
+    opacity: 0.5;
+  }
+}

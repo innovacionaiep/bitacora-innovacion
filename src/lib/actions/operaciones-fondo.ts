@@ -9,6 +9,7 @@ import {
   computeAvancePresupuestoDesglose,
   isDeltaPresupuestoItem,
 } from '@/lib/utils/presupuesto-calculos';
+import { convenioEnabledKeys, proyectoAplicaConvenio } from '@/lib/linea-modulos';
 
 async function assertCanManageFondos() {
   const session = await getSession();
@@ -155,11 +156,23 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
     const nombre = fondoNombre.trim();
     const fondo = await prisma.fondo.findFirst({
       where: { nombre },
-      select: { nombre: true, conveniosEnabled: true },
+      select: {
+        nombre: true,
+        lineas: { select: { nombre: true, tabConvenioEnabled: true } },
+      },
     });
     if (!fondo) {
       return { success: false, error: 'Fondo no encontrado en el catálogo' };
     }
+
+    const convenioKeys = convenioEnabledKeys(
+      fondo.lineas.map((l) => ({
+        nombre: l.nombre,
+        fondoNombre: fondo.nombre,
+        tabConvenioEnabled: l.tabConvenioEnabled,
+      }))
+    );
+    const conveniosEnabled = convenioKeys.size > 0;
 
     const rows = await prisma.proyecto.findMany({
       where: { fondo: nombre },
@@ -287,16 +300,21 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
       total === 0
         ? 0
         : Math.round(proyectos.reduce((sum, p) => sum + pick(p), 0) / total);
-    const conveniosFirmados = proyectos.filter((p) => p.convenioFirmado).length;
-    const conveniosPendientes = fondo.conveniosEnabled
-      ? total - conveniosFirmados
+    const conveniosApplicables = proyectos.filter((p) =>
+      proyectoAplicaConvenio(fondo.nombre, p.linea, convenioKeys)
+    );
+    const conveniosFirmados = conveniosApplicables.filter(
+      (p) => p.convenioFirmado
+    ).length;
+    const conveniosPendientes = conveniosEnabled
+      ? conveniosApplicables.length - conveniosFirmados
       : 0;
 
     return {
       success: true,
       data: {
         fondoNombre: fondo.nombre,
-        conveniosEnabled: fondo.conveniosEnabled,
+        conveniosEnabled,
         proyectos,
         coordinadores,
         kpis: {
@@ -740,7 +758,7 @@ export async function getFondosNavItems(): Promise<{
         id: true,
         nombre: true,
         orden: true,
-        conveniosEnabled: true,
+        lineas: { select: { tabConvenioEnabled: true } },
       },
     });
 
@@ -755,7 +773,10 @@ export async function getFondosNavItems(): Promise<{
     return {
       success: true,
       data: fondos.map((f) => ({
-        ...f,
+        id: f.id,
+        nombre: f.nombre,
+        orden: f.orden,
+        conveniosEnabled: f.lineas.some((l) => l.tabConvenioEnabled),
         projectCount: countByNombre.get(f.nombre) ?? 0,
       })),
     };

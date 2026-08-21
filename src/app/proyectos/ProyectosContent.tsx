@@ -39,7 +39,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePermissionsProvider';
 import { useProyectosParaUsuario } from '@/hooks/useProyectosParaUsuario';
 import { ProyectoWithRelations } from '@/types/proyecto';
 import type { ProyectoListadoItem } from '@/types/proyecto';
@@ -83,8 +82,11 @@ import {
 } from '@/lib/proyecto-detail-cache';
 import { getProyectoBorradores } from '@/lib/actions/borradores';
 import type { BorradorListItem } from '@/lib/actions/borradores';
-import { getNombresFondosConConvenios } from '@/lib/actions/convenios';
-import { getNombresFondosConEscalamiento } from '@/lib/actions/escalamiento';
+import { getLineasTabsCatalog } from '@/lib/actions/linea-modulos-config';
+import {
+  visibleProjectNavTabs,
+  type LineaModuloCatalogItem,
+} from '@/lib/linea-modulos';
 import { cn } from '@/lib/utils';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
 import { runWhenIdle } from '@/lib/idle-burst';
@@ -95,6 +97,7 @@ import {
 } from '@/components/proyectos/ProyectoTour';
 import { useTopLoader } from 'nextjs-toploader';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import { userHasAdminEnabled } from '@/lib/authz/pure';
 
 type ProyectoTab =
   | 'Convenio'
@@ -131,9 +134,7 @@ export function ProyectosContent({
 } = {}) {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const { can } = useActiveRolePermissions();
-  const canCreateProject = can('projects.create');
-  const canBulkCreate = can('projects.bulk_create');
+  const isAdmin = userHasAdminEnabled(session?.user?.availableRoles);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const {
     proyectos: proyectosIniciales,
@@ -183,10 +184,9 @@ export function ProyectosContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [borradores, setBorradores] = useState<BorradorListItem[]>([]);
   const [selectedTab, setSelectedTab] = useState<ProyectoTab>('General');
-  const [fondosConConvenios, setFondosConConvenios] = useState<string[]>([]);
-  const [fondosConEscalamiento, setFondosConEscalamiento] = useState<string[]>(
-    []
-  );
+  const [lineasTabsCatalog, setLineasTabsCatalog] = useState<
+    LineaModuloCatalogItem[]
+  >([]);
   const proyectoTourRef = useRef<ProyectoTourHandle>(null);
 
   // Estado para videos de YouTube por proyecto
@@ -904,14 +904,9 @@ export function ProyectosContent({
     if (loading) return;
     let cancelled = false;
     const stop = runWhenIdle(() => {
-      getNombresFondosConConvenios().then((res) => {
+      getLineasTabsCatalog().then((res) => {
         if (!cancelled && res.success) {
-          setFondosConConvenios(res.data);
-        }
-      });
-      getNombresFondosConEscalamiento().then((res) => {
-        if (!cancelled && res.success) {
-          setFondosConEscalamiento(res.data);
+          setLineasTabsCatalog(res.data);
         }
       });
     });
@@ -921,36 +916,27 @@ export function ProyectosContent({
     };
   }, [loading]);
 
-  const proyectoTieneTabConvenio = useMemo(() => {
-    if (!selectedProject?.fondo) return false;
-    return fondosConConvenios.includes(selectedProject.fondo);
-  }, [selectedProject?.fondo, fondosConConvenios]);
-
-  const proyectoTieneTabEscalamiento = useMemo(() => {
-    if (!selectedProject?.fondo) return false;
-    return fondosConEscalamiento.includes(selectedProject.fondo);
-  }, [selectedProject?.fondo, fondosConEscalamiento]);
-
   const visibleProjectTabs = useMemo(() => {
-    return PROJECT_NAV_TABS.filter((tab) => {
-      if (tab.id === 'Convenio') return proyectoTieneTabConvenio;
-      if (tab.id === 'Escalamiento') return proyectoTieneTabEscalamiento;
-      return true;
-    });
-  }, [proyectoTieneTabConvenio, proyectoTieneTabEscalamiento]);
+    return visibleProjectNavTabs(
+      PROJECT_NAV_TABS,
+      selectedProject?.fondo,
+      selectedProject?.linea,
+      lineasTabsCatalog
+    );
+  }, [selectedProject?.fondo, selectedProject?.linea, lineasTabsCatalog]);
+
+  const visibleTabIds = useMemo(
+    () => new Set(visibleProjectTabs.map((tab) => tab.id)),
+    [visibleProjectTabs]
+  );
+  const proyectoTieneTabConvenio = visibleTabIds.has('Convenio');
+  const proyectoTieneTabEscalamiento = visibleTabIds.has('Escalamiento');
 
   useEffect(() => {
-    if (selectedTab === 'Convenio' && !proyectoTieneTabConvenio) {
+    if (!visibleTabIds.has(selectedTab)) {
       setSelectedTab('General');
     }
-    if (selectedTab === 'Escalamiento' && !proyectoTieneTabEscalamiento) {
-      setSelectedTab('General');
-    }
-  }, [
-    selectedTab,
-    proyectoTieneTabConvenio,
-    proyectoTieneTabEscalamiento,
-  ]);
+  }, [selectedTab, visibleTabIds]);
 
   const generateProjectSummary = (project: ProyectoWithRelations) => {
     const summaries = {
@@ -1810,7 +1796,9 @@ export function ProyectosContent({
                   />
                 </div>
               )}
-              {selectedProject && mountedTabs.has('Participantes') && (
+              {selectedProject &&
+                visibleTabIds.has('Participantes') &&
+                mountedTabs.has('Participantes') && (
                 <div
                   className={selectedTab === 'Participantes' ? 'h-full' : 'hidden'}
                 >
@@ -1822,7 +1810,9 @@ export function ProyectosContent({
                   />
                 </div>
               )}
-              {selectedProject && mountedTabs.has('Gantt') && (
+              {selectedProject &&
+                visibleTabIds.has('Gantt') &&
+                mountedTabs.has('Gantt') && (
                 <div className={selectedTab === 'Gantt' ? 'h-full min-h-0 overflow-hidden' : 'hidden'}>
                   <GanttTab
                     project={selectedProject}
@@ -1831,7 +1821,9 @@ export function ProyectosContent({
                   />
                 </div>
               )}
-              {selectedProject && mountedTabs.has('Indicadores') && (
+              {selectedProject &&
+                visibleTabIds.has('Indicadores') &&
+                mountedTabs.has('Indicadores') && (
                 <div
                   className={
                     selectedTab === 'Indicadores'
@@ -1845,7 +1837,9 @@ export function ProyectosContent({
                   />
                 </div>
               )}
-              {selectedProject && mountedTabs.has('Presupuesto') && (
+              {selectedProject &&
+                visibleTabIds.has('Presupuesto') &&
+                mountedTabs.has('Presupuesto') && (
                 <div
                   className={selectedTab === 'Presupuesto' ? 'h-full' : 'hidden'}
                 >
@@ -1866,7 +1860,9 @@ export function ProyectosContent({
                   />
                 </div>
               )}
-              {selectedProject && mountedTabs.has('Seguimiento') && (
+              {selectedProject &&
+                visibleTabIds.has('Seguimiento') &&
+                mountedTabs.has('Seguimiento') && (
                 <div
                   className={selectedTab === 'Seguimiento' ? 'h-full' : 'hidden'}
                 >
@@ -1902,44 +1898,46 @@ export function ProyectosContent({
                   Selección de Proyectos
                 </h2>
                 <p className="mb-6 text-gray-500">
-                  Selecciona un proyecto para ver sus detalles o crea uno nuevo
+                  {isAdmin
+                    ? 'Selecciona un proyecto para ver sus detalles o crea uno nuevo'
+                    : 'Selecciona un proyecto para ver sus detalles'}
                 </p>
-                <div className="mb-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                  {canCreateProject && (
-                    <Button
-                      variant="outline"
-                      asChild
-                      className="rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
-                    >
-                      <Link
-                        href="/proyectos/nuevo"
-                        className="inline-flex items-center justify-center gap-2"
+                {isAdmin && (
+                  <>
+                    <div className="mb-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                      <Button
+                        variant="outline"
+                        asChild
+                        className="rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
                       >
-                        <Plus className="h-4 w-4" />
-                        <span>Crear proyecto</span>
-                      </Link>
-                    </Button>
-                  )}
-                  {canBulkCreate && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setBulkImportOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
-                    >
-                      <FileSpreadsheet className="h-4 w-4" />
-                      <span>Carga masiva</span>
-                    </Button>
-                  )}
-                </div>
-                <ImportExcelDialog
-                  open={bulkImportOpen}
-                  onOpenChange={setBulkImportOpen}
-                  tipo="proyectos"
-                  onSuccess={() => {
-                    void fetchProyectos();
-                  }}
-                />
+                        <Link
+                          href="/proyectos/nuevo"
+                          className="inline-flex items-center justify-center gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span>Crear proyecto</span>
+                        </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBulkImportOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        <span>Carga masiva</span>
+                      </Button>
+                    </div>
+                    <ImportExcelDialog
+                      open={bulkImportOpen}
+                      onOpenChange={setBulkImportOpen}
+                      tipo="proyectos"
+                      onSuccess={() => {
+                        void fetchProyectos();
+                      }}
+                    />
+                  </>
+                )}
               </div>
 
               <div className="relative mb-4 shrink-0">
@@ -1952,7 +1950,7 @@ export function ProyectosContent({
                 />
               </div>
 
-              {canCreateProject && borradores.length > 0 && (
+              {isAdmin && borradores.length > 0 && (
                 <div className="mt-2 shrink-0 border-t border-gray-200 pt-4 text-center lg:text-left">
                   <h3 className="mb-3 text-sm font-medium text-gray-700">
                     Borradores

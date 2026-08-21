@@ -271,9 +271,9 @@ model Fondo {
   id                String  @id @default(cuid())
   nombre            String
   orden             Int     @default(0)
-  /** Si true, proyectos de este fondo ven tab Convenio y aparecen en Dashboard → Convenios */
+  /** Deprecated: la fuente de verdad es Linea.tabConvenioEnabled. No DROP. */
   conveniosEnabled  Boolean @default(false) @map("convenios_enabled")
-  /** Si true, proyectos de este fondo ven tab Escalamiento */
+  /** Deprecated: la fuente de verdad es Linea.tabEscalamientoEnabled. No DROP. */
   escalamientoEnabled Boolean @default(false) @map("escalamiento_enabled")
   lineas            Linea[]
 
@@ -288,6 +288,14 @@ model Linea {
   fondoId String @map("fondo_id")
   fondo   Fondo  @relation(fields: [fondoId], references: [id], onDelete: Restrict)
   desarrolloTecnicoExclusiones DesarrolloTecnicoSubcategoriaLineaExcluida[]
+  /** Tabs opcionales del proyecto para esta línea (General e Historial siempre visibles). */
+  tabConvenioEnabled      Boolean @default(false) @map("tab_convenio_enabled")
+  tabParticipantesEnabled Boolean @default(true) @map("tab_participantes_enabled")
+  tabActividadesEnabled   Boolean @default(true) @map("tab_actividades_enabled")
+  tabIndicadoresEnabled   Boolean @default(true) @map("tab_indicadores_enabled")
+  tabPresupuestoEnabled   Boolean @default(true) @map("tab_presupuesto_enabled")
+  tabSeguimientoEnabled   Boolean @default(true) @map("tab_seguimiento_enabled")
+  tabEscalamientoEnabled  Boolean @default(false) @map("tab_escalamiento_enabled")
 
   @@index([fondoId])
   @@map("lineas")

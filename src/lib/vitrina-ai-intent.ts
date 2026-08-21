@@ -73,6 +73,7 @@ const DETAIL_HINTS = [
 ];
 
 const TOPIC_HINTS = [
+  'algun',
   'alguno',
   'alguna',
   'algunos',

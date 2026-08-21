@@ -10,12 +10,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { ProyectoFormPayload } from '@/types/proyecto';
 import { getProyectoBorrador, saveProyectoBorrador } from '@/lib/actions/borradores';
 import { createProyectoCompleto } from '@/lib/actions/proyectos';
 import { getEscuelas } from '@/lib/actions/proyectos';
-import { getSedes } from '@/lib/actions/configuracion';
-import { ArrowLeft, Save, Plus, Trash2, Check } from 'lucide-react';
+import { getFondos, getSedes } from '@/lib/actions/configuracion';
+import { ArrowLeft, Save, Check } from 'lucide-react';
 import {
   MultiSelectOptions,
   MULTI_SELECT_SEP,
@@ -50,44 +57,32 @@ function defaultPayload(): ProyectoFormPayload {
     comunasIds: [],
     gruposInteresIds: [],
     sociosComunitariosIds: [],
-    participantes_rel: [
-      { rol: 'Encargado', nombre: '', email: '' },
-      { rol: 'Coordinador', nombre: '', email: '' },
-    ],
+    participantes_rel: [],
   };
 }
 
 type Catalogos = {
   sedes: { id: string; nombre: string; orden: number }[];
   escuelas: { id: string; nombre: string; codigo?: string }[];
+  fondos: { id: string; nombre: string }[];
 };
 
 function canCreateProject(p: ProyectoFormPayload): boolean {
   const nombreOk = Boolean(p.proyecto?.trim());
+  const fondoOk = Boolean(p.fondo?.trim());
   const objetivoOk = Boolean(p.objetivoGeneral?.trim());
   const sedesOk = Array.isArray(p.sedesIds) && p.sedesIds.length > 0;
   const escuelasOk = Array.isArray(p.escuelasIds) && p.escuelasIds.length > 0;
-  const rolOk = Boolean(p.miRolEnProyecto);
-  return nombreOk && objetivoOk && sedesOk && escuelasOk && rolOk;
+  return nombreOk && fondoOk && objetivoOk && sedesOk && escuelasOk;
 }
 
 function NuevoProyectoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const { can, loading: permsLoading } = useActiveRolePermissions();
   const hasCreatePermission = can('projects.create');
   const draftId = searchParams.get('borrador');
-  const availableRoles = (session?.user?.availableRoles ?? []).filter(
-    (r) => r !== 'Admin'
-  ) as Array<
-    | 'Encargado'
-    | 'Coordinador'
-    | 'Colaborador'
-    | 'Docente'
-    | 'Estudiante'
-    | 'Beneficiario'
-  >;
 
   const [payload, setPayload] = useState<ProyectoFormPayload>(defaultPayload);
   const [loadingDraft, setLoadingDraft] = useState(!!draftId);
@@ -97,6 +92,7 @@ function NuevoProyectoContent() {
   const [catalogos, setCatalogos] = useState<Catalogos>({
     sedes: [],
     escuelas: [],
+    fondos: [],
   });
   const [catalogosLoaded, setCatalogosLoaded] = useState(false);
 
@@ -122,14 +118,8 @@ function NuevoProyectoContent() {
         const merged = { ...defaultPayload(), ...res.data.payload };
         if (!Array.isArray(merged.sedesIds)) merged.sedesIds = [];
         if (!Array.isArray(merged.escuelasIds)) merged.escuelasIds = [];
-        if (!merged.participantes_rel?.length)
-          merged.participantes_rel = [
-            { rol: 'Encargado', nombre: '', email: '' },
-            { rol: 'Coordinador', nombre: '', email: '' },
-          ];
-        const hasCoordinator = merged.participantes_rel.some((r) => r.rol === 'Coordinador');
-        if (!hasCoordinator)
-          merged.participantes_rel = [...merged.participantes_rel, { rol: 'Coordinador', nombre: '', email: '' }];
+        merged.participantes_rel = [];
+        merged.miRolEnProyecto = undefined;
         setPayload(merged);
       }
     });
@@ -137,13 +127,16 @@ function NuevoProyectoContent() {
 
   useEffect(() => {
     if (catalogosLoaded) return;
-    Promise.all([getEscuelas(), getSedes()]).then(([e, sedes]) => {
-      setCatalogos({
-        escuelas: e.success ? (e.data ?? []) : [],
-        sedes: sedes ?? [],
-      });
-      setCatalogosLoaded(true);
-    });
+    Promise.all([getEscuelas(), getSedes(), getFondos()]).then(
+      ([e, sedes, fondos]) => {
+        setCatalogos({
+          escuelas: e.success ? (e.data ?? []) : [],
+          sedes: sedes ?? [],
+          fondos: fondos ?? [],
+        });
+        setCatalogosLoaded(true);
+      }
+    );
   }, [catalogosLoaded]);
 
   const update = useCallback(
@@ -159,7 +152,11 @@ function NuevoProyectoContent() {
     const res = await saveProyectoBorrador({
       ...(draftId ? { id: draftId } : {}),
       nombre,
-      payload,
+      payload: {
+        ...payload,
+        participantes_rel: [],
+        miRolEnProyecto: undefined,
+      },
     });
     setSavingDraft(false);
     if (res.success && res.data?.id && !draftId) {
@@ -174,13 +171,11 @@ function NuevoProyectoContent() {
       .filter((s) => (payload.sedesIds ?? []).includes(s.id))
       .map((s) => s.nombre)
       .join(', ');
-    const participantesCompletos = (payload.participantes_rel ?? []).filter(
-      (p) => Boolean(p.nombre?.trim()) && Boolean(p.email?.trim())
-    );
     const payloadToSend = {
       ...payload,
       sede: sedeNombres,
-      participantes_rel: participantesCompletos,
+      participantes_rel: [],
+      miRolEnProyecto: undefined,
     };
     const res = await createProyectoCompleto(payloadToSend);
     setCreating(false);
@@ -202,71 +197,6 @@ function NuevoProyectoContent() {
     value: e.id,
     label: e.nombre,
   }));
-
-  const encargados = payload.participantes_rel?.filter((r) => r.rol === 'Encargado') ?? [];
-  const coordinadores = payload.participantes_rel?.filter((r) => r.rol === 'Coordinador') ?? [];
-
-  const addEncargado = () => {
-    update('participantes_rel', [
-      ...(payload.participantes_rel ?? []),
-      { rol: 'Encargado' as const, nombre: '', email: '' },
-    ]);
-  };
-
-  const setEncargado = (index: number, field: 'nombre' | 'email', value: string) => {
-    const rel = [...(payload.participantes_rel ?? [])];
-    let encIdx = 0;
-    for (let i = 0; i < rel.length; i++) {
-      if (rel[i].rol === 'Encargado') {
-        if (encIdx === index) {
-          rel[i] = { ...rel[i], [field]: value };
-          update('participantes_rel', rel);
-          return;
-        }
-        encIdx++;
-      }
-    }
-  };
-
-  const removeEncargado = (index: number) => {
-    const newRel = payload.participantes_rel!.filter((r, i) => {
-      if (r.rol !== 'Encargado') return true;
-      const encIdx = payload.participantes_rel!.slice(0, i).filter((x) => x.rol === 'Encargado').length;
-      return encIdx !== index;
-    });
-    update('participantes_rel', newRel);
-  };
-
-  const addCoordinator = () => {
-    update('participantes_rel', [
-      ...(payload.participantes_rel ?? []),
-      { rol: 'Coordinador' as const, nombre: '', email: '' },
-    ]);
-  };
-
-  const setCoordinator = (index: number, field: 'nombre' | 'email', value: string) => {
-    const rel = [...(payload.participantes_rel ?? [])];
-    let coordIdx = 0;
-    for (let i = 0; i < rel.length; i++) {
-      if (rel[i].rol === 'Coordinador') {
-        if (coordIdx === index) {
-          rel[i] = { ...rel[i], [field]: value };
-          update('participantes_rel', rel);
-          return;
-        }
-        coordIdx++;
-      }
-    }
-  };
-
-  const removeCoordinator = (index: number) => {
-    const newRel = payload.participantes_rel!.filter((r, i) => {
-      if (r.rol !== 'Coordinador') return true;
-      const coordIdx = payload.participantes_rel!.slice(0, i).filter((x) => x.rol === 'Coordinador').length;
-      return coordIdx !== index;
-    });
-    update('participantes_rel', newRel);
-  };
 
   if (loadingDraft) {
     return <div className="h-full min-h-[200px]" />;
@@ -300,35 +230,11 @@ function NuevoProyectoContent() {
           <CardHeader>
             <CardTitle>Datos básicos del proyecto</CardTitle>
             <p className="text-sm text-gray-500 font-normal">
-              Completa los campos obligatorios. El resto podrás agregarlo después en la página del proyecto.
+              Completa los campos obligatorios. Encargados y coordinadores se
+              asignan después en la página del proyecto.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="miRolEnProyecto">Mi rol en este proyecto *</Label>
-              <select
-                id="miRolEnProyecto"
-                className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={payload.miRolEnProyecto ?? ''}
-                onChange={(e) =>
-                  update(
-                    'miRolEnProyecto',
-                    (e.target.value || undefined) as ProyectoFormPayload['miRolEnProyecto']
-                  )
-                }
-              >
-                <option value="">Selecciona un rol</option>
-                {availableRoles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                Solo puedes elegir entre tus roles habilitados. En este proyecto
-                actuarás únicamente con este rol.
-              </p>
-            </div>
             <div>
               <Label htmlFor="proyecto">Nombre del proyecto *</Label>
               <Input
@@ -338,6 +244,32 @@ function NuevoProyectoContent() {
                 placeholder="Ej: Mi Proyecto"
                 className="mt-1"
               />
+            </div>
+            <div>
+              <Label htmlFor="fondo">Fondo *</Label>
+              <Select
+                value={payload.fondo || undefined}
+                onValueChange={(value) => update('fondo', value)}
+              >
+                <SelectTrigger id="fondo" className="mt-1">
+                  <SelectValue placeholder="Selecciona el fondo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {catalogos.fondos.length === 0 ? (
+                    <SelectItem value="__empty" disabled>
+                      {catalogosLoaded
+                        ? 'No hay fondos configurados'
+                        : 'Cargando opciones…'}
+                    </SelectItem>
+                  ) : (
+                    catalogos.fondos.map((f) => (
+                      <SelectItem key={f.id} value={f.nombre}>
+                        {f.nombre}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="objetivoGeneral">Objetivo general *</Label>
@@ -368,84 +300,6 @@ function NuevoProyectoContent() {
                 placeholder="Selecciona una o más escuelas"
                 className="mt-1"
               />
-            </div>
-            <div>
-              <Label>Encargados (opcional)</Label>
-              <p className="text-sm text-gray-500 mb-2">
-                Puedes indicar nombre y correo ahora, o asignarlos después en el
-                proyecto.
-              </p>
-              <div className="space-y-3">
-                {encargados.map((enc, idx) => (
-                  <div key={idx} className="flex gap-2 items-start flex-wrap">
-                    <Input
-                      value={enc.nombre ?? ''}
-                      onChange={(e) => setEncargado(idx, 'nombre', e.target.value)}
-                      placeholder="Nombre"
-                      className="flex-1 min-w-[140px]"
-                    />
-                    <Input
-                      type="email"
-                      value={enc.email ?? ''}
-                      onChange={(e) => setEncargado(idx, 'email', e.target.value)}
-                      placeholder="Correo electrónico"
-                      className="flex-1 min-w-[180px]"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeEncargado(idx)}
-                      title="Quitar encargado"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addEncargado}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Agregar encargado
-                </Button>
-              </div>
-            </div>
-            <div>
-              <Label>Coordinadores (opcional)</Label>
-              <p className="text-sm text-gray-500 mb-2">
-                Opcional. Si creas el proyecto con rol de coordinador, aparecerás
-                asignado por defecto.
-              </p>
-              <div className="space-y-3">
-                {coordinadores.map((coord, idx) => (
-                  <div key={`coord-${idx}`} className="flex gap-2 items-start flex-wrap">
-                    <Input
-                      value={coord.nombre ?? ''}
-                      onChange={(e) => setCoordinator(idx, 'nombre', e.target.value)}
-                      placeholder="Nombre"
-                      className="flex-1 min-w-[140px]"
-                    />
-                    <Input
-                      type="email"
-                      value={coord.email ?? ''}
-                      onChange={(e) => setCoordinator(idx, 'email', e.target.value)}
-                      placeholder="Correo electrónico"
-                      className="flex-1 min-w-[180px]"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeCoordinator(idx)}
-                      title="Quitar coordinador"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addCoordinator}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Agregar coordinador
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>

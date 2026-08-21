@@ -5,7 +5,6 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -20,7 +19,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetFooter,
-  SheetDescription,
 } from '@/components/ui/sheet';
 import {
   Select,
@@ -31,27 +29,17 @@ import {
 } from '@/components/ui/select';
 import * as DT from '@/lib/actions/desarrollo-tecnico-config';
 import { IconByName, ICON_NAMES } from '@/components/config/IconByName';
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  ListFilter,
-} from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
+import Link from 'next/link';
 
 type CategoriaWithSub = Awaited<
   ReturnType<typeof DT.getCategoriasWithSubcategorias>
 >[number];
 type Subcategoria = CategoriaWithSub['subcategorias'][number];
-type FondoConLineas = Awaited<
-  ReturnType<typeof DT.getFondosConLineasParaDt>
->[number];
 
 export default function ConfiguracionDesarrolloTecnicoPage() {
   const [categorias, setCategorias] = useState<CategoriaWithSub[]>([]);
-  const [fondosConLineas, setFondosConLineas] = useState<FondoConLineas[]>([]);
   const [loading, setLoading] = useState(true);
   usePageTopLoader(loading);
   const [error, setError] = useState<string | null>(null);
@@ -67,23 +55,11 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
   const [formCategoriaId, setFormCategoriaId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [lineasSheetOpen, setLineasSheetOpen] = useState(false);
-  const [lineasSub, setLineasSub] = useState<Subcategoria | null>(null);
-  const [excludedLineaIds, setExcludedLineaIds] = useState<Set<string>>(
-    new Set()
-  );
-  const [togglingLineaId, setTogglingLineaId] = useState<string | null>(null);
-  const [expandedFondos, setExpandedFondos] = useState<Set<string>>(new Set());
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cats, fondos] = await Promise.all([
-        DT.getCategoriasWithSubcategorias(),
-        DT.getFondosConLineasParaDt(),
-      ]);
+      const cats = await DT.getCategoriasWithSubcategorias();
       setCategorias(cats);
-      setFondosConLineas(fondos);
     } catch {
       setError('Error al cargar');
     }
@@ -96,15 +72,6 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
 
   const toggleCat = (id: string) => {
     setExpandedCat((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleFondo = (id: string) => {
-    setExpandedFondos((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -153,72 +120,6 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
     setFormCategoriaId(categoriaId);
     setSheetOpen(true);
     setError(null);
-  };
-
-  const openLineasSheet = (sub: Subcategoria) => {
-    setLineasSub(sub);
-    setExcludedLineaIds(
-      new Set(sub.lineasExcluidas.map((e) => e.lineaId))
-    );
-    setExpandedFondos(
-      new Set(fondosConLineas.filter((f) => f.lineas.length > 0).map((f) => f.id))
-    );
-    setLineasSheetOpen(true);
-    setError(null);
-  };
-
-  const handleToggleLinea = async (lineaId: string, enabled: boolean) => {
-    if (!lineasSub) return;
-    setTogglingLineaId(lineaId);
-    setError(null);
-    setExcludedLineaIds((prev) => {
-      const next = new Set(prev);
-      if (enabled) next.delete(lineaId);
-      else next.add(lineaId);
-      return next;
-    });
-    const res = await DT.setSubcategoriaLineaEnabled(
-      lineasSub.id,
-      lineaId,
-      enabled
-    );
-    if (!res.success) {
-      setError(res.error ?? 'No se pudo actualizar');
-      setExcludedLineaIds((prev) => {
-        const next = new Set(prev);
-        if (enabled) next.add(lineaId);
-        else next.delete(lineaId);
-        return next;
-      });
-    } else {
-      setCategorias((prev) =>
-        prev.map((cat) => ({
-          ...cat,
-          subcategorias: cat.subcategorias.map((s) => {
-            if (s.id !== lineasSub.id) return s;
-            const lineasExcluidas = enabled
-              ? s.lineasExcluidas.filter((e) => e.lineaId !== lineaId)
-              : s.lineasExcluidas.some((e) => e.lineaId === lineaId)
-                ? s.lineasExcluidas
-                : [...s.lineasExcluidas, { lineaId }];
-            return { ...s, lineasExcluidas };
-          }),
-        }))
-      );
-      setLineasSub((prev) =>
-        prev
-          ? {
-              ...prev,
-              lineasExcluidas: enabled
-                ? prev.lineasExcluidas.filter((e) => e.lineaId !== lineaId)
-                : prev.lineasExcluidas.some((e) => e.lineaId === lineaId)
-                  ? prev.lineasExcluidas
-                  : [...prev.lineasExcluidas, { lineaId }],
-            }
-          : prev
-      );
-    }
-    setTogglingLineaId(null);
   };
 
   const handleSave = async () => {
@@ -285,8 +186,6 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
     );
   }
 
-  const exclusionCount = (sub: Subcategoria) => sub.lineasExcluidas.length;
-
   return (
     <div className="h-full flex flex-col min-h-0 gap-6">
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -296,8 +195,14 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
             <CardTitle>Desarrollo técnico</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Categorías y subcategorías del formulario de desarrollo técnico.
-              Por defecto cada elemento aplica a todas las líneas; puedes
-              desactivarlo para líneas concretas con el ícono de filtro.
+              La aplicabilidad por línea se configura en{' '}
+              <Link
+                href="/configuracion/lineas"
+                className="text-emerald-700 hover:underline"
+              >
+                Configuración → Líneas
+              </Link>
+              .
             </p>
           </div>
           <Button onClick={openAddCategoria}>
@@ -369,23 +274,9 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
                         </TableCell>
                         <TableCell>
                           <span>{s.nombre}</span>
-                          {exclusionCount(s) > 0 && (
-                            <span className="ml-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
-                              Off en {exclusionCount(s)} línea
-                              {exclusionCount(s) === 1 ? '' : 's'}
-                            </span>
-                          )}
                         </TableCell>
                         <TableCell>{s.orden}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Fondos y líneas"
-                            onClick={() => openLineasSheet(s)}
-                          >
-                            <ListFilter className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -502,94 +393,6 @@ export default function ConfiguracionDesarrolloTecnicoPage() {
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={lineasSheetOpen} onOpenChange={setLineasSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Fondos y líneas</SheetTitle>
-            <SheetDescription>
-              {lineasSub
-                ? `Activa o desactiva “${lineasSub.nombre}” por línea. On = se muestra en proyectos de esa línea.`
-                : null}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="py-4 space-y-3">
-            {fondosConLineas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No hay fondos en el catálogo. Créalos en Validación de datos.
-              </p>
-            ) : (
-              fondosConLineas.map((fondo) => (
-                <div
-                  key={fondo.id}
-                  className="border border-gray-200 rounded-md overflow-hidden"
-                >
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-left"
-                    onClick={() => toggleFondo(fondo.id)}
-                  >
-                    <span className="text-[13px] font-medium text-gray-800">
-                      {fondo.nombre}
-                    </span>
-                    <span className="flex items-center gap-2 text-[11px] text-gray-500">
-                      {fondo.lineas.length} línea
-                      {fondo.lineas.length === 1 ? '' : 's'}
-                      {expandedFondos.has(fondo.id) ? (
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      )}
-                    </span>
-                  </button>
-                  {expandedFondos.has(fondo.id) && (
-                    <div className="divide-y divide-gray-100">
-                      {fondo.lineas.length === 0 ? (
-                        <p className="px-3 py-2 text-[12px] text-gray-400">
-                          Sin líneas
-                        </p>
-                      ) : (
-                        fondo.lineas.map((linea) => {
-                          const enabled = !excludedLineaIds.has(linea.id);
-                          return (
-                            <div
-                              key={linea.id}
-                              className="flex items-center justify-between px-3 py-2.5"
-                            >
-                              <span className="text-[13px] text-gray-700">
-                                {linea.nombre}
-                              </span>
-                              <div className="inline-flex items-center gap-2">
-                                <span
-                                  className={`text-[12px] ${
-                                    enabled
-                                      ? 'text-emerald-700'
-                                      : 'text-gray-400'
-                                  }`}
-                                >
-                                  {enabled ? 'On' : 'Off'}
-                                </span>
-                                <Switch
-                                  checked={enabled}
-                                  disabled={togglingLineaId === linea.id}
-                                  onCheckedChange={(checked) =>
-                                    handleToggleLinea(linea.id, checked)
-                                  }
-                                  aria-label={`${lineasSub?.nombre} en ${linea.nombre}`}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
         </SheetContent>
       </Sheet>
     </div>

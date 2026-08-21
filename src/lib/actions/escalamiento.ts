@@ -2,8 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-utils';
-import { userHasPermission } from '@/lib/permissions/check';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import {
   applyFilaPatch,
@@ -15,118 +13,25 @@ import {
   type EscalamientoFilaPatch,
 } from '@/lib/escalamiento-plan';
 import { createHistorialEntry } from './historial';
-
-export type FondoEscalamientoConfig = {
-  id: string;
-  nombre: string;
-  orden: number;
-  escalamientoEnabled: boolean;
-};
+import { getLineaTabFlagsForProyecto } from '@/lib/linea-modulos-db';
 
 export type EscalamientoData = {
   filas: EscalamientoFila[];
 };
 
-async function assertFondoEscalamientoEnabled(fondoNombre: string) {
-  const fondoOk = await prisma.fondo.findFirst({
-    where: { nombre: fondoNombre, escalamientoEnabled: true },
-    select: { id: true },
-  });
-  if (!fondoOk) {
+async function assertLineaEscalamientoEnabled(
+  fondoNombre: string,
+  lineaNombre: string | null | undefined
+) {
+  const flags = await getLineaTabFlagsForProyecto(fondoNombre, lineaNombre);
+  if (!flags?.tabEscalamientoEnabled) {
     return {
       ok: false as const,
       error:
-        'El escalamiento no está habilitado para el fondo de este proyecto',
+        'El escalamiento no está habilitado para la línea de este proyecto',
     };
   }
   return { ok: true as const };
-}
-
-export async function getFondosEscalamientoConfig() {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return {
-        success: false,
-        error: 'No autenticado',
-        data: [] as FondoEscalamientoConfig[],
-      };
-    }
-    const canAjustes = await userHasPermission(
-      user.availableRoles ?? [],
-      'view.ajustes'
-    );
-    if (!canAjustes) {
-      return {
-        success: false,
-        error: 'Sin permiso',
-        data: [] as FondoEscalamientoConfig[],
-      };
-    }
-    const fondos = await prisma.fondo.findMany({
-      orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
-      select: {
-        id: true,
-        nombre: true,
-        orden: true,
-        escalamientoEnabled: true,
-      },
-    });
-    return { success: true, data: fondos as FondoEscalamientoConfig[] };
-  } catch (e) {
-    console.error('[getFondosEscalamientoConfig]', e);
-    return {
-      success: false,
-      error: 'Error al obtener fondos',
-      data: [] as FondoEscalamientoConfig[],
-    };
-  }
-}
-
-export async function setFondoEscalamientoEnabled(
-  fondoId: string,
-  enabled: boolean
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return { success: false, error: 'No autenticado' };
-    }
-    const canAjustes = await userHasPermission(
-      user.availableRoles ?? [],
-      'view.ajustes'
-    );
-    if (!canAjustes) {
-      return { success: false, error: 'Sin permiso' };
-    }
-    await prisma.fondo.update({
-      where: { id: fondoId },
-      data: { escalamientoEnabled: enabled },
-    });
-    revalidatePath('/configuracion/escalamiento');
-    revalidatePath('/proyectos');
-    return { success: true };
-  } catch (e) {
-    console.error('[setFondoEscalamientoEnabled]', e);
-    return { success: false, error: 'Error al actualizar fondo' };
-  }
-}
-
-/** Nombres de fondos con escalamiento habilitado. */
-export async function getNombresFondosConEscalamiento() {
-  try {
-    const fondos = await prisma.fondo.findMany({
-      where: { escalamientoEnabled: true },
-      select: { nombre: true },
-    });
-    return {
-      success: true as const,
-      data: fondos.map((f) => f.nombre),
-    };
-  } catch (e) {
-    console.error('[getNombresFondosConEscalamiento]', e);
-    return { success: false as const, error: 'Error', data: [] as string[] };
-  }
 }
 
 export async function getEscalamientoProyecto(proyectoId: string) {
@@ -138,6 +43,7 @@ export async function getEscalamientoProyecto(proyectoId: string) {
         select: {
           id: true,
           fondo: true,
+          linea: true,
           escalamiento: {
             select: {
               planAccion: true,
@@ -157,9 +63,12 @@ export async function getEscalamientoProyecto(proyectoId: string) {
       };
     }
 
-    const fondoGate = await assertFondoEscalamientoEnabled(proyecto.fondo);
-    if (!fondoGate.ok) {
-      return { success: false as const, error: fondoGate.error, data: null };
+    const lineaGate = await assertLineaEscalamientoEnabled(
+      proyecto.fondo,
+      proyecto.linea
+    );
+    if (!lineaGate.ok) {
+      return { success: false as const, error: lineaGate.error, data: null };
     }
 
     return {
@@ -196,6 +105,7 @@ export async function updateEscalamientoFila(
       select: {
         id: true,
         fondo: true,
+        linea: true,
         escalamiento: { select: { planAccion: true } },
       },
     });
@@ -203,9 +113,12 @@ export async function updateEscalamientoFila(
       return { success: false as const, error: 'Proyecto no encontrado' };
     }
 
-    const fondoGate = await assertFondoEscalamientoEnabled(proyecto.fondo);
-    if (!fondoGate.ok) {
-      return { success: false as const, error: fondoGate.error };
+    const lineaGate = await assertLineaEscalamientoEnabled(
+      proyecto.fondo,
+      proyecto.linea
+    );
+    if (!lineaGate.ok) {
+      return { success: false as const, error: lineaGate.error };
     }
 
     const current = mergePlanAccion(proyecto.escalamiento?.planAccion);

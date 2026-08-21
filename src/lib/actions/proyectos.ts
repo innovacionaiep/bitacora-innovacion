@@ -36,10 +36,6 @@ import { createItemPresupuesto } from '@/lib/actions/presupuesto';
 import { getMesAnteriorInfo } from '@/lib/utils/fecha';
 import { computeAvancePresupuestoPct } from '@/lib/utils/presupuesto-calculos';
 import {
-  isSyncableRole,
-  upsertPersonaFromParticipante,
-} from '@/lib/personas/sync-persona';
-import {
   GET_PROYECTO_BASE_OPTIONS,
   GET_PROYECTO_SCALAR_SELECT,
 } from '@/lib/proyecto-detail-cache';
@@ -992,98 +988,12 @@ export async function createProyectoCompleto(
   try {
     const gate = await requirePermission('projects.create');
     if (!gate.ok) return { success: false, error: gate.error };
-    const currentUser = gate.user;
-
-    // Centralizar personas syncables (User pendiente + UserRole) y resolver userId
-    const participantesRel = [...(payload.participantes_rel ?? [])];
-    for (let i = 0; i < participantesRel.length; i++) {
-      const p = participantesRel[i];
-      const email = p.email?.trim();
-      if (!email) continue;
-      if (isSyncableRole(p.rol)) {
-        const persona = await upsertPersonaFromParticipante({
-          email,
-          nombre: p.nombre,
-          rut: p.rut,
-          cargo: p.cargo,
-          sedeId: p.sedeId,
-          escuelaId: p.escuelaId,
-          rol: p.rol,
-        });
-        participantesRel[i] = {
-          ...p,
-          userId: persona.userId,
-          nombre: (p.nombre?.trim() || persona.name) ?? undefined,
-          email: persona.email,
-        };
-      } else {
-        const user = await prisma.user.findFirst({
-          where: { email: { equals: email, mode: 'insensitive' } },
-        });
-        if (user) {
-          participantesRel[i] = {
-            ...p,
-            userId: user.id,
-            nombre: (p.nombre?.trim() || user.name) ?? undefined,
-            email: user.email,
-          };
-        }
-      }
-    }
-
-    // Rol de participación elegido en el formulario (único por cuenta/proyecto)
-    const creatorRoles = currentUser?.availableRoles ?? [];
-    const miRol = payload.miRolEnProyecto;
-    if (!miRol) {
+    const fondo = payload.fondo?.trim() ?? '';
+    if (!fondo) {
       return {
         success: false,
-        error: 'Debes elegir tu rol en este proyecto',
+        error: 'Debes indicar el fondo del proyecto',
       };
-    }
-    if (!creatorRoles.includes(miRol) && !creatorRoles.includes('Admin')) {
-      return {
-        success: false,
-        error: 'El rol elegido no está habilitado en tu cuenta',
-      };
-    }
-    if (currentUser?.id) {
-      const emailNorm = (currentUser.email ?? '').trim().toLowerCase();
-      const yaEsta = participantesRel.some(
-        (p) =>
-          p.userId === currentUser.id ||
-          (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
-      );
-      if (!yaEsta) {
-        participantesRel.unshift({
-          userId: currentUser.id,
-          rol: miRol,
-          nombre: (currentUser.name as string) ?? undefined,
-          email: (currentUser.email as string) ?? undefined,
-        });
-      } else {
-        const idx = participantesRel.findIndex(
-          (p) =>
-            p.userId === currentUser.id ||
-            (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
-        );
-        if (idx >= 0) {
-          participantesRel[idx] = {
-            ...participantesRel[idx],
-            rol: miRol,
-            userId: currentUser.id,
-          };
-          for (let i = participantesRel.length - 1; i >= 0; i--) {
-            if (i === idx) continue;
-            const p = participantesRel[i];
-            if (
-              p.userId === currentUser.id ||
-              (p.email?.trim() && p.email.trim().toLowerCase() === emailNorm)
-            ) {
-              participantesRel.splice(i, 1);
-            }
-          }
-        }
-      }
     }
 
     const sedeStr =
@@ -1094,7 +1004,7 @@ export async function createProyectoCompleto(
           : '';
     const base: CreateProyectoInput = {
       proyecto: payload.proyecto,
-      fondo: payload.fondo ?? '',
+      fondo,
       linea: payload.linea?.trim() || null,
       sede: sedeStr,
       ...(payload.sedesIds && { sedesIds: payload.sedesIds }),
@@ -1113,7 +1023,7 @@ export async function createProyectoCompleto(
       comunasIds: payload.comunasIds ?? [],
       gruposInteresIds: payload.gruposInteresIds ?? [],
       sociosComunitariosIds: payload.sociosComunitariosIds ?? [],
-      participantes_rel: participantesRel,
+      participantes_rel: [],
     };
     const result = await createProyecto(base);
     if (!result.success || !result.data) {
