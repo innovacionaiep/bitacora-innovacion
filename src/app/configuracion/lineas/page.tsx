@@ -169,8 +169,8 @@ export default function ConfiguracionLineasPage() {
   };
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto custom-scrollbar pt-4 pb-8">
-      <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden pt-4">
+      <div className="flex-shrink-0 space-y-2 pb-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Líneas</h2>
           <p className="mt-1 text-[13px] text-gray-500 leading-relaxed max-w-3xl">
@@ -185,16 +185,22 @@ export default function ConfiguracionLineasPage() {
             .
           </p>
         </div>
-
-        {loading ? (
-          <div className="py-10" />
-        ) : colCount === 0 ? (
-          <p className="text-[13px] text-gray-500">
-            No hay líneas en el catálogo. Créalas dentro de cada fondo en
-            Validación de datos.
+        {error && (
+          <p className="text-[13px] text-red-600" role="alert">
+            {error}
           </p>
-        ) : (
-          <div className="border border-gray-200 rounded-md overflow-auto max-h-[calc(100vh-220px)]">
+        )}
+      </div>
+
+      {loading ? (
+        <div className="min-h-0 flex-1" />
+      ) : colCount === 0 ? (
+        <p className="text-[13px] text-gray-500">
+          No hay líneas en el catálogo. Créalas dentro de cada fondo en
+          Validación de datos.
+        </p>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto rounded-md border border-gray-200 custom-scrollbar">
             <table className="min-w-full border-collapse text-[13px]">
               <thead>
                 <tr className="bg-gray-50">
@@ -332,14 +338,7 @@ export default function ConfiguracionLineasPage() {
               </tbody>
             </table>
           </div>
-        )}
-
-        {error && (
-          <p className="text-[13px] text-red-600" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }

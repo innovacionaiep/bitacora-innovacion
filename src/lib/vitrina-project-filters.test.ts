@@ -14,10 +14,16 @@ import {
 function projectsFrom(
   rows: Array<{
     nombre: string;
+    descripcion?: string;
     fondos?: string[];
     sedes?: string[];
     escuelas?: string[];
     etiquetas?: string[];
+    lineas?: string[];
+    socios?: string[];
+    encargadoNombre?: string;
+    encargadoCargo?: string;
+    encargadoCorreo?: string;
   }>,
 ) {
   const result = normalizeVitrinaProyectos(rows);
@@ -154,6 +160,72 @@ describe('filterVitrinaProyectos', () => {
       }),
     ).toEqual([]);
   });
+
+  it('filtra por texto libre en nombre, sede, etiqueta, escuela, fondo y descripción', () => {
+    const withText = projectsFrom([
+      {
+        nombre: 'Huerta comunitaria',
+        descripcion: 'Cultivo de abejas nativas',
+        fondos: ['Fondo Impulsa'],
+        sedes: ['Los Ángeles'],
+        escuelas: ['Artes e Industrias Creativas'],
+        etiquetas: ['Sostenibilidad'],
+        lineas: ['Incuba'],
+        encargadoNombre: 'Ana Pérez',
+        encargadoCargo: 'Coordinadora',
+      },
+      {
+        nombre: 'Solar',
+        descripcion: 'Paneles en techos',
+        fondos: ['Innovación Docente'],
+        sedes: ['Antofagasta'],
+        escuelas: ['Ingeniería, Energía y Tecnología'],
+        etiquetas: ['Tecnología'],
+      },
+    ]);
+
+    expect(
+      filterVitrinaProyectos(withText, emptyFilters, 'ángeles').map((p) => p.nombre),
+    ).toEqual(['Huerta comunitaria']);
+    expect(
+      filterVitrinaProyectos(withText, emptyFilters, 'abejas').map((p) => p.nombre),
+    ).toEqual(['Huerta comunitaria']);
+    expect(
+      filterVitrinaProyectos(withText, emptyFilters, 'ana').map((p) => p.nombre),
+    ).toEqual(['Huerta comunitaria']);
+    expect(
+      filterVitrinaProyectos(withText, emptyFilters, 'incuba').map((p) => p.nombre),
+    ).toEqual(['Huerta comunitaria']);
+    expect(
+      filterVitrinaProyectos(withText, emptyFilters, 'tecnología energía').map(
+        (p) => p.nombre,
+      ),
+    ).toEqual(['Solar']);
+    expect(
+      filterVitrinaProyectos(
+        [
+          ...withText,
+          ...projectsFrom([
+            {
+              nombre: 'Otro',
+              encargadoCorreo: 'oculto@aiep.cl',
+            },
+          ]),
+        ],
+        emptyFilters,
+        'oculto@aiep.cl',
+      ),
+    ).toEqual([]);
+  });
+
+  it('combina texto libre con facets (AND)', () => {
+    const names = filterVitrinaProyectos(
+      proyectos,
+      { ...emptyFilters, fondos: ['Fondo Impulsa'] },
+      'concepción',
+    ).map((p) => p.nombre);
+    expect(names).toEqual(['Campamento']);
+  });
 });
 
 describe('toggleVitrinaFilterValue', () => {
@@ -201,6 +273,11 @@ describe('vitrinaDiscoveryIsActive', () => {
   it('considera el recorte de I.A.', () => {
     expect(vitrinaDiscoveryIsActive(emptyFilters, null)).toBe(false);
     expect(vitrinaDiscoveryIsActive(emptyFilters, [])).toBe(true);
+  });
+
+  it('considera el texto libre del sidebar', () => {
+    expect(vitrinaDiscoveryIsActive(emptyFilters, null, '  ')).toBe(false);
+    expect(vitrinaDiscoveryIsActive(emptyFilters, null, 'abejas')).toBe(true);
   });
 });
 

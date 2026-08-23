@@ -27,6 +27,22 @@ export type VitrinaAiToolResult =
   | { ok: true; content: string; state: VitrinaAiToolState | null }
   | { ok: false; content: string; state: null };
 
+export const OPENROUTER_WEB_SEARCH_TOOL = {
+  type: 'openrouter:web_search' as const,
+  parameters: { max_results: 5 },
+};
+
+const VITRINA_AI_LOCAL_TOOL_NAMES = new Set([
+  'search_projects',
+  'list_catalog',
+  'apply_filters',
+  'clear_filters',
+]);
+
+export function isVitrinaAiLocalToolName(name: string): boolean {
+  return VITRINA_AI_LOCAL_TOOL_NAMES.has(name);
+}
+
 export const VITRINA_AI_TOOL_DEFINITIONS = [
   {
     type: 'function' as const,

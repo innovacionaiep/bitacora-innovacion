@@ -25,6 +25,7 @@ export default async function VitrinaPage() {
     getVitrinaAiPublicStatus(),
   ]);
   const canEdit = userHasAdminEnabled(session?.user?.availableRoles);
+  const sessionEmail = session?.user?.email?.trim() || null;
   const filterCatalogs = {
     fondos: catalogs.fondos.map((item) => item.nombre),
     sedes: catalogs.sedes.map((item) => item.nombre),
@@ -36,8 +37,10 @@ export default async function VitrinaPage() {
       videos={videos}
       proyectos={proyectos}
       filterCatalogs={filterCatalogs}
+      catalogs={catalogs}
       canEdit={canEdit}
       aiConfigured={aiStatus.configured}
+      sessionEmail={sessionEmail}
     />
   );
 }

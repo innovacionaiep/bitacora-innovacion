@@ -1233,7 +1233,7 @@ export function PresupuestoCard({
                             )}
                           </TableCell>
                           <TableCell
-                            className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                            className={`text-[13px] text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
                             style={{
                               verticalAlign: 'middle',
                               wordWrap: 'break-word',
@@ -1251,7 +1251,7 @@ export function PresupuestoCard({
                                         : prev
                                     )
                                   }
-                                  className="text-sm w-full resize-none p-2 border border-gray-300 rounded"
+                                  className="text-[13px] w-full resize-none p-2 border border-gray-300 rounded"
                                   rows={1}
                                   style={{
                                     height: 'auto',
@@ -1510,7 +1510,7 @@ export function PresupuestoCard({
                         />
                       </TableCell>
                       <TableCell
-                        className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                        className={`text-[13px] text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
                       >
                         <Input
                           value={newItemData.detalle || ''}
@@ -1521,7 +1521,7 @@ export function PresupuestoCard({
                             }))
                           }
                           placeholder="Detalle (opcional)"
-                          className="h-8 text-sm w-full"
+                          className="h-8 text-[13px] w-full"
                         />
                       </TableCell>
                       <TableCell className="text-center tabular-nums font-medium align-middle  whitespace-normal border-r border-gray-200">
@@ -1645,7 +1645,7 @@ export function PresupuestoCard({
                         DELTA
                       </TableCell>
                       <TableCell
-                        className={`text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
+                        className={`text-[13px] text-gray-600 align-middle ${detalleColClass} border-r border-gray-200`}
                       >
                         {deltaSaldo > 0 ? 'Saldo a favor' : 'Saldo en contra'}
                       </TableCell>

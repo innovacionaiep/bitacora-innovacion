@@ -513,6 +513,336 @@ describe('runVitrinaAiOrchestrator', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('cuenta y muestra los proyectos de una sede sin tratarlo como tema', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-la-1',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion: 'App de gestión financiera',
+        sedes: ['Los Ángeles'],
+        fondos: ['Fondo Impulsa'],
+      },
+      {
+        id: 'p-la-2',
+        nombre: 'Upcycling intercultural',
+        descripcion: 'Reutilización de materiales',
+        sedes: ['Los Ángeles'],
+        fondos: ['Fondo Impulsa'],
+      },
+      {
+        id: 'p-castro',
+        nombre: 'ClinicApp',
+        descripcion: 'App clínica',
+        sedes: ['Castro'],
+        fondos: ['Fondo Impulsa'],
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn();
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage:
+        'Cuantos proyectos de sede los ángeles hay en curso?? porfavor muestramelos',
+      history: [
+        { role: 'user', content: 'muestrame algun proyecto que trabaje con abejas' },
+        {
+          role: 'assistant',
+          content: 'Hay 1 proyecto que trabaja con abejas: Beehappy.',
+        },
+      ],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: ['Fondo Impulsa'],
+          sedes: ['Los Ángeles', 'Castro'],
+          escuelas: [],
+          etiquetas: [],
+        },
+        apps,
+      ),
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(true);
+    expect(result.filters.sedes).toEqual(['Los Ángeles']);
+    expect(result.matchIds?.sort()).toEqual(['p-la-1', 'p-la-2']);
+    expect(result.reply).toMatch(/2 proyectos/i);
+    expect(result.reply).toMatch(/Finanzas Pro-Comunales/i);
+    expect(result.reply).toMatch(/Upcycling intercultural/i);
+    expect(result.reply).not.toMatch(/tema/i);
+    expect(result.reply).not.toMatch(/ClinicApp/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('responde los encargados del conjunto filtrado y no cambia filtros', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-la-1',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion: 'App de gestión financiera',
+        sedes: ['Los Ángeles'],
+        encargadoNombre: 'Marco Riquelme',
+        encargadoCargo: 'Jefe de Escuela',
+        encargadoCorreo: 'marco@ejemplo.cl',
+      },
+      {
+        id: 'p-la-2',
+        nombre: 'Upcycling intercultural',
+        descripcion: 'Reutilización de materiales',
+        sedes: ['Los Ángeles'],
+        encargadoNombre: 'Ana Soto',
+        encargadoCargo: 'Coordinadora',
+      },
+      {
+        id: 'p-castro',
+        nombre: 'ClinicApp',
+        descripcion: 'App clínica',
+        sedes: ['Castro'],
+        encargadoNombre: 'Otra Persona',
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn();
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: '¿y quienes son los encargados de estos proyectos?',
+      history: [
+        {
+          role: 'user',
+          content: 'Quiero saber cuantos proyectos de los ángeles hay y muestramelos',
+        },
+        {
+          role: 'assistant',
+          content:
+            'Hay 2 proyectos en Los Ángeles: Finanzas Pro-Comunales y Upcycling intercultural.',
+        },
+      ],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: [],
+          sedes: ['Los Ángeles', 'Castro'],
+          escuelas: [],
+          etiquetas: [],
+        },
+        apps,
+      ),
+      currentFilters: {
+        fondos: [],
+        sedes: ['Los Ángeles'],
+        escuelas: [],
+        etiquetas: [],
+      },
+      currentMatchIds: ['p-la-1', 'p-la-2'],
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(false);
+    expect(result.matchIds).toEqual(['p-la-1', 'p-la-2']);
+    expect(result.filters.sedes).toEqual(['Los Ángeles']);
+    expect(result.reply).toMatch(/Marco Riquelme/i);
+    expect(result.reply).toMatch(/Ana Soto/i);
+    expect(result.reply).toMatch(/Finanzas Pro-Comunales/i);
+    expect(result.reply).toMatch(/Upcycling intercultural/i);
+    expect(result.reply).not.toMatch(/Otra Persona/i);
+    expect(result.reply).not.toMatch(/marco@ejemplo/i);
+    expect(result.reply).not.toMatch(/tema/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('compara los proyectos del conjunto y llama al modelo sin filtrar', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-la-1',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion:
+          'Gestión financiera digital para microemprendedoras de Los Ángeles',
+        sedes: ['Los Ángeles'],
+        etiquetas: ['Pymes', 'Contabilidad y finanzas'],
+      },
+      {
+        id: 'p-la-2',
+        nombre: 'Upcycling intercultural',
+        descripcion:
+          'Reutilización de materiales con enfoque en pueblos originarios',
+        sedes: ['Los Ángeles'],
+        etiquetas: ['Pueblos originarios', 'Medioambiente'],
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content:
+                'Se parecen en la sede Los Ángeles y el Fondo Impulsa. Se diferencian en el tema: finanzas frente a upcycling cultural.',
+            },
+          },
+        ],
+      }),
+    );
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'en que se parecen y se diferencian ambos proyectos?',
+      history: [
+        {
+          role: 'user',
+          content: 'Quiero saber cuantos proyectos de los ángeles hay y muestramelos',
+        },
+        {
+          role: 'assistant',
+          content:
+            'Hay 2 proyectos en Los Ángeles: Finanzas Pro-Comunales y Upcycling intercultural.',
+        },
+      ],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: [],
+          sedes: ['Los Ángeles'],
+          escuelas: [],
+          etiquetas: [],
+        },
+        apps,
+      ),
+      currentFilters: {
+        fondos: [],
+        sedes: ['Los Ángeles'],
+        escuelas: [],
+        etiquetas: [],
+      },
+      currentMatchIds: ['p-la-1', 'p-la-2'],
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(false);
+    expect(result.matchIds).toEqual(['p-la-1', 'p-la-2']);
+    expect(result.filters.sedes).toEqual(['Los Ángeles']);
+    expect(result.reply).toMatch(/Se parecen/i);
+    expect(result.reply).not.toMatch(/ningún proyecto menciona ese tema/i);
+    expect(fetchImpl).toHaveBeenCalled();
+  });
+
+  it('resume de qué se trata el proyecto del conjunto y no usa el atajo de tema', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-aula',
+        nombre: 'Aula Inclusiva con IA',
+        descripcion:
+          'Plataforma de apoyo docente con inteligencia artificial para estudiantes con necesidades educativas especiales en la sede Online.',
+        sedes: ['Online'],
+      },
+      {
+        id: 'p-bee',
+        nombre: 'Beehappy',
+        descripcion: 'Reservorio apícola',
+        sedes: ['Curicó'],
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content:
+                'Aula Inclusiva con IA es una plataforma de apoyo docente con inteligencia artificial para la inclusión.',
+            },
+          },
+        ],
+      }),
+    );
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'y de que se trata? resumidamente',
+      history: [
+        { role: 'user', content: 'Cuantos proyectos de la sede online hay?' },
+        {
+          role: 'assistant',
+          content: 'Sí, hay 1 proyecto: Aula Inclusiva con IA.',
+        },
+      ],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: [],
+          sedes: ['Online', 'Curicó'],
+          escuelas: [],
+          etiquetas: [],
+        },
+        apps,
+      ),
+      currentFilters: {
+        fondos: [],
+        sedes: ['Online'],
+        escuelas: [],
+        etiquetas: [],
+      },
+      currentMatchIds: ['p-aula'],
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(false);
+    expect(result.matchIds).toEqual(['p-aula']);
+    expect(result.reply).toMatch(/Aula Inclusiva/i);
+    expect(result.reply).not.toMatch(/ningún proyecto menciona ese tema/i);
+    expect(fetchImpl).toHaveBeenCalled();
+  });
+
+  it('activa la búsqueda web de OpenRouter solo si se pide internet', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content:
+                'En internet hay notas recientes sobre hidrógeno verde. En la vitrina está el proyecto Hidrógeno verde.',
+            },
+          },
+        ],
+      }),
+    );
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'busca en internet noticias sobre hidrogeno verde',
+      history: [],
+      proyectos,
+      catalogs,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(false);
+    expect(result.reply).toMatch(/internet/i);
+    expect(fetchImpl).toHaveBeenCalled();
+    const body = JSON.parse(
+      String((fetchImpl.mock.calls[0]?.[1] as { body?: string } | undefined)?.body),
+    ) as { tools?: Array<{ type?: string }> };
+    expect(
+      body.tools?.some((tool) => tool.type === 'openrouter:web_search'),
+    ).toBe(true);
+  });
+
   it('encuentra un tema si está en la etiqueta aunque no esté en la descripción', async () => {
     const parsed = normalizeVitrinaProyectos([
       {

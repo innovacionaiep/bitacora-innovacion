@@ -465,9 +465,7 @@ export function ReunionesSeguimientoTable({
           >
             <p
               className={`text-sm font-semibold leading-snug break-words ${
-                compromiso.completado
-                  ? 'line-through text-gray-600'
-                  : 'text-gray-900'
+                compromiso.completado ? 'text-gray-600' : 'text-gray-900'
               }`}
             >
               {titulo}
@@ -475,9 +473,7 @@ export function ReunionesSeguimientoTable({
             {descripcion ? (
               <p
                 className={`text-xs leading-snug whitespace-pre-wrap break-words line-clamp-4 ${
-                  compromiso.completado
-                    ? 'line-through text-gray-500'
-                    : 'text-gray-700'
+                  compromiso.completado ? 'text-gray-500' : 'text-gray-700'
                 }`}
               >
                 {descripcion}

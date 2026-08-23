@@ -20,7 +20,7 @@ function uniqueSorted(values: string[]): string[] {
   );
 }
 
-function isExcludedVitrinaFondo(nombre: string): boolean {
+export function isExcludedVitrinaFondo(nombre: string): boolean {
   return (
     nombre
       .normalize('NFD')
@@ -74,6 +74,43 @@ export function uniqueVitrinaFilterOptions(
   };
 }
 
+function foldVitrinaFilterText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+export function vitrinaProyectoSearchText(proyecto: VitrinaProyecto): string {
+  return foldVitrinaFilterText(
+    [
+      proyecto.nombre,
+      proyecto.descripcion,
+      ...proyecto.fondos,
+      ...proyecto.lineas,
+      ...proyecto.sedes,
+      ...proyecto.escuelas,
+      ...proyecto.socios,
+      ...proyecto.etiquetas,
+      proyecto.encargadoNombre,
+      proyecto.encargadoCargo,
+    ].join(' '),
+  );
+}
+
+export function vitrinaProyectoMatchesQuery(
+  proyecto: VitrinaProyecto,
+  query: string,
+): boolean {
+  const tokens = foldVitrinaFilterText(query)
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = vitrinaProyectoSearchText(proyecto);
+  return tokens.every((token) => haystack.includes(token));
+}
+
 function matchesFacet(values: string[], selected: string[]): boolean {
   if (selected.length === 0) return true;
   return selected.some((item) => values.includes(item));
@@ -82,13 +119,15 @@ function matchesFacet(values: string[], selected: string[]): boolean {
 export function filterVitrinaProyectos(
   proyectos: VitrinaProyecto[],
   filters: VitrinaProjectFilters,
+  query = '',
 ): VitrinaProyecto[] {
   return proyectos.filter(
     (proyecto) =>
       matchesFacet(proyecto.fondos, filters.fondos) &&
       matchesFacet(proyecto.sedes, filters.sedes) &&
       matchesFacet(proyecto.escuelas, filters.escuelas) &&
-      matchesFacet(proyecto.etiquetas, filters.etiquetas),
+      matchesFacet(proyecto.etiquetas, filters.etiquetas) &&
+      vitrinaProyectoMatchesQuery(proyecto, query),
   );
 }
 
@@ -123,8 +162,13 @@ export function applyVitrinaAiMatchIds(
 export function vitrinaDiscoveryIsActive(
   filters: VitrinaProjectFilters,
   matchIds: string[] | null,
+  query = '',
 ): boolean {
-  return vitrinaFiltersAreActive(filters) || matchIds != null;
+  return (
+    vitrinaFiltersAreActive(filters) ||
+    matchIds != null ||
+    query.trim().length > 0
+  );
 }
 
 /** El recorte actual lo aplicó el agente, no un toggle manual del sidebar. */

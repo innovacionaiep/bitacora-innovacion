@@ -14,6 +14,10 @@ import {
   getConfigUnlockPassword,
   secretsMatch,
 } from '@/lib/secrets/env-secrets';
+import {
+  decryptPasswordForDisplay,
+  encryptPasswordForDisplay,
+} from '@/lib/secrets/password-display';
 
 const SALT_ROUNDS = 10;
 
@@ -191,127 +195,68 @@ export async function verifyConfigUnlock(password: string): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return { success: false, error: gate.error };
+  try {
+    const gate = await requireAdmin();
+    if (!gate.ok) return { success: false, error: gate.error };
 
-  const configured = unlockConfiguredOrError();
-  if (!configured.ok) return { success: false, error: configured.error };
+    const configured = unlockConfiguredOrError();
+    if (!configured.ok) return { success: false, error: configured.error };
 
-  if (secretsMatch(password, configured.password)) {
-    return { success: true };
+    if (secretsMatch(password, configured.password)) {
+      return { success: true };
+    }
+    return { success: false, error: 'Contraseña incorrecta' };
+  } catch (e) {
+    console.error('verifyConfigUnlock:', e);
+    return { success: false, error: 'Error al verificar la contraseña' };
   }
-  return { success: false, error: 'Contraseña incorrecta' };
+}
+
+async function loadPasswordPlainsByUserId(): Promise<
+  Map<string, string | null>
+> {
+  const map = new Map<string, string | null>();
+  const rows = await prisma.user.findMany({
+    select: { id: true, passwordEncrypted: true },
+  });
+  for (const row of rows) {
+    map.set(
+      row.id,
+      row.passwordEncrypted
+        ? decryptPasswordForDisplay(row.passwordEncrypted)
+        : null
+    );
+  }
+  return map;
 }
 
 /**
- * Listar usuarios tras desbloqueo admin.
- * Passwords are never returned in plaintext (reversible storage removed).
+ * Contraseñas en claro tras desbloqueo admin (solo id + texto).
+ * No relista usuarios ni envía hashes bcrypt.
  */
-export async function listUsersAdminWithPasswords(
+export async function listUserPasswordPlainsAdmin(
   unlockPassword: string
 ): Promise<{
   success: boolean;
-  data?: UserListRowWithPassword[];
+  data?: { id: string; passwordPlain: string | null }[];
   error?: string;
 }> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return { success: false, error: gate.error };
-
-  const configured = unlockConfiguredOrError();
-  if (!configured.ok) return { success: false, error: configured.error };
-  if (!secretsMatch(unlockPassword, configured.password)) {
-    return { success: false, error: 'Contraseña incorrecta' };
+  const verified = await verifyConfigUnlock(unlockPassword);
+  if (!verified.success) {
+    return { success: false, error: verified.error };
   }
   try {
-    const [users, participacionesPorEmail] = await Promise.all([
-      prisma.user.findMany({
-        orderBy: { email: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          rut: true,
-          cargo: true,
-          sedeId: true,
-          escuelaId: true,
-          password: true,
-          lastActiveAt: true,
-          sede: { select: { nombre: true } },
-          escuela: { select: { nombre: true } },
-          roles: { select: { role: true } },
-          proyectos: {
-            orderBy: [
-              { proyecto: { proyecto: 'asc' } },
-              { rol: 'asc' },
-            ],
-            select: {
-              rol: true,
-              proyecto: { select: { proyecto: true } },
-            },
-          },
-        },
-      }),
-      prisma.proyectoParticipante.findMany({
-        where: { userId: null, email: { not: null } },
-        select: {
-          email: true,
-          rol: true,
-          proyecto: { select: { proyecto: true } },
-        },
-      }),
-    ]);
-
-    const emailLowerToParticipaciones = new Map<string, { proyectoNombre: string; rol: string }[]>();
-    for (const p of participacionesPorEmail) {
-      if (!p.email) continue;
-      const key = p.email.trim().toLowerCase();
-      if (!emailLowerToParticipaciones.has(key)) emailLowerToParticipaciones.set(key, []);
-      emailLowerToParticipaciones.get(key)!.push({
-        proyectoNombre: p.proyecto.proyecto,
-        rol: p.rol,
-      });
-    }
-
-    const rows: UserListRowWithPassword[] = users.map((u) => {
-      const porUserId = u.proyectos.map((p) => ({
-        proyectoNombre: p.proyecto.proyecto,
-        rol: p.rol,
-      }));
-      const porEmail = emailLowerToParticipaciones.get(u.email.trim().toLowerCase()) ?? [];
-      const merged = [...porUserId];
-      const seen = new Set(porUserId.map((x) => `${x.proyectoNombre}\t${x.rol}`));
-      for (const x of porEmail) {
-        const key = `${x.proyectoNombre}\t${x.rol}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(x);
-        }
-      }
-      merged.sort((a, b) =>
-        a.proyectoNombre.localeCompare(b.proyectoNombre) || a.rol.localeCompare(b.rol)
-      );
-      return {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        rut: u.rut,
-        cargo: u.cargo,
-        sedeId: u.sedeId,
-        sedeNombre: u.sede?.nombre ?? null,
-        escuelaId: u.escuelaId,
-        escuelaNombre: u.escuela?.nombre ?? null,
-        hasAccount: hasAccount(u),
-        lastSessionExpires: u.lastActiveAt,
-        roles: u.roles.map((r) => r.role),
-        proyectos: merged,
-        passwordPlain: null,
-      };
-    });
-
-    return { success: true, data: rows };
+    const plains = await loadPasswordPlainsByUserId();
+    return {
+      success: true,
+      data: [...plains.entries()].map(([id, passwordPlain]) => ({
+        id,
+        passwordPlain,
+      })),
+    };
   } catch (e) {
-    console.error(e);
-    return { success: false, error: 'Error al listar usuarios' };
+    console.error('listUserPasswordPlainsAdmin:', e);
+    return { success: false, error: 'Error al leer contraseñas' };
   }
 }
 
@@ -348,12 +293,14 @@ export async function createUserAdmin(data: {
       if (!hasAccount(existing)) {
         // Activar cuenta pendiente existente
         const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
+        const passwordEncrypted = encryptPasswordForDisplay(data.password);
         await prisma.$transaction(async (tx) => {
           await tx.user.update({
             where: { id: existing.id },
             data: {
               name: data.name,
               password: hashed,
+              passwordEncrypted,
               rut: data.rut?.trim() || existing.rut,
               cargo: data.cargo?.trim() || existing.cargo,
               sedeId: data.sedeId || existing.sedeId,
@@ -383,12 +330,14 @@ export async function createUserAdmin(data: {
       return { success: false, error: 'Este email ya está registrado' };
     }
     const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
+    const passwordEncrypted = encryptPasswordForDisplay(data.password);
     await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           name: data.name,
           email,
           password: hashed,
+          passwordEncrypted,
           activeRole: data.initialRole,
           rut: data.rut?.trim() || null,
           cargo: data.cargo?.trim() || null,
@@ -575,9 +524,10 @@ export async function activateUserAccountAdmin(
       return { success: false, error: 'Este usuario ya tiene cuenta creada' };
     }
     const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+    const passwordEncrypted = encryptPasswordForDisplay(password);
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashed },
+      data: { password: hashed, passwordEncrypted },
     });
     revalidatePath('/configuracion/usuarios');
     return { success: true };
@@ -599,9 +549,10 @@ export async function updateUserPasswordAdmin(
 
   try {
     const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const passwordEncrypted = encryptPasswordForDisplay(newPassword);
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashed },
+      data: { password: hashed, passwordEncrypted },
     });
     revalidatePath('/configuracion/usuarios');
     return { success: true };

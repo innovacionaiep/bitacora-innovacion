@@ -65,9 +65,7 @@ export function CompromisosList({
           <div className="flex-1 min-w-0">
             <p
               className={`text-sm ${
-                compromiso.completado
-                  ? 'line-through text-gray-500'
-                  : 'text-gray-900'
+                compromiso.completado ? 'text-gray-500' : 'text-gray-900'
               }`}
             >
               {compromiso.descripcion}

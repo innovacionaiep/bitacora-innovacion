@@ -258,7 +258,7 @@ function PersonaPicker({
         side="top"
         align="start"
         sideOffset={4}
-        avoidCollisions={false}
+        collisionPadding={{ top: 16, bottom: 12, left: 8, right: 8 }}
         className="w-[var(--radix-popover-trigger-width)] min-w-[16rem] p-1"
         onOpenAutoFocus={(e) => {
           e.preventDefault();

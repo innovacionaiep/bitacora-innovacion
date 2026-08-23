@@ -37,7 +37,8 @@ import {
 } from '@/components/ui/select';
 import {
   listUsersAdmin,
-  listUsersAdminWithPasswords,
+  verifyConfigUnlock,
+  listUserPasswordPlainsAdmin,
   createUserAdmin,
   updateUserAdmin,
   updateUserRolesAdmin,
@@ -166,29 +167,43 @@ export default function ConfiguracionUsuariosPage() {
     });
   }, []);
 
+  const applyPasswordPlains = async (adminPassword: string) => {
+    const resPw = await listUserPasswordPlainsAdmin(adminPassword);
+    if (!resPw.success || !resPw.data) {
+      return resPw.error ?? 'Error al leer contraseñas';
+    }
+    const byId = new Map(resPw.data.map((r) => [r.id, r.passwordPlain]));
+    setUsers((prev) =>
+      prev.map((u) => ({
+        ...u,
+        passwordPlain: byId.get(u.id) ?? null,
+      }))
+    );
+    return null;
+  };
+
   const handleUnlock = async () => {
     setUnlockError(null);
-    const res = await listUsersAdminWithPasswords(unlockPassword);
-    if (res.success && res.data) {
-      unlockPasswordRef.current = unlockPassword;
-      setUsers(res.data);
-      setUnlocked(true);
-      setUnlockOpen(false);
-      setUnlockPassword('');
-    } else {
+    const res = await verifyConfigUnlock(unlockPassword);
+    if (!res.success) {
       setUnlockError(res.error ?? 'Contraseña incorrecta');
+      return;
     }
+    const plainsError = await applyPasswordPlains(unlockPassword);
+    if (plainsError) {
+      setUnlockError(plainsError);
+      return;
+    }
+    unlockPasswordRef.current = unlockPassword;
+    setUnlocked(true);
+    setUnlockOpen(false);
+    setUnlockPassword('');
   };
 
   const reloadUsers = async () => {
-    if (unlocked && unlockPasswordRef.current) {
-      const resList = await listUsersAdminWithPasswords(
-        unlockPasswordRef.current
-      );
-      if (resList.success && resList.data) setUsers(resList.data);
-      else await load();
-    } else {
-      await load();
+    await load();
+    if (unlockPasswordRef.current) {
+      await applyPasswordPlains(unlockPasswordRef.current);
     }
   };
 
@@ -360,7 +375,9 @@ export default function ConfiguracionUsuariosPage() {
                 onClick={() => {
                   unlockPasswordRef.current = null;
                   setUnlocked(false);
-                  load();
+                  setUsers((prev) =>
+                    prev.map((u) => ({ ...u, passwordPlain: null }))
+                  );
                 }}
                 className="flex items-center gap-2"
               >
@@ -557,7 +574,13 @@ export default function ConfiguracionUsuariosPage() {
                               className="h-8 text-sm font-mono"
                             />
                           ) : unlocked ? (
-                            u.hasAccount ? '•••• (no visible)' : 'sin cuenta'
+                            !u.hasAccount ? (
+                              'sin cuenta'
+                            ) : u.passwordPlain ? (
+                              u.passwordPlain
+                            ) : (
+                              'sin copia visible'
+                            )
                           ) : (
                             '****'
                           )}

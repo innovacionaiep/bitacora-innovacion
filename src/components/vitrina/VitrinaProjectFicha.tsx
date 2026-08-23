@@ -359,7 +359,7 @@ export function VitrinaProjectFicha({
                   placeholder="Nombre del proyecto"
                   disabled={busy}
                   autoFocus={editing === 'nombre'}
-                  className="mt-1 h-12 text-2xl font-semibold"
+                  className="mt-1 h-12 bg-white text-2xl font-semibold text-slate-900 placeholder:text-slate-400"
                 />
               </HoverEdit>
             </div>
@@ -503,97 +503,101 @@ export function VitrinaProjectFicha({
               </div>
             </HoverEdit>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <CatalogField
-                label="Fondo"
-                items={draft.fondos}
-                field="fondos"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={catalogs?.fondos ?? []}
-                value={namesValue(draft.fondos)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('fondos', v)}
-              />
-              <CatalogField
-                label="Línea"
-                items={draft.lineas}
-                field="lineas"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={lineasOpciones}
-                value={namesValue(draft.lineas)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('lineas', v)}
-              />
-              <CatalogField
-                label="Sedes"
-                items={draft.sedes}
-                field="sedes"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={catalogs?.sedes ?? []}
-                value={namesValue(draft.sedes)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('sedes', v)}
-              />
-              <CatalogField
-                label="Escuelas"
-                items={draft.escuelas}
-                field="escuelas"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={catalogs?.escuelas ?? []}
-                value={namesValue(draft.escuelas)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('escuelas', v)}
-              />
-              <CatalogField
-                label="Etiquetas"
-                items={draft.etiquetas}
-                field="etiquetas"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={catalogs?.etiquetas ?? []}
-                value={namesValue(draft.etiquetas)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('etiquetas', v)}
-              />
-              <CatalogField
-                label="Socios comunitarios"
-                items={draft.socios}
-                field="socios"
-                canEdit={canEdit}
-                editing={editing}
-                busy={busy}
-                loadingCats={loadingCats}
-                options={catalogs?.socios ?? []}
-                value={namesValue(draft.socios)}
-                onStart={startEdit}
-                onCancel={cancelEdit}
-                onSave={saveEdit}
-                onChange={(v) => applyNames('socios', v)}
-              />
+            <div className="grid grid-cols-2 items-start gap-x-4">
+              <div className="flex min-w-0 flex-col gap-3">
+                <CatalogField
+                  label="Fondo"
+                  items={draft.fondos}
+                  field="fondos"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.fondos ?? []}
+                  value={namesValue(draft.fondos)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('fondos', v)}
+                />
+                <CatalogField
+                  label="Sedes"
+                  items={draft.sedes}
+                  field="sedes"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.sedes ?? []}
+                  value={namesValue(draft.sedes)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('sedes', v)}
+                />
+                <CatalogField
+                  label="Etiquetas"
+                  items={draft.etiquetas}
+                  field="etiquetas"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.etiquetas ?? []}
+                  value={namesValue(draft.etiquetas)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('etiquetas', v)}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-3">
+                <CatalogField
+                  label="Línea"
+                  items={draft.lineas}
+                  field="lineas"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={lineasOpciones}
+                  value={namesValue(draft.lineas)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('lineas', v)}
+                />
+                <CatalogField
+                  label="Escuelas"
+                  items={draft.escuelas}
+                  field="escuelas"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.escuelas ?? []}
+                  value={namesValue(draft.escuelas)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('escuelas', v)}
+                />
+                <CatalogField
+                  label="Socios comunitarios"
+                  items={draft.socios}
+                  field="socios"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.socios ?? []}
+                  value={namesValue(draft.socios)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('socios', v)}
+                />
+              </div>
             </div>
 
             <HoverEdit
@@ -770,7 +774,7 @@ function HoverEdit({
   return (
     <div className={cn('group/edit relative', className)}>
       {active ? (
-        <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
+        <div className="rounded-lg bg-white p-2 text-slate-900 ring-1 ring-slate-200">
           {editor}
           <div className="mt-2 flex justify-end gap-1">
             <button

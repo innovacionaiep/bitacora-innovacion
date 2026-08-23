@@ -9,37 +9,9 @@ import {
   VITRINA_COVER_ZOOM_MIN,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
+import { vitrinaFondoStripeClass } from '@/lib/vitrina-fondo-style';
 import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
 import { Label } from '@/components/ui/label';
-
-const FONDO_STRIPES = [
-  'bg-red-600',
-  'bg-emerald-600',
-  'bg-blue-600',
-  'bg-orange-500',
-  'bg-violet-600',
-  'bg-cyan-500',
-] as const;
-
-function normalizeFondoNombre(nombre: string): string {
-  return nombre
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function fondoStripeClass(nombre: string): string {
-  const key = normalizeFondoNombre(nombre);
-  if (key.includes('impulsa')) return 'bg-emerald-600';
-  if (key.includes('innovacion docente')) return 'bg-[#DC143C]';
-  if (key.includes('incuba')) return 'bg-violet-600';
-
-  let sum = 0;
-  for (let i = 0; i < nombre.length; i++) {
-    sum += nombre.charCodeAt(i);
-  }
-  return FONDO_STRIPES[sum % FONDO_STRIPES.length] ?? 'bg-slate-800';
-}
 
 const SECTION_ICONS = {
   sede: MapPin,
@@ -190,7 +162,7 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
     >
       {fondoLabel ? (
         <div
-          className={`flex min-h-6 shrink-0 items-center justify-center px-3 py-0.5 ${fondoStripeClass(fondoLabel)}`}
+          className={`flex min-h-6 shrink-0 items-center justify-center px-3 py-0.5 ${vitrinaFondoStripeClass(fondoLabel)}`}
         >
           <p className="truncate text-center text-xs font-semibold tracking-wide text-white">
             {fondoLabel}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, GraduationCap, Landmark, Mail, MapPin, Tag, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, GraduationCap, Landmark, Mail, MapPin, Search, Tag, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
@@ -70,21 +70,25 @@ const CHIP_CLASS: Record<Tone, string> = {
 export function VitrinaProjectsSidebar({
   options,
   filters,
+  query,
   matchIds,
   aiFilterActive,
   onToggle,
+  onQueryChange,
   onClear,
   onBack,
 }: {
   options: VitrinaProjectFilters;
   filters: VitrinaProjectFilters;
+  query: string;
   matchIds: string[] | null;
   aiFilterActive: boolean;
   onToggle: (facet: Facet, value: string) => void;
+  onQueryChange: (query: string) => void;
   onClear: () => void;
   onBack: () => void;
 }) {
-  const active = vitrinaDiscoveryIsActive(filters, matchIds);
+  const active = vitrinaDiscoveryIsActive(filters, matchIds, query);
   const showAiLabel = vitrinaAiFilterIsActive(aiFilterActive);
   const [openFacet, setOpenFacet] = useState<Facet | null>(null);
 
@@ -128,6 +132,37 @@ export function VitrinaProjectsSidebar({
             </button>
           ) : null}
         </div>
+
+      <section aria-labelledby="vitrina-filter-query">
+        <div className="mb-2 flex items-center gap-2">
+          <Search className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
+          <h3
+            id="vitrina-filter-query"
+            className="text-sm font-medium text-slate-800"
+          >
+            Buscar
+          </h3>
+        </div>
+        <div className="relative">
+          <Input
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Nombre, sede, etiqueta..."
+            className="h-9 border-slate-200 pr-8 text-sm shadow-none"
+            aria-label="Buscar en todos los campos del proyecto"
+          />
+          {query.trim() ? (
+            <button
+              type="button"
+              onClick={() => onQueryChange('')}
+              className="absolute inset-y-0 right-1.5 inline-flex w-6 items-center justify-center text-slate-400 hover:text-slate-700"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+      </section>
 
       {FACETS.map((facet) => {
         const values = options[facet.key];

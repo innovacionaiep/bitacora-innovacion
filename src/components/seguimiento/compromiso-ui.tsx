@@ -300,9 +300,7 @@ export function CompromisoDetalleModal({
             ) : (
               <p
                 className={`text-sm whitespace-pre-wrap break-words break-all ${
-                  selected.completado
-                    ? 'line-through text-gray-600'
-                    : 'text-gray-900'
+                  selected.completado ? 'text-gray-600' : 'text-gray-900'
                 }`}
               >
                 {selected.descripcion}

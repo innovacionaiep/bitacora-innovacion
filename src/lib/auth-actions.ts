@@ -6,6 +6,7 @@ import { getUserRoles, isValidActiveRole, type Role } from './auth-utils';
 import { isRegisterableRole, userHasAdminEnabled } from '@/lib/authz/pure';
 import { requireSelfOrAdmin } from '@/lib/authz/guards';
 import { revalidatePath } from 'next/cache';
+import { encryptPasswordForDisplay } from '@/lib/secrets/password-display';
 
 const SALT_ROUNDS = 10;
 
@@ -36,12 +37,14 @@ export async function signUp(data: {
     }
 
     const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+    const passwordEncrypted = encryptPasswordForDisplay(data.password);
 
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
+          passwordEncrypted,
           name: data.name,
           activeRole: data.initialRole,
         },
@@ -211,10 +214,11 @@ export async function changePassword(
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const passwordEncrypted = encryptPasswordForDisplay(newPassword);
 
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, passwordEncrypted },
     });
 
     return { success: true };

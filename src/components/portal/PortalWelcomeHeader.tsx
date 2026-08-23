@@ -93,7 +93,7 @@ export function PortalWelcomeHeader({ onStartTour }: PortalWelcomeHeaderProps) {
           {!isEditingName ? (
             <div className="group/title flex items-center gap-2 min-w-0">
               <h1 className="text-2xl font-bold text-gray-900 truncate leading-tight">
-                Bienvenido, {displayName}
+                Bienvenido/a, {displayName}
               </h1>
               <Button
                 variant="ghost"
@@ -136,27 +136,35 @@ export function PortalWelcomeHeader({ onStartTour }: PortalWelcomeHeaderProps) {
               </Button>
             </div>
           )}
-          <p className="text-[13px] text-gray-500 mt-0.5 truncate tracking-wide">
-            {session.user.email}
-          </p>
-          {availableRoles.length > 0 && (
-            <div
-              id="tour-roles-habilitados"
-              className="mt-1.5 flex flex-wrap items-center gap-1.5"
-            >
-              <span className="text-[11px] text-gray-500 shrink-0">
-                Roles habilitados:
-              </span>
-              {availableRoles.map((role) => (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
+            <p className="text-[13px] text-gray-500 truncate tracking-wide min-w-0">
+              {session.user.email}
+            </p>
+            {availableRoles.length > 0 && (
+              <>
                 <span
-                  key={role}
-                  className={`${ROLE_BADGE_CLASS} ${getRoleColors(role)}`}
+                  aria-hidden
+                  className="h-3.5 w-px shrink-0 bg-gray-300 self-center"
+                />
+                <div
+                  id="tour-roles-habilitados"
+                  className="flex flex-wrap items-center gap-1.5 min-w-0"
                 >
-                  {role}
-                </span>
-              ))}
-            </div>
-          )}
+                  <span className="text-[11px] text-gray-500 shrink-0">
+                    Roles habilitados:
+                  </span>
+                  {availableRoles.map((role) => (
+                    <span
+                      key={role}
+                      className={`${ROLE_BADGE_CLASS} ${getRoleColors(role)}`}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           {nameError && (
             <p className="text-red-600 text-[11px] mt-1">{nameError}</p>
           )}

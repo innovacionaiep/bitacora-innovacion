@@ -23,9 +23,11 @@ const SEARCH_HINTS = [
   'necesito un',
   'necesito otro',
   'muestrame',
+  'muestramelos',
   'muestra proyectos',
   'muestra los',
   'mostrar los',
+  'mostrarlos',
   'quiero ver',
   'ver proyectos',
   'ver los de',
@@ -41,6 +43,36 @@ const SEARCH_HINTS = [
   'solo los proyectos',
   'los de ',
 ];
+
+const SHOW_CARD_HINTS = [
+  'muestram',
+  'muestra los',
+  'mostrar los',
+  'mostrarlos',
+  'ensename',
+  'filtra',
+  'solo los de',
+  'solo los proyectos',
+];
+
+const FACET_CHATTER = new Set([
+  'curso',
+  'cuantas',
+  'cuantos',
+  'ensename',
+  'ensenamelos',
+  'favor',
+  'gracias',
+  'mostrar',
+  'mostrarlos',
+  'muestra',
+  'muestrame',
+  'muestramelos',
+  'muestralos',
+  'porfa',
+  'porfavor',
+  'please',
+]);
 
 const COUNT_HINTS = [
   'cuantos',
@@ -62,14 +94,42 @@ const DETAIL_HINTS = [
   'que hace',
   'que es',
   'de que trata',
+  'de que se trata',
   'en que consiste',
   'ese proyecto',
   'este proyecto',
   'el proyecto',
+  'estos proyectos',
+  'estas fichas',
   'explica',
   'describe',
   'cuenta ',
   'por que',
+  'resumid',
+];
+
+const METADATA_FIELD_RE = /\b(encargad[oa]s?|responsables?|a cargo)\b/;
+
+const ANALYSIS_HINTS = [
+  'parecen',
+  'parece',
+  'diferenc',
+  'compar',
+  'contrast',
+  'similitud',
+  'similares',
+  'parecido',
+  'resumen',
+  'resumir',
+  'resumid',
+  'de que se trata',
+  'de que trata',
+  'en que consiste',
+  'impacto',
+  'metodolog',
+  'publico objetivo',
+  'objetivo',
+  'en que se',
 ];
 
 const TOPIC_HINTS = [
@@ -78,9 +138,8 @@ const TOPIC_HINTS = [
   'alguna',
   'algunos',
   'algunas',
-  'se trata',
+  'se trata de',
   'trata de',
-  'de que trata',
   'acerca de',
   'vinculad',
   'relacionad',
@@ -200,6 +259,45 @@ export function isVitrinaAiChatMetaQuery(
   return leftover.every((token) => META_LEFTOVER.has(token));
 }
 
+export function leftoverTopicTokens(leftover: string[]): string[] {
+  return leftover.filter((token) => !FACET_CHATTER.has(token));
+}
+
+export function isVitrinaAiMetadataFieldQuery(message: string): boolean {
+  const folded = foldVitrinaText(message);
+  if (!folded) return false;
+  return METADATA_FIELD_RE.test(folded);
+}
+
+export function isVitrinaAiAnalysisQuery(message: string): boolean {
+  const folded = foldVitrinaText(message);
+  if (!folded) return false;
+  return ANALYSIS_HINTS.some((hint) => folded.includes(hint));
+}
+
+const WEB_SEARCH_HINTS = [
+  'en internet',
+  'en la web',
+  'en google',
+  'busca online',
+  'buscar online',
+  'consulta online',
+  'consulta en linea',
+  'busca en linea',
+  'buscar en linea',
+  'googlea',
+  'web search',
+  'navega en',
+  'informacion en internet',
+  'informate en internet',
+];
+
+export function isVitrinaAiWebSearchQuery(message: string): boolean {
+  const folded = foldVitrinaText(message);
+  if (!folded) return false;
+  return WEB_SEARCH_HINTS.some((hint) => folded.includes(hint));
+}
+
 export function isVitrinaAiTopicQuery(
   message: string,
   catalogs?: VitrinaAiCatalogs,
@@ -207,14 +305,20 @@ export function isVitrinaAiTopicQuery(
   const folded = foldVitrinaText(message);
   if (!folded) return false;
   if (isVitrinaAiChatMetaQuery(message, catalogs)) return false;
+  if (isVitrinaAiMetadataFieldQuery(message)) return false;
+  if (isVitrinaAiAnalysisQuery(message)) return false;
+  if (isVitrinaAiWebSearchQuery(message)) return false;
   const { leftover } = facetConstraintsFromQuery(message, catalogs);
-  if (leftover.length === 0) return false;
+  const topicTokens = leftoverTopicTokens(leftover);
+  if (topicTokens.length === 0) return false;
   if (
     folded.includes('ese proyecto') ||
     folded.includes('este proyecto') ||
     folded.includes('el proyecto') ||
     folded.includes('como trabaja') ||
-    folded.includes('que hace')
+    folded.includes('que hace') ||
+    folded.includes('de que se trata') ||
+    folded.includes('de que trata')
   ) {
     return false;
   }
@@ -227,7 +331,6 @@ export function isVitrinaAiTopicQuery(
   }
   if (/\bsobre [a-z]/.test(folded)) return true;
   if (/\b(hay|existen|existe)\b/.test(folded)) return true;
-  if (folded.includes('?')) return true;
   return false;
 }
 
@@ -237,7 +340,7 @@ export function vitrinaAiQueryRefersToPrevious(
 ): boolean {
   const folded = foldVitrinaText(message);
   if (
-    /\b(esos|esas|de esos|de esas|alguno de|alguna de|de ellos|de ellas)\b/.test(
+    /\b(esos|esas|estos|estas|ambos|ambas|los dos|las dos|de esos|de esas|de estos|de estas|alguno de|alguna de|de ellos|de ellas)\b/.test(
       folded,
     )
   ) {
@@ -245,6 +348,14 @@ export function vitrinaAiQueryRefersToPrevious(
   }
   if (historyLength <= 0) return false;
   if (/\bcuant[oa]s\b/.test(folded)) return false;
+  if (
+    /\bde que se trata\b/.test(folded) ||
+    /\bde que trata\b/.test(folded) ||
+    /\bresumid/.test(folded) ||
+    /\ben que consiste\b/.test(folded)
+  ) {
+    return true;
+  }
   return /^(y |¿y )(de |en )?/.test(folded) || /^¿y /.test(folded);
 }
 
@@ -257,12 +368,16 @@ export function classifyVitrinaAiIntent(
   if (!folded) return historyLength > 0 ? 'detail' : 'search';
   if (RESET_RE.test(folded)) return 'reset';
   if (isVitrinaAiChatMetaQuery(message, catalogs)) return 'detail';
+  if (isVitrinaAiMetadataFieldQuery(message)) return 'detail';
+  if (isVitrinaAiWebSearchQuery(message)) return 'detail';
+  if (isVitrinaAiAnalysisQuery(message)) return 'detail';
 
   const { leftover, constraints } = facetConstraintsFromQuery(message, catalogs);
   const hasFacets = facetConstraintsAreActive(constraints);
   const isTopic = isVitrinaAiTopicQuery(message, catalogs);
-  const isCount = hasCountSignal(folded, leftover, hasFacets);
+  const isCount = hasCountSignal(folded, leftoverTopicTokens(leftover), hasFacets);
   const isSearchHint = SEARCH_HINTS.some((hint) => folded.includes(hint));
+  const wantsCards = SHOW_CARD_HINTS.some((hint) => folded.includes(hint));
   const isShortShow = isShortShowQuery(folded, leftover, hasFacets);
   const isDetail =
     DETAIL_HINTS.some((hint) => folded.includes(hint)) ||
@@ -273,9 +388,9 @@ export function classifyVitrinaAiIntent(
         folded.includes('este ') ||
         folded.includes('?')));
 
-  if (isCount) return 'ask';
-  if (isTopic && !isSearchHint) return 'ask';
-  if (isSearchHint || isShortShow) return 'search';
+  if (isCount && !wantsCards) return 'ask';
+  if (isTopic && !isSearchHint && !wantsCards) return 'ask';
+  if (isSearchHint || isShortShow || wantsCards) return 'search';
   if (
     historyLength > 0 &&
     hasFacets &&

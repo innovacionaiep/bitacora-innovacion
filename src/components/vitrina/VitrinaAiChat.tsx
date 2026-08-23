@@ -15,7 +15,10 @@ import {
 } from '@/lib/vitrina-ai-settings';
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
 import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
-import { parseVitrinaAiInlineMarkdown } from '@/lib/vitrina-ai-chat-format';
+import {
+  flattenVitrinaAiMarkdownTables,
+  parseVitrinaAiInlineMarkdown,
+} from '@/lib/vitrina-ai-chat-format';
 import { cn } from '@/lib/utils';
 import '@/components/vitrina/vitrina-ai-chat.css';
 
@@ -29,14 +32,20 @@ function VitrinaAiMessageBody({
   content: string;
 }) {
   if (role === 'user') return content;
-  return parseVitrinaAiInlineMarkdown(content).map((segment, index) =>
-    segment.type === 'bold' ? (
-      <strong key={index} className="font-semibold text-slate-800">
-        {segment.value}
-      </strong>
-    ) : (
-      <span key={index}>{segment.value}</span>
-    ),
+  return (
+    <span className="whitespace-pre-wrap">
+      {parseVitrinaAiInlineMarkdown(
+        flattenVitrinaAiMarkdownTables(content),
+      ).map((segment, index) =>
+        segment.type === 'bold' ? (
+          <strong key={index} className="font-semibold text-slate-800">
+            {segment.value}
+          </strong>
+        ) : (
+          <span key={index}>{segment.value}</span>
+        ),
+      )}
+    </span>
   );
 }
 
@@ -151,7 +160,7 @@ export function VitrinaAiChat({
                   aria-hidden
                 />
               </span>
-              ¿Qué andas buscando?
+              ¿Qué estás buscando?
             </p>
             <button
               type="button"
@@ -231,7 +240,7 @@ export function VitrinaAiChat({
             <span className="text-sm font-medium text-violet-500">IA</span>
             <Sparkles className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
           </span>
-          {pending ? 'Buscando…' : '¿Qué andas buscando?'}
+          {pending ? 'Buscando…' : '¿Qué estás buscando?'}
         </button>
       )}
     </div>

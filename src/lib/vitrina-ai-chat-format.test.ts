@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseVitrinaAiInlineMarkdown } from '@/lib/vitrina-ai-chat-format';
+import {
+  flattenVitrinaAiMarkdownTables,
+  parseVitrinaAiInlineMarkdown,
+} from '@/lib/vitrina-ai-chat-format';
 
 describe('parseVitrinaAiInlineMarkdown', () => {
   it('convierte **texto** en segmentos en negrita', () => {
@@ -26,5 +29,23 @@ describe('parseVitrinaAiInlineMarkdown', () => {
     expect(parseVitrinaAiInlineMarkdown('Ver **incompleto')).toEqual([
       { type: 'text', value: 'Ver **incompleto' },
     ]);
+  });
+});
+
+describe('flattenVitrinaAiMarkdownTables', () => {
+  it('convierte una tabla Markdown en viñetas compactas', () => {
+    const table = [
+      '| Proyecto | Qué hace | Fuente |',
+      '| --- | --- | --- |',
+      '| AInclusion | IA para estudiantes neurodivergentes | https://ejemplo.eu |',
+      '| Acompañamiento docente | Estudio de formación inclusiva | https://ejemplo.cl |',
+    ].join('\n');
+    const flat = flattenVitrinaAiMarkdownTables(
+      `Proyectos similares:\n${table}`,
+    );
+    expect(flat).not.toMatch(/\|/);
+    expect(flat).toContain('- **AInclusion**:');
+    expect(flat).toContain('https://ejemplo.eu');
+    expect(flat).toContain('- **Acompañamiento docente**:');
   });
 });

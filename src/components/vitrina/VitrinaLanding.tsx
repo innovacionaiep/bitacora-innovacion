@@ -12,6 +12,12 @@ import { VitrinaProjectsEditor } from '@/components/vitrina/VitrinaProjectsEdito
 import { VitrinaProjectsGrid } from '@/components/vitrina/VitrinaProjectsGrid';
 import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSidebar';
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
+import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
+import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
+import {
+  VitrinaViewToggle,
+  type VitrinaProjectsView,
+} from '@/components/vitrina/VitrinaViewToggle';
 import { VitrinaRotatingWord } from '@/components/vitrina/VitrinaRotatingWord';
 import { VitrinaVideoCarousel } from '@/components/vitrina/VitrinaVideoCarousel';
 import { VitrinaVideoEditor } from '@/components/vitrina/VitrinaVideoEditor';
@@ -23,6 +29,7 @@ import {
 import { useVitrinaTypewriter } from '@/hooks/useVitrinaTypewriter';
 import { cn } from '@/lib/utils';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
+import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import {
   EMPTY_VITRINA_FILTERS,
   applyVitrinaAiMatchIds,
@@ -59,14 +66,18 @@ export function VitrinaLanding({
   videos,
   proyectos,
   filterCatalogs,
+  catalogs,
   canEdit,
   aiConfigured,
+  sessionEmail = null,
 }: {
   videos: VitrinaVideo[];
   proyectos: VitrinaProyecto[];
   filterCatalogs: VitrinaProjectFilters;
+  catalogs: VitrinaProjectCatalogs;
   canEdit: boolean;
   aiConfigured: boolean;
+  sessionEmail?: string | null;
 }) {
   const [heroOff, setHeroOff] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
@@ -78,6 +89,9 @@ export function VitrinaLanding({
     useState<VitrinaProjectFilters>(EMPTY_VITRINA_FILTERS);
   const [aiMatchIds, setAiMatchIds] = useState<string[] | null>(null);
   const [aiApplied, setAiApplied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectsView, setProjectsView] =
+    useState<VitrinaProjectsView>('proyectos');
   const [perfDirection, setPerfDirection] = useState<VitrinaPerfDirection | null>(
     null,
   );
@@ -93,10 +107,10 @@ export function VitrinaLanding({
   const proyectosFiltrados = useMemo(
     () =>
       applyVitrinaAiMatchIds(
-        filterVitrinaProyectos(proyectos, filters),
+        filterVitrinaProyectos(proyectos, filters, searchQuery),
         aiMatchIds,
       ),
-    [proyectos, filters, aiMatchIds],
+    [proyectos, filters, aiMatchIds, searchQuery],
   );
 
   const { index, displayed, progress, current } = useVitrinaTypewriter(
@@ -183,6 +197,7 @@ export function VitrinaLanding({
       setCardsShown(false);
       setHeaderCompact(false);
       setHeroOff(false);
+      setProjectsView('proyectos');
       return;
     }
     clearTimers();
@@ -191,6 +206,7 @@ export function VitrinaLanding({
     setCardsShown(false);
     setHeaderCompact(false);
     setHeroOff(false);
+    setProjectsView('proyectos');
     queue(() => setBusy(false), VITRINA_ANIM_MS);
   };
 
@@ -262,14 +278,38 @@ export function VitrinaLanding({
           )}
           aria-hidden={headerCompact}
         >
-          <Link
-            href="/auth/login"
-            tabIndex={headerCompact ? -1 : undefined}
-            className="rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
-          >
-            Iniciar sesión
-          </Link>
+          {sessionEmail ? (
+            <div className="flex max-w-[min(100%,28rem)] items-center gap-3 sm:max-w-none">
+              <span className="min-w-0 truncate text-sm font-medium text-white/90">
+                Sesión Iniciada: {sessionEmail}
+              </span>
+              <Link
+                href="/inicio"
+                tabIndex={headerCompact ? -1 : undefined}
+                className="shrink-0 rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+              >
+                Ir a la app
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              tabIndex={headerCompact ? -1 : undefined}
+              className="rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+            >
+              Iniciar sesión
+            </Link>
+          )}
         </div>
+
+        {headerCompact ? (
+          <div className="pointer-events-auto absolute left-1/2 z-10 -translate-x-1/2">
+            <VitrinaViewToggle
+              value={projectsView}
+              onChange={setProjectsView}
+            />
+          </div>
+        ) : null}
 
         {headerCompact && canEdit ? (
           <VitrinaProjectsEditor
@@ -367,6 +407,7 @@ export function VitrinaLanding({
               <VitrinaProjectsSidebar
                 options={filterOptions}
                 filters={filters}
+                query={searchQuery}
                 matchIds={aiMatchIds}
                 aiFilterActive={aiApplied}
                 onBack={goToHero}
@@ -376,14 +417,21 @@ export function VitrinaLanding({
                     [facet]: toggleVitrinaFilterValue(current[facet], value),
                   }));
                 }}
+                onQueryChange={setSearchQuery}
                 onClear={() => {
                   setFilters(EMPTY_VITRINA_FILTERS);
+                  setSearchQuery('');
                   setAiMatchIds(null);
                   setAiApplied(false);
                 }}
               />
               <div className="relative min-h-0 min-w-0 flex-1">
-                <div className="h-full min-h-0 overflow-y-auto pb-[38rem]">
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
+                    projectsView !== 'proyectos' && 'hidden',
+                  )}
+                >
                   <VitrinaProjectsGrid
                     proyectos={proyectosFiltrados}
                     canEdit={canEdit}
@@ -393,6 +441,26 @@ export function VitrinaLanding({
                         : undefined
                     }
                     onOpen={(id) => setFicha(id)}
+                  />
+                </div>
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
+                    projectsView !== 'analisis' && 'hidden',
+                  )}
+                >
+                  <VitrinaDataDashboard proyectos={proyectosFiltrados} />
+                </div>
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
+                    projectsView !== 'data' && 'hidden',
+                  )}
+                >
+                  <VitrinaProjectsTable
+                    proyectos={proyectos}
+                    catalogs={catalogs}
+                    canEdit={canEdit}
                   />
                 </div>
                 <VitrinaAiChat

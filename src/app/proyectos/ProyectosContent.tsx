@@ -708,7 +708,7 @@ export function ProyectosContent({
         <div className="flex items-start space-x-3">
           <FolderKanban className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-600" />
           <div className="min-w-0 flex-1 text-left">
-            <h3 className="text-sm font-medium leading-snug text-gray-900 whitespace-normal break-words">
+            <h3 className="text-[13px] font-medium leading-snug text-gray-900 whitespace-normal break-words">
               {project.proyecto}
             </h3>
             <p className="mt-1 text-xs text-gray-500">
@@ -1889,69 +1889,63 @@ export function ProyectosContent({
           </div>
         ) : (
           /* Pantalla principal / Landing - al entrar o cuando el proyecto seleccionado ya no aplica (ej. cambio de rol) */
-          <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden px-4 py-6 lg:flex-row lg:gap-8">
-            {/* Panel izquierdo: título, acciones y buscador (~1/3) */}
-            <aside className="flex w-full shrink-0 flex-col lg:w-1/3 lg:max-w-md">
-              <div className="shrink-0 text-center lg:text-left">
-                <FolderKanban className="mx-auto mb-4 h-16 w-16 text-gray-300 lg:mx-0" />
-                <h2 className="mb-2 text-xl font-semibold text-gray-800">
-                  Selección de Proyectos
-                </h2>
-                <p className="mb-6 text-gray-500">
-                  {isAdmin
-                    ? 'Selecciona un proyecto para ver sus detalles o crea uno nuevo'
-                    : 'Selecciona un proyecto para ver sus detalles'}
-                </p>
+          <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden px-4 py-6">
+            <div className="shrink-0">
+              <div className="mb-4 flex w-full flex-wrap items-center gap-y-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <FolderKanban className="h-16 w-16 shrink-0 text-gray-300" />
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Selección de Proyectos
+                  </h2>
+                </div>
+                <div className="relative ml-8 w-80 max-w-full shrink-0">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nombre, sede o escuela..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="rounded-lg border-2 border-gray-300 pl-10 focus:border-blue-500"
+                  />
+                </div>
                 {isAdmin && (
-                  <>
-                    <div className="mb-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                      <Button
-                        variant="outline"
-                        asChild
-                        className="rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
+                    >
+                      <Link
+                        href="/proyectos/nuevo"
+                        className="inline-flex items-center justify-center gap-2"
                       >
-                        <Link
-                          href="/proyectos/nuevo"
-                          className="inline-flex items-center justify-center gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          <span>Crear proyecto</span>
-                        </Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setBulkImportOpen(true)}
-                        className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" />
-                        <span>Carga masiva</span>
-                      </Button>
-                    </div>
-                    <ImportExcelDialog
-                      open={bulkImportOpen}
-                      onOpenChange={setBulkImportOpen}
-                      tipo="proyectos"
-                      onSuccess={() => {
-                        void fetchProyectos();
-                      }}
-                    />
-                  </>
+                        <Plus className="h-4 w-4" />
+                        <span>Crear proyecto</span>
+                      </Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setBulkImportOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-50"
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                      <span>Carga masiva</span>
+                    </Button>
+                  </div>
                 )}
               </div>
-
-              <div className="relative mb-4 shrink-0">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Buscar por nombre, sede o escuela..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="rounded-lg border-2 border-gray-300 pl-10 focus:border-blue-500"
+              {isAdmin && (
+                <ImportExcelDialog
+                  open={bulkImportOpen}
+                  onOpenChange={setBulkImportOpen}
+                  tipo="proyectos"
+                  onSuccess={() => {
+                    void fetchProyectos();
+                  }}
                 />
-              </div>
-
+              )}
               {isAdmin && borradores.length > 0 && (
-                <div className="mt-2 shrink-0 border-t border-gray-200 pt-4 text-center lg:text-left">
+                <div className="mb-4 border-t border-gray-200 pt-4 text-center lg:text-left">
                   <h3 className="mb-3 text-sm font-medium text-gray-700">
                     Borradores
                   </h3>
@@ -1969,9 +1963,9 @@ export function ProyectosContent({
                   </ul>
                 </div>
               )}
-            </aside>
+            </div>
 
-            {/* Panel derecho: columnas por Fondo (~2/3), scroll por columna */}
+            {/* Columnas por Fondo, debajo del encabezado; scroll por columna */}
             <div className="min-h-0 min-w-0 flex-1 overflow-x-auto">
               {projectsByFondo.length > 0 ? (
                 <div className="flex h-full min-h-[280px] gap-4 pb-2 lg:min-h-0">

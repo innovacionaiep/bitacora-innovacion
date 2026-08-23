@@ -3,8 +3,10 @@ import { buildVitrinaAiCatalogs } from '@/lib/vitrina-ai-index';
 import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 import {
   classifyVitrinaAiIntent,
+  isVitrinaAiAnalysisQuery,
   isVitrinaAiChatMetaQuery,
   isVitrinaAiTopicQuery,
+  isVitrinaAiWebSearchQuery,
   vitrinaAiQueryRefersToPrevious,
 } from '@/lib/vitrina-ai-intent';
 
@@ -15,7 +17,13 @@ function sampleCatalogs() {
       nombre: 'Hidrógeno verde',
       descripcion: 'Generación de energía eléctrica',
       fondos: ['Fondo Impulsa'],
-      sedes: ['Castro'],
+        sedes: ['Castro'],
+    },
+    {
+      id: 'p-la',
+      nombre: 'Finanzas Pro-Comunales',
+      fondos: ['Fondo Impulsa'],
+      sedes: ['Los Ángeles'],
     },
     {
       id: 'p-move',
@@ -28,7 +36,7 @@ function sampleCatalogs() {
   return buildVitrinaAiCatalogs(
     {
       fondos: ['Fondo Impulsa', 'MOVE Incuba'],
-      sedes: ['Castro', 'Chillán'],
+      sedes: ['Castro', 'Chillán', 'Los Ángeles'],
       escuelas: ['Ingeniería, Energía y Tecnología'],
       etiquetas: ['Plataformas digitales'],
     },
@@ -143,6 +151,88 @@ describe('classifyVitrinaAiIntent', () => {
       ),
     ).toBe(false);
     expect(isVitrinaAiTopicQuery('¿hay alguno en Castro?', catalogs)).toBe(false);
+    expect(
+      isVitrinaAiTopicQuery(
+        'Cuantos proyectos de sede los ángeles hay en curso?? porfavor muestramelos',
+        catalogs,
+      ),
+    ).toBe(false);
+  });
+
+  it('cuenta y muestra tarjetas de una sede si lo pide', () => {
+    expect(
+      classifyVitrinaAiIntent(
+        'Cuantos proyectos de sede los ángeles hay en curso?? porfavor muestramelos',
+        2,
+        catalogs,
+      ),
+    ).toBe('search');
+  });
+
+  it('pregunta por encargados del conjunto actual, no por un tema', () => {
+    expect(
+      isVitrinaAiTopicQuery(
+        '¿y quienes son los encargados de estos proyectos?',
+        catalogs,
+      ),
+    ).toBe(false);
+    expect(
+      classifyVitrinaAiIntent(
+        '¿y quienes son los encargados de estos proyectos?',
+        2,
+        catalogs,
+      ),
+    ).toBe('detail');
+    expect(
+      vitrinaAiQueryRefersToPrevious(
+        '¿y quienes son los encargados de estos proyectos?',
+        2,
+      ),
+    ).toBe(true);
+  });
+
+  it('compara el conjunto actual en vez de buscar un tema', () => {
+    const q =
+      'en que se parecen y se diferencian ambos proyectos?';
+    expect(isVitrinaAiAnalysisQuery(q)).toBe(true);
+    expect(isVitrinaAiTopicQuery(q, catalogs)).toBe(false);
+    expect(classifyVitrinaAiIntent(q, 2, catalogs)).toBe('detail');
+    expect(vitrinaAiQueryRefersToPrevious(q, 2)).toBe(true);
+    expect(
+      isVitrinaAiTopicQuery('¿hay proyectos de electricidad?', catalogs),
+    ).toBe(true);
+  });
+
+  it('un resumen de de qué se trata el conjunto no es búsqueda de tema', () => {
+    const q = 'y de que se trata? resumidamente';
+    expect(isVitrinaAiAnalysisQuery(q)).toBe(true);
+    expect(isVitrinaAiTopicQuery(q, catalogs)).toBe(false);
+    expect(classifyVitrinaAiIntent(q, 2, catalogs)).toBe('detail');
+    expect(vitrinaAiQueryRefersToPrevious(q, 2)).toBe(true);
+  });
+
+  it('pide internet de forma explícita y no confunde sede Online', () => {
+    expect(
+      isVitrinaAiWebSearchQuery(
+        'busca en internet noticias sobre hidrogeno verde',
+      ),
+    ).toBe(true);
+    expect(
+      classifyVitrinaAiIntent(
+        'busca en internet noticias sobre hidrogeno verde',
+        0,
+        catalogs,
+      ),
+    ).toBe('detail');
+    expect(
+      isVitrinaAiTopicQuery(
+        'busca en internet noticias sobre hidrogeno verde',
+        catalogs,
+      ),
+    ).toBe(false);
+    expect(
+      isVitrinaAiWebSearchQuery('Cuantos proyectos de la sede online hay?'),
+    ).toBe(false);
   });
 
   it('un recuento por sede con alguno no es tema', () => {
