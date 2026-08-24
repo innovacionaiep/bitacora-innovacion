@@ -888,7 +888,7 @@ function CatalogField({
   value: string;
   onStart: (key: FieldKey) => void;
   onCancel: () => void;
-  onSave: () => Promise<void>;
+  onSave: () => void;
   onChange: (value: string) => void;
 }) {
   return (
