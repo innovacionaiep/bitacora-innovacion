@@ -8,7 +8,6 @@ import {
   removeVitrinaProyectoFromList,
   upsertVitrinaProyectoInList,
   vitrinaCoverImageStyle,
-  VITRINA_PROYECTOS_MAX,
   VITRINA_PROYECTOS_MAX_FOTOS,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
@@ -136,6 +135,48 @@ describe('normalizeVitrinaProyectos', () => {
     expect(low.ok && low.proyectos[0]?.descripcionFontSize).toBe(12);
   });
 
+  it('normaliza indicadores técnicos IGIP/TRL', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'Con indicadores',
+        igipInicial: '12.5',
+        igipInicialComentario: '  baseline  ',
+        igipProyeccion: 20,
+        igipFinal: '',
+        igipFinalComentario: 'cierre',
+        trlInicial: 3.6,
+        trlInicialComentario: 'inicio',
+        trlProyeccion: '5',
+        trlFinal: 7,
+        trlFinalComentario: '  fin  ',
+      },
+    ]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const p = result.proyectos[0]!;
+    expect(p.igipInicial).toBe(12.5);
+    expect(p.igipInicialComentario).toBe('baseline');
+    expect(p.igipProyeccion).toBe(20);
+    expect(p.igipFinal).toBeNull();
+    expect(p.igipFinalComentario).toBe('cierre');
+    expect(p.trlInicial).toBe(4);
+    expect(p.trlInicialComentario).toBe('inicio');
+    expect(p.trlProyeccion).toBe(5);
+    expect(p.trlFinal).toBe(7);
+    expect(p.trlFinalComentario).toBe('fin');
+  });
+
+  it('deja indicadores técnicos en null/vacío por defecto', () => {
+    const result = normalizeVitrinaProyectos([{ nombre: 'Sin indicadores' }]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const p = result.proyectos[0]!;
+    expect(p.igipInicial).toBeNull();
+    expect(p.igipInicialComentario).toBe('');
+    expect(p.trlFinal).toBeNull();
+    expect(p.trlFinalComentario).toBe('');
+  });
+
   it('arma el estilo de portada con origen y escala', () => {
     expect(vitrinaCoverImageStyle(20, 80, 1.5)).toEqual({
       objectPosition: '20% 80%',
@@ -162,11 +203,14 @@ describe('normalizeVitrinaProyectos', () => {
     expect(result.proyectos).toEqual([]);
   });
 
-  it('rechaza más del máximo', () => {
-    const items = Array.from({ length: VITRINA_PROYECTOS_MAX + 1 }, (_, i) => ({
+  it('acepta más de 24 proyectos', () => {
+    const items = Array.from({ length: 25 }, (_, i) => ({
       nombre: `P${i}`,
     }));
-    expect(normalizeVitrinaProyectos(items).ok).toBe(false);
+    const result = normalizeVitrinaProyectos(items);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proyectos).toHaveLength(25);
   });
 
   it('rechaza video que no es YouTube, Vimeo ni SharePoint', () => {
@@ -278,16 +322,18 @@ describe('upsertVitrinaProyectoInList', () => {
     expect(result.proyectos[1]?.descripcion).toBe('Nueva desc');
   });
 
-  it('rechaza agregar sobre el máximo', () => {
-    const list = Array.from({ length: VITRINA_PROYECTOS_MAX }, (_, i) =>
+  it('agrega aunque la lista ya tenga muchos proyectos', () => {
+    const list = Array.from({ length: 24 }, (_, i) =>
       named(`P${i}`, `id-${i}`),
     );
     const result = upsertVitrinaProyectoInList(list, { nombre: 'Extra' });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proyectos).toHaveLength(25);
   });
 
-  it('permite actualizar cuando la lista ya está al máximo', () => {
-    const list = Array.from({ length: VITRINA_PROYECTOS_MAX }, (_, i) =>
+  it('permite actualizar cuando la lista es larga', () => {
+    const list = Array.from({ length: 24 }, (_, i) =>
       named(`P${i}`, `id-${i}`),
     );
     const result = upsertVitrinaProyectoInList(list, {
@@ -296,7 +342,7 @@ describe('upsertVitrinaProyectoInList', () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.proyectos).toHaveLength(VITRINA_PROYECTOS_MAX);
+    expect(result.proyectos).toHaveLength(24);
     expect(result.proyectos[0]?.nombre).toBe('P0 editado');
   });
 

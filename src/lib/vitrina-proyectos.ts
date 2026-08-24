@@ -1,7 +1,6 @@
 import { parseVideoUrl } from '@/lib/video-url';
 
 export const VITRINA_PROYECTOS_SETTING_KEY = 'vitrina_proyectos';
-export const VITRINA_PROYECTOS_MAX = 24;
 export const VITRINA_PROYECTOS_MAX_FOTOS = 4;
 export const VITRINA_COVER_OFFSET_DEFAULT = 50;
 export const VITRINA_COVER_ZOOM_DEFAULT = 1;
@@ -47,6 +46,17 @@ export type VitrinaProyecto = {
   coverZoom: number;
   /** Tamaño de letra de la descripción en px, por proyecto. */
   descripcionFontSize: number;
+  /** Indicadores técnicos (opcionales). */
+  igipInicial: number | null;
+  igipInicialComentario: string;
+  igipProyeccion: number | null;
+  igipFinal: number | null;
+  igipFinalComentario: string;
+  trlInicial: number | null;
+  trlInicialComentario: string;
+  trlProyeccion: number | null;
+  trlFinal: number | null;
+  trlFinalComentario: string;
 };
 
 export type NormalizeVitrinaProyectosResult =
@@ -122,6 +132,22 @@ export function clampDescripcionFontSize(value: unknown): number {
     VITRINA_DESCRIPCION_FONT_MAX,
     Math.max(VITRINA_DESCRIPCION_FONT_MIN, Math.round(n)),
   );
+}
+
+/** Decimal opcional; vacío o inválido → null. */
+export function asOptionalDecimal(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'string' && !value.trim()) return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+/** Entero opcional; vacío o inválido → null. */
+export function asOptionalInt(value: unknown): number | null {
+  const n = asOptionalDecimal(value);
+  if (n === null) return null;
+  return Math.round(n);
 }
 
 export function vitrinaCoverImageStyle(
@@ -264,6 +290,16 @@ function emptyProyecto(id?: string): VitrinaProyecto {
     coverOffsetY: VITRINA_COVER_OFFSET_DEFAULT,
     coverZoom: VITRINA_COVER_ZOOM_DEFAULT,
     descripcionFontSize: VITRINA_DESCRIPCION_FONT_DEFAULT,
+    igipInicial: null,
+    igipInicialComentario: '',
+    igipProyeccion: null,
+    igipFinal: null,
+    igipFinalComentario: '',
+    trlInicial: null,
+    trlInicialComentario: '',
+    trlProyeccion: null,
+    trlFinal: null,
+    trlFinalComentario: '',
   };
 }
 
@@ -281,10 +317,10 @@ export function normalizeVitrinaProyectos(
   if (!Array.isArray(input)) {
     return { ok: false, error: 'La lista de proyectos no es válida' };
   }
-  if (input.length > VITRINA_PROYECTOS_MAX) {
+  if (input.length > 5000) {
     return {
       ok: false,
-      error: `Máximo ${VITRINA_PROYECTOS_MAX} proyectos`,
+      error: 'La lista de proyectos es demasiado grande',
     };
   }
 
@@ -345,14 +381,17 @@ export function normalizeVitrinaProyectos(
       coverOffsetY: clampCoverOffset(rec.coverOffsetY),
       coverZoom: clampCoverZoom(rec.coverZoom),
       descripcionFontSize: clampDescripcionFontSize(rec.descripcionFontSize),
+      igipInicial: asOptionalDecimal(rec.igipInicial),
+      igipInicialComentario: asString(rec.igipInicialComentario),
+      igipProyeccion: asOptionalDecimal(rec.igipProyeccion),
+      igipFinal: asOptionalDecimal(rec.igipFinal),
+      igipFinalComentario: asString(rec.igipFinalComentario),
+      trlInicial: asOptionalInt(rec.trlInicial),
+      trlInicialComentario: asString(rec.trlInicialComentario),
+      trlProyeccion: asOptionalInt(rec.trlProyeccion),
+      trlFinal: asOptionalInt(rec.trlFinal),
+      trlFinalComentario: asString(rec.trlFinalComentario),
     });
-  }
-
-  if (proyectos.length > VITRINA_PROYECTOS_MAX) {
-    return {
-      ok: false,
-      error: `Máximo ${VITRINA_PROYECTOS_MAX} proyectos`,
-    };
   }
 
   return { ok: true, proyectos };
@@ -395,13 +434,6 @@ export function upsertVitrinaProyectoInList(
     const next = [...list];
     next[index] = proyecto;
     return { ok: true, proyectos: next };
-  }
-
-  if (list.length >= VITRINA_PROYECTOS_MAX) {
-    return {
-      ok: false,
-      error: `Máximo ${VITRINA_PROYECTOS_MAX} proyectos`,
-    };
   }
 
   return { ok: true, proyectos: [...list, proyecto] };

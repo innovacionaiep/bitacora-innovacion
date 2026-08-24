@@ -29,11 +29,6 @@ export function VitrinaDataDashboard({
           <p className="text-7xl font-bold tracking-tight text-slate-900 tabular-nums">
             {stats.total}
           </p>
-          <p className="text-sm text-slate-500">
-            {stats.total === 1
-              ? 'proyecto en vitrina'
-              : 'proyectos en vitrina'}
-          </p>
         </article>
 
         <ChartCard title="Por fondo">
@@ -75,6 +70,13 @@ export function VitrinaDataDashboard({
   );
 }
 
+/** Parte el nombre en líneas en cada espacio (p. ej. "Fondo Impulsa" → dos líneas). */
+function formatVerticalBarLabel(label: string) {
+  const trimmed = label.trim();
+  if (!trimmed.includes(' ')) return trimmed;
+  return trimmed.replace(/\s+/g, '\n');
+}
+
 function ChartCard({
   title,
   children,
@@ -108,9 +110,11 @@ function VitrinaVerticalBars({
   }
 
   const max = Math.max(...data.map((item) => item.value), 1);
+  /** Altura útil de la barra (deja sitio fijo al número encima). */
+  const barMaxPx = 148;
 
   return (
-    <div className="flex h-56 items-stretch gap-3 overflow-x-auto px-1">
+    <div className="flex items-end gap-3 overflow-x-auto px-1">
       {data.map((item) => {
         const pct = Math.max(8, (item.value / max) * 100);
         return (
@@ -119,20 +123,23 @@ function VitrinaVerticalBars({
             className="flex w-16 min-w-16 shrink-0 flex-col"
             title={`${item.label}: ${item.value}`}
           >
-            <span className="mb-1 text-center text-xs font-semibold tabular-nums text-slate-700">
-              {item.value}
-            </span>
-            <div className="relative h-40 w-full">
+            <div
+              className="flex w-full flex-col items-center justify-end"
+              style={{ height: barMaxPx + 20 }}
+            >
+              <span className="mb-1.5 text-xs font-semibold leading-none tabular-nums text-slate-700">
+                {item.value}
+              </span>
               <div
                 className={cn(
-                  'absolute bottom-0 left-1/2 w-9 -translate-x-1/2 rounded-t-md',
+                  'w-9 shrink-0 rounded-t-md',
                   colorFor(item.label),
                 )}
-                style={{ height: `${pct}%` }}
+                style={{ height: `${(barMaxPx * pct) / 100}px` }}
               />
             </div>
-            <span className="mt-2 truncate text-center text-[11px] leading-tight text-slate-600">
-              {item.label}
+            <span className="mt-1.5 whitespace-pre-line text-center text-[11px] leading-tight text-slate-600">
+              {formatVerticalBarLabel(item.label)}
             </span>
           </div>
         );

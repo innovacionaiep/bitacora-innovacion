@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { Check, GitBranch, GraduationCap, Handshake, Landmark, MapPin, Pencil, Tag, Trash2, X } from 'lucide-react';
 import { parseVideoUrl } from '@/lib/video-url';
 import {
@@ -131,6 +130,10 @@ type Props = {
   isNew: boolean;
   canEdit: boolean;
   onCreated?: (id: string) => void;
+  onProyectoUpsert?: (proyecto: VitrinaProyecto) => void;
+  onProyectoRemove?: (id: string) => void;
+  onOptimisticMutationStart?: () => void;
+  onOptimisticMutationEnd?: () => void;
 };
 
 export function VitrinaProjectFicha({
@@ -140,8 +143,11 @@ export function VitrinaProjectFicha({
   isNew,
   canEdit,
   onCreated,
+  onProyectoUpsert,
+  onProyectoRemove,
+  onOptimisticMutationStart,
+  onOptimisticMutationEnd,
 }: Props) {
-  const router = useRouter();
   const [draft, setDraft] = useState<VitrinaProyecto>(() =>
     createEmptyVitrinaProyecto(),
   );
@@ -149,8 +155,6 @@ export function VitrinaProjectFicha({
   const [editing, setEditing] = useState<FieldKey | null>(null);
   const [catalogs, setCatalogs] = useState<VitrinaProjectCatalogs | null>(null);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [loadingCats, setLoadingCats] = useState(false);
 
@@ -160,13 +164,15 @@ export function VitrinaProjectFicha({
       setError('');
       setEditing(null);
       setSnapshot(null);
-      return;
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || editing !== null) return;
     setError('');
     setConfirmDelete(false);
     if (proyecto) {
       setDraft(proyecto);
-      setEditing(null);
       setSnapshot(null);
     } else if (isNew) {
       const next = createEmptyVitrinaProyecto();
@@ -174,13 +180,16 @@ export function VitrinaProjectFicha({
       setEditing('nombre');
       setSnapshot(next);
     }
-    if (!canEdit) return;
+  }, [open, proyecto, isNew, editing]);
+
+  useEffect(() => {
+    if (!open || !canEdit) return;
     setLoadingCats(true);
     void getVitrinaProjectCatalogs()
       .then(setCatalogs)
       .catch(() => setError('No se pudieron cargar los catálogos'))
       .finally(() => setLoadingCats(false));
-  }, [open, proyecto, canEdit, isNew]);
+  }, [open, canEdit]);
 
   const patch = (partial: Partial<VitrinaProyecto>) => {
     setDraft((prev) => ({ ...prev, ...partial }));
@@ -252,41 +261,75 @@ export function VitrinaProjectFicha({
     setError('');
   }
 
-  async function saveEdit() {
+  function saveEdit() {
     setError('');
     if (!draft.nombre.trim()) {
       setError('El nombre es obligatorio');
       setEditing('nombre');
       return;
     }
-    setSaving(true);
-    const result = await upsertVitrinaProyecto({ proyecto: draft });
-    setSaving(false);
-    if (!result.success) {
-      setError(result.error ?? 'No se pudo guardar');
-      return;
-    }
+
+    const previous = proyecto;
+    const toSave = draft;
     setEditing(null);
     setSnapshot(null);
-    if (isNew) onCreated?.(draft.id);
-    router.refresh();
+    onOptimisticMutationStart?.();
+    onProyectoUpsert?.(toSave);
+    if (isNew) onCreated?.(toSave.id);
+
+    void upsertVitrinaProyecto({ proyecto: toSave })
+      .then((result) => {
+        if (!result.success) {
+          if (previous) {
+            onProyectoUpsert?.(previous);
+            setDraft(previous);
+          } else {
+            onProyectoRemove?.(toSave.id);
+            if (isNew) onOpenChange(false);
+          }
+          setError(result.error ?? 'No se pudo guardar');
+        }
+      })
+      .catch(() => {
+        if (previous) {
+          onProyectoUpsert?.(previous);
+          setDraft(previous);
+        } else {
+          onProyectoRemove?.(toSave.id);
+          if (isNew) onOpenChange(false);
+        }
+        setError('No se pudo guardar');
+      })
+      .finally(() => {
+        onOptimisticMutationEnd?.();
+      });
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     setError('');
-    setDeleting(true);
-    const result = await deleteVitrinaProyecto({ id: draft.id });
-    setDeleting(false);
-    if (!result.success) {
-      setError(result.error ?? 'No se pudo eliminar');
-      setConfirmDelete(false);
-      return;
-    }
+    const previous = draft;
+    setConfirmDelete(false);
     onOpenChange(false);
-    router.refresh();
+    onOptimisticMutationStart?.();
+    onProyectoRemove?.(previous.id);
+
+    void deleteVitrinaProyecto({ id: previous.id })
+      .then((result) => {
+        if (!result.success) {
+          onProyectoUpsert?.(previous);
+          setError(result.error ?? 'No se pudo eliminar');
+        }
+      })
+      .catch(() => {
+        onProyectoUpsert?.(previous);
+        setError('No se pudo eliminar');
+      })
+      .finally(() => {
+        onOptimisticMutationEnd?.();
+      });
   }
 
-  const busy = saving || deleting;
+  const busy = false;
   const lineasOpciones =
     draft.fondoIds.length === 0
       ? catalogs?.lineas ?? []

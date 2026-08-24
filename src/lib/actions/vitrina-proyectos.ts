@@ -9,14 +9,15 @@ import {
   clampCoverZoom,
   clampCoverOffsetY,
   normalizeVitrinaProyectos,
-  removeVitrinaProyectoFromList,
-  upsertVitrinaProyectoInList,
   type VitrinaCatalogOption,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
 import {
+  deleteVitrinaProyectoRecord,
   readVitrinaProyectos,
-  writeVitrinaProyectos,
+  updateVitrinaProyectoCover,
+  upsertVitrinaProyectoRecord,
+  upsertVitrinaProyectosRecords,
 } from '@/lib/vitrina-proyectos-store';
 
 export type VitrinaLineaOption = VitrinaCatalogOption & { fondoId: string };
@@ -110,7 +111,7 @@ export async function saveVitrinaProyectos(input: {
   try {
     const catalogs = await getVitrinaProjectCatalogs();
     const proyectos = normalized.proyectos.map((p) => freezeProyecto(p, catalogs));
-    await writeVitrinaProyectos(proyectos);
+    await upsertVitrinaProyectosRecords(proyectos);
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -125,15 +126,20 @@ export async function upsertVitrinaProyecto(input: {
   const gate = await requireAdmin();
   if (!gate.ok) return { success: false, error: gate.error };
 
+  const normalized = normalizeVitrinaProyectos(
+    input.proyecto ? [input.proyecto] : [],
+  );
+  if (!normalized.ok) {
+    return { success: false, error: normalized.error };
+  }
+  const proyecto = normalized.proyectos[0];
+  if (!proyecto) {
+    return { success: false, error: 'El nombre es obligatorio' };
+  }
+
   try {
-    const current = await readVitrinaProyectos();
-    const upserted = upsertVitrinaProyectoInList(current, input.proyecto);
-    if (!upserted.ok) {
-      return { success: false, error: upserted.error };
-    }
     const catalogs = await getVitrinaProjectCatalogs();
-    const proyectos = upserted.proyectos.map((p) => freezeProyecto(p, catalogs));
-    await writeVitrinaProyectos(proyectos);
+    await upsertVitrinaProyectoRecord(freezeProyecto(proyecto, catalogs));
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -148,13 +154,16 @@ export async function deleteVitrinaProyecto(input: {
   const gate = await requireAdmin();
   if (!gate.ok) return { success: false, error: gate.error };
 
+  const id = typeof input.id === 'string' ? input.id.trim() : '';
+  if (!id) {
+    return { success: false, error: 'Proyecto no válido' };
+  }
+
   try {
-    const current = await readVitrinaProyectos();
-    const removed = removeVitrinaProyectoFromList(current, input.id);
-    if (!removed.ok) {
-      return { success: false, error: removed.error };
+    const removed = await deleteVitrinaProyectoRecord(id);
+    if (!removed) {
+      return { success: false, error: 'Proyecto no encontrado' };
     }
-    await writeVitrinaProyectos(removed.proyectos);
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -178,17 +187,11 @@ export async function saveVitrinaProyectoCoverOffset(input: {
   }
 
   try {
-    const proyectos = await readVitrinaProyectos();
-    const index = proyectos.findIndex((p) => p.id === id);
-    if (index < 0) {
-      return { success: false, error: 'Proyecto no encontrado' };
-    }
-    const current = proyectos[index];
+    const current = (await readVitrinaProyectos()).find((p) => p.id === id);
     if (!current) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
-    proyectos[index] = {
-      ...current,
+    const updated = await updateVitrinaProyectoCover(id, {
       coverOffsetX: clampCoverOffset(
         input.coverOffsetX ?? current.coverOffsetX,
       ),
@@ -196,8 +199,10 @@ export async function saveVitrinaProyectoCoverOffset(input: {
         input.coverOffsetY ?? current.coverOffsetY,
       ),
       coverZoom: clampCoverZoom(input.coverZoom ?? current.coverZoom),
-    };
-    await writeVitrinaProyectos(proyectos);
+    });
+    if (!updated) {
+      return { success: false, error: 'Proyecto no encontrado' };
+    }
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {

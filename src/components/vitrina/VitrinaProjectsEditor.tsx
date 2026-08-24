@@ -3,15 +3,13 @@
 import { useState } from 'react';
 import { Plus, Settings } from 'lucide-react';
 import { VitrinaAiSettingsModal } from '@/components/vitrina/VitrinaAiSettingsModal';
-import { VITRINA_PROYECTOS_MAX } from '@/lib/vitrina-proyectos';
 
 type Props = {
   count: number;
   onAdd: () => void;
 };
 
-export function VitrinaProjectsEditor({ count, onAdd }: Props) {
-  const canAdd = count < VITRINA_PROYECTOS_MAX;
+export function VitrinaProjectsEditor({ onAdd }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -19,8 +17,7 @@ export function VitrinaProjectsEditor({ count, onAdd }: Props) {
       <button
         type="button"
         onClick={onAdd}
-        disabled={!canAdd}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white"
         aria-label="Añadir proyecto"
       >
         <Plus className="h-5 w-5" aria-hidden />

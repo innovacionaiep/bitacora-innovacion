@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   VITRINA_HERO,
   type VitrinaVideo,
@@ -28,7 +36,11 @@ import {
 } from '@/hooks/useVitrinaTransitionPerf';
 import { useVitrinaTypewriter } from '@/hooks/useVitrinaTypewriter';
 import { cn } from '@/lib/utils';
-import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
+import {
+  removeVitrinaProyectoFromList,
+  upsertVitrinaProyectoInList,
+  type VitrinaProyecto,
+} from '@/lib/vitrina-proyectos';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import {
   EMPTY_VITRINA_FILTERS,
@@ -79,6 +91,8 @@ export function VitrinaLanding({
   aiConfigured: boolean;
   sessionEmail?: string | null;
 }) {
+  const router = useRouter();
+  const [proyectosLocal, setProyectosLocal] = useState(proyectos);
   const [heroOff, setHeroOff] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
   const [cardsShown, setCardsShown] = useState(false);
@@ -96,21 +110,53 @@ export function VitrinaLanding({
     null,
   );
   const timersRef = useRef<number[]>([]);
+  const pendingMutationsRef = useRef(0);
+
+  useEffect(() => {
+    if (pendingMutationsRef.current === 0) {
+      setProyectosLocal(proyectos);
+    }
+  }, [proyectos]);
+
+  const upsertProyectoLocal = useCallback((proyecto: VitrinaProyecto) => {
+    setProyectosLocal((prev) => {
+      const result = upsertVitrinaProyectoInList(prev, proyecto);
+      return result.ok ? result.proyectos : prev;
+    });
+  }, []);
+
+  const removeProyectoLocal = useCallback((id: string) => {
+    setProyectosLocal((prev) => {
+      const result = removeVitrinaProyectoFromList(prev, id);
+      return result.ok ? result.proyectos : prev;
+    });
+  }, []);
+
+  const beginOptimisticMutation = useCallback(() => {
+    pendingMutationsRef.current += 1;
+  }, []);
+
+  const endOptimisticMutation = useCallback(() => {
+    pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
+    if (pendingMutationsRef.current === 0) {
+      router.refresh();
+    }
+  }, [router]);
 
   const scene: VitrinaScene = heroOff ? 'projects' : 'hero';
   const typewriterPaused = vitrinaTypewriterPaused(scene, busy);
   const carouselLive = vitrinaCarouselLive(scene, busy);
   const filterOptions = useMemo(
-    () => uniqueVitrinaFilterOptions(filterCatalogs, proyectos),
-    [filterCatalogs, proyectos],
+    () => uniqueVitrinaFilterOptions(filterCatalogs, proyectosLocal),
+    [filterCatalogs, proyectosLocal],
   );
   const proyectosFiltrados = useMemo(
     () =>
       applyVitrinaAiMatchIds(
-        filterVitrinaProyectos(proyectos, filters, searchQuery),
+        filterVitrinaProyectos(proyectosLocal, filters, searchQuery),
         aiMatchIds,
       ),
-    [proyectos, filters, aiMatchIds, searchQuery],
+    [proyectosLocal, filters, aiMatchIds, searchQuery],
   );
 
   const { index, displayed, progress, current } = useVitrinaTypewriter(
@@ -313,7 +359,7 @@ export function VitrinaLanding({
 
         {headerCompact && canEdit ? (
           <VitrinaProjectsEditor
-            count={proyectos.length}
+            count={proyectosLocal.length}
             onAdd={() => setFicha('new')}
           />
         ) : null}
@@ -436,7 +482,7 @@ export function VitrinaLanding({
                     proyectos={proyectosFiltrados}
                     canEdit={canEdit}
                     emptyHint={
-                      proyectos.length > 0
+                      proyectosLocal.length > 0
                         ? 'No hay proyectos que coincidan con los filtros.'
                         : undefined
                     }
@@ -453,14 +499,22 @@ export function VitrinaLanding({
                 </div>
                 <div
                   className={cn(
-                    'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
+                    'h-full min-h-0 overflow-hidden',
                     projectsView !== 'data' && 'hidden',
                   )}
                 >
                   <VitrinaProjectsTable
-                    proyectos={proyectos}
+                    proyectos={proyectosFiltrados}
                     catalogs={catalogs}
                     canEdit={canEdit}
+                    emptyHint={
+                      proyectosLocal.length > 0
+                        ? 'No hay proyectos que coincidan con los filtros.'
+                        : undefined
+                    }
+                    onProyectoUpsert={upsertProyectoLocal}
+                    onOptimisticMutationStart={beginOptimisticMutation}
+                    onOptimisticMutationEnd={endOptimisticMutation}
                   />
                 </div>
                 <VitrinaAiChat
@@ -493,11 +547,15 @@ export function VitrinaLanding({
         isNew={ficha === 'new'}
         proyecto={
           ficha && ficha !== 'new'
-            ? (proyectos.find((p) => p.id === ficha) ?? null)
+            ? (proyectosLocal.find((p) => p.id === ficha) ?? null)
             : null
         }
         canEdit={canEdit}
         onCreated={(id) => setFicha(id)}
+        onProyectoUpsert={upsertProyectoLocal}
+        onProyectoRemove={removeProyectoLocal}
+        onOptimisticMutationStart={beginOptimisticMutation}
+        onOptimisticMutationEnd={endOptimisticMutation}
       />
 
       <VitrinaPerfOverlay

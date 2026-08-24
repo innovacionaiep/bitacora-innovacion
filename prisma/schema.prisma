@@ -276,6 +276,7 @@ model Fondo {
   /** Deprecated: la fuente de verdad es Linea.tabEscalamientoEnabled. No DROP. */
   escalamientoEnabled Boolean @default(false) @map("escalamiento_enabled")
   lineas            Linea[]
+  vitrinaProyectos  VitrinaProyectoFondo[]
 
   @@map("fondos")
 }
@@ -296,6 +297,7 @@ model Linea {
   tabPresupuestoEnabled   Boolean @default(true) @map("tab_presupuesto_enabled")
   tabSeguimientoEnabled   Boolean @default(true) @map("tab_seguimiento_enabled")
   tabEscalamientoEnabled  Boolean @default(false) @map("tab_escalamiento_enabled")
+  vitrinaProyectos        VitrinaProyectoLinea[]
 
   @@index([fondoId])
   @@map("lineas")
@@ -308,6 +310,7 @@ model Sede {
   orden                 Int                    @default(0)
   proyectoParticipantes ProyectoParticipante[]
   users                 User[]
+  vitrinaProyectos      VitrinaProyectoSede[]
 
   @@map("sedes")
 }
@@ -320,6 +323,7 @@ model Escuela {
   proyectos             ProyectoEscuela[]
   proyectoParticipantes ProyectoParticipante[]
   users                 User[]
+  vitrinaProyectos      VitrinaProyectoEscuela[]
 
   @@map("escuelas")
 }
@@ -412,8 +416,9 @@ model GrupoInteres {
 
 // Etiquetas de vitrina (catálogo de marketing; no se asignan a Proyecto de la app)
 model Etiqueta {
-  id     String @id @default(cuid())
-  nombre String
+  id               String                    @id @default(cuid())
+  nombre           String
+  vitrinaProyectos VitrinaProyectoEtiqueta[]
 
   @@map("etiquetas")
 }
@@ -437,8 +442,9 @@ model SocioComunitario {
   nombreContacto String? @map("nombre_contacto")
   email          String?
 
-  proyectos      ProyectoSocioComunitario[]
-  participantes  ProyectoParticipante[]
+  proyectos        ProyectoSocioComunitario[]
+  participantes    ProyectoParticipante[]
+  vitrinaProyectos VitrinaProyectoSocio[]
 
   @@map("socios_comunitarios")
 }
@@ -966,6 +972,131 @@ model RolePermission {
 
   @@unique([role, permissionKey])
   @@map("role_permissions")
+}
+
+/// Fichas de marketing de vitrina (independientes de Proyecto de Bitácora).
+model VitrinaProyecto {
+  id                     String   @id @default(cuid())
+  nombre                 String
+  descripcion            String   @default("") @db.Text
+  encargadoNombre        String   @default("") @map("encargado_nombre")
+  encargadoCorreo        String   @default("") @map("encargado_correo")
+  encargadoCargo         String   @default("") @map("encargado_cargo")
+  videoUrl               String?  @map("video_url") @db.Text
+  coverOffsetX           Int      @default(50) @map("cover_offset_x")
+  coverOffsetY           Int      @default(50) @map("cover_offset_y")
+  coverZoom              Float    @default(1) @map("cover_zoom")
+  descripcionFontSize    Int      @default(15) @map("descripcion_font_size")
+  igipInicial            Decimal? @map("igip_inicial") @db.Decimal(12, 4)
+  igipInicialComentario  String   @default("") @map("igip_inicial_comentario") @db.Text
+  igipProyeccion         Decimal? @map("igip_proyeccion") @db.Decimal(12, 4)
+  igipFinal              Decimal? @map("igip_final") @db.Decimal(12, 4)
+  igipFinalComentario    String   @default("") @map("igip_final_comentario") @db.Text
+  trlInicial             Int?     @map("trl_inicial")
+  trlInicialComentario   String   @default("") @map("trl_inicial_comentario") @db.Text
+  trlProyeccion          Int?     @map("trl_proyeccion")
+  trlFinal               Int?     @map("trl_final")
+  trlFinalComentario     String   @default("") @map("trl_final_comentario") @db.Text
+  orden                  Int      @default(0)
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  fotos     VitrinaProyectoFoto[]
+  fondos    VitrinaProyectoFondo[]
+  lineas    VitrinaProyectoLinea[]
+  sedes     VitrinaProyectoSede[]
+  escuelas  VitrinaProyectoEscuela[]
+  socios    VitrinaProyectoSocio[]
+  etiquetas VitrinaProyectoEtiqueta[]
+
+  @@index([nombre])
+  @@index([orden])
+  @@map("vitrina_proyectos")
+}
+
+model VitrinaProyectoFoto {
+  id                 String @id @default(cuid())
+  vitrinaProyectoId  String @map("vitrina_proyecto_id")
+  url                String
+  publicId           String @map("public_id")
+  orden              Int    @default(0)
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+
+  @@index([vitrinaProyectoId])
+  @@map("vitrina_proyecto_fotos")
+}
+
+model VitrinaProyectoFondo {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  fondoId           String @map("fondo_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  fondo    Fondo           @relation(fields: [fondoId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, fondoId])
+  @@index([fondoId])
+  @@map("vitrina_proyecto_fondos")
+}
+
+model VitrinaProyectoLinea {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  lineaId           String @map("linea_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  linea    Linea           @relation(fields: [lineaId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, lineaId])
+  @@index([lineaId])
+  @@map("vitrina_proyecto_lineas")
+}
+
+model VitrinaProyectoSede {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  sedeId            String @map("sede_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  sede     Sede            @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, sedeId])
+  @@index([sedeId])
+  @@map("vitrina_proyecto_sedes")
+}
+
+model VitrinaProyectoEscuela {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  escuelaId         String @map("escuela_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  escuela  Escuela         @relation(fields: [escuelaId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, escuelaId])
+  @@index([escuelaId])
+  @@map("vitrina_proyecto_escuelas")
+}
+
+model VitrinaProyectoSocio {
+  vitrinaProyectoId  String @map("vitrina_proyecto_id")
+  socioComunitarioId String @map("socio_comunitario_id")
+
+  proyecto VitrinaProyecto  @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  socio    SocioComunitario @relation(fields: [socioComunitarioId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, socioComunitarioId])
+  @@index([socioComunitarioId])
+  @@map("vitrina_proyecto_socios")
+}
+
+model VitrinaProyectoEtiqueta {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  etiquetaId        String @map("etiqueta_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  etiqueta Etiqueta        @relation(fields: [etiquetaId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, etiquetaId])
+  @@index([etiquetaId])
+  @@map("vitrina_proyecto_etiquetas")
 }
 
 /// Configuración runtime de la app (key/value). Ej: maintenance_enabled=true|false

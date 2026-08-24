@@ -8,11 +8,6 @@ import {
   normalizeSocioComunitarioFields,
   socioComunitarioIsInUse,
 } from '@/lib/socios-comunitarios';
-import { applySocioNombreToVitrinaProyectos } from '@/lib/vitrina-proyectos';
-import {
-  readVitrinaProyectos,
-  writeVitrinaProyectos,
-} from '@/lib/vitrina-proyectos-store';
 
 const CONFIG_PATH = '/configuracion/socios-comunitarios';
 
@@ -146,18 +141,6 @@ export async function updateSocioComunitarioAdmin(
       data: parsed.data,
     });
 
-    if (existing.nombre !== parsed.data.nombre) {
-      const vitrina = await readVitrinaProyectos();
-      const synced = applySocioNombreToVitrinaProyectos(
-        vitrina,
-        id,
-        parsed.data.nombre
-      );
-      if (synced.changed) {
-        await writeVitrinaProyectos(synced.proyectos);
-      }
-    }
-
     revalidateSocioCatalog();
     return { success: true };
   } catch (e) {
@@ -175,15 +158,18 @@ export async function deleteSocioComunitarioAdmin(
   if (!id) return { success: false, error: 'Socio no especificado' };
 
   try {
-    const [proyectos, participantes] = await Promise.all([
+    const [proyectos, participantes, vitrina] = await Promise.all([
       prisma.proyectoSocioComunitario.count({
         where: { socioComunitarioId: id },
       }),
       prisma.proyectoParticipante.count({
         where: { socioComunitarioId: id },
       }),
+      prisma.vitrinaProyectoSocio.count({
+        where: { socioComunitarioId: id },
+      }),
     ]);
-    if (socioComunitarioIsInUse({ proyectos, participantes })) {
+    if (socioComunitarioIsInUse({ proyectos: proyectos + vitrina, participantes })) {
       return {
         success: false,
         error:

@@ -57,19 +57,78 @@ describe('VitrinaDataDashboard', () => {
         etiquetas: ['Tecnología'],
       },
     ]);
-    render(<VitrinaDataDashboard proyectos={proyectos} />);
+    const { container } = render(
+      <VitrinaDataDashboard proyectos={proyectos} />,
+    );
 
-    expect(screen.getByText('proyectos en vitrina')).toBeInTheDocument();
+    expect(
+      container.querySelector('.text-7xl')?.textContent,
+    ).toBe('2');
+    expect(screen.queryByText(/proyectos en vitrina/i)).not.toBeInTheDocument();
     expect(screen.getByText('Por fondo')).toBeInTheDocument();
     expect(screen.getByText('Por línea')).toBeInTheDocument();
     expect(screen.getByText('Por sede')).toBeInTheDocument();
     expect(screen.getByText('Por escuela')).toBeInTheDocument();
     expect(screen.getByText('Por etiqueta')).toBeInTheDocument();
-    expect(screen.getByText('Fondo Impulsa')).toBeInTheDocument();
-    expect(screen.getByText('Línea Alfa')).toBeInTheDocument();
+    expect(screen.getByText(/Fondo\s+Impulsa/)).toBeInTheDocument();
+    expect(screen.getByText(/Línea\s+Alfa/)).toBeInTheDocument();
     expect(screen.getByText('Valparaíso')).toBeInTheDocument();
     expect(screen.getByText('Salud')).toBeInTheDocument();
     expect(screen.getByText('Tecnología')).toBeInTheDocument();
+  });
+
+  it('parte el nombre del fondo en dos líneas cuando tiene espacio', () => {
+    const proyectos = projectsFrom([
+      {
+        nombre: 'A',
+        fondos: ['Fondo Impulsa'],
+      },
+    ]);
+    render(<VitrinaDataDashboard proyectos={proyectos} />);
+
+    const label = screen
+      .getByTitle('Fondo Impulsa: 1')
+      .querySelector('.whitespace-pre-line');
+    expect(label).not.toBeNull();
+    expect(label).toHaveClass('whitespace-pre-line');
+    expect(label!.textContent).toBe('Fondo\nImpulsa');
+  });
+
+  it('coloca el conteo justo encima de cada barra vertical', () => {
+    const proyectos = projectsFrom([
+      { nombre: 'A', fondos: ['Fondo Impulsa'], lineas: ['Línea Alfa'] },
+      { nombre: 'B', fondos: ['Fondo Impulsa'], lineas: ['Línea Beta'] },
+      { nombre: 'C', fondos: ['Fondo Crea'], lineas: ['Línea Alfa'] },
+    ]);
+    const { container } = render(
+      <VitrinaDataDashboard proyectos={proyectos} />,
+    );
+
+    const fondoImpulsa = container.querySelector(
+      '[title="Fondo Impulsa: 2"]',
+    ) as HTMLElement;
+    const fondoCrea = container.querySelector(
+      '[title="Fondo Crea: 1"]',
+    ) as HTMLElement;
+    const countImpulsa = fondoImpulsa.querySelector(
+      'span.tabular-nums',
+    ) as HTMLElement;
+    const countCrea = fondoCrea.querySelector(
+      'span.tabular-nums',
+    ) as HTMLElement;
+    const barImpulsa = fondoImpulsa.querySelector(
+      '[class*="rounded-t-md"]',
+    ) as HTMLElement;
+    const barCrea = fondoCrea.querySelector(
+      '[class*="rounded-t-md"]',
+    ) as HTMLElement;
+
+    expect(countImpulsa).toHaveTextContent('2');
+    expect(countCrea).toHaveTextContent('1');
+    // Número en el flujo, encima de la barra (no absolute que se recorte).
+    expect(countImpulsa.compareDocumentPosition(barImpulsa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(barImpulsa.style.height).toBe('148px');
+    expect(barCrea.style.height).toBe('74px');
   });
 
   it('dibuja sede, escuela y etiqueta como filas (barra por ancho)', () => {
