@@ -521,7 +521,17 @@ export async function runVitrinaAiOrchestrator(
     };
   }
 
-  if (isTopic && !allowFilterChange && !isAnalysis && !isWebSearch) {
+  if (isTopic && !isAnalysis && !isWebSearch) {
+    const ids = preliminaryHits.map((hit) => hit.id);
+    if (allowFilterChange) {
+      return {
+        ok: true,
+        reply: formatVitrinaAiTopicReply(preliminaryHits, index),
+        filters: EMPTY_VITRINA_FILTERS,
+        matchIds: ids.length > 0 ? ids : [],
+        applied: true,
+      };
+    }
     return {
       ok: true,
       reply: formatVitrinaAiTopicReply(preliminaryHits, index),

@@ -15,6 +15,7 @@ function revalidateSocioCatalog() {
   revalidatePath(CONFIG_PATH);
   revalidatePath('/proyectos');
   revalidatePath('/dashboard');
+  revalidatePath('/');
   revalidatePath('/vitrina');
   revalidateTag('proyectos');
   revalidateTag('proyectos-dashboard');

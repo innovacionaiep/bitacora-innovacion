@@ -143,6 +143,11 @@ const TOPIC_FILLERS = new Set([
   'trabaja',
   'trabajan',
   'trabajar',
+  'trabaje',
+  'trabajen',
+  'trabajando',
+  'trabajamos',
+  'trabajo',
   'vinculada',
   'vinculado',
 ]);

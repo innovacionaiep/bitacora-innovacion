@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VitrinaViewToggle } from '@/components/vitrina/VitrinaViewToggle';
 import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
@@ -36,6 +36,24 @@ describe('VitrinaViewToggle', () => {
     expect(onChange).toHaveBeenCalledWith('indicadores');
     await user.click(screen.getByRole('tab', { name: 'Data' }));
     expect(onChange).toHaveBeenCalledWith('data');
+  });
+
+  it('muestra Avances cuando el nivel incluye esa vista', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    const view = render(
+      <VitrinaViewToggle
+        value="proyectos"
+        onChange={onChange}
+        tabs={['proyectos', 'indicadores', 'avances']}
+      />,
+    );
+    const tabs = within(view.container)
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent);
+    expect(tabs).toEqual(['Proyectos', 'Indicadores', 'Avances']);
+    await user.click(within(view.container).getByRole('tab', { name: 'Avances' }));
+    expect(onChange).toHaveBeenCalledWith('avances');
   });
 });
 

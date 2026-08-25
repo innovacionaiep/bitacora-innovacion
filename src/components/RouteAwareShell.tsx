@@ -23,6 +23,7 @@ export function RouteAwareShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLightRoute =
     AUTH_PREFIXES.some((r) => pathname.startsWith(r)) ||
+    pathname === '/' ||
     pathname === '/mantenimiento' ||
     pathname === '/vitrina' ||
     pathname.startsWith('/vitrina/');

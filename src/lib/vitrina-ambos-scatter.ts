@@ -151,10 +151,10 @@ export function layoutVitrinaAmbosScatter(
   scatter: VitrinaAmbosScatter,
   size: { width: number; height: number },
 ): VitrinaAmbosScatterLayout {
-  const left = 52;
+  const left = 58;
   const right = 24;
-  const top = 16;
-  const bottom = 40;
+  const top = 20;
+  const bottom = 58;
   const plotWidth = Math.max(1, size.width - left - right);
   const plotHeight = Math.max(1, size.height - top - bottom);
 

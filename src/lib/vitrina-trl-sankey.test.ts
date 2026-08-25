@@ -87,6 +87,11 @@ describe('layoutVitrinaTrlSankey', () => {
     expect(layout.fromNodes[0].x).toBeLessThan(layout.toNodes[0].x);
     expect(layout.links).toHaveLength(2);
     expect(layout.links[0].d.startsWith('M')).toBe(true);
-    expect(layout.links[0].thickness).toBeGreaterThan(layout.links[1].thickness);
+    const fromHigh = layout.fromNodes.find((n) => n.level === 3)!;
+    const fromLow = layout.fromNodes.find((n) => n.level === 2)!;
+    expect(fromHigh.y).toBeLessThan(fromLow.y);
+    const toHigh = layout.toNodes.find((n) => n.level === 5)!;
+    const toLow = layout.toNodes.find((n) => n.level === 4)!;
+    expect(toHigh.y).toBeLessThan(toLow.y);
   });
 });

@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      { source: '/vitrina', destination: '/', permanent: false },
+      { source: '/vitrina/:path*', destination: '/', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

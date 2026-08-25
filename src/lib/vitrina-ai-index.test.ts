@@ -169,6 +169,14 @@ describe('searchVitrinaAiIndex', () => {
     );
     expect(hits.map((h) => h.id)).toEqual(['p-up']);
     expect(hits[0]?.matched).toContain('etiquetas');
+
+    const buscoHits = searchVitrinaAiIndex(
+      buildVitrinaAiIndex(proyectos),
+      'busco algun proyecto que trabaje con pueblos originarios',
+      'topic',
+      catalogs,
+    );
+    expect(buscoHits.map((h) => h.id)).toEqual(['p-up']);
   });
 
   it('no confunde un verbo de la pregunta con el tema (abejas)', () => {

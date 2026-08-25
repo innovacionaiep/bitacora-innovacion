@@ -112,6 +112,7 @@ export async function saveVitrinaProyectos(input: {
     const catalogs = await getVitrinaProjectCatalogs();
     const proyectos = normalized.proyectos.map((p) => freezeProyecto(p, catalogs));
     await upsertVitrinaProyectosRecords(proyectos);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -140,6 +141,7 @@ export async function upsertVitrinaProyecto(input: {
   try {
     const catalogs = await getVitrinaProjectCatalogs();
     await upsertVitrinaProyectoRecord(freezeProyecto(proyecto, catalogs));
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -164,6 +166,7 @@ export async function deleteVitrinaProyecto(input: {
     if (!removed) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -203,6 +206,7 @@ export async function saveVitrinaProyectoCoverOffset(input: {
     if (!updated) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {

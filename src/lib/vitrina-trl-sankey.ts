@@ -120,11 +120,13 @@ function stackNodes(
   height: number,
   pad: number,
 ): VitrinaTrlSankeyLayoutNode[] {
-  const total = levels.reduce((sum, item) => sum + item.value, 0);
-  const gaps = Math.max(0, levels.length - 1) * pad;
+  // Mayor arriba, menor abajo (eje invertido respecto al orden natural).
+  const ordered = [...levels].sort((a, b) => b.level - a.level);
+  const total = ordered.reduce((sum, item) => sum + item.value, 0);
+  const gaps = Math.max(0, ordered.length - 1) * pad;
   const usable = Math.max(1, height - gaps);
   let y = 0;
-  return levels.map((item) => {
+  return ordered.map((item) => {
     const nodeHeight = total === 0 ? 0 : (item.value / total) * usable;
     const node = {
       level: item.level,
@@ -183,7 +185,13 @@ export function layoutVitrinaTrlSankey(
   const fromCursor = new Map(fromNodes.map((node) => [node.level, node.y]));
   const toCursor = new Map(toNodes.map((node) => [node.level, node.y]));
 
-  const links = sankey.links.map((link) => {
+  // Dentro de cada nodo, primero los destinos/orígenes más altos para alinear con el eje invertido.
+  const orderedLinks = [...sankey.links].sort((a, b) => {
+    if (a.from !== b.from) return b.from - a.from;
+    return b.to - a.to;
+  });
+
+  const links = orderedLinks.map((link) => {
     const fromNode = fromByLevel.get(link.from);
     const toNode = toByLevel.get(link.to);
     if (!fromNode || !toNode) {

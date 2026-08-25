@@ -18,6 +18,7 @@ export async function saveVitrinaVideos(input: {
 
   try {
     await writeVitrinaVideos(normalized.videos);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {

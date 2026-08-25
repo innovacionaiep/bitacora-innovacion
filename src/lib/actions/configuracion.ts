@@ -796,6 +796,7 @@ export async function createEtiqueta(nombre: string) {
     }
     await prisma.etiqueta.create({ data: { nombre: trimmed } });
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -831,6 +832,7 @@ export async function updateEtiqueta(id: string, nombre: string) {
       data: { nombre: trimmed },
     });
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -846,6 +848,7 @@ export async function deleteEtiqueta(id: string) {
   try {
     await prisma.etiqueta.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -878,6 +881,7 @@ export async function importEtiquetasFromNames(
       await prisma.etiqueta.create({ data: { nombre } });
     }
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return {
       success: true,

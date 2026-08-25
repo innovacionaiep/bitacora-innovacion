@@ -294,7 +294,7 @@ function AmbosScatterCard({
           </span>
         </div>
       ) : null}
-      <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white py-6 pl-2 pr-6 shadow-sm">
         {scatter.included === 0 ? (
           <p className="flex flex-1 items-center justify-center text-sm text-slate-400">
             No hay proyectos con TRL e IGIP para Inicial o {destinationName}.
@@ -307,6 +307,22 @@ function AmbosScatterCard({
               className="h-full w-full"
               preserveAspectRatio="xMidYMid meet"
             >
+              <rect
+                x={layout.plot.left - 42}
+                y={layout.plot.top - 12}
+                width={36}
+                height={layout.plot.height + 24}
+                rx={6}
+                fill="#f1f5f9"
+              />
+              <rect
+                x={layout.plot.left - 14}
+                y={layout.plot.top + layout.plot.height + 10}
+                width={layout.plot.width + 28}
+                height={28}
+                rx={6}
+                fill="#f1f5f9"
+              />
               {layout.xTicks.map((tick) => (
                 <g key={`x-${tick}`}>
                   <line
@@ -318,9 +334,10 @@ function AmbosScatterCard({
                   />
                   <text
                     x={xFor(tick)}
-                    y={layout.plot.top + layout.plot.height + 18}
+                    y={layout.plot.top + layout.plot.height + 24}
                     textAnchor="middle"
-                    className="fill-slate-500 text-[11px]"
+                    dominantBaseline="middle"
+                    className="fill-slate-600 text-[11px]"
                   >
                     {tick}
                   </text>
@@ -336,11 +353,11 @@ function AmbosScatterCard({
                     className="stroke-slate-100"
                   />
                   <text
-                    x={layout.plot.left - 8}
+                    x={layout.plot.left - 24}
                     y={yFor(tick)}
-                    textAnchor="end"
+                    textAnchor="middle"
                     dominantBaseline="middle"
-                    className="fill-slate-500 text-[11px]"
+                    className="fill-slate-600 text-[11px]"
                   >
                     {formatIgip(tick)}
                   </text>
@@ -348,18 +365,18 @@ function AmbosScatterCard({
               ))}
               <text
                 x={layout.plot.left + layout.plot.width / 2}
-                y={SVG_H - 4}
+                y={SVG_H - 2}
                 textAnchor="middle"
                 className="fill-slate-600 text-[12px] font-semibold"
               >
                 TRL
               </text>
               <text
-                x={16}
+                x={8}
                 y={layout.plot.top + layout.plot.height / 2}
                 textAnchor="middle"
                 className="fill-slate-600 text-[12px] font-semibold"
-                transform={`rotate(-90 16 ${layout.plot.top + layout.plot.height / 2})`}
+                transform={`rotate(-90 8 ${layout.plot.top + layout.plot.height / 2})`}
               >
                 IGIP
               </text>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useTopLoader } from 'nextjs-toploader';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,17 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { sanitizeAuthCallbackUrl } from '@/lib/auth-callback-url';
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +33,9 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const topLoader = useTopLoader();
+  const callbackUrl = sanitizeAuthCallbackUrl(searchParams.get('callbackUrl'));
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +55,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Login exitoso — barra visible mientras monta el shell autenticado
       topLoader.start();
-      router.push('/inicio');
+      router.push(callbackUrl);
       router.refresh();
     } catch (err) {
       console.error('Error en login:', err);
@@ -71,7 +81,6 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Formulario de email y password */}
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

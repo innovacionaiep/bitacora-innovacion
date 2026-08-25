@@ -20,7 +20,9 @@ import { VitrinaProjectsEditor } from '@/components/vitrina/VitrinaProjectsEdito
 import { VitrinaProjectsGrid } from '@/components/vitrina/VitrinaProjectsGrid';
 import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSidebar';
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
+import { VitrinaAvancesPlaceholder } from '@/components/vitrina/VitrinaAvancesPlaceholder';
 import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
+import { VitrinaGuestGate } from '@/components/vitrina/VitrinaGuestGate';
 import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
 import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
 import {
@@ -65,6 +67,13 @@ import {
   type VitrinaScene,
 } from '@/lib/vitrina-transition';
 import type { VitrinaPerfDirection } from '@/lib/vitrina-transition-perf';
+import {
+  clampPortalView,
+  portalCanSeeView,
+  portalViewsForLevel,
+  type PortalAccessKind,
+  type PortalGuestLevel,
+} from '@/lib/portal-guest-access';
 
 const PATTERN_EDGES = 'left-[calc(50%-50cqw)] right-[calc(50%+6rem)]';
 
@@ -75,6 +84,8 @@ function prefersReducedMotion() {
   );
 }
 
+const LOGIN_HERO_HREF = `/auth/login?callbackUrl=${encodeURIComponent('/')}`;
+
 export function VitrinaLanding({
   videos,
   proyectos,
@@ -83,6 +94,9 @@ export function VitrinaLanding({
   canEdit,
   aiConfigured,
   sessionEmail = null,
+  accessKind = 'none',
+  accessLevel = 0,
+  initialScene = 'hero',
 }: {
   videos: VitrinaVideo[];
   proyectos: VitrinaProyecto[];
@@ -91,22 +105,29 @@ export function VitrinaLanding({
   canEdit: boolean;
   aiConfigured: boolean;
   sessionEmail?: string | null;
+  accessKind?: PortalAccessKind;
+  accessLevel?: 0 | PortalGuestLevel;
+  initialScene?: VitrinaScene;
 }) {
   const router = useRouter();
+  const startProjects = initialScene === 'projects';
+  const hasAccess = accessLevel >= 1;
+  const visibleTabs = portalViewsForLevel(accessLevel);
   const [proyectosLocal, setProyectosLocal] = useState(proyectos);
-  const [heroOff, setHeroOff] = useState(false);
-  const [headerCompact, setHeaderCompact] = useState(false);
-  const [cardsShown, setCardsShown] = useState(false);
+  const [heroOff, setHeroOff] = useState(startProjects);
+  const [headerCompact, setHeaderCompact] = useState(startProjects);
+  const [cardsShown, setCardsShown] = useState(startProjects);
   const [busy, setBusy] = useState(false);
-  const [hasVisitedProjects, setHasVisitedProjects] = useState(false);
+  const [hasVisitedProjects, setHasVisitedProjects] = useState(startProjects);
   const [ficha, setFicha] = useState<null | 'new' | string>(null);
   const [filters, setFilters] =
     useState<VitrinaProjectFilters>(EMPTY_VITRINA_FILTERS);
   const [aiMatchIds, setAiMatchIds] = useState<string[] | null>(null);
   const [aiApplied, setAiApplied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [projectsView, setProjectsView] =
-    useState<VitrinaProjectsView>('proyectos');
+  const [projectsView, setProjectsView] = useState<VitrinaProjectsView>(() =>
+    clampPortalView(accessLevel, 'proyectos'),
+  );
   const [perfDirection, setPerfDirection] = useState<VitrinaPerfDirection | null>(
     null,
   );
@@ -173,6 +194,10 @@ export function VitrinaLanding({
   }, []);
 
   useEffect(() => {
+    setProjectsView((current) => clampPortalView(accessLevel, current));
+  }, [accessLevel]);
+
+  useEffect(() => {
     return () => {
       timersRef.current.forEach((id) => window.clearTimeout(id));
     };
@@ -223,6 +248,7 @@ export function VitrinaLanding({
   const goToProjects = () => {
     if (!canGoToProjects(busy, scene)) return;
     setHasVisitedProjects(true);
+    router.replace('/?vista=proyectos', { scroll: false });
     if (prefersReducedMotion()) {
       setHeroOff(true);
       setHeaderCompact(true);
@@ -240,6 +266,7 @@ export function VitrinaLanding({
 
   const goToHero = () => {
     if (!canGoToHero(busy, scene)) return;
+    router.replace('/', { scroll: false });
     if (prefersReducedMotion()) {
       setCardsShown(false);
       setHeaderCompact(false);
@@ -257,7 +284,7 @@ export function VitrinaLanding({
     queue(() => setBusy(false), VITRINA_ANIM_MS);
   };
 
-  const brandInteractive = cardsShown && !busy;
+  const brandInteractive = headerCompact && !busy;
   const reduced = prefersReducedMotion();
   const panelMotion = reduced ? 'duration-0' : VITRINA_PANEL_MOTION;
   const headerMotion = reduced
@@ -340,7 +367,7 @@ export function VitrinaLanding({
             </div>
           ) : (
             <Link
-              href="/auth/login"
+              href={LOGIN_HERO_HREF}
               tabIndex={headerCompact ? -1 : undefined}
               className="rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
             >
@@ -349,20 +376,42 @@ export function VitrinaLanding({
           )}
         </div>
 
-        {headerCompact ? (
+        {headerCompact && hasAccess ? (
           <div className="pointer-events-auto absolute left-1/2 z-10 -translate-x-1/2">
             <VitrinaViewToggle
               value={projectsView}
               onChange={setProjectsView}
+              tabs={visibleTabs}
             />
           </div>
         ) : null}
 
-        {headerCompact && canEdit ? (
-          <VitrinaProjectsEditor
-            count={proyectosLocal.length}
-            onAdd={() => setFicha('new')}
-          />
+        {headerCompact ? (
+          <div className="flex h-9 min-w-0 shrink-0 items-center justify-end gap-2">
+            {hasAccess ? (
+              <span className="min-w-0 max-w-[12rem] truncate text-sm font-medium text-white/90 sm:max-w-[16rem]">
+                {sessionEmail
+                  ? `Sesión Iniciada: ${sessionEmail}`
+                  : accessKind === 'guest'
+                    ? 'Sesión de Invitado'
+                    : null}
+              </span>
+            ) : null}
+            {accessKind === 'session' ? (
+              <Link
+                href="/inicio"
+                className="inline-flex h-7 shrink-0 items-center rounded-full border border-white/80 px-3 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+              >
+                Ir a la app
+              </Link>
+            ) : null}
+            {canEdit ? (
+              <VitrinaProjectsEditor
+                count={proyectosLocal.length}
+                onAdd={() => setFicha('new')}
+              />
+            ) : null}
+          </div>
         ) : null}
       </header>
 
@@ -438,7 +487,13 @@ export function VitrinaLanding({
           </main>
         </div>
 
-        {vitrinaGridMounted(hasVisitedProjects) ? (
+        {headerCompact && !hasAccess ? (
+          <div className="absolute inset-0 z-10 flex w-full min-h-0 bg-white">
+            <VitrinaGuestGate onBack={goToHero} />
+          </div>
+        ) : null}
+
+        {vitrinaGridMounted(hasVisitedProjects) && hasAccess ? (
           <div
             className={cn(
               'absolute inset-0 z-10 flex min-h-0 [contain:paint]',
@@ -490,6 +545,7 @@ export function VitrinaLanding({
                     onOpen={(id) => setFicha(id)}
                   />
                 </div>
+                {portalCanSeeView(accessLevel, 'analisis') ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -498,6 +554,8 @@ export function VitrinaLanding({
                 >
                   <VitrinaDataDashboard proyectos={proyectosFiltrados} />
                 </div>
+                ) : null}
+                {portalCanSeeView(accessLevel, 'indicadores') ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -506,6 +564,18 @@ export function VitrinaLanding({
                 >
                   <VitrinaIndicadoresDashboard proyectos={proyectosFiltrados} />
                 </div>
+                ) : null}
+                {portalCanSeeView(accessLevel, 'avances') ? (
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-hidden',
+                    projectsView !== 'avances' && 'hidden',
+                  )}
+                >
+                  <VitrinaAvancesPlaceholder />
+                </div>
+                ) : null}
+                {portalCanSeeView(accessLevel, 'data') ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -526,6 +596,7 @@ export function VitrinaLanding({
                     onOptimisticMutationEnd={endOptimisticMutation}
                   />
                 </div>
+                ) : null}
                 <VitrinaAiChat
                   configured={aiConfigured}
                   filters={filters}

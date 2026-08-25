@@ -72,8 +72,9 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     return NextResponse.next();
   }
 
-  // Auth + landing oculta de vitrina: públicas, sin sesión
+  // Auth + portal público (home e histórico /vitrina)
   if (
+    pathname === '/' ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
     pathname === '/vitrina' ||

@@ -890,6 +890,52 @@ describe('runVitrinaAiOrchestrator', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('filtra tarjetas si pide buscar un tema con trabaje', async () => {
+    const parsed = normalizeVitrinaProyectos([
+      {
+        id: 'p-up',
+        nombre: 'Upcycling intercultural',
+        descripcion: 'Reutilización de materiales con la comunidad',
+        etiquetas: ['Pueblos originarios'],
+        fondos: ['Fondo Impulsa'],
+      },
+      {
+        id: 'p-fin',
+        nombre: 'Finanzas Pro-Comunales',
+        descripcion: 'Capacitación a pymes',
+        etiquetas: ['Pymes'],
+        fondos: ['Fondo Impulsa'],
+      },
+    ]);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const apps = parsed.proyectos;
+    const fetchImpl = vi.fn();
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'busco algun proyecto que trabaje con pueblos originarios',
+      history: [],
+      proyectos: apps,
+      catalogs: buildVitrinaAiCatalogs(
+        {
+          fondos: ['Fondo Impulsa'],
+          sedes: [],
+          escuelas: [],
+          etiquetas: ['Pueblos originarios', 'Pymes'],
+        },
+        apps,
+      ),
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(true);
+    expect(result.matchIds).toEqual(['p-up']);
+    expect(result.reply).toMatch(/Upcycling intercultural/i);
+    expect(result.reply).not.toMatch(/describe un poco más/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('abejas no incluye un proyecto de finanzas solo porque la pregunta dice trabaja', async () => {
     const parsed = normalizeVitrinaProyectos([
       {

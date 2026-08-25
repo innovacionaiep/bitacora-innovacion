@@ -23,6 +23,7 @@ import {
 import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readRequiredEnv } from '@/lib/secrets/env-secrets';
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
+import { resolvePortalAccess } from '@/lib/actions/portal-guest';
 
 export type VitrinaAiSettingsView = {
   configured: boolean;
@@ -85,6 +86,7 @@ export async function saveVitrinaAiSettings(input: {
 
   try {
     await writeVitrinaAiStored({ enc, model });
+    revalidatePath('/');
     revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
@@ -152,6 +154,14 @@ export async function chatVitrinaAgent(input: {
   }
   if (message.length > VITRINA_AI_MAX_MESSAGE_CHARS) {
     return { success: false, error: 'El mensaje es demasiado largo' };
+  }
+
+  const access = await resolvePortalAccess();
+  if (access.level < 1) {
+    return {
+      success: false,
+      error: 'Inicia sesión o ingresa un código de invitado',
+    };
   }
 
   const headerList = await headers();
