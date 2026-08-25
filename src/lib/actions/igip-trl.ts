@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { getLineaTabFlagsForProyecto } from '@/lib/linea-modulos-db';
@@ -194,7 +193,7 @@ export async function upsertIgipTrlProyecto(
       cambioGenerado: cambio,
     });
 
-    revalidatePath('/proyectos');
+    // No revalidatePath('/proyectos'): refresca el árbol y anula la UI optimista.
     return { success: true as const, data: next };
   } catch (e) {
     console.error('[upsertIgipTrlProyecto]', e);

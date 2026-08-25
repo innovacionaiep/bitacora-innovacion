@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Loader2, Pencil } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -86,7 +86,6 @@ function ScoreField({
   dimKey,
   label,
   value,
-  disabled,
   editing,
   onStartEdit,
   onStopEdit,
@@ -95,7 +94,6 @@ function ScoreField({
   dimKey: IgipSubdimensionKey;
   label: string;
   value: number | null;
-  disabled: boolean;
   editing: boolean;
   onStartEdit: () => void;
   onStopEdit: () => void;
@@ -109,7 +107,6 @@ function ScoreField({
         defaultValue={value ?? ''}
         onChange={(e) => onCommit(dimKey, e.target.value)}
         onBlur={onStopEdit}
-        disabled={disabled}
         aria-label={label}
       >
         <option value="">—</option>
@@ -141,11 +138,9 @@ function ScoreField({
 
 function IgipRadar({
   data,
-  saving,
   onScoreChange,
 }: {
   data: IgipTrlData;
-  saving: boolean;
   onScoreChange: (key: IgipSubdimensionKey, raw: string) => void;
 }) {
   const [editingScore, setEditingScore] = useState<IgipSubdimensionKey | null>(
@@ -231,7 +226,6 @@ function IgipRadar({
               dimKey={dim.key}
               label={dim.label}
               value={data[dim.key]}
-              disabled={saving}
               editing={editingScore === dim.key}
               onStartEdit={() => setEditingScore(dim.key)}
               onStopEdit={() => setEditingScore(null)}
@@ -271,10 +265,11 @@ export function IgipTrlCard({
     enabled: topLoaderEnabled,
   });
 
-  const current = data ?? emptyIgipTrlData();
+  const [optimistic, setOptimistic] = useState<IgipTrlData | null>(null);
+  const persistGenRef = useRef(0);
+  const current = optimistic ?? data ?? emptyIgipTrlData();
   const [igipDraft, setIgipDraft] = useState<string | null>(null);
   const [editingIgip, setEditingIgip] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const igipDisplay = useMemo(() => {
     if (igipDraft !== null) return igipDraft;
@@ -282,38 +277,40 @@ export function IgipTrlCard({
     return String(current.igip);
   }, [igipDraft, current.igip]);
 
-  async function persist(patch: IgipTrlPatch) {
+  function persist(patch: IgipTrlPatch) {
     const previous =
       queryClient.getQueryData<IgipTrlData>(igipTrlKey(projectId)) ?? current;
-    setSaving(true);
-    const result = await runOptimisticMutation({
-      apply: () => {
-        queryClient.setQueryData<IgipTrlData>(igipTrlKey(projectId), {
-          ...previous,
-          ...patch,
-        });
-        return previous;
-      },
+    const next = { ...previous, ...patch };
+    const gen = ++persistGenRef.current;
+    setOptimistic(next);
+    queryClient.setQueryData<IgipTrlData>(igipTrlKey(projectId), next);
+
+    void runOptimisticMutation({
+      apply: () => previous,
       mutate: () => upsertIgipTrlProyecto(projectId, patch),
       rollback: (snapshot) => {
+        if (gen !== persistGenRef.current) return;
+        setOptimistic(null);
         queryClient.setQueryData(igipTrlKey(projectId), snapshot);
       },
       commit: (serverData) => {
-        if (serverData) {
-          queryClient.setQueryData(igipTrlKey(projectId), serverData);
-        }
+        if (gen !== persistGenRef.current) return;
+        const committed = serverData ?? next;
+        setOptimistic(null);
+        queryClient.setQueryData(igipTrlKey(projectId), committed);
+        void queryClient.invalidateQueries({
+          queryKey: ['historial', projectId],
+        });
       },
     });
-    setSaving(false);
-    return result;
   }
 
-  async function onScoreChange(key: IgipSubdimensionKey, raw: string) {
+  function onScoreChange(key: IgipSubdimensionKey, raw: string) {
     const value = raw === '' ? null : Number(raw);
-    await persist({ [key]: value });
+    persist({ [key]: value });
   }
 
-  async function commitIgip() {
+  function commitIgip() {
     const raw = igipDisplay.trim();
     const next = raw === '' ? null : Number(raw.replace(',', '.'));
     if (next !== null && !Number.isFinite(next)) {
@@ -322,7 +319,7 @@ export function IgipTrlCard({
       return;
     }
     if (next !== current.igip) {
-      await persist({ igip: next });
+      persist({ igip: next });
     }
     setIgipDraft(null);
     setEditingIgip(false);
@@ -351,8 +348,7 @@ export function IgipTrlCard({
         <section className="flex min-h-0 flex-col overflow-visible rounded-xl border border-gray-100 bg-white p-3 pb-0 shadow-sm sm:p-4 sm:pb-0">
           <IgipRadar
             data={current}
-            saving={saving}
-            onScoreChange={(key, raw) => void onScoreChange(key, raw)}
+            onScoreChange={(key, raw) => onScoreChange(key, raw)}
           />
           <div className="-mx-3 mt-[-10px] flex flex-wrap items-baseline justify-center gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-4 sm:-mx-4">
             <span className="text-xl font-semibold text-gray-900 sm:text-2xl">
@@ -365,7 +361,7 @@ export function IgipTrlCard({
                 inputMode="decimal"
                 value={igipDisplay}
                 onChange={(e) => setIgipDraft(e.target.value)}
-                onBlur={() => void commitIgip()}
+                onBlur={() => commitIgip()}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.currentTarget.blur();
@@ -377,7 +373,6 @@ export function IgipTrlCard({
                 }}
                 placeholder="—"
                 aria-label="Índice IGIP"
-                disabled={saving}
               />
             ) : (
               <div className="group/edit relative inline-flex items-baseline">
@@ -414,14 +409,12 @@ export function IgipTrlCard({
                 type="button"
                 data-testid={`trl-row-${row.level}`}
                 data-appearance={appearance}
-                disabled={saving}
                 onClick={() =>
-                  void persist({ trl: nextTrlOnClick(row.level, current.trl) })
+                  persist({ trl: nextTrlOnClick(row.level, current.trl) })
                 }
                 className={cn(
                   'flex w-full items-center gap-3 rounded-lg text-left transition-opacity',
-                  selected ? 'opacity-100' : 'opacity-45',
-                  saving && 'cursor-wait'
+                  selected ? 'opacity-100' : 'opacity-45'
                 )}
                 aria-pressed={selected}
                 aria-label={
