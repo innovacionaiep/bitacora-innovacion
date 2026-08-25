@@ -10,6 +10,7 @@ import {
   historialKey,
   historialFiltrosKey,
   escalamientoKey,
+  igipTrlKey,
   proyectoDetailQueryFilters,
   proyectoTabDataPrefetchKeys,
 } from '@/lib/query-keys';
@@ -83,6 +84,7 @@ describe('proyectoTabDataPrefetchKeys', () => {
       historialKey('proj-1', {}),
       historialFiltrosKey('proj-1'),
       escalamientoKey('proj-1'),
+      igipTrlKey('proj-1'),
     ]);
   });
 });
@@ -93,6 +95,7 @@ describe('ALL_PREFETCH_TABS', () => {
       'Participantes',
       'Gantt',
       'Indicadores',
+      'IgipTrl',
       'Presupuesto',
       'Seguimiento',
       'Escalamiento',
@@ -113,6 +116,7 @@ describe('isPrefetchableProyectoTab', () => {
     expect(isPrefetchableProyectoTab('Participantes')).toBe(true);
     expect(isPrefetchableProyectoTab('Gantt')).toBe(true);
     expect(isPrefetchableProyectoTab('Indicadores')).toBe(true);
+    expect(isPrefetchableProyectoTab('IgipTrl')).toBe(true);
     expect(isPrefetchableProyectoTab('Presupuesto')).toBe(true);
     expect(isPrefetchableProyectoTab('Seguimiento')).toBe(true);
     expect(isPrefetchableProyectoTab('Escalamiento')).toBe(true);
@@ -271,6 +275,7 @@ describe('removeProyectoDetailQueries', () => {
     expect(filters.some((f) => f.queryKey[0] === 'proyecto')).toBe(true);
     expect(filters.some((f) => f.queryKey[0] === 'historial')).toBe(true);
     expect(filters.some((f) => f.queryKey[0] === 'escalamiento')).toBe(true);
+    expect(filters.some((f) => f.queryKey[0] === 'igip-trl')).toBe(true);
   });
 
   it('LRU evict drops tab caches of the oldest id', () => {
@@ -286,6 +291,7 @@ describe('removeProyectoDetailQueries', () => {
       qc.setQueryData(historialKey(id, {}), []);
       qc.setQueryData(historialFiltrosKey(id), {});
       qc.setQueryData(escalamientoKey(id), {});
+      qc.setQueryData(igipTrlKey(id), {});
     }
 
     let recent: string[] = [];
@@ -306,10 +312,12 @@ describe('removeProyectoDetailQueries', () => {
     expect(qc.getQueryData(historialKey('p1', {}))).toBeUndefined();
     expect(qc.getQueryData(historialFiltrosKey('p1'))).toBeUndefined();
     expect(qc.getQueryData(escalamientoKey('p1'))).toBeUndefined();
+    expect(qc.getQueryData(igipTrlKey('p1'))).toBeUndefined();
     expect(qc.getQueryData(proyectoBaseKey('p6'))).toEqual({ id: 'p6' });
     expect(qc.getQueryData(proyectoActivitiesKey('p6'))).toEqual([]);
     expect(qc.getQueryData(indicadoresKey('p6'))).toEqual({});
     expect(qc.getQueryData(presupuestoKey('p6'))).toEqual([]);
     expect(qc.getQueryData(escalamientoKey('p6'))).toEqual({});
+    expect(qc.getQueryData(igipTrlKey('p6'))).toEqual({});
   });
 });

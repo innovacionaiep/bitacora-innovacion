@@ -22,6 +22,7 @@ import {
   historialKey,
   historialFiltrosKey,
   escalamientoKey,
+  igipTrlKey,
 } from '@/lib/query-keys';
 import type { ProyectoWithRelations } from '@/types/proyecto';
 import { isProyectoGeneralShell } from '@/lib/proyecto-detail-cache';
@@ -34,6 +35,7 @@ import {
   getHistorialFiltros,
 } from '@/lib/actions/historial';
 import { getEscalamientoProyecto } from '@/lib/actions/escalamiento';
+import { getIgipTrlProyecto } from '@/lib/actions/igip-trl';
 import { dequeueTab } from '@/lib/idle-burst';
 
 export type ProyectoDesarrolloTecnicoData = NonNullable<
@@ -126,6 +128,14 @@ async function fetchEscalamientoTab(projectId: string) {
   const result = await getEscalamientoProyecto(projectId);
   if (!result.success || !result.data) {
     throw new Error(result.error ?? 'Error al cargar escalamiento');
+  }
+  return result.data;
+}
+
+async function fetchIgipTrlTab(projectId: string) {
+  const result = await getIgipTrlProyecto(projectId);
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Error al cargar IGIP-TRL');
   }
   return result.data;
 }
@@ -271,6 +281,7 @@ export type PrefetchableProyectoTab =
   | 'Participantes'
   | 'Gantt'
   | 'Indicadores'
+  | 'IgipTrl'
   | 'Presupuesto'
   | 'Seguimiento'
   | 'Escalamiento'
@@ -282,6 +293,7 @@ const TAB_CHUNK_LOADERS: Partial<
 > = {
   Gantt: () => import('@/components/proyectos/GanttChart'),
   Indicadores: () => import('@/components/proyectos/IndicadoresCard'),
+  IgipTrl: () => import('@/components/proyectos/IgipTrlCard'),
   Presupuesto: () => import('@/components/proyectos/PresupuestoCard'),
   Seguimiento: () => import('@/components/seguimiento/SeguimientoCard'),
   Historial: () => import('@/components/proyectos/HistorialCard'),
@@ -293,6 +305,7 @@ export const ALL_PREFETCH_TABS: PrefetchableProyectoTab[] = [
   'Participantes',
   'Gantt',
   'Indicadores',
+  'IgipTrl',
   'Presupuesto',
   'Seguimiento',
   'Escalamiento',
@@ -320,6 +333,7 @@ const TAB_QUERIES: Record<PrefetchableProyectoTab, TabQuerySpec[]> = {
   ],
   Gantt: [{ key: proyectoActivitiesKey, queryFn: fetchProyectoActivities }],
   Indicadores: [{ key: indicadoresKey, queryFn: fetchIndicadoresTab }],
+  IgipTrl: [{ key: igipTrlKey, queryFn: fetchIgipTrlTab }],
   Presupuesto: [{ key: presupuestoKey, queryFn: fetchPresupuestoTab }],
   Seguimiento: [{ key: reunionesKey, queryFn: fetchReunionesTab }],
   Escalamiento: [{ key: escalamientoKey, queryFn: fetchEscalamientoTab }],

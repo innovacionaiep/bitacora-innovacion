@@ -169,7 +169,8 @@ model Proyecto {
   historial          HistorialProyecto[]
   snapshotsMensuales SnapshotMensualProyecto[]
   escalamiento       ProyectoEscalamiento?
-  
+  igipTrl            ProyectoIgip?
+
   // Relación con el Feed de Novedades
   posts              PostProyecto[]
 
@@ -294,6 +295,7 @@ model Linea {
   tabParticipantesEnabled Boolean @default(true) @map("tab_participantes_enabled")
   tabActividadesEnabled   Boolean @default(true) @map("tab_actividades_enabled")
   tabIndicadoresEnabled   Boolean @default(true) @map("tab_indicadores_enabled")
+  tabIgipTrlEnabled       Boolean @default(true) @map("tab_igip_trl_enabled")
   tabPresupuestoEnabled   Boolean @default(true) @map("tab_presupuesto_enabled")
   tabSeguimientoEnabled   Boolean @default(true) @map("tab_seguimiento_enabled")
   tabEscalamientoEnabled  Boolean @default(false) @map("tab_escalamiento_enabled")
@@ -561,6 +563,25 @@ model ProyectoEscalamiento {
   proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
 
   @@map("proyecto_escalamiento")
+}
+
+model ProyectoIgip {
+  id         String   @id @default(cuid())
+  proyectoId String   @unique @map("proyecto_id")
+  originalidad             Int?
+  estadoDelArte            Int?      @map("estado_del_arte")
+  contribucionSocial       Int?      @map("contribucion_social")
+  contribucionConocimiento Int?      @map("contribucion_conocimiento")
+  potencialExpansion       Int?      @map("potencial_expansion")
+  transferenciaTecnologica Int?      @map("transferencia_tecnologica")
+  igip       Decimal? @db.Decimal(12, 4)
+  trl        Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@map("proyecto_igip")
 }
 
 // Configuración de categorías y subcategorías del desarrollo técnico (editable en Configuración)

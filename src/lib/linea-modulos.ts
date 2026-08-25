@@ -5,6 +5,7 @@ export const OPTIONAL_PROJECT_TABS = [
   'Participantes',
   'Gantt',
   'Indicadores',
+  'IgipTrl',
   'Presupuesto',
   'Seguimiento',
   'Escalamiento',
@@ -23,6 +24,7 @@ export const OPTIONAL_TAB_LABELS: Record<OptionalProjectTab, string> = {
   Participantes: 'Participantes',
   Gantt: 'Actividades',
   Indicadores: 'Indicadores',
+  IgipTrl: 'IGIP-TRL',
   Presupuesto: 'Presupuesto',
   Seguimiento: 'Seguimiento',
   Escalamiento: 'Escalamiento',
@@ -33,6 +35,7 @@ export type LineaTabField =
   | 'tabParticipantesEnabled'
   | 'tabActividadesEnabled'
   | 'tabIndicadoresEnabled'
+  | 'tabIgipTrlEnabled'
   | 'tabPresupuestoEnabled'
   | 'tabSeguimientoEnabled'
   | 'tabEscalamientoEnabled';
@@ -42,6 +45,7 @@ export const LINEA_TAB_FIELD: Record<OptionalProjectTab, LineaTabField> = {
   Participantes: 'tabParticipantesEnabled',
   Gantt: 'tabActividadesEnabled',
   Indicadores: 'tabIndicadoresEnabled',
+  IgipTrl: 'tabIgipTrlEnabled',
   Presupuesto: 'tabPresupuestoEnabled',
   Seguimiento: 'tabSeguimientoEnabled',
   Escalamiento: 'tabEscalamientoEnabled',
@@ -143,6 +147,7 @@ export function flagsToOptionalTabs(
     Participantes: flags.tabParticipantesEnabled,
     Gantt: flags.tabActividadesEnabled,
     Indicadores: flags.tabIndicadoresEnabled,
+    IgipTrl: flags.tabIgipTrlEnabled,
     Presupuesto: flags.tabPresupuestoEnabled,
     Seguimiento: flags.tabSeguimientoEnabled,
     Escalamiento: flags.tabEscalamientoEnabled,

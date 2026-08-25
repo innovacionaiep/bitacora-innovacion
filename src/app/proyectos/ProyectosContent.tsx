@@ -54,6 +54,7 @@ import { GeneralTab, GeneralTabHeader } from '@/app/proyectos/tabs/GeneralTab';
 import { ParticipantesTab } from '@/app/proyectos/tabs/ParticipantesTab';
 import { ConvenioTab } from '@/app/proyectos/tabs/ConvenioTab';
 import { EscalamientoTab } from '@/app/proyectos/tabs/EscalamientoTab';
+import { IgipTrlTab } from '@/app/proyectos/tabs/IgipTrlTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
 import {
   useFetchProyectoBase,
@@ -106,6 +107,7 @@ type ProyectoTab =
   | 'Participantes'
   | 'Gantt'
   | 'Indicadores'
+  | 'IgipTrl'
   | 'Presupuesto'
   | 'Historial'
   | 'Seguimiento'
@@ -119,6 +121,7 @@ const PROJECT_NAV_TABS: { id: ProyectoTab; label: string }[] = [
   { id: 'Participantes', label: 'Participantes' },
   { id: 'Gantt', label: 'Actividades' },
   { id: 'Indicadores', label: 'Indicadores' },
+  { id: 'IgipTrl', label: 'IGIP-TRL' },
   { id: 'Presupuesto', label: 'Presupuesto' },
   { id: 'Seguimiento', label: 'Seguimiento' },
   { id: 'Historial', label: 'Historial' },
@@ -1835,6 +1838,19 @@ export function ProyectosContent({
                     project={selectedProject}
                     topLoaderEnabled={selectedTab === 'Indicadores'}
                   />
+                </div>
+              )}
+              {selectedProject &&
+                visibleTabIds.has('IgipTrl') &&
+                mountedTabs.has('IgipTrl') && (
+                <div
+                  className={
+                    selectedTab === 'IgipTrl'
+                      ? 'h-full min-h-0 overflow-hidden'
+                      : 'hidden'
+                  }
+                >
+                  <IgipTrlTab projectId={selectedProject.id} />
                 </div>
               )}
               {selectedProject &&

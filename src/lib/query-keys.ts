@@ -47,6 +47,9 @@ export const reunionesKey = (projectId: string) =>
 export const escalamientoKey = (projectId: string) =>
   ['escalamiento', projectId] as const;
 
+export const igipTrlKey = (projectId: string) =>
+  ['igip-trl', projectId] as const;
+
 export const resumenTabKey = (projectId: string) =>
   ['resumen-tab', projectId] as const;
 
@@ -68,6 +71,7 @@ export function proyectoTabDataPrefetchKeys(projectId: string) {
     historialKey(projectId, {}),
     historialFiltrosKey(projectId),
     escalamientoKey(projectId),
+    igipTrlKey(projectId),
   ] as const;
 }
 
@@ -87,5 +91,6 @@ export const proyectoDetailQueryFilters = (projectId: string) =>
     { queryKey: ['historial', projectId] as const },
     { queryKey: ['historial-filtros', projectId] as const },
     { queryKey: ['escalamiento', projectId] as const },
+    { queryKey: ['igip-trl', projectId] as const },
   ] as const;
 

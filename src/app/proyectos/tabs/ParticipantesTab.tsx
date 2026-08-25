@@ -83,6 +83,7 @@ type ProyectoTabName =
   | 'Participantes'
   | 'Gantt'
   | 'Indicadores'
+  | 'IgipTrl'
   | 'Presupuesto'
   | 'Historial'
   | 'Seguimiento'

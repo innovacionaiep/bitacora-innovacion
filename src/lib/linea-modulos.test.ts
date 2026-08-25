@@ -19,6 +19,7 @@ const NAV_TABS: { id: ProjectNavTabId; label: string }[] = [
   { id: 'Participantes', label: 'Participantes' },
   { id: 'Gantt', label: 'Actividades' },
   { id: 'Indicadores', label: 'Indicadores' },
+  { id: 'IgipTrl', label: 'IGIP-TRL' },
   { id: 'Presupuesto', label: 'Presupuesto' },
   { id: 'Seguimiento', label: 'Seguimiento' },
   { id: 'Historial', label: 'Historial' },
@@ -34,6 +35,7 @@ function flags(partial: Partial<LineaModuloCatalogItem>): LineaModuloCatalogItem
     tabParticipantesEnabled: partial.tabParticipantesEnabled ?? true,
     tabActividadesEnabled: partial.tabActividadesEnabled ?? true,
     tabIndicadoresEnabled: partial.tabIndicadoresEnabled ?? true,
+    tabIgipTrlEnabled: partial.tabIgipTrlEnabled ?? true,
     tabPresupuestoEnabled: partial.tabPresupuestoEnabled ?? true,
     tabSeguimientoEnabled: partial.tabSeguimientoEnabled ?? true,
     tabEscalamientoEnabled: partial.tabEscalamientoEnabled ?? false,
@@ -110,6 +112,7 @@ describe('linea-modulos', () => {
       'General',
       'Participantes',
       'Gantt',
+      'IgipTrl',
       'Seguimiento',
       'Historial',
       'Escalamiento',
@@ -134,6 +137,26 @@ describe('linea-modulos', () => {
     expect(proyectoAplicaConvenio('F1', 'Off', keys)).toBe(false);
     expect(proyectoAplicaConvenio('F1', null, keys)).toBe(false);
     expect(proyectoAplicaConvenio('F2', 'On', keys)).toBe(false);
+  });
+
+  it('places IgipTrl between Indicadores and Presupuesto when both are On', () => {
+    const catalog = [flags({})];
+    const visible = visibleProjectNavTabs(
+      NAV_TABS,
+      'Fondo 1',
+      'Linea A',
+      catalog
+    );
+    const ids = visible.map((t) => t.id);
+    expect(ids.indexOf('IgipTrl')).toBe(ids.indexOf('Indicadores') + 1);
+    expect(ids.indexOf('Presupuesto')).toBe(ids.indexOf('IgipTrl') + 1);
+  });
+
+  it('hides IgipTrl when the línea flag is off', () => {
+    const catalog = [flags({ tabIgipTrlEnabled: false })];
+    expect(isProjectTabVisible('IgipTrl', 'Fondo 1', 'Linea A', catalog)).toBe(
+      false
+    );
   });
 
   it('Resumen is never visible via this helper', () => {
