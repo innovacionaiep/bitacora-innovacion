@@ -3,11 +3,13 @@ import {
   IGIP_SUBDIMENSIONS,
   TRL_LEVELS,
   describeIgipTrlCambio,
+  radarLabelSlot,
   radarPolygonPoints,
   radarValue,
   radarVertex,
   trlRowAppearance,
   nextTrlOnClick,
+  trlBadgeWidthPx,
   validateIgipTrlPatch,
 } from '@/lib/igip-trl';
 
@@ -85,6 +87,26 @@ describe('radar math', () => {
     });
     expect(points.split(' ')).toHaveLength(6);
     expect(points.startsWith('100.00,20.00')).toBe(true);
+  });
+});
+
+describe('radarLabelSlot', () => {
+  it('places Originalidad above center and Conocimiento below', () => {
+    const top = radarLabelSlot(0);
+    const bottom = radarLabelSlot(3);
+    expect(top.align).toBe('top');
+    expect(top.xPct).toBeCloseTo(50, 5);
+    expect(top.yPct).toBeLessThan(50);
+    expect(bottom.align).toBe('bottom');
+    expect(bottom.yPct).toBeGreaterThan(50);
+  });
+});
+
+describe('trlBadgeWidthPx', () => {
+  it('grows from TRL 1 to TRL 7', () => {
+    expect(trlBadgeWidthPx(1)).toBe(96);
+    expect(trlBadgeWidthPx(7)).toBe(240);
+    expect(trlBadgeWidthPx(7)).toBeGreaterThan(trlBadgeWidthPx(1));
   });
 });
 

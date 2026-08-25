@@ -1850,7 +1850,10 @@ export function ProyectosContent({
                       : 'hidden'
                   }
                 >
-                  <IgipTrlTab projectId={selectedProject.id} />
+                  <IgipTrlTab
+                    projectId={selectedProject.id}
+                    topLoaderEnabled={selectedTab === 'IgipTrl'}
+                  />
                 </div>
               )}
               {selectedProject &&

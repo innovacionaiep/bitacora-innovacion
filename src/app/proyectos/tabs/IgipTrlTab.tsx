@@ -20,10 +20,19 @@ const IgipTrlCard = dynamic(
   { loading: () => <IgipTrlFallback /> }
 );
 
-export function IgipTrlTab({ projectId }: { projectId: string }) {
+export function IgipTrlTab({
+  projectId,
+  topLoaderEnabled = true,
+}: {
+  projectId: string;
+  topLoaderEnabled?: boolean;
+}) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden pt-2">
-      <IgipTrlCard projectId={projectId} />
+      <IgipTrlCard
+        projectId={projectId}
+        topLoaderEnabled={topLoaderEnabled}
+      />
     </div>
   );
 }

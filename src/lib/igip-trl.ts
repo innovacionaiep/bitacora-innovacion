@@ -135,6 +135,45 @@ export function radarPolygonPoints(
     .join(' ');
 }
 
+const RADAR_LABEL_ALIGNS = [
+  'top',
+  'topRight',
+  'bottomRight',
+  'bottom',
+  'bottomLeft',
+  'topLeft',
+] as const;
+
+export type RadarLabelAlign = (typeof RADAR_LABEL_ALIGNS)[number];
+
+/** HTML overlay slot: center of the square is 50/50; labels sit outside the hexagon. */
+export function radarLabelSlot(
+  index: number,
+  opts?: { cx?: number; cy?: number; radiusPct?: number }
+): { align: RadarLabelAlign; xPct: number; yPct: number } {
+  const cx = opts?.cx ?? 50;
+  const cy = opts?.cy ?? 50;
+  const radiusPct = opts?.radiusPct ?? 36;
+  const p = radarVertex(index, IGIP_SCORE_MAX, {
+    count: 6,
+    cx,
+    cy,
+    radius: radiusPct,
+  });
+  return {
+    align: RADAR_LABEL_ALIGNS[index] ?? 'top',
+    xPct: p.x,
+    yPct: p.y,
+  };
+}
+
+export function trlBadgeWidthPx(level: number): number {
+  const minWidth = 96;
+  const step = 24;
+  const n = isTrlLevel(level) ? level : TRL_MIN;
+  return minWidth + (n - TRL_MIN) * step;
+}
+
 export type TrlRowAppearance = 'selected' | 'muted';
 
 export function trlRowAppearance(
