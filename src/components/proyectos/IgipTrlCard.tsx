@@ -351,13 +351,13 @@ export function IgipTrlCard({
             onScoreChange={(key, raw) => onScoreChange(key, raw)}
           />
           <div className="-mx-3 mt-[-10px] flex flex-wrap items-baseline justify-center gap-2 rounded-b-xl border-t border-gray-200 bg-gray-100 px-4 py-4 sm:-mx-4">
-            <span className="text-xl font-semibold text-gray-900 sm:text-2xl">
+            <span className="text-base font-semibold text-gray-900">
               Índice IGIP =
             </span>
             {editingIgip ? (
               <input
                 autoFocus
-                className="w-28 border-0 border-b border-emerald-500 bg-transparent p-0 text-center text-xl font-semibold text-gray-900 outline-none sm:text-2xl"
+                className="w-28 border-0 border-b border-emerald-500 bg-transparent p-0 text-center text-base font-semibold text-gray-900 outline-none"
                 inputMode="decimal"
                 value={igipDisplay}
                 onChange={(e) => setIgipDraft(e.target.value)}
@@ -376,7 +376,7 @@ export function IgipTrlCard({
               />
             ) : (
               <div className="group/edit relative inline-flex items-baseline">
-                <span className="text-xl font-semibold text-gray-900 sm:text-2xl">
+                <span className="text-base font-semibold text-gray-900">
                   {current.igip == null ? '—' : String(current.igip)}
                 </span>
                 <HoverPencil
