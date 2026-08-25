@@ -21,7 +21,7 @@ function projectsFrom(
 }
 
 describe('VitrinaViewToggle', () => {
-  it('emite analisis y data al pulsar los tabs', async () => {
+  it('emite analisis, indicadores y data al pulsar los tabs', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
     render(<VitrinaViewToggle value="proyectos" onChange={onChange} />);
@@ -32,6 +32,8 @@ describe('VitrinaViewToggle', () => {
     );
     await user.click(screen.getByRole('tab', { name: 'Análisis' }));
     expect(onChange).toHaveBeenCalledWith('analisis');
+    await user.click(screen.getByRole('tab', { name: 'Indicadores' }));
+    expect(onChange).toHaveBeenCalledWith('indicadores');
     await user.click(screen.getByRole('tab', { name: 'Data' }));
     expect(onChange).toHaveBeenCalledWith('data');
   });

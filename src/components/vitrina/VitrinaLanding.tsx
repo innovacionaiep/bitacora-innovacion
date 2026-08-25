@@ -21,6 +21,7 @@ import { VitrinaProjectsGrid } from '@/components/vitrina/VitrinaProjectsGrid';
 import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSidebar';
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
 import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
+import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
 import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
 import {
   VitrinaViewToggle,
@@ -491,11 +492,19 @@ export function VitrinaLanding({
                 </div>
                 <div
                   className={cn(
-                    'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
+                    'h-full min-h-0 overflow-hidden',
                     projectsView !== 'analisis' && 'hidden',
                   )}
                 >
                   <VitrinaDataDashboard proyectos={proyectosFiltrados} />
+                </div>
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-hidden',
+                    projectsView !== 'indicadores' && 'hidden',
+                  )}
+                >
+                  <VitrinaIndicadoresDashboard proyectos={proyectosFiltrados} />
                 </div>
                 <div
                   className={cn(

@@ -1,9 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, GraduationCap, Landmark, Mail, MapPin, Search, Tag, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GraduationCap, Landmark, Mail, MapPin, Search, Tag, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { containWheelScroll } from '@/lib/ui/contain-wheel-scroll';
 import {
   vitrinaAiFilterIsActive,
@@ -251,31 +256,36 @@ function FilterDropdown({
         </h3>
       </div>
 
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={`vitrina-filter-list-${facet.key}`}
-        onClick={() => onOpenChange(!open)}
-        className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50"
-      >
-        <span className={selected.length === 0 ? 'truncate text-slate-400' : 'truncate'}>
-          {selected.length === 0
-            ? facet.placeholder
-            : `${selected.length} seleccionada${selected.length === 1 ? '' : 's'}`}
-        </span>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-slate-400 transition-transform',
-            open && 'rotate-180',
-          )}
-          aria-hidden
-        />
-      </button>
-
-      {open ? (
-        <div
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={`vitrina-filter-list-${facet.key}`}
+            className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <span className={selected.length === 0 ? 'truncate text-slate-400' : 'truncate'}>
+              {selected.length === 0
+                ? facet.placeholder
+                : `${selected.length} seleccionada${selected.length === 1 ? '' : 's'}`}
+            </span>
+            <ChevronRight
+              className={cn(
+                'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+                open && 'translate-x-0.5',
+              )}
+              aria-hidden
+            />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
           id={`vitrina-filter-list-${facet.key}`}
-          className="mt-1 rounded-md border border-slate-200 bg-white"
+          aria-labelledby={`vitrina-filter-${facet.key}`}
+          side="right"
+          align="start"
+          sideOffset={8}
+          avoidCollisions={false}
+          className="w-64 rounded-md border-slate-200 bg-white p-0 shadow-md"
         >
           {showSearch ? (
             <div className="border-b border-slate-100 p-2">
@@ -309,8 +319,10 @@ function FilterDropdown({
               })
             )}
           </div>
-        </div>
-      ) : selected.length > 0 ? (
+        </PopoverContent>
+      </Popover>
+
+      {selected.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {selected.map((value) => (
             <li key={value}>

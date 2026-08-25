@@ -20,9 +20,9 @@ export function VitrinaDataDashboard({
   const stats = useMemo(() => buildVitrinaDataStats(proyectos), [proyectos]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-8 py-10 lg:px-12">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(16rem,0.9fr)_1.2fr_1.2fr]">
-        <article className="flex min-h-[18rem] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-6 overflow-y-auto px-8 py-6 overscroll-contain lg:overflow-hidden lg:px-12">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-[minmax(16rem,0.9fr)_1.2fr_1.2fr]">
+        <article className="flex h-full min-h-0 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
             Proyectos
           </p>
@@ -46,7 +46,7 @@ export function VitrinaDataDashboard({
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-3">
         <ChartCard title="Por sede">
           <VitrinaRowBars
             data={stats.porSede}
@@ -85,11 +85,13 @@ function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold tracking-wide text-slate-700">
+    <article className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-4 shrink-0 text-sm font-semibold tracking-wide text-slate-700">
         {title}
       </h2>
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {children}
+      </div>
     </article>
   );
 }
@@ -103,7 +105,7 @@ function VitrinaVerticalBars({
 }) {
   if (data.length === 0) {
     return (
-      <p className="flex h-56 items-center justify-center text-sm text-slate-400">
+      <p className="flex h-full min-h-[8rem] items-center justify-center text-sm text-slate-400">
         No hay datos
       </p>
     );
@@ -114,7 +116,7 @@ function VitrinaVerticalBars({
   const barMaxPx = 148;
 
   return (
-    <div className="flex items-end gap-3 overflow-x-auto px-1">
+    <div className="flex h-full min-h-0 items-end gap-3 overflow-x-auto px-1">
       {data.map((item) => {
         const pct = Math.max(8, (item.value / max) * 100);
         return (
@@ -157,7 +159,7 @@ function VitrinaRowBars({
 }) {
   if (data.length === 0) {
     return (
-      <p className="flex h-56 items-center justify-center text-sm text-slate-400">
+      <p className="flex h-full min-h-[8rem] items-center justify-center text-sm text-slate-400">
         No hay datos
       </p>
     );
@@ -166,7 +168,7 @@ function VitrinaRowBars({
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
-    <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+    <div className="space-y-3 pr-1">
       {data.map((item) => {
         const pct = Math.max(6, (item.value / max) * 100);
         return (

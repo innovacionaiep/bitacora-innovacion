@@ -2,7 +2,11 @@
 
 import { cn } from '@/lib/utils';
 
-export type VitrinaProjectsView = 'proyectos' | 'analisis' | 'data';
+export type VitrinaProjectsView =
+  | 'proyectos'
+  | 'analisis'
+  | 'indicadores'
+  | 'data';
 
 export function VitrinaViewToggle({
   value,
@@ -28,6 +32,12 @@ export function VitrinaViewToggle({
         onClick={() => onChange('analisis')}
       >
         Análisis
+      </ToggleTab>
+      <ToggleTab
+        active={value === 'indicadores'}
+        onClick={() => onChange('indicadores')}
+      >
+        Indicadores
       </ToggleTab>
       <ToggleTab active={value === 'data'} onClick={() => onChange('data')}>
         Data
