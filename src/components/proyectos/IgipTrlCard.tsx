@@ -50,6 +50,26 @@ const LABEL_ALIGN_CLASS: Record<
     '-translate-x-1/2 -translate-y-[calc(100%+0.2rem)] items-center text-center',
 };
 
+function TrlSelectedArrow({ className }: { className?: string }) {
+  return (
+    <svg
+      data-testid="trl-selected-chevron"
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden
+    >
+      <path
+        d="M8 5.5 17.5 12 8 18.5Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth={6}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 type IgipTrlCardProps = {
   projectId: string;
   topLoaderEnabled?: boolean;
@@ -424,19 +444,24 @@ export function IgipTrlCard({
                 }
               >
                 <span
-                  className="flex shrink-0 justify-center"
+                  className="relative flex shrink-0 justify-center"
                   style={{ width: trlBadgeWidthPx(TRL_MAX) }}
                 >
-                  <span
-                    className={cn(
-                      'flex h-14 items-center justify-center rounded-md text-sm font-semibold',
-                      selected
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-gray-300 text-gray-600'
+                  <span className="relative" style={{ width: badgeWidth }}>
+                    {selected && (
+                      <TrlSelectedArrow className="absolute right-full top-1/2 mr-3.5 h-6 w-6 -translate-y-1/2 text-emerald-600" />
                     )}
-                    style={{ width: badgeWidth }}
-                  >
-                    TRL {row.level}
+                    <span
+                      className={cn(
+                        'flex h-14 items-center justify-center rounded-md text-sm font-semibold',
+                        selected
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-gray-300 text-gray-600'
+                      )}
+                      style={{ width: badgeWidth }}
+                    >
+                      TRL {row.level}
+                    </span>
                   </span>
                 </span>
                 <span

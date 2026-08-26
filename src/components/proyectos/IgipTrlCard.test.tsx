@@ -101,6 +101,32 @@ describe('IgipTrlCard optimistic persist', () => {
     resolveUpsert({ success: true, data: next });
   });
 
+  it('shows a chevron only beside the selected TRL rectangle', async () => {
+    vi.mocked(getIgipTrlProyecto).mockResolvedValue({
+      success: true,
+      data: { ...emptyIgipTrlData(), trl: 4 },
+    });
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <IgipTrlCard projectId="proj-chevron" topLoaderEnabled={false} />
+      </QueryClientProvider>
+    );
+
+    const selected = await screen.findByTestId('trl-row-4');
+    expect(
+      selected.querySelector('[data-testid="trl-selected-chevron"]')
+    ).not.toBeNull();
+    expect(
+      screen.getByTestId('trl-row-1').querySelector(
+        '[data-testid="trl-selected-chevron"]'
+      )
+    ).toBeNull();
+  });
+
   it('shows índice IGIP immediately while save is pending', async () => {
     const user = userEvent.setup();
     vi.mocked(getIgipTrlProyecto).mockResolvedValue({
