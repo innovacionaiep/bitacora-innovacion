@@ -205,6 +205,10 @@ export function VitrinaLanding({
 
   const ctaClassName =
     current?.ctaClassName ?? VITRINA_HERO.headlineRotating[0].ctaClassName;
+  const ctaOutlineClassName =
+    current?.ctaOutlineClassName ??
+    VITRINA_HERO.headlineRotating[0].ctaOutlineClassName;
+  const appCtaHref = sessionEmail ? '/inicio' : LOGIN_HERO_HREF;
 
   const mainRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -468,14 +472,20 @@ export function VitrinaLanding({
                       />
                     </span>
                   </h1>
-                  <div className="mt-8">
+                  <div className="mt-8 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={goToProjects}
-                      className={`rounded-full px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors duration-500 ${ctaClassName}`}
+                      className={`inline-flex items-center justify-center rounded-full border border-transparent px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors duration-500 ${ctaClassName}`}
                     >
                       {VITRINA_HERO.primaryCta}
                     </button>
+                    <Link
+                      href={appCtaHref}
+                      className={`inline-flex items-center justify-center rounded-full border bg-transparent px-6 py-3 text-sm font-semibold shadow-sm transition-colors duration-500 ${ctaOutlineClassName}`}
+                    >
+                      {VITRINA_HERO.appCta}
+                    </Link>
                   </div>
                 </div>
               </section>

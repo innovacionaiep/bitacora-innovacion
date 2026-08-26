@@ -4,6 +4,7 @@ export type VitrinaRotatingItem = {
   word: string;
   className: string;
   ctaClassName?: string;
+  ctaOutlineClassName?: string;
 };
 
 export function VitrinaRotatingWord({

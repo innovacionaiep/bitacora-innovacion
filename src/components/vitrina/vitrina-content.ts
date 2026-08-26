@@ -4,14 +4,51 @@ export const VITRINA_HERO = {
   kicker: 'Dirección Nacional de Emprendimiento e I+D',
   headlineLead: 'Proyectos de impacto',
   headlineRotating: [
-    { word: 'social', className: 'text-red-600', ctaClassName: 'bg-red-600 hover:bg-red-700' },
-    { word: 'ambiental', className: 'text-emerald-600', ctaClassName: 'bg-emerald-600 hover:bg-emerald-700' },
-    { word: 'productivo', className: 'text-blue-600', ctaClassName: 'bg-blue-600 hover:bg-blue-700' },
-    { word: 'educativo', className: 'text-orange-500', ctaClassName: 'bg-orange-500 hover:bg-orange-600' },
-    { word: 'innovador', className: 'text-violet-600', ctaClassName: 'bg-violet-600 hover:bg-violet-700' },
-    { word: 'tecnológico', className: 'text-cyan-500', ctaClassName: 'bg-cyan-500 hover:bg-cyan-600' },
+    {
+      word: 'social',
+      className: 'text-red-600',
+      ctaClassName: 'bg-red-600 hover:bg-red-700',
+      ctaOutlineClassName:
+        'border-red-600 text-red-600 hover:border-red-700 hover:text-red-700',
+    },
+    {
+      word: 'ambiental',
+      className: 'text-emerald-600',
+      ctaClassName: 'bg-emerald-600 hover:bg-emerald-700',
+      ctaOutlineClassName:
+        'border-emerald-600 text-emerald-600 hover:border-emerald-700 hover:text-emerald-700',
+    },
+    {
+      word: 'productivo',
+      className: 'text-blue-600',
+      ctaClassName: 'bg-blue-600 hover:bg-blue-700',
+      ctaOutlineClassName:
+        'border-blue-600 text-blue-600 hover:border-blue-700 hover:text-blue-700',
+    },
+    {
+      word: 'educativo',
+      className: 'text-orange-500',
+      ctaClassName: 'bg-orange-500 hover:bg-orange-600',
+      ctaOutlineClassName:
+        'border-orange-500 text-orange-500 hover:border-orange-600 hover:text-orange-600',
+    },
+    {
+      word: 'innovador',
+      className: 'text-violet-600',
+      ctaClassName: 'bg-violet-600 hover:bg-violet-700',
+      ctaOutlineClassName:
+        'border-violet-600 text-violet-600 hover:border-violet-700 hover:text-violet-700',
+    },
+    {
+      word: 'tecnológico',
+      className: 'text-cyan-500',
+      ctaClassName: 'bg-cyan-500 hover:bg-cyan-600',
+      ctaOutlineClassName:
+        'border-cyan-500 text-cyan-500 hover:border-cyan-600 hover:text-cyan-600',
+    },
   ] as const,
   primaryCta: 'Ver proyectos en curso',
+  appCta: 'Ingresar a la app',
 } as const;
 
 /**
