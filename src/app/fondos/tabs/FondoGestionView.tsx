@@ -7,12 +7,14 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  FileDown,
   FolderKanban,
   Gauge,
   ListTodo,
   FileSignature,
   UserPlus,
   Users,
+  UsersRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +48,10 @@ import {
   type FondoTableSort,
   type FondoTableSortKey,
 } from '@/lib/fondo-gestion-table';
+import {
+  buildFondoParticipantesExcelAoa,
+  fondoParticipantesExcelFilename,
+} from '@/lib/fondo-gestion-participantes';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -97,33 +103,90 @@ function KpiStatChip({
   return <div className={classNames}>{content}</div>;
 }
 
+function ParticipantesFondoChip({
+  total,
+  porRol,
+  onClick,
+}: {
+  total: number;
+  porRol: { rol: string; count: number }[];
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex h-full min-h-0 w-full flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-none text-left',
+        'cursor-pointer transition-colors hover:border-emerald-300/60 hover:bg-emerald-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 shrink-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <UsersRound
+            className="h-3.5 w-3.5 shrink-0 text-gray-400"
+            strokeWidth={1.75}
+          />
+          <p className="text-[11px] font-medium tracking-wide text-gray-500 truncate">
+            Participantes
+          </p>
+        </div>
+        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-gray-800">
+          {total}
+        </span>
+      </div>
+      {total === 0 ? (
+        <p className="text-[12px] text-gray-400 flex-1">Sin participantes</p>
+      ) : (
+        <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto custom-scrollbar pr-0.5">
+          {porRol.map((r) => (
+            <li
+              key={r.rol}
+              className="flex items-center justify-between gap-2 min-w-0"
+            >
+              <span className="text-[11px] text-gray-500 truncate">{r.rol}</span>
+              <span className="text-[11px] font-semibold tabular-nums text-gray-800">
+                {r.count}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[10px] text-gray-400 shrink-0">Ver detalle</p>
+    </button>
+  );
+}
+
 function AvanceTripleChip({
   gantt,
   indicadores,
   solicitado,
   ejecutado,
+  honorarios,
 }: {
   gantt: number;
   indicadores: number;
   solicitado: number;
   ejecutado: number;
+  honorarios: number;
 }) {
   const rows = [
     { label: 'Gantt', value: gantt, bar: 'bg-emerald-500' },
     { label: 'Indicadores', value: indicadores, bar: 'bg-blue-500' },
+    { label: 'Honorarios', value: honorarios, bar: 'bg-violet-500' },
     { label: 'Solicitado', value: solicitado, bar: 'bg-amber-500' },
     { label: 'Ejecutado', value: ejecutado, bar: 'bg-orange-600' },
   ] as const;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-none">
+    <div className="flex h-full min-h-0 flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-none">
       <div className="flex items-center gap-2 shrink-0">
         <Gauge className="h-3.5 w-3.5 shrink-0 text-gray-400" strokeWidth={1.75} />
         <p className="text-[11px] font-medium tracking-wide text-gray-500">
           Avance promedio
         </p>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-1">
         {rows.map((row) => (
           <div key={row.label}>
             <div className="mb-0.5 flex items-center justify-between gap-2">
@@ -273,14 +336,14 @@ function PctBarCell({
 }) {
   const v = clampPct(value);
   return (
-    <div className="flex min-w-[108px] items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+    <div className="flex w-[7.5rem] items-center gap-2">
+      <div className="h-1.5 w-[4.5rem] shrink-0 overflow-hidden rounded-full bg-gray-100">
         <div
           className={cn('h-full rounded-full transition-all', barClass)}
           style={{ width: `${v}%` }}
         />
       </div>
-      <span className="w-8 text-right text-[11px] tabular-nums text-gray-700">
+      <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-gray-700">
         {v}%
       </span>
     </div>
@@ -300,7 +363,7 @@ function SortableHead({
   sort: FondoTableSort;
   onSort: (key: FondoTableSortKey) => void;
   className?: string;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
 }) {
   const active = sort.key === sortKey;
   const ariaSort = !active
@@ -322,7 +385,11 @@ function SortableHead({
         onClick={() => onSort(sortKey)}
         className={cn(
           'inline-flex w-full items-center gap-1 rounded-sm py-0.5 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
-          align === 'right' ? 'justify-end' : 'justify-start',
+          align === 'right'
+            ? 'justify-end'
+            : align === 'center'
+              ? 'justify-center'
+              : 'justify-start',
           active && 'text-gray-800'
         )}
       >
@@ -339,10 +406,28 @@ function SortableHead({
   );
 }
 
-function MoneyCell({ value }: { value: number | undefined }) {
+function MoneyCell({
+  value,
+  emphasizeSign,
+}: {
+  value: number | undefined;
+  /** Colorea negativo en rojo y positivo en emerald (columna Saldos). */
+  emphasizeSign?: boolean;
+}) {
   const monto = Number(value ?? 0);
   return (
-    <span className="text-[13px] tabular-nums text-gray-700">
+    <span
+      className={cn(
+        'text-[13px] tabular-nums',
+        emphasizeSign
+          ? monto < 0
+            ? 'text-red-600 font-medium'
+            : monto > 0
+              ? 'text-emerald-700 font-medium'
+              : 'text-gray-700'
+          : 'text-gray-700'
+      )}
+    >
       {formatPresupuestoMonto(monto)}
     </span>
   );
@@ -353,6 +438,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [coordsOpen, setCoordsOpen] = useState(false);
   const [conveniosOpen, setConveniosOpen] = useState(false);
+  const [participantesOpen, setParticipantesOpen] = useState(false);
   const [sort, setSort] = useState<FondoTableSort>({ key: null, dir: 'asc' });
 
   const {
@@ -385,7 +471,20 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
     [proyectos, sort]
   );
   const coordinadores = data?.coordinadores ?? [];
+  const participantes = data?.participantes;
   const showConvenios = data?.conveniosEnabled ?? conveniosEnabled;
+
+  const handleExportParticipantes = async () => {
+    const listado = participantes?.listado ?? [];
+    if (listado.length === 0) return;
+    const XLSX = await import('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet(
+      buildFondoParticipantesExcelAoa(listado)
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Participantes');
+    XLSX.writeFile(wb, fondoParticipantesExcelFilename(fondoNombre));
+  };
 
   if (isLoading && !data) {
     return <div className="h-full min-h-[200px] bg-background" />;
@@ -408,7 +507,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
         </h2>
       </div>
 
-      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-stretch min-w-0 xl:h-[11.25rem]">
+      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 items-stretch min-w-0 xl:h-[11.25rem]">
         <div className="flex h-full min-h-0 flex-col gap-2">
           <KpiStatChip
             label="Proyectos"
@@ -432,9 +531,15 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
             />
           )}
         </div>
+        <ParticipantesFondoChip
+          total={participantes?.total ?? 0}
+          porRol={participantes?.porRol ?? []}
+          onClick={() => setParticipantesOpen(true)}
+        />
         <AvanceTripleChip
           gantt={kpis?.avanceGanttPromedio ?? 0}
           indicadores={kpis?.avanceIndicadoresPromedio ?? 0}
+          honorarios={kpis?.avanceHonorariosPromedio ?? 0}
           solicitado={kpis?.avancePresupuestoSolicitadoPromedio ?? 0}
           ejecutado={kpis?.avancePresupuestoEjecutadoPromedio ?? 0}
         />
@@ -484,7 +589,6 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                   sortKey="presupuestoAdjudicado"
                   sort={sort}
                   onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
-                  align="right"
                   className="whitespace-nowrap"
                 />
                 <SortableHead
@@ -492,29 +596,44 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                   sortKey="gantt"
                   sort={sort}
                   onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
-                  align="right"
+                  align="center"
                 />
                 <SortableHead
                   label="Indicadores"
                   sortKey="indicadores"
                   sort={sort}
                   onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
-                  align="right"
+                  align="center"
                 />
                 <SortableHead
-                  label="Ppto. solicitado"
+                  label="Operativo solicitado"
                   sortKey="presupuestoSolicitado"
                   sort={sort}
                   onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
-                  align="right"
+                  align="center"
                   className="whitespace-nowrap"
                 />
                 <SortableHead
-                  label="Ppto. ejecutado"
+                  label="Operativo ejecutado"
                   sortKey="presupuestoEjecutado"
                   sort={sort}
                   onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
-                  align="right"
+                  align="center"
+                  className="whitespace-nowrap"
+                />
+                <SortableHead
+                  label="Honorarios"
+                  sortKey="honorarios"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="center"
+                />
+                <SortableHead
+                  label="Delta"
+                  sortKey="saldo"
+                  sort={sort}
+                  onSort={(key) => setSort((s) => nextFondoTableSort(s, key))}
+                  align="center"
                   className="pr-4 whitespace-nowrap"
                 />
               </TableRow>
@@ -531,7 +650,7 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                   <TableCell className="text-[13px] text-gray-600">
                     {p.sede || '—'}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
+                  <TableCell className="text-left whitespace-nowrap">
                     <MoneyCell value={p.presupuestoAdjudicado} />
                   </TableCell>
                   <TableCell>
@@ -545,15 +664,24 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                   </TableCell>
                   <TableCell>
                     <PctBarCell
-                      value={p.avancePresupuestoSolicitado}
+                      value={p.avanceOperativoSolicitado}
                       barClass="bg-amber-500"
                     />
                   </TableCell>
-                  <TableCell className="pr-4">
+                  <TableCell>
                     <PctBarCell
-                      value={p.avancePresupuestoEjecutado}
+                      value={p.avanceOperativoEjecutado}
                       barClass="bg-orange-600"
                     />
+                  </TableCell>
+                  <TableCell>
+                    <PctBarCell
+                      value={p.avanceHonorarios}
+                      barClass="bg-violet-500"
+                    />
+                  </TableCell>
+                  <TableCell className="pr-4 text-right whitespace-nowrap">
+                    <MoneyCell value={p.saldoPresupuesto} emphasizeSign />
                   </TableCell>
                 </TableRow>
               ))}
@@ -576,6 +704,85 @@ export function FondoGestionView({ fondoNombre, conveniosEnabled }: Props) {
                 onChanged={invalidate}
               />
             ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={participantesOpen} onOpenChange={setParticipantesOpen}>
+        <DialogContent className="max-w-6xl w-[min(96vw,72rem)] max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-3 pr-14">
+            <div className="flex items-start justify-between gap-3">
+              <DialogTitle className="text-[15px]">
+                Participantes — {fondoNombre}
+              </DialogTitle>
+              {(participantes?.listado.length ?? 0) > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleExportParticipantes()}
+                  className="h-8 shrink-0 gap-1.5 shadow-none text-[12px] mr-6"
+                >
+                  <FileDown className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Descargar Excel
+                </Button>
+              ) : null}
+            </div>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-6 pb-6">
+            {(participantes?.listado.length ?? 0) === 0 ? (
+              <p className="text-[13px] text-gray-500 py-6">
+                No hay participantes en este fondo.
+              </p>
+            ) : (
+              <div className="border border-gray-200 rounded-md bg-white overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                      <TableHead className="pl-4 text-[12px] font-medium text-gray-500 uppercase tracking-wide">
+                        Proyecto
+                      </TableHead>
+                      <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
+                        Nombre participante
+                      </TableHead>
+                      <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
+                        Rol
+                      </TableHead>
+                      <TableHead className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">
+                        Cargo
+                      </TableHead>
+                      <TableHead className="pr-4 text-[12px] font-medium text-gray-500 uppercase tracking-wide">
+                        Correo
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {participantes?.listado.map((row, idx) => (
+                      <TableRow
+                        key={`${row.proyecto}-${row.email}-${row.rol}-${idx}`}
+                        className="hover:bg-gray-50/50"
+                      >
+                        <TableCell className="pl-4 text-[13px] text-gray-800 font-medium max-w-[220px] whitespace-normal break-words">
+                          {row.proyecto}
+                        </TableCell>
+                        <TableCell className="text-[13px] text-gray-700">
+                          {row.nombre}
+                        </TableCell>
+                        <TableCell className="text-[13px] text-gray-600">
+                          {row.rol}
+                        </TableCell>
+                        <TableCell className="text-[13px] text-gray-600">
+                          {row.cargo}
+                        </TableCell>
+                        <TableCell className="pr-4 text-[13px] text-gray-600">
+                          {row.email}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

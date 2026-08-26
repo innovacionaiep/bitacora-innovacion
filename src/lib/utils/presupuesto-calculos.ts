@@ -186,11 +186,47 @@ export function mergeDeltaEnResumen(
   };
 }
 
-/** % del tab Presupuesto: fila total (% Solicitado / % Ejecutado) y barra global. */
+function pctCuenta(
+  porCuenta: ResumenPresupuesto['porCuenta'],
+  cuenta: CuentaPresupuesto,
+  campo: 'pctSolicitado' | 'pctEjecutado'
+): number {
+  return porCuenta.find((c) => c.cuenta === cuenta)?.[campo] ?? 0;
+}
+
+/** % sobre montos combinados de Operación + Inversión (incluye DELTA en Operación). */
+function pctOperativoPorMonto(
+  porCuenta: ResumenPresupuesto['porCuenta'],
+  campo: 'montoSolicitado' | 'montoEjecutado'
+): number {
+  const op = porCuenta.find((c) => c.cuenta === 'OPERACION');
+  const inv = porCuenta.find((c) => c.cuenta === 'INVERSION');
+  const denom = (op?.monto ?? 0) + (inv?.monto ?? 0);
+  if (denom <= 0) return 0;
+  const num = (op?.[campo] ?? 0) + (inv?.[campo] ?? 0);
+  return Math.round((num / denom) * 100);
+}
+
+/** % del tab Presupuesto: fila total (% Solicitado / % Ejecutado), barra global y DELTA. */
 export function computeAvancePresupuestoDesglose(
   items: Array<ItemBase & { item: string }>,
   presupuestoAdjudicado = 0
-): { solicitado: number; ejecutado: number; global: number } {
+): {
+  solicitado: number;
+  ejecutado: number;
+  global: number;
+  /**
+   * DELTA del tab Presupuesto: adjudicado − suma de montos declarados
+   * (“Saldo a favor / en contra”). Puede ser negativo.
+   */
+  saldo: number;
+  /** % Solicitado de la cuenta RRHH (Honorarios). */
+  honorarios: number;
+  /** % Solicitado de Operación+Inversión ponderado por monto. */
+  operativoSolicitado: number;
+  /** % Ejecutado de Operación+Inversión ponderado por monto. */
+  operativoEjecutado: number;
+} {
   const itemsGasto = items.filter((i) => !isDeltaPresupuestoItem(i));
   const resumen = computeResumenPresupuesto(itemsGasto);
   const delta = computeDeltaSaldo(presupuestoAdjudicado, itemsGasto);
@@ -199,6 +235,18 @@ export function computeAvancePresupuestoDesglose(
     solicitado: Math.round(merged.pctTotalSolicitado),
     ejecutado: Math.round(merged.pctTotalEjecutado),
     global: merged.pctGlobalAvance,
+    saldo: delta,
+    honorarios: Math.round(
+      pctCuenta(merged.porCuenta, 'RRHH', 'pctSolicitado')
+    ),
+    operativoSolicitado: pctOperativoPorMonto(
+      merged.porCuenta,
+      'montoSolicitado'
+    ),
+    operativoEjecutado: pctOperativoPorMonto(
+      merged.porCuenta,
+      'montoEjecutado'
+    ),
   };
 }
 

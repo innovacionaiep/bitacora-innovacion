@@ -19,6 +19,10 @@ function row(
     avanceIndicadores: 0,
     avancePresupuestoSolicitado: 0,
     avancePresupuestoEjecutado: 0,
+    avanceHonorarios: 0,
+    avanceOperativoSolicitado: 0,
+    avanceOperativoEjecutado: 0,
+    saldoPresupuesto: 0,
     convenioFirmado: false,
     ...patch,
   };
@@ -66,6 +70,10 @@ describe('sortFondoGestionProyectos', () => {
       avanceIndicadores: 0,
       avancePresupuestoSolicitado: 30,
       avancePresupuestoEjecutado: 10,
+      avanceHonorarios: 20,
+      avanceOperativoSolicitado: 30,
+      avanceOperativoEjecutado: 10,
+      saldoPresupuesto: -50_000,
     }),
     row({
       id: 'b',
@@ -77,6 +85,10 @@ describe('sortFondoGestionProyectos', () => {
       avanceIndicadores: 50,
       avancePresupuestoSolicitado: 5,
       avancePresupuestoEjecutado: 40,
+      avanceHonorarios: 80,
+      avanceOperativoSolicitado: 5,
+      avanceOperativoEjecutado: 40,
+      saldoPresupuesto: 120_000,
     }),
   ];
 
@@ -115,7 +127,23 @@ describe('sortFondoGestionProyectos', () => {
       key: 'presupuestoEjecutado',
       dir: 'desc',
     });
-    expect(sorted.map((r) => r.avancePresupuestoEjecutado)).toEqual([40, 10]);
+    expect(sorted.map((r) => r.avanceOperativoEjecutado)).toEqual([40, 10]);
+  });
+
+  it('ordena por honorarios DESC', () => {
+    const sorted = sortFondoGestionProyectos(rows, {
+      key: 'honorarios',
+      dir: 'desc',
+    });
+    expect(sorted.map((r) => r.avanceHonorarios)).toEqual([80, 20]);
+  });
+
+  it('ordena por saldo ASC (negativos primero)', () => {
+    const sorted = sortFondoGestionProyectos(rows, {
+      key: 'saldo',
+      dir: 'asc',
+    });
+    expect(sorted.map((r) => r.saldoPresupuesto)).toEqual([-50_000, 120_000]);
   });
 
   it('devuelve el orden original si no hay columna activa', () => {

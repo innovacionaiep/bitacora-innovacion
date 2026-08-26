@@ -10,6 +10,10 @@ import {
   isDeltaPresupuestoItem,
 } from '@/lib/utils/presupuesto-calculos';
 import { convenioEnabledKeys, proyectoAplicaConvenio } from '@/lib/linea-modulos';
+import {
+  aggregateFondoParticipantes,
+  type FondoParticipantesResumen,
+} from '@/lib/fondo-gestion-participantes';
 
 async function assertCanManageFondos() {
   const session = await getSession();
@@ -111,10 +115,18 @@ export type FondoGestionProyecto = {
   avanceGantt: number;
   /** % objetivo general (promedio de OEs/indicadores), campo `objetivos`. */
   avanceIndicadores: number;
-  /** % Solicitado del tab Presupuesto (fila total, con delta). */
+  /** % Solicitado del tab Presupuesto (fila total, con delta). KPI superior. */
   avancePresupuestoSolicitado: number;
-  /** % Ejecutado del tab Presupuesto (fila total, con delta). */
+  /** % Ejecutado del tab Presupuesto (fila total, con delta). KPI superior. */
   avancePresupuestoEjecutado: number;
+  /** % Solicitado de RRHH (Honorarios). */
+  avanceHonorarios: number;
+  /** % Solicitado de Operación+Inversión (por monto; incluye DELTA). */
+  avanceOperativoSolicitado: number;
+  /** % Ejecutado de Operación+Inversión (por monto; incluye DELTA). */
+  avanceOperativoEjecutado: number;
+  /** DELTA del tab Presupuesto (adjudicado − declarado; puede ser negativo). */
+  saldoPresupuesto: number;
   convenioFirmado: boolean;
 };
 
@@ -133,15 +145,20 @@ export type FondoGestionData = {
   conveniosEnabled: boolean;
   proyectos: FondoGestionProyecto[];
   coordinadores: FondoCoordinadorResumen[];
-  kpis: {
-    total: number;
-    avanceGanttPromedio: number;
-    avanceIndicadoresPromedio: number;
-    avancePresupuestoSolicitadoPromedio: number;
-    avancePresupuestoEjecutadoPromedio: number;
-    conveniosFirmados: number;
-    conveniosPendientes: number;
-  };
+  participantes: FondoParticipantesResumen;
+    kpis: {
+      total: number;
+      avanceGanttPromedio: number;
+      avanceIndicadoresPromedio: number;
+      /** Promedio de Operativo solicitado (Op+Inv por monto). */
+      avancePresupuestoSolicitadoPromedio: number;
+      /** Promedio de Operativo ejecutado (Op+Inv por monto). */
+      avancePresupuestoEjecutadoPromedio: number;
+      /** Promedio de Honorarios (% Solicitado RRHH). */
+      avanceHonorariosPromedio: number;
+      conveniosFirmados: number;
+      conveniosPendientes: number;
+    };
 };
 
 export async function getFondoGestionData(fondoNombre: string): Promise<{
@@ -191,7 +208,7 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
     });
 
     const proyectoIds = rows.map((p) => p.id);
-    const [itemsPresupuesto, participantesCoord] =
+    const [itemsPresupuesto, participantesAll] =
       proyectoIds.length > 0
         ? await Promise.all([
             prisma.itemPresupuesto.findMany({
@@ -206,14 +223,16 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
             }),
             prisma.proyectoParticipante.findMany({
               where: {
-                rol: 'Coordinador',
                 proyectoId: { in: proyectoIds },
-                email: { not: null },
               },
               select: {
+                rol: true,
                 email: true,
                 nombre: true,
+                cargo: true,
                 proyectoId: true,
+                proyecto: { select: { proyecto: true } },
+                user: { select: { name: true, email: true } },
               },
             }),
           ])
@@ -252,28 +271,40 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
         avanceIndicadores: p.objetivos,
         avancePresupuestoSolicitado: avancePresupuesto.solicitado,
         avancePresupuestoEjecutado: avancePresupuesto.ejecutado,
+        avanceHonorarios: avancePresupuesto.honorarios,
+        avanceOperativoSolicitado: avancePresupuesto.operativoSolicitado,
+        avanceOperativoEjecutado: avancePresupuesto.operativoEjecutado,
+        saldoPresupuesto: avancePresupuesto.saldo,
         convenioFirmado: Boolean(p.convenioFirmadoUrl),
       };
     });
 
     const total = proyectos.length;
+    const participantes = aggregateFondoParticipantes(participantesAll);
+
     const byEmail = new Map<
       string,
       { email: string; nombre: string; proyectoIds: Set<string> }
     >();
-    for (const part of participantesCoord) {
-      if (!part.email) continue;
-      const key = normEmail(part.email);
+    for (const part of participantesAll) {
+      if (part.rol !== 'Coordinador') continue;
+      const emailRaw = part.user?.email?.trim() || part.email?.trim();
+      if (!emailRaw) continue;
+      const key = normEmail(emailRaw);
+      const nombreResolved =
+        part.user?.name?.trim() ||
+        part.nombre?.trim() ||
+        emailRaw;
       const existing = byEmail.get(key);
       if (existing) {
         existing.proyectoIds.add(part.proyectoId);
-        if (!existing.nombre.trim() && part.nombre?.trim()) {
-          existing.nombre = part.nombre.trim();
+        if (!existing.nombre.trim() && nombreResolved) {
+          existing.nombre = nombreResolved;
         }
       } else {
         byEmail.set(key, {
-          email: part.email.trim(),
-          nombre: part.nombre?.trim() || part.email.trim(),
+          email: emailRaw,
+          nombre: nombreResolved,
           proyectoIds: new Set([part.proyectoId]),
         });
       }
@@ -317,16 +348,18 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
         conveniosEnabled,
         proyectos,
         coordinadores,
+        participantes,
         kpis: {
           total,
           avanceGanttPromedio: avg((p) => p.avanceGantt),
           avanceIndicadoresPromedio: avg((p) => p.avanceIndicadores),
           avancePresupuestoSolicitadoPromedio: avg(
-            (p) => p.avancePresupuestoSolicitado
+            (p) => p.avanceOperativoSolicitado
           ),
           avancePresupuestoEjecutadoPromedio: avg(
-            (p) => p.avancePresupuestoEjecutado
+            (p) => p.avanceOperativoEjecutado
           ),
+          avanceHonorariosPromedio: avg((p) => p.avanceHonorarios),
           conveniosFirmados,
           conveniosPendientes,
         },

@@ -6,7 +6,9 @@ export type FondoTableSortKey =
   | 'gantt'
   | 'indicadores'
   | 'presupuestoSolicitado'
-  | 'presupuestoEjecutado';
+  | 'presupuestoEjecutado'
+  | 'honorarios'
+  | 'saldo';
 
 export type FondoTableSort = {
   key: FondoTableSortKey | null;
@@ -20,8 +22,10 @@ export type FondoTableRow = {
   presupuestoAdjudicado: number;
   avanceGantt: number;
   avanceIndicadores: number;
-  avancePresupuestoSolicitado: number;
-  avancePresupuestoEjecutado: number;
+  avanceOperativoSolicitado: number;
+  avanceOperativoEjecutado: number;
+  avanceHonorarios: number;
+  saldoPresupuesto: number;
 };
 
 export function clampPct(value: number): number {
@@ -55,9 +59,13 @@ function sortValue(
     case 'indicadores':
       return row.avanceIndicadores;
     case 'presupuestoSolicitado':
-      return row.avancePresupuestoSolicitado;
+      return row.avanceOperativoSolicitado;
     case 'presupuestoEjecutado':
-      return row.avancePresupuestoEjecutado;
+      return row.avanceOperativoEjecutado;
+    case 'honorarios':
+      return row.avanceHonorarios;
+    case 'saldo':
+      return row.saldoPresupuesto;
   }
 }
 
