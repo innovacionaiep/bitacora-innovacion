@@ -145,7 +145,7 @@ function DataBar({
   return (
     <div className="flex items-center gap-2 min-w-[80px]">
       <div
-        className={`flex-1 ${trackClass} rounded-full h-2.5 overflow-hidden`}
+        className={`flex-1 ${trackClass} rounded-full h-2 overflow-hidden`}
       >
         <div
           className="h-full bg-emerald-500 rounded-full transition-all duration-300"
@@ -663,7 +663,7 @@ export function PresupuestoCard({
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 min-h-0 flex flex-col pt-2 px-6 pb-4">
-        <div className="flex-shrink-0 flex flex-col items-stretch gap-4 mb-6 w-full">
+        <div className="flex-shrink-0 flex flex-col items-stretch gap-4 mb-3 w-full">
           <div className="flex items-center justify-between w-full min-w-0 gap-4">
             <div className="flex items-center gap-1 min-w-0 flex-1">
               <TooltipProvider>
@@ -806,7 +806,7 @@ export function PresupuestoCard({
             id="tour-presupuesto-cuentas"
             className="border rounded-lg overflow-hidden w-full"
           >
-            <Table>
+            <Table className="[&_th]:h-[30px] [&_th]:py-[5px] [&_td]:py-[5px] [&_td]:leading-tight">
               <TableHeader>
                 <TableRow
                   className="[&_th]:text-center"
@@ -968,10 +968,10 @@ export function PresupuestoCard({
                 <colgroup>
                   {/* Acciones, Cuenta, Item, Detalle*, Monto, Mes, Solicitud, OC, Recepción, Estado, Ver */}
                   <col style={{ width: isFullscreen ? '4%' : '5%' }} />
-                  <col style={{ width: isFullscreen ? '6%' : '8%' }} />
+                  <col style={{ width: isFullscreen ? '6%' : '6%' }} />
                   <col style={{ width: isFullscreen ? '11%' : '13%' }} />
-                  <col style={{ width: isFullscreen ? '36%' : '26%' }} />
-                  <col style={{ width: isFullscreen ? '7%' : '8%' }} />
+                  <col style={{ width: isFullscreen ? '36%' : '29%' }} />
+                  <col style={{ width: isFullscreen ? '7%' : '7%' }} />
                   <col style={{ width: isFullscreen ? '8%' : '7%' }} />
                   <col style={{ width: isFullscreen ? '6%' : '7%' }} />
                   <col style={{ width: isFullscreen ? '6%' : '7%' }} />

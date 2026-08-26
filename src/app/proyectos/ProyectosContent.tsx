@@ -1451,6 +1451,7 @@ export function ProyectosContent({
                     handleCancelGeneralEdit={handleCancelGeneralEdit}
                   />
                 </div>
+                  {selectedTab !== 'Presupuesto' && (
                   <div
                     id="tour-general-meta-linea"
                     className="flex items-center justify-center flex-wrap gap-x-5 gap-y-1.5"
@@ -1748,6 +1749,7 @@ export function ProyectosContent({
                       </>
                     )}
                   </div>
+                  )}
               </div>
             </div>
 
