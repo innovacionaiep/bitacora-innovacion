@@ -15,7 +15,57 @@ const options = {
   etiquetas: ['Arte'],
 };
 
+function renderSidebar() {
+  return render(
+    <VitrinaProjectsSidebar
+      options={options}
+      filters={EMPTY_VITRINA_FILTERS}
+      query=""
+      matchIds={null}
+      aiFilterActive={false}
+      onToggle={vi.fn()}
+      onQueryChange={vi.fn()}
+      onClear={vi.fn()}
+      onBack={vi.fn()}
+    />,
+  );
+}
+
 describe('VitrinaProjectsSidebar', () => {
+  it('coloca el botón de colapsar encima del pie Dirección Nacional', () => {
+    renderSidebar();
+
+    const toggle = screen.getByRole('button', { name: 'Ocultar filtros' });
+    const footer = screen.getByText('Dirección Nacional de Emprendimiento e I+D');
+    expect(
+      toggle.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('colapsa el sidebar y permite expandirlo de nuevo', async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    expect(screen.getByText('Descubre proyectos')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ocultar filtros' }));
+
+    expect(screen.queryByText('Descubre proyectos')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Dirección Nacional de Emprendimiento e I+D'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toHaveAttribute(
+      'data-collapsed',
+      'true',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar filtros' }));
+    expect(screen.getByText('Descubre proyectos')).toBeInTheDocument();
+    expect(
+      screen.getByText('Dirección Nacional de Emprendimiento e I+D'),
+    ).toBeInTheDocument();
+  });
+
   it('abre el menú de opciones a la derecha del filtro', async () => {
     const user = userEvent.setup();
     render(
@@ -38,5 +88,68 @@ describe('VitrinaProjectsSidebar', () => {
     expect(panel).toHaveAttribute('data-side', 'right');
     expect(panel).toHaveTextContent('Impulsa');
     expect(panel).toHaveTextContent('Crea');
+  });
+
+  it('oculta Fondo y Etiqueta cuando se piden hiddenFacets', () => {
+    render(
+      <VitrinaProjectsSidebar
+        options={options}
+        filters={EMPTY_VITRINA_FILTERS}
+        query=""
+        matchIds={null}
+        aiFilterActive={false}
+        hiddenFacets={['fondos', 'etiquetas']}
+        searchPlaceholder="Nombre, sede, escuela..."
+        onToggle={vi.fn()}
+        onQueryChange={vi.fn()}
+        onClear={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Fondo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Etiqueta')).not.toBeInTheDocument();
+    expect(screen.getByText('Sede')).toBeInTheDocument();
+    expect(screen.getByText('Escuela')).toBeInTheDocument();
+    expect(screen.queryByText('Columnas')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Buscar en todos los campos del proyecto' }),
+    ).toHaveAttribute('placeholder', 'Nombre, sede, escuela...');
+  });
+
+  it('muestra el filtro Columnas solo cuando se pasan columnOptions', async () => {
+    const user = userEvent.setup();
+    const onToggleColumn = vi.fn();
+    render(
+      <VitrinaProjectsSidebar
+        options={options}
+        filters={EMPTY_VITRINA_FILTERS}
+        query=""
+        matchIds={null}
+        aiFilterActive={false}
+        hiddenFacets={['fondos', 'etiquetas']}
+        columnOptions={[
+          { id: 'proyecto', label: 'Nombre proyecto' },
+          { id: 'sede', label: 'Sede' },
+          { id: 'gantt', label: 'Gantt' },
+        ]}
+        visibleColumns={['proyecto', 'sede', 'gantt']}
+        onToggleColumn={onToggleColumn}
+        onToggle={vi.fn()}
+        onQueryChange={vi.fn()}
+        onClear={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Columnas')).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /Todas las columnas/i }),
+    );
+    expect(screen.getByRole('dialog', { name: 'Columnas' })).toHaveTextContent(
+      'Gantt',
+    );
+    await user.click(screen.getByText('Gantt'));
+    expect(onToggleColumn).toHaveBeenCalledWith('gantt');
   });
 });

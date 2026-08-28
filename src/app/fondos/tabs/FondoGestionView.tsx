@@ -337,7 +337,7 @@ function PctBarCell({
   const v = clampPct(value);
   return (
     <div className="flex w-[7.5rem] items-center gap-2">
-      <div className="h-1.5 w-[4.5rem] shrink-0 overflow-hidden rounded-full bg-gray-100">
+      <div className="h-2.5 w-[4.5rem] shrink-0 overflow-hidden rounded-full bg-gray-100">
         <div
           className={cn('h-full rounded-full transition-all', barClass)}
           style={{ width: `${v}%` }}

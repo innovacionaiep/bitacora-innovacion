@@ -5,10 +5,7 @@ import { getSession } from '@/lib/auth-utils';
 import { userHasPermission } from '@/lib/permissions/check';
 import { createActivity, createTask } from '@/lib/actions/gantt';
 import { addParticipanteProyecto } from '@/lib/actions/proyectos-participantes';
-import {
-  computeAvancePresupuestoDesglose,
-  isDeltaPresupuestoItem,
-} from '@/lib/utils/presupuesto-calculos';
+import { computeFondoAvanceMetrics } from '@/lib/fondo-avance-metrics';
 import { convenioEnabledKeys, proyectoAplicaConvenio } from '@/lib/linea-modulos';
 import {
   aggregateFondoParticipantes,
@@ -247,34 +244,13 @@ export async function getFondoGestionData(fondoNombre: string): Promise<{
 
     const proyectos: FondoGestionProyecto[] = rows.map((p) => {
       const items = itemsByProyecto.get(p.id) ?? [];
-      const adjudicadoCampo = p.presupuestoAdjudicado ?? 0;
-      const totalDeclarado = items
-        .filter((i) => !isDeltaPresupuestoItem(i))
-        .reduce((s, i) => s + i.monto, 0);
-      const presupuestoAdjudicado =
-        adjudicadoCampo > 0
-          ? adjudicadoCampo
-          : (p.presupuestoTotal ?? 0) > 0
-            ? (p.presupuestoTotal ?? 0)
-            : totalDeclarado;
-      const avancePresupuesto = computeAvancePresupuestoDesglose(
-        items,
-        adjudicadoCampo
-      );
+      const metrics = computeFondoAvanceMetrics(p, items);
       return {
         id: p.id,
         proyecto: p.proyecto,
         linea: p.linea,
         sede: p.sede,
-        presupuestoAdjudicado,
-        avanceGantt: p.avanceGantt,
-        avanceIndicadores: p.objetivos,
-        avancePresupuestoSolicitado: avancePresupuesto.solicitado,
-        avancePresupuestoEjecutado: avancePresupuesto.ejecutado,
-        avanceHonorarios: avancePresupuesto.honorarios,
-        avanceOperativoSolicitado: avancePresupuesto.operativoSolicitado,
-        avanceOperativoEjecutado: avancePresupuesto.operativoEjecutado,
-        saldoPresupuesto: avancePresupuesto.saldo,
+        ...metrics,
         convenioFirmado: Boolean(p.convenioFirmadoUrl),
       };
     });

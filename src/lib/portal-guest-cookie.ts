@@ -47,5 +47,8 @@ export async function writePortalGuestTicket(
 
 export async function clearPortalGuestCookie(): Promise<void> {
   const jar = await cookies();
-  jar.delete(PORTAL_GUEST_COOKIE);
+  jar.delete({
+    name: PORTAL_GUEST_COOKIE,
+    path: '/',
+  });
 }

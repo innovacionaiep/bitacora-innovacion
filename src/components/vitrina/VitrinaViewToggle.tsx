@@ -7,14 +7,15 @@ export type { VitrinaProjectsView };
 
 const TAB_LABELS: Record<VitrinaProjectsView, string> = {
   proyectos: 'Proyectos',
+  avances: 'Avances',
   analisis: 'Análisis',
   indicadores: 'Indicadores',
-  avances: 'Avances',
   data: 'Data',
 };
 
 const DEFAULT_TABS: VitrinaProjectsView[] = [
   'proyectos',
+  'avances',
   'analisis',
   'indicadores',
   'data',

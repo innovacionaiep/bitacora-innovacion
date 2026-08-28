@@ -1,6 +1,6 @@
 export type VitrinaProjectsView =
   | 'proyectos'
+  | 'avances'
   | 'analisis'
   | 'indicadores'
-  | 'avances'
   | 'data';

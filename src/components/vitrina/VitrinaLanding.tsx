@@ -10,6 +10,7 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import {
   VITRINA_HERO,
   type VitrinaVideo,
@@ -20,7 +21,7 @@ import { VitrinaProjectsEditor } from '@/components/vitrina/VitrinaProjectsEdito
 import { VitrinaProjectsGrid } from '@/components/vitrina/VitrinaProjectsGrid';
 import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSidebar';
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
-import { VitrinaAvancesPlaceholder } from '@/components/vitrina/VitrinaAvancesPlaceholder';
+import { VitrinaAvancesView } from '@/components/vitrina/VitrinaAvancesView';
 import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
 import { VitrinaGuestGate } from '@/components/vitrina/VitrinaGuestGate';
 import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
@@ -45,6 +46,7 @@ import {
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
+import { leavePortalGuestSession } from '@/lib/actions/portal-guest';
 import {
   EMPTY_VITRINA_FILTERS,
   applyVitrinaAiMatchIds,
@@ -74,6 +76,24 @@ import {
   type PortalAccessKind,
   type PortalGuestLevel,
 } from '@/lib/portal-guest-access';
+import {
+  EMPTY_PORTAL_AVANCES_FILTERS,
+  portalAvancesDefaultFondoForLevel,
+  portalAvancesFondosForLevel,
+  avancesFiltersToVitrina,
+  filterPortalAvancesRows,
+  rowsForPortalAvancesFondo,
+  uniquePortalAvancesFilterOptions,
+  type PortalAvancesFilters,
+  type PortalAvancesProyecto,
+} from '@/lib/portal-avances';
+import {
+  defaultPortalAvancesVisibleColumns,
+  portalAvancesColumnsForFondo,
+  sanitizePortalAvancesVisibleColumns,
+  togglePortalAvancesColumn,
+  type PortalAvancesColumnId,
+} from '@/lib/portal-avances-columns';
 
 const PATTERN_EDGES = 'left-[calc(50%-50cqw)] right-[calc(50%+6rem)]';
 
@@ -95,8 +115,9 @@ export function VitrinaLanding({
   aiConfigured,
   sessionEmail = null,
   accessKind = 'none',
-  accessLevel = 0,
+  accessLevel = null,
   initialScene = 'hero',
+  avancesProyectos = [],
 }: {
   videos: VitrinaVideo[];
   proyectos: VitrinaProyecto[];
@@ -106,12 +127,13 @@ export function VitrinaLanding({
   aiConfigured: boolean;
   sessionEmail?: string | null;
   accessKind?: PortalAccessKind;
-  accessLevel?: 0 | PortalGuestLevel;
+  accessLevel?: PortalGuestLevel | null;
   initialScene?: VitrinaScene;
+  avancesProyectos?: PortalAvancesProyecto[];
 }) {
   const router = useRouter();
   const startProjects = initialScene === 'projects';
-  const hasAccess = accessLevel >= 1;
+  const hasAccess = accessKind !== 'none';
   const visibleTabs = portalViewsForLevel(accessLevel);
   const [proyectosLocal, setProyectosLocal] = useState(proyectos);
   const [heroOff, setHeroOff] = useState(startProjects);
@@ -127,6 +149,20 @@ export function VitrinaLanding({
   const [searchQuery, setSearchQuery] = useState('');
   const [projectsView, setProjectsView] = useState<VitrinaProjectsView>(() =>
     clampPortalView(accessLevel, 'proyectos'),
+  );
+  const [avancesFondoNombre, setAvancesFondoNombre] = useState(() =>
+    portalAvancesDefaultFondoForLevel(accessLevel),
+  );
+  const [avancesFilters, setAvancesFilters] = useState<PortalAvancesFilters>(
+    EMPTY_PORTAL_AVANCES_FILTERS,
+  );
+  const [avancesQuery, setAvancesQuery] = useState('');
+  const [avancesVisibleColumns, setAvancesVisibleColumns] = useState<
+    PortalAvancesColumnId[]
+  >(() =>
+    defaultPortalAvancesVisibleColumns(
+      portalAvancesDefaultFondoForLevel(accessLevel),
+    ),
   );
   const [perfDirection, setPerfDirection] = useState<VitrinaPerfDirection | null>(
     null,
@@ -165,12 +201,51 @@ export function VitrinaLanding({
     }
   }, [router]);
 
+  const handleSignOut = useCallback(() => {
+    void signOut({ callbackUrl: '/' });
+  }, []);
+
+  const handleLeaveGuest = useCallback(() => {
+    void leavePortalGuestSession().then(() => {
+      router.replace('/');
+      router.refresh();
+    });
+  }, [router]);
+
+  const handleAvancesFondoChange = useCallback((nombre: string) => {
+    if (
+      !portalAvancesFondosForLevel(accessLevel).some(
+        (fondo) => fondo.nombre === nombre,
+      )
+    ) {
+      return;
+    }
+    setAvancesFondoNombre(nombre);
+    setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
+    setAvancesQuery('');
+    setAvancesVisibleColumns(defaultPortalAvancesVisibleColumns(nombre));
+  }, [accessLevel]);
+
   const scene: VitrinaScene = heroOff ? 'projects' : 'hero';
   const typewriterPaused = vitrinaTypewriterPaused(scene, busy);
   const carouselLive = vitrinaCarouselLive(scene, busy);
   const filterOptions = useMemo(
     () => uniqueVitrinaFilterOptions(filterCatalogs, proyectosLocal),
     [filterCatalogs, proyectosLocal],
+  );
+  const isAvancesView = projectsView === 'avances';
+  const avancesFondoRows = useMemo(
+    () => rowsForPortalAvancesFondo(avancesProyectos, avancesFondoNombre),
+    [avancesProyectos, avancesFondoNombre],
+  );
+  const avancesFilterOptions = useMemo(
+    () => uniquePortalAvancesFilterOptions(avancesFondoRows),
+    [avancesFondoRows],
+  );
+  const avancesFiltrados = useMemo(
+    () =>
+      filterPortalAvancesRows(avancesFondoRows, avancesFilters, avancesQuery),
+    [avancesFondoRows, avancesFilters, avancesQuery],
   );
   const proyectosFiltrados = useMemo(
     () =>
@@ -196,6 +271,16 @@ export function VitrinaLanding({
   useEffect(() => {
     setProjectsView((current) => clampPortalView(accessLevel, current));
   }, [accessLevel]);
+
+  useEffect(() => {
+    const allowed = portalAvancesFondosForLevel(accessLevel);
+    if (allowed.some((fondo) => fondo.nombre === avancesFondoNombre)) return;
+    const next = portalAvancesDefaultFondoForLevel(accessLevel);
+    setAvancesFondoNombre(next);
+    setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
+    setAvancesQuery('');
+    setAvancesVisibleColumns(defaultPortalAvancesVisibleColumns(next));
+  }, [accessLevel, avancesFondoNombre]);
 
   useEffect(() => {
     return () => {
@@ -252,6 +337,7 @@ export function VitrinaLanding({
   const goToProjects = () => {
     if (!canGoToProjects(busy, scene)) return;
     setHasVisitedProjects(true);
+    setProjectsView((current) => clampPortalView(accessLevel, current));
     router.replace('/?vista=proyectos', { scroll: false });
     if (prefersReducedMotion()) {
       setHeroOff(true);
@@ -275,7 +361,7 @@ export function VitrinaLanding({
       setCardsShown(false);
       setHeaderCompact(false);
       setHeroOff(false);
-      setProjectsView('proyectos');
+      setProjectsView(clampPortalView(accessLevel, 'proyectos'));
       return;
     }
     clearTimers();
@@ -284,7 +370,7 @@ export function VitrinaLanding({
     setCardsShown(false);
     setHeaderCompact(false);
     setHeroOff(false);
-    setProjectsView('proyectos');
+    setProjectsView(clampPortalView(accessLevel, 'proyectos'));
     queue(() => setBusy(false), VITRINA_ANIM_MS);
   };
 
@@ -368,6 +454,28 @@ export function VitrinaLanding({
               >
                 Ir a la app
               </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                tabIndex={headerCompact ? -1 : undefined}
+                className="shrink-0 rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          ) : accessKind === 'guest' ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-white/90">
+                Sesión de Invitado
+              </span>
+              <button
+                type="button"
+                onClick={handleLeaveGuest}
+                tabIndex={headerCompact ? -1 : undefined}
+                className="shrink-0 rounded-full border border-white/80 px-5 py-2 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+              >
+                Salir
+              </button>
             </div>
           ) : (
             <Link
@@ -401,13 +509,31 @@ export function VitrinaLanding({
                     : null}
               </span>
             ) : null}
-            {accessKind === 'session' ? (
-              <Link
-                href="/inicio"
+            {accessKind === 'guest' ? (
+              <button
+                type="button"
+                onClick={handleLeaveGuest}
                 className="inline-flex h-7 shrink-0 items-center rounded-full border border-white/80 px-3 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
               >
-                Ir a la app
-              </Link>
+                Salir
+              </button>
+            ) : null}
+            {accessKind === 'session' ? (
+              <>
+                <Link
+                  href="/inicio"
+                  className="inline-flex h-7 shrink-0 items-center rounded-full border border-white/80 px-3 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+                >
+                  Ir a la app
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="inline-flex h-7 shrink-0 items-center rounded-full border border-white/80 px-3 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
+                >
+                  Cerrar sesión
+                </button>
+              </>
             ) : null}
             {canEdit ? (
               <VitrinaProjectsEditor
@@ -517,20 +643,76 @@ export function VitrinaLanding({
           >
             <div className="flex h-full min-h-0 w-full items-stretch">
               <VitrinaProjectsSidebar
-                options={filterOptions}
-                filters={filters}
-                query={searchQuery}
-                matchIds={aiMatchIds}
-                aiFilterActive={aiApplied}
+                options={isAvancesView ? avancesFilterOptions : filterOptions}
+                filters={
+                  isAvancesView
+                    ? avancesFiltersToVitrina(avancesFilters)
+                    : filters
+                }
+                query={isAvancesView ? avancesQuery : searchQuery}
+                matchIds={isAvancesView ? null : aiMatchIds}
+                aiFilterActive={isAvancesView ? false : aiApplied}
+                hiddenFacets={
+                  isAvancesView ? ['fondos', 'etiquetas'] : undefined
+                }
+                searchPlaceholder={
+                  isAvancesView
+                    ? 'Nombre, sede, escuela...'
+                    : 'Nombre, sede, etiqueta...'
+                }
+                columnOptions={
+                  isAvancesView
+                    ? portalAvancesColumnsForFondo(avancesFondoNombre)
+                    : undefined
+                }
+                visibleColumns={
+                  isAvancesView ? avancesVisibleColumns : undefined
+                }
+                onToggleColumn={
+                  isAvancesView
+                    ? (columnId) => {
+                        setAvancesVisibleColumns((current) =>
+                          togglePortalAvancesColumn(
+                            sanitizePortalAvancesVisibleColumns(
+                              current,
+                              avancesFondoNombre,
+                            ),
+                            columnId as PortalAvancesColumnId,
+                          ),
+                        );
+                      }
+                    : undefined
+                }
                 onBack={goToHero}
                 onToggle={(facet, value) => {
+                  if (isAvancesView) {
+                    if (facet !== 'sedes' && facet !== 'escuelas') return;
+                    setAvancesFilters((current) => ({
+                      ...current,
+                      [facet]: toggleVitrinaFilterValue(
+                        current[facet],
+                        value,
+                      ),
+                    }));
+                    return;
+                  }
                   setFilters((current) => ({
                     ...current,
                     [facet]: toggleVitrinaFilterValue(current[facet], value),
                   }));
                 }}
-                onQueryChange={setSearchQuery}
+                onQueryChange={
+                  isAvancesView ? setAvancesQuery : setSearchQuery
+                }
                 onClear={() => {
+                  if (isAvancesView) {
+                    setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
+                    setAvancesQuery('');
+                    setAvancesVisibleColumns(
+                      defaultPortalAvancesVisibleColumns(avancesFondoNombre),
+                    );
+                    return;
+                  }
                   setFilters(EMPTY_VITRINA_FILTERS);
                   setSearchQuery('');
                   setAiMatchIds(null);
@@ -538,6 +720,7 @@ export function VitrinaLanding({
                 }}
               />
               <div className="relative min-h-0 min-w-0 flex-1">
+                {portalCanSeeView(accessLevel, 'proyectos') ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
@@ -555,6 +738,7 @@ export function VitrinaLanding({
                     onOpen={(id) => setFicha(id)}
                   />
                 </div>
+                ) : null}
                 {portalCanSeeView(accessLevel, 'analisis') ? (
                 <div
                   className={cn(
@@ -582,7 +766,13 @@ export function VitrinaLanding({
                     projectsView !== 'avances' && 'hidden',
                   )}
                 >
-                  <VitrinaAvancesPlaceholder />
+                  <VitrinaAvancesView
+                    fondoNombre={avancesFondoNombre}
+                    onFondoChange={handleAvancesFondoChange}
+                    proyectos={avancesFiltrados}
+                    visibleColumns={avancesVisibleColumns}
+                    fondos={portalAvancesFondosForLevel(accessLevel)}
+                  />
                 </div>
                 ) : null}
                 {portalCanSeeView(accessLevel, 'data') ? (
@@ -607,6 +797,7 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
+                {portalCanSeeView(accessLevel, 'proyectos') ? (
                 <VitrinaAiChat
                   configured={aiConfigured}
                   filters={filters}
@@ -619,6 +810,7 @@ export function VitrinaLanding({
                     );
                   }}
                 />
+                ) : null}
               </div>
             </div>
           </div>

@@ -10,29 +10,45 @@ import {
   portalReadLevelForSessionRoles,
   portalViewsForLevel,
   serializePortalGuestHashes,
+  DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
+  parsePortalSessionRoleLevels,
+  serializePortalSessionRoleLevels,
 } from '@/lib/portal-guest-access';
 
 describe('portal guest hashes', () => {
-  it('serializa y parsea los tres niveles', () => {
+  it('serializa y parsea los cuatro niveles, incluido Causalab', () => {
     const raw = serializePortalGuestHashes({
+      0: 'h0',
       1: 'h1',
       2: '',
       3: 'h3',
     });
     expect(parsePortalGuestHashes(raw)).toEqual({
+      0: 'h0',
       1: 'h1',
       2: '',
       3: 'h3',
     });
     expect(portalGuestConfiguredFlags(parsePortalGuestHashes(raw))).toEqual({
+      0: true,
       1: true,
       2: false,
       3: true,
     });
   });
 
+  it('completa el nivel 0 al leer JSON antiguo sin Causalab', () => {
+    expect(parsePortalGuestHashes('{"1":"h1","2":"","3":"h3"}')).toEqual({
+      0: '',
+      1: 'h1',
+      2: '',
+      3: 'h3',
+    });
+  });
+
   it('tolera JSON inválido', () => {
     expect(parsePortalGuestHashes('no-json')).toEqual({
+      0: '',
       1: '',
       2: '',
       3: '',
@@ -41,35 +57,47 @@ describe('portal guest hashes', () => {
 });
 
 describe('portal views by level', () => {
+  it('nivel 0 Causalab solo avances', () => {
+    expect(portalViewsForLevel(0)).toEqual(['avances']);
+    expect(portalCanSeeView(0, 'avances')).toBe(true);
+    expect(portalCanSeeView(0, 'proyectos')).toBe(false);
+    expect(clampPortalView(0, 'proyectos')).toBe('avances');
+  });
+
+  it('sin acceso no ve ninguna vista', () => {
+    expect(portalViewsForLevel(null)).toEqual([]);
+    expect(portalCanSeeView(null, 'avances')).toBe(false);
+  });
+
   it('nivel 1 solo proyectos', () => {
     expect(portalViewsForLevel(1)).toEqual(['proyectos']);
     expect(portalCanSeeView(1, 'analisis')).toBe(false);
     expect(portalCanSeeView(1, 'proyectos')).toBe(true);
   });
 
-  it('nivel 2 suma indicadores y avances', () => {
+  it('nivel 2 suma avances e indicadores', () => {
     expect(portalViewsForLevel(2)).toEqual([
       'proyectos',
-      'indicadores',
       'avances',
+      'indicadores',
     ]);
     expect(portalCanSeeView(2, 'data')).toBe(false);
   });
 
-  it('nivel 3 ve todo', () => {
+  it('nivel 3 ve todo, con Avances entre Proyectos y Análisis', () => {
     expect(portalViewsForLevel(3)).toEqual([
       'proyectos',
+      'avances',
       'analisis',
       'indicadores',
-      'avances',
       'data',
     ]);
   });
 
-  it('clampa una vista no permitida a proyectos', () => {
+  it('clampa una vista no permitida a la primera permitida', () => {
     expect(clampPortalView(1, 'data')).toBe('proyectos');
     expect(clampPortalView(3, 'analisis')).toBe('analisis');
-    expect(portalViewsForLevel(0)).toEqual([]);
+    expect(clampPortalView(0, 'proyectos')).toBe('avances');
   });
 });
 
@@ -78,11 +106,19 @@ describe('guest ticket', () => {
     const ticket = parsePortalGuestTicket({ level: 2, hash: 'abc' });
     expect(ticket).toEqual({ level: 2, hash: 'abc' });
     expect(
-      guestTicketStillValid(ticket!, { 1: '', 2: 'abc', 3: '' }),
+      guestTicketStillValid(ticket!, { 0: '', 1: '', 2: 'abc', 3: '' }),
     ).toBe(true);
     expect(
-      guestTicketStillValid(ticket!, { 1: '', 2: 'rotado', 3: '' }),
+      guestTicketStillValid(ticket!, { 0: '', 1: '', 2: 'rotado', 3: '' }),
     ).toBe(false);
+  });
+
+  it('acepta el ticket de nivel 0 Causalab', () => {
+    const ticket = parsePortalGuestTicket({ level: 0, hash: 'c0' });
+    expect(ticket).toEqual({ level: 0, hash: 'c0' });
+    expect(
+      guestTicketStillValid(ticket!, { 0: 'c0', 1: '', 2: '', 3: '' }),
+    ).toBe(true);
   });
 });
 
@@ -90,19 +126,28 @@ describe('matchPortalGuestCode', () => {
   it('devuelve el primer nivel cuyo hash coincide', async () => {
     const ticket = await matchPortalGuestCode(
       '  secreto  ',
-      { 1: 'h1', 2: 'h2', 3: 'h3' },
+      { 0: 'h0', 1: 'h1', 2: 'h2', 3: 'h3' },
       async (plain, hash) => plain === 'secreto' && hash === 'h2',
     );
     expect(ticket).toEqual({ level: 2, hash: 'h2' });
   });
 
+  it('matchea el código de Causalab', async () => {
+    const ticket = await matchPortalGuestCode(
+      'causalab',
+      { 0: 'h0', 1: '', 2: '', 3: '' },
+      async (plain, hash) => plain === 'causalab' && hash === 'h0',
+    );
+    expect(ticket).toEqual({ level: 0, hash: 'h0' });
+  });
+
   it('rechaza código vacío o sin match', async () => {
     const compare = async () => false;
     expect(
-      await matchPortalGuestCode('', { 1: 'h', 2: '', 3: '' }, compare),
+      await matchPortalGuestCode('', { 0: '', 1: 'h', 2: '', 3: '' }, compare),
     ).toBeNull();
     expect(
-      await matchPortalGuestCode('x', { 1: 'h', 2: '', 3: '' }, compare),
+      await matchPortalGuestCode('x', { 0: '', 1: 'h', 2: '', 3: '' }, compare),
     ).toBeNull();
   });
 });
@@ -121,5 +166,34 @@ describe('portalReadLevelForSessionRoles', () => {
     expect(portalReadLevelForSessionRoles(['Colaborador'])).toBe(1);
     expect(portalReadLevelForSessionRoles(['Beneficiario'])).toBe(1);
     expect(portalReadLevelForSessionRoles([])).toBe(1);
+  });
+
+  it('usa el mayor nivel entre los roles de la cuenta', () => {
+    const custom: typeof DEFAULT_PORTAL_SESSION_ROLE_LEVELS = {
+      ...DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
+      Docente: 2,
+      Coordinador: 1,
+    };
+    expect(portalReadLevelForSessionRoles(['Docente'], custom)).toBe(2);
+    expect(portalReadLevelForSessionRoles(['Coordinador'], custom)).toBe(1);
+    expect(
+      portalReadLevelForSessionRoles(['Coordinador', 'Docente'], custom),
+    ).toBe(2);
+  });
+});
+
+describe('portal session role levels', () => {
+  it('serializa y completa defaults al parsear JSON parcial', () => {
+    const raw = serializePortalSessionRoleLevels({
+      ...DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
+      Docente: 0,
+    });
+    expect(parsePortalSessionRoleLevels(raw).Docente).toBe(0);
+    expect(parsePortalSessionRoleLevels(raw).Admin).toBe(3);
+    expect(parsePortalSessionRoleLevels('{"Docente":2}').Docente).toBe(2);
+    expect(parsePortalSessionRoleLevels('{"Docente":2}').Admin).toBe(3);
+    expect(parsePortalSessionRoleLevels('no-json')).toEqual(
+      DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
+    );
   });
 });

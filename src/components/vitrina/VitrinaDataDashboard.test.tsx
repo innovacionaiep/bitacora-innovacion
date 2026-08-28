@@ -30,6 +30,9 @@ describe('VitrinaViewToggle', () => {
       'aria-selected',
       'true',
     );
+    expect(
+      screen.getAllByRole('tab').map((tab) => tab.textContent),
+    ).toEqual(['Proyectos', 'Avances', 'Análisis', 'Indicadores', 'Data']);
     await user.click(screen.getByRole('tab', { name: 'Análisis' }));
     expect(onChange).toHaveBeenCalledWith('analisis');
     await user.click(screen.getByRole('tab', { name: 'Indicadores' }));
@@ -45,13 +48,13 @@ describe('VitrinaViewToggle', () => {
       <VitrinaViewToggle
         value="proyectos"
         onChange={onChange}
-        tabs={['proyectos', 'indicadores', 'avances']}
+        tabs={['proyectos', 'avances', 'indicadores']}
       />,
     );
     const tabs = within(view.container)
       .getAllByRole('tab')
       .map((tab) => tab.textContent);
-    expect(tabs).toEqual(['Proyectos', 'Indicadores', 'Avances']);
+    expect(tabs).toEqual(['Proyectos', 'Avances', 'Indicadores']);
     await user.click(within(view.container).getByRole('tab', { name: 'Avances' }));
     expect(onChange).toHaveBeenCalledWith('avances');
   });
