@@ -1,5 +1,5 @@
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
-import { portalCanSeeView, type PortalGuestLevel } from '@/lib/portal-guest-access';
+import { portalCanSeeView, type PortalAccessKind, type PortalGuestLevel } from '@/lib/portal-guest-access';
 import type { FondoAvanceMetrics } from '@/lib/fondo-avance-metrics';
 
 export type PortalAvancesFondoSource = 'app' | 'excel' | 'external';
@@ -157,7 +157,9 @@ export function avancesFiltersToVitrina(
 
 export function canLoadPortalAvances(
   level: PortalGuestLevel | null,
+  kind: PortalAccessKind | null = 'guest',
 ): boolean {
+  if (kind === 'session' && level === 0) return false;
   return portalCanSeeView(level, 'avances');
 }
 
@@ -180,6 +182,7 @@ export function portalAvancesDefaultFondoForLevel(
 
 export function portalAvancesCanLoadAppFondos(
   level: PortalGuestLevel | null,
+  kind: PortalAccessKind | null = 'guest',
 ): boolean {
-  return canLoadPortalAvances(level) && level !== 0;
+  return canLoadPortalAvances(level, kind) && level !== 0;
 }

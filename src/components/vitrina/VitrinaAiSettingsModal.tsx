@@ -26,6 +26,7 @@ import {
   PORTAL_GUEST_LEVELS,
   PORTAL_SESSION_ROLES,
   portalLevelCaption,
+  portalSessionLevelCaption,
   type PortalGuestLevel,
   type PortalSessionRoleLevels,
 } from '@/lib/portal-guest-access';
@@ -594,8 +595,9 @@ export function VitrinaAiSettingsModal({
               Cuentas logueadas por rol
             </h3>
             <p className="mt-1 text-xs leading-snug text-slate-500">
-              Define qué ve cada rol en el portal. Si una cuenta tiene varios
-              roles, se aplica el nivel más alto.
+              Define qué ve cada rol en el portal. El nivel 0 redirige a Inicio
+              en la app al pulsar «Ver proyectos en curso». Si una cuenta tiene
+              varios roles, se aplica el nivel más alto.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -630,14 +632,14 @@ export function VitrinaAiSettingsModal({
                         {PORTAL_GUEST_LEVELS.map((level) => (
                           <option key={level} value={level}>
                             {level === 0
-                              ? '0 — Causalab'
+                              ? '0 — Redirigir a la app'
                               : `${level} — ${portalLevelCaption(level)}`}
                           </option>
                         ))}
                       </select>
                     </td>
                     <td className="py-2 text-xs leading-snug text-slate-500">
-                      {portalLevelCaption(roleLevels[role])}
+                      {portalSessionLevelCaption(roleLevels[role])}
                     </td>
                   </tr>
                 ))}

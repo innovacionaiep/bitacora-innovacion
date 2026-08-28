@@ -174,6 +174,28 @@ export function portalLevelCaption(level: PortalGuestLevel): string {
   return labels;
 }
 
+/** Nivel 0 en cuentas logueadas: no entran al portal, van a /inicio. El 0 de invitado sigue siendo Causalab. */
+export function portalSessionRedirectsToApp(
+  kind: PortalAccessKind,
+  level: PortalGuestLevel | null,
+): boolean {
+  return kind === 'session' && level === 0;
+}
+
+export function portalCanEnterProjectsPortal(
+  kind: PortalAccessKind,
+  level: PortalGuestLevel | null,
+): boolean {
+  if (kind === 'none' || level === null) return false;
+  if (portalSessionRedirectsToApp(kind, level)) return false;
+  return portalViewsForLevel(level).length > 0;
+}
+
+export function portalSessionLevelCaption(level: PortalGuestLevel): string {
+  if (level === 0) return 'Redirige a Inicio en la app';
+  return portalLevelCaption(level);
+}
+
 export function parsePortalSessionRoleLevels(
   raw: string | null | undefined,
 ): PortalSessionRoleLevels {

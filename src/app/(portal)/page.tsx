@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { VitrinaLanding } from '@/components/vitrina/VitrinaLanding';
 import { getVitrinaAiPublicStatus } from '@/lib/actions/vitrina-ai';
 import { getPortalAvancesProyectos } from '@/lib/actions/portal-avances';
@@ -8,7 +9,8 @@ import {
 } from '@/lib/actions/vitrina-proyectos';
 import { getSession } from '@/lib/auth-utils';
 import { userHasAdminEnabled } from '@/lib/authz/pure';
-import { portalCanSeeView } from '@/lib/portal-guest-access';
+import { portalCanSeeView, portalSessionRedirectsToApp } from '@/lib/portal-guest-access';
+import { canLoadPortalAvances } from '@/lib/portal-avances';
 import { EMPTY_VITRINA_FILTERS } from '@/lib/vitrina-project-filters';
 import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readVitrinaVideos } from '@/lib/vitrina-videos-store';
@@ -40,9 +42,16 @@ export default async function PortalPage({
   ]);
   const canEdit = userHasAdminEnabled(session?.user?.availableRoles);
   const sessionEmail = session?.user?.email?.trim() || null;
-  const hasReadAccess = access.kind !== 'none';
-  const loadVitrina = portalCanSeeView(access.level, 'proyectos');
-  const loadAvances = portalCanSeeView(access.level, 'avances');
+  if (
+    params.vista === 'proyectos' &&
+    portalSessionRedirectsToApp(access.kind, access.level)
+  ) {
+    redirect('/inicio');
+  }
+  const redirectsToApp = portalSessionRedirectsToApp(access.kind, access.level);
+  const hasReadAccess = access.kind !== 'none' && !redirectsToApp;
+  const loadVitrina = portalCanSeeView(access.level, 'proyectos') && !redirectsToApp;
+  const loadAvances = canLoadPortalAvances(access.level, access.kind);
 
   const [proyectos, catalogs, avancesResult] = hasReadAccess
     ? await Promise.all([

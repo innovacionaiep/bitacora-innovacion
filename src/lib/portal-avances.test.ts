@@ -187,9 +187,11 @@ describe('uniquePortalAvancesFilterOptions', () => {
 });
 
 describe('canLoadPortalAvances', () => {
-  it('nivel 0 Causalab, 2 y 3 sí; 1 y sin acceso no', () => {
+  it('nivel 0 Causalab invitado, 2 y 3 sí; sesión 0, 1 y sin acceso no', () => {
     expect(canLoadPortalAvances(null)).toBe(false);
     expect(canLoadPortalAvances(0)).toBe(true);
+    expect(canLoadPortalAvances(0, 'guest')).toBe(true);
+    expect(canLoadPortalAvances(0, 'session')).toBe(false);
     expect(canLoadPortalAvances(1)).toBe(false);
     expect(canLoadPortalAvances(2)).toBe(true);
     expect(canLoadPortalAvances(3)).toBe(true);

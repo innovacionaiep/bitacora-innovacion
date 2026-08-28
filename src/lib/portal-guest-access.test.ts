@@ -8,6 +8,8 @@ import {
   portalCanSeeView,
   portalGuestConfiguredFlags,
   portalReadLevelForSessionRoles,
+  portalSessionLevelCaption,
+  portalSessionRedirectsToApp,
   portalViewsForLevel,
   serializePortalGuestHashes,
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
@@ -179,6 +181,19 @@ describe('portalReadLevelForSessionRoles', () => {
     expect(
       portalReadLevelForSessionRoles(['Coordinador', 'Docente'], custom),
     ).toBe(2);
+  });
+
+  it('permite nivel 0 de sesión: redirigir a la app', () => {
+    const custom: typeof DEFAULT_PORTAL_SESSION_ROLE_LEVELS = {
+      ...DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
+      Docente: 0,
+    };
+    expect(portalReadLevelForSessionRoles(['Docente'], custom)).toBe(0);
+    expect(portalSessionRedirectsToApp('session', 0)).toBe(true);
+    expect(portalSessionRedirectsToApp('guest', 0)).toBe(false);
+    expect(portalSessionRedirectsToApp('session', 1)).toBe(false);
+    expect(portalSessionLevelCaption(0)).toBe('Redirige a Inicio en la app');
+    expect(portalSessionLevelCaption(1)).toBe('Proyectos');
   });
 });
 

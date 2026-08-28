@@ -72,6 +72,7 @@ import type { VitrinaPerfDirection } from '@/lib/vitrina-transition-perf';
 import {
   clampPortalView,
   portalCanSeeView,
+  portalSessionRedirectsToApp,
   portalViewsForLevel,
   type PortalAccessKind,
   type PortalGuestLevel,
@@ -336,6 +337,10 @@ export function VitrinaLanding({
 
   const goToProjects = () => {
     if (!canGoToProjects(busy, scene)) return;
+    if (portalSessionRedirectsToApp(accessKind, accessLevel)) {
+      router.push('/inicio');
+      return;
+    }
     setHasVisitedProjects(true);
     setProjectsView((current) => clampPortalView(accessLevel, current));
     router.replace('/?vista=proyectos', { scroll: false });

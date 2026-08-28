@@ -19,13 +19,13 @@ export async function getPortalAvancesProyectos(): Promise<{
   error?: string;
 }> {
   const access = await resolvePortalAccess();
-  if (!canLoadPortalAvances(access.level)) {
+  if (!canLoadPortalAvances(access.level, access.kind)) {
     return { success: false, error: 'No tienes acceso a esta vista' };
   }
 
   const data: PortalAvancesProyecto[] = [];
 
-  if (portalAvancesCanLoadAppFondos(access.level)) {
+  if (portalAvancesCanLoadAppFondos(access.level, access.kind)) {
     const fondos = portalAvancesAppFondoNames();
     const rows = await prisma.proyecto.findMany({
       where: { fondo: { in: fondos } },
