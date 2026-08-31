@@ -191,7 +191,8 @@ export function VitrinaAiChat({
 
   useEffect(() => {
     const el = rootRef.current;
-    const parent = el?.offsetParent as HTMLElement | null;
+    if (!el) return;
+    const parent = el.offsetParent as HTMLElement | null;
     if (!parent) return;
     const observer = new ResizeObserver(() => reclamp());
     observer.observe(parent);
