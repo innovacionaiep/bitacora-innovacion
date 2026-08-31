@@ -25,6 +25,9 @@ function row(
     avanceOperativoSolicitado: 49,
     avanceOperativoEjecutado: 0,
     saldoPresupuesto: -1000,
+    estudiantes: 3,
+    docentes: 2,
+    beneficiarios: 1,
     ...patch,
   };
 }
@@ -60,7 +63,47 @@ describe('VitrinaAvancesView', () => {
     expect(screen.getByText('Proyecto aula')).toBeInTheDocument();
     expect(screen.getByText('Proyecto aula').className).toMatch(/sticky/);
     expect(screen.getByText('Salud')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /ID Vinculamos/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Estudiantes/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Docentes/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Beneficiarios/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Proyecto aula' })).toBeNull();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  it('en Reto Innovador también muestra las columnas de personas', () => {
+    render(
+      <VitrinaAvancesView
+        fondoNombre="Reto Innovador de Especialidad"
+        onFondoChange={vi.fn()}
+        proyectos={[
+          row({
+            id: 'rie-1',
+            fondo: 'Reto Innovador de Especialidad',
+            estudiantes: 8,
+            docentes: 4,
+            beneficiarios: 0,
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('columnheader', { name: /ID Vinculamos/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
   });
 
   it('en Impulsa muestra ID Vinculamos y No aplica en Honorarios', () => {

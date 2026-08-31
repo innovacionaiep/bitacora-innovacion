@@ -186,3 +186,57 @@ export function portalAvancesCanLoadAppFondos(
 ): boolean {
   return canLoadPortalAvances(level, kind) && level !== 0;
 }
+
+export type PortalAvancesParticipanteInput = {
+  proyectoId: string;
+  rol: string;
+  cargo: string | null;
+};
+
+export type PortalAvancesParticipanteCounts = {
+  estudiantes: number;
+  docentes: number;
+  beneficiarios: number;
+};
+
+function cargoIncludes(cargo: string | null, needle: string): boolean {
+  return (cargo ?? '').toLowerCase().includes(needle.toLowerCase());
+}
+
+/**
+ * Conteos de Avances (fondos app):
+ * - Estudiantes: rol Estudiante, más otros roles (salvo Beneficiario) con
+ *   "estudiante" en Cargo.
+ * - Docentes: rol Docente, más otros roles (salvo Beneficiario) con
+ *   "docente" en Cargo.
+ * - Beneficiarios: solo rol Beneficiario.
+ */
+export function countPortalAvancesParticipantes(
+  rows: PortalAvancesParticipanteInput[],
+): Map<string, PortalAvancesParticipanteCounts> {
+  const byProyecto = new Map<string, PortalAvancesParticipanteCounts>();
+  const ensure = (proyectoId: string) => {
+    let counts = byProyecto.get(proyectoId);
+    if (!counts) {
+      counts = { estudiantes: 0, docentes: 0, beneficiarios: 0 };
+      byProyecto.set(proyectoId, counts);
+    }
+    return counts;
+  };
+
+  for (const row of rows) {
+    const counts = ensure(row.proyectoId);
+    if (row.rol === 'Beneficiario') {
+      counts.beneficiarios += 1;
+      continue;
+    }
+    if (row.rol === 'Estudiante' || cargoIncludes(row.cargo, 'estudiante')) {
+      counts.estudiantes += 1;
+    }
+    if (row.rol === 'Docente' || cargoIncludes(row.cargo, 'docente')) {
+      counts.docentes += 1;
+    }
+  }
+
+  return byProyecto;
+}

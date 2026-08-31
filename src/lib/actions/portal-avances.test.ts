@@ -11,6 +11,7 @@ vi.mock('@/lib/prisma', () => ({
   default: {
     proyecto: { findMany: vi.fn() },
     itemPresupuesto: { findMany: vi.fn() },
+    proyectoParticipante: { findMany: vi.fn() },
     systemSetting: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -18,6 +19,7 @@ vi.mock('@/lib/prisma', () => ({
 const accessMock = vi.mocked(resolvePortalAccess);
 const proyectoFindMany = vi.mocked(prisma.proyecto.findMany);
 const itemFindMany = vi.mocked(prisma.itemPresupuesto.findMany);
+const participanteFindMany = vi.mocked(prisma.proyectoParticipante.findMany);
 const settingFindUnique = vi.mocked(prisma.systemSetting.findUnique);
 
 describe('getPortalAvancesProyectos', () => {
@@ -25,6 +27,8 @@ describe('getPortalAvancesProyectos', () => {
     accessMock.mockReset();
     proyectoFindMany.mockReset();
     itemFindMany.mockReset();
+    participanteFindMany.mockReset();
+    participanteFindMany.mockResolvedValue([]);
     settingFindUnique.mockReset();
     settingFindUnique.mockResolvedValue(null);
   });
@@ -52,6 +56,13 @@ describe('getPortalAvancesProyectos', () => {
       },
     ] as never);
     itemFindMany.mockResolvedValue([]);
+    participanteFindMany.mockResolvedValue([
+      { proyectoId: 'p1', rol: 'Estudiante', cargo: null },
+      { proyectoId: 'p1', rol: 'Colaborador', cargo: 'Ayudante estudiante' },
+      { proyectoId: 'p1', rol: 'Docente', cargo: null },
+      { proyectoId: 'p1', rol: 'Coordinador', cargo: 'Docente guía' },
+      { proyectoId: 'p1', rol: 'Beneficiario', cargo: 'Estudiante' },
+    ] as never);
 
     const result = await getPortalAvancesProyectos();
     expect(result.success).toBe(true);
@@ -72,7 +83,11 @@ describe('getPortalAvancesProyectos', () => {
       proyecto: 'Aula',
       escuelas: ['Salud'],
       presupuestoAdjudicado: 400_000,
+      estudiantes: 2,
+      docentes: 2,
+      beneficiarios: 1,
     });
+    expect(result.data?.[0]?.idVinculamos).toBeUndefined();
     expect(result.data?.some((p) => p.fondo === 'Fondo Impulsa')).toBe(false);
   });
 });

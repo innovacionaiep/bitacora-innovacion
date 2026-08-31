@@ -5,6 +5,7 @@ import { resolvePortalAccess } from '@/lib/actions/portal-guest';
 import { computeFondoAvanceMetrics } from '@/lib/fondo-avance-metrics';
 import {
   canLoadPortalAvances,
+  countPortalAvancesParticipantes,
   portalAvancesAppFondoNames,
   portalAvancesCanLoadAppFondos,
   sortEscuelaNames,
@@ -67,15 +68,28 @@ export async function getPortalAvancesProyectos(): Promise<{
       itemsByProyecto.set(item.proyectoId, list);
     }
 
+    const participantes =
+      proyectoIds.length > 0
+        ? await prisma.proyectoParticipante.findMany({
+            where: { proyectoId: { in: proyectoIds } },
+            select: { proyectoId: true, rol: true, cargo: true },
+          })
+        : [];
+    const countsByProyecto = countPortalAvancesParticipantes(participantes);
+
     for (const p of rows) {
       const items = itemsByProyecto.get(p.id) ?? [];
       const metrics = computeFondoAvanceMetrics(p, items);
+      const counts = countsByProyecto.get(p.id);
       data.push({
         id: p.id,
         fondo: p.fondo,
         proyecto: p.proyecto,
         sede: p.sede,
         escuelas: sortEscuelaNames(p.escuelas.map((e) => e.escuela.nombre)),
+        estudiantes: counts?.estudiantes ?? 0,
+        docentes: counts?.docentes ?? 0,
+        beneficiarios: counts?.beneficiarios ?? 0,
         ...metrics,
       });
     }

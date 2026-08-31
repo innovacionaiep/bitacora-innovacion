@@ -13,6 +13,7 @@ import {
   portalAvancesIsExcelFondo,
   rowsForPortalAvancesFondo,
   uniquePortalAvancesFilterOptions,
+  countPortalAvancesParticipantes,
   type PortalAvancesProyecto,
 } from '@/lib/portal-avances';
 
@@ -195,6 +196,45 @@ describe('canLoadPortalAvances', () => {
     expect(canLoadPortalAvances(1)).toBe(false);
     expect(canLoadPortalAvances(2)).toBe(true);
     expect(canLoadPortalAvances(3)).toBe(true);
+  });
+});
+
+describe('countPortalAvancesParticipantes', () => {
+  it('suma rol canónico y cargo, sin contar Beneficiario en otras columnas', () => {
+    const counts = countPortalAvancesParticipantes([
+      { proyectoId: 'p1', rol: 'Estudiante', cargo: null },
+      { proyectoId: 'p1', rol: 'Colaborador', cargo: 'Ayudante estudiante' },
+      { proyectoId: 'p1', rol: 'Encargado', cargo: 'Estudiante tesista' },
+      { proyectoId: 'p1', rol: 'Beneficiario', cargo: 'Estudiante' },
+      { proyectoId: 'p1', rol: 'Docente', cargo: null },
+      { proyectoId: 'p1', rol: 'Coordinador', cargo: 'Docente guía' },
+      { proyectoId: 'p1', rol: 'Beneficiario', cargo: 'Docente' },
+      { proyectoId: 'p1', rol: 'Beneficiario', cargo: null },
+      { proyectoId: 'p1', rol: 'Estudiante', cargo: 'Docente en práctica' },
+    ]);
+
+    expect(counts.get('p1')).toEqual({
+      estudiantes: 4,
+      docentes: 3,
+      beneficiarios: 3,
+    });
+  });
+
+  it('agrupa por proyecto y no duplica el mismo rol+cargo', () => {
+    const counts = countPortalAvancesParticipantes([
+      { proyectoId: 'a', rol: 'Estudiante', cargo: 'Estudiante' },
+      { proyectoId: 'b', rol: 'Docente', cargo: 'docente' },
+    ]);
+    expect(counts.get('a')).toEqual({
+      estudiantes: 1,
+      docentes: 0,
+      beneficiarios: 0,
+    });
+    expect(counts.get('b')).toEqual({
+      estudiantes: 0,
+      docentes: 1,
+      beneficiarios: 0,
+    });
   });
 });
 

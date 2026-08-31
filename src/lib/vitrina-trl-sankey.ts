@@ -40,10 +40,18 @@ export type VitrinaTrlSankeyLayoutLink = {
   d: string;
 };
 
+export type VitrinaTrlSankeyGuide = {
+  level: number;
+  y: number;
+  x1: number;
+  x2: number;
+};
+
 export type VitrinaTrlSankeyLayout = {
   fromNodes: VitrinaTrlSankeyLayoutNode[];
   toNodes: VitrinaTrlSankeyLayoutNode[];
   links: VitrinaTrlSankeyLayoutLink[];
+  guides: VitrinaTrlSankeyGuide[];
 };
 
 function targetValue(
@@ -113,32 +121,84 @@ export function buildVitrinaTrlSankey(
   };
 }
 
-function stackNodes(
-  levels: VitrinaTrlSankeyLevel[],
-  x: number,
+const MIN_NODE_HEIGHT = 10;
+
+function sharedLevelSlots(
+  fromLevels: VitrinaTrlSankeyLevel[],
+  toLevels: VitrinaTrlSankeyLevel[],
+  leftX: number,
+  rightX: number,
   width: number,
   height: number,
   pad: number,
-): VitrinaTrlSankeyLayoutNode[] {
-  // Mayor arriba, menor abajo (eje invertido respecto al orden natural).
-  const ordered = [...levels].sort((a, b) => b.level - a.level);
-  const total = ordered.reduce((sum, item) => sum + item.value, 0);
-  const gaps = Math.max(0, ordered.length - 1) * pad;
+): {
+  fromNodes: VitrinaTrlSankeyLayoutNode[];
+  toNodes: VitrinaTrlSankeyLayoutNode[];
+} {
+  const fromByLevel = new Map(fromLevels.map((item) => [item.level, item.value]));
+  const toByLevel = new Map(toLevels.map((item) => [item.level, item.value]));
+  // Escala única: el mismo nivel queda a la misma altura; destinos más altos
+  // (p. ej. TRL 6/7) ocupan espacio encima aunque no existan a la izquierda.
+  const orderedLevels = [
+    ...new Set([...fromByLevel.keys(), ...toByLevel.keys()]),
+  ].sort((a, b) => b - a);
+
+  const slotWeights = orderedLevels.map((level) =>
+    Math.max(fromByLevel.get(level) ?? 0, toByLevel.get(level) ?? 0),
+  );
+  const total = slotWeights.reduce((sum, weight) => sum + weight, 0);
+  const gaps = Math.max(0, orderedLevels.length - 1) * pad;
   const usable = Math.max(1, height - gaps);
+
+  const fromNodes: VitrinaTrlSankeyLayoutNode[] = [];
+  const toNodes: VitrinaTrlSankeyLayoutNode[] = [];
   let y = 0;
-  return ordered.map((item) => {
-    const nodeHeight = total === 0 ? 0 : (item.value / total) * usable;
-    const node = {
-      level: item.level,
-      value: item.value,
-      x,
-      y,
-      width,
-      height: Math.max(nodeHeight, 10),
-    };
-    y += node.height + pad;
-    return node;
+
+  orderedLevels.forEach((level, index) => {
+    const slotWeight = slotWeights[index] ?? 0;
+    const slotHeight = total === 0 ? 0 : (slotWeight / total) * usable;
+    const fromValue = fromByLevel.get(level) ?? 0;
+    const toValue = toByLevel.get(level) ?? 0;
+
+    const rawFromHeight =
+      fromValue > 0 && slotWeight > 0
+        ? (fromValue / slotWeight) * slotHeight
+        : 0;
+    const rawToHeight =
+      toValue > 0 && slotWeight > 0
+        ? (toValue / slotWeight) * slotHeight
+        : 0;
+    const fromHeight =
+      fromValue > 0 ? Math.max(rawFromHeight, MIN_NODE_HEIGHT) : 0;
+    const toHeight = toValue > 0 ? Math.max(rawToHeight, MIN_NODE_HEIGHT) : 0;
+    const bandHeight = Math.max(slotHeight, fromHeight, toHeight);
+    const midY = y + bandHeight / 2;
+
+    if (fromValue > 0) {
+      fromNodes.push({
+        level,
+        value: fromValue,
+        x: leftX,
+        y: midY - fromHeight / 2,
+        width,
+        height: fromHeight,
+      });
+    }
+    if (toValue > 0) {
+      toNodes.push({
+        level,
+        value: toValue,
+        x: rightX,
+        y: midY - toHeight / 2,
+        width,
+        height: toHeight,
+      });
+    }
+
+    y += bandHeight + pad;
   });
+
+  return { fromNodes, toNodes };
 }
 
 function linkPath(
@@ -165,15 +225,10 @@ export function layoutVitrinaTrlSankey(
   const marginX = options?.marginX ?? 88;
   const leftX = marginX;
   const rightX = size.width - marginX - nodeWidth;
-  const fromNodes = stackNodes(
+  const { fromNodes, toNodes } = sharedLevelSlots(
     sankey.fromLevels,
-    leftX,
-    nodeWidth,
-    size.height,
-    pad,
-  );
-  const toNodes = stackNodes(
     sankey.toLevels,
+    leftX,
     rightX,
     nodeWidth,
     size.height,
@@ -216,5 +271,20 @@ export function layoutVitrinaTrlSankey(
     return { ...link, thickness, d };
   });
 
-  return { fromNodes, toNodes, links };
+  const levels = [
+    ...new Set([...fromByLevel.keys(), ...toByLevel.keys()]),
+  ].sort((a, b) => b - a);
+  const guides = levels.map((level) => {
+    const fromNode = fromByLevel.get(level);
+    const toNode = toByLevel.get(level);
+    const y =
+      fromNode != null
+        ? fromNode.y + fromNode.height / 2
+        : (toNode?.y ?? 0) + (toNode?.height ?? 0) / 2;
+    const x1 = (fromNode?.x ?? leftX) + nodeWidth / 2;
+    const x2 = (toNode?.x ?? rightX) + nodeWidth / 2;
+    return { level, y, x1, x2 };
+  });
+
+  return { fromNodes, toNodes, links, guides };
 }

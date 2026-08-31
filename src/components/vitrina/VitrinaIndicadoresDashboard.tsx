@@ -1050,6 +1050,21 @@ function SankeyChart({
                   </linearGradient>
                 ))}
               </defs>
+              <g data-testid="sankey-level-guides" aria-hidden="true">
+                {layout.guides.map((guide) => (
+                  <line
+                    key={`guide-${guide.level}`}
+                    x1={guide.x1}
+                    y1={guide.y}
+                    x2={guide.x2}
+                    y2={guide.y}
+                    stroke="#94a3b8"
+                    strokeWidth={1}
+                    strokeLinecap="round"
+                    opacity={0.7}
+                  />
+                ))}
+              </g>
               {layout.links.map((link) => (
                 <path
                   key={`${link.from}-${link.to}`}

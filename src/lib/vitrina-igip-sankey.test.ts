@@ -4,6 +4,7 @@ import {
   buildVitrinaIgipSankey,
   formatIgipBin,
   igipBinStart,
+  layoutVitrinaIgipSankey,
 } from '@/lib/vitrina-igip-sankey';
 
 function projectsFrom(
@@ -75,5 +76,38 @@ describe('buildVitrinaIgipSankey', () => {
     expect(sankey.links).toEqual([
       { from: 1, to: 3.5, value: 1, nombres: ['A'] },
     ]);
+  });
+});
+
+describe('layoutVitrinaIgipSankey', () => {
+  it('alinea el mismo tramo IGIP a la misma altura en ambas columnas', () => {
+    const layout = layoutVitrinaIgipSankey(
+      {
+        included: 3,
+        omitted: 0,
+        fromLevels: [
+          { level: 1.5, value: 2 },
+          { level: 2, value: 1 },
+        ],
+        toLevels: [
+          { level: 2, value: 1 },
+          { level: 2.5, value: 1 },
+          { level: 2.75, value: 1 },
+        ],
+        links: [
+          { from: 1.5, to: 2.5, value: 1, nombres: ['A'] },
+          { from: 1.5, to: 2.75, value: 1, nombres: ['B'] },
+          { from: 2, to: 2, value: 1, nombres: ['C'] },
+        ],
+      },
+      { width: 800, height: 400 },
+    );
+
+    const from2 = layout.fromNodes.find((n) => n.level === 2)!;
+    const to2 = layout.toNodes.find((n) => n.level === 2)!;
+    const toHigh = layout.toNodes.find((n) => n.level === 2.75)!;
+
+    expect(from2.y + from2.height / 2).toBeCloseTo(to2.y + to2.height / 2);
+    expect(toHigh.y).toBeLessThan(from2.y);
   });
 });

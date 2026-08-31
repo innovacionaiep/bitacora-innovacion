@@ -313,54 +313,51 @@ export function VitrinaAvancesView({
                     style={colStyle('escuelas')}
                   />
                 ) : null}
-                {isImpulsa ? (
-                  <>
-                    {show('idVinculamos') ? (
-                      <SortableHead
-                        label="ID Vinculamos"
-                        sortKey="idVinculamos"
-                        sort={sort}
-                        onSort={onSortKey}
-                        onResizeStart={startResize('idVinculamos')}
-                        style={colStyle('idVinculamos')}
-                        className="whitespace-nowrap"
-                      />
-                    ) : null}
-                    {show('estudiantes') ? (
-                      <SortableHead
-                        label="Estudiantes"
-                        sortKey="estudiantes"
-                        sort={sort}
-                        onSort={onSortKey}
-                        onResizeStart={startResize('estudiantes')}
-                        style={colStyle('estudiantes')}
-                        align="center"
-                      />
-                    ) : null}
-                    {show('docentes') ? (
-                      <SortableHead
-                        label="Docentes"
-                        sortKey="docentes"
-                        sort={sort}
-                        onSort={onSortKey}
-                        onResizeStart={startResize('docentes')}
-                        style={colStyle('docentes')}
-                        align="center"
-                      />
-                    ) : null}
-                    {show('beneficiarios') ? (
-                      <SortableHead
-                        label="Beneficiarios"
-                        sortKey="beneficiarios"
-                        sort={sort}
-                        onSort={onSortKey}
-                        onResizeStart={startResize('beneficiarios')}
-                        style={colStyle('beneficiarios')}
-                        align="center"
-                      />
-                    ) : null}
-                  </>
-                ) : show('presupuestoAdjudicado') ? (
+                {show('idVinculamos') ? (
+                  <SortableHead
+                    label="ID Vinculamos"
+                    sortKey="idVinculamos"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('idVinculamos')}
+                    style={colStyle('idVinculamos')}
+                    className="whitespace-nowrap"
+                  />
+                ) : null}
+                {show('estudiantes') ? (
+                  <SortableHead
+                    label="Estudiantes"
+                    sortKey="estudiantes"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('estudiantes')}
+                    style={colStyle('estudiantes')}
+                    align="center"
+                  />
+                ) : null}
+                {show('docentes') ? (
+                  <SortableHead
+                    label="Docentes"
+                    sortKey="docentes"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('docentes')}
+                    style={colStyle('docentes')}
+                    align="center"
+                  />
+                ) : null}
+                {show('beneficiarios') ? (
+                  <SortableHead
+                    label="Beneficiarios"
+                    sortKey="beneficiarios"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('beneficiarios')}
+                    style={colStyle('beneficiarios')}
+                    align="center"
+                  />
+                ) : null}
+                {!isImpulsa && show('presupuestoAdjudicado') ? (
                   <SortableHead
                     label="Presupuesto adjudicado"
                     sortKey="presupuestoAdjudicado"
@@ -484,42 +481,39 @@ export function VitrinaAvancesView({
                         {escuelasLabel || '—'}
                       </TableCell>
                     ) : null}
-                    {isImpulsa ? (
-                      <>
-                        {show('idVinculamos') ? (
-                          <TableCell
-                            style={colStyle('idVinculamos')}
-                            className="text-[13px] text-gray-600 whitespace-nowrap"
-                          >
-                            {p.idVinculamos?.trim() || '—'}
-                          </TableCell>
-                        ) : null}
-                        {show('estudiantes') ? (
-                          <TableCell
-                            style={colStyle('estudiantes')}
-                            className="text-center text-[13px] tabular-nums text-gray-700"
-                          >
-                            {p.estudiantes == null ? '—' : p.estudiantes}
-                          </TableCell>
-                        ) : null}
-                        {show('docentes') ? (
-                          <TableCell
-                            style={colStyle('docentes')}
-                            className="text-center text-[13px] tabular-nums text-gray-700"
-                          >
-                            {p.docentes == null ? '—' : p.docentes}
-                          </TableCell>
-                        ) : null}
-                        {show('beneficiarios') ? (
-                          <TableCell
-                            style={colStyle('beneficiarios')}
-                            className="text-center text-[13px] tabular-nums text-gray-700"
-                          >
-                            {p.beneficiarios == null ? '—' : p.beneficiarios}
-                          </TableCell>
-                        ) : null}
-                      </>
-                    ) : show('presupuestoAdjudicado') ? (
+                    {show('idVinculamos') ? (
+                      <TableCell
+                        style={colStyle('idVinculamos')}
+                        className="text-[13px] text-gray-600 whitespace-nowrap"
+                      >
+                        {p.idVinculamos?.trim() || '—'}
+                      </TableCell>
+                    ) : null}
+                    {show('estudiantes') ? (
+                      <TableCell
+                        style={colStyle('estudiantes')}
+                        className="text-center text-[13px] tabular-nums text-gray-700"
+                      >
+                        {p.estudiantes == null ? '—' : p.estudiantes}
+                      </TableCell>
+                    ) : null}
+                    {show('docentes') ? (
+                      <TableCell
+                        style={colStyle('docentes')}
+                        className="text-center text-[13px] tabular-nums text-gray-700"
+                      >
+                        {p.docentes == null ? '—' : p.docentes}
+                      </TableCell>
+                    ) : null}
+                    {show('beneficiarios') ? (
+                      <TableCell
+                        style={colStyle('beneficiarios')}
+                        className="text-center text-[13px] tabular-nums text-gray-700"
+                      >
+                        {p.beneficiarios == null ? '—' : p.beneficiarios}
+                      </TableCell>
+                    ) : null}
+                    {!isImpulsa && show('presupuestoAdjudicado') ? (
                       <TableCell
                         style={colStyle('presupuestoAdjudicado')}
                         className="text-center whitespace-nowrap"

@@ -48,6 +48,7 @@ describe('VitrinaIndicadoresDashboard', () => {
     expect(
       screen.getByLabelText('TRL 2 → TRL 4: 2 proyectos'),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('sankey-level-guides')).toBeInTheDocument();
   });
 
   it('cambia a TRL Final y muestra el scatter de IGIP', async () => {

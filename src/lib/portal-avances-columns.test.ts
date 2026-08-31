@@ -14,16 +14,26 @@ import {
 } from '@/lib/portal-avances-columns';
 
 describe('portalAvancesColumnsForFondo', () => {
-  it('incluye columnas extras solo en Impulsa', () => {
+  it('incluye ID Vinculamos y conteos en fondos app e Impulsa', () => {
     const base = portalAvancesColumnsForFondo('Innovación Docente').map(
       (c) => c.id,
     );
+    const rie = portalAvancesColumnsForFondo(
+      'Reto Innovador de Especialidad',
+    ).map((c) => c.id);
     const impulsa = portalAvancesColumnsForFondo('Fondo Impulsa').map(
       (c) => c.id,
     );
-    expect(base).not.toContain('idVinculamos');
-    expect(impulsa).toContain('idVinculamos');
-    expect(impulsa).toContain('estudiantes');
+    for (const ids of [base, rie, impulsa]) {
+      expect(ids).toContain('idVinculamos');
+      expect(ids).toContain('estudiantes');
+      expect(ids).toContain('docentes');
+      expect(ids).toContain('beneficiarios');
+      expect(ids.indexOf('idVinculamos')).toBeGreaterThan(ids.indexOf('escuelas'));
+    }
+    expect(base.indexOf('presupuestoAdjudicado')).toBeLessThan(
+      base.indexOf('gantt'),
+    );
     expect(impulsa.indexOf('presupuestoAdjudicado')).toBeGreaterThan(
       impulsa.indexOf('indicadores'),
     );
@@ -57,13 +67,13 @@ describe('portalAvancesColumnsFilterActive', () => {
 });
 
 describe('sanitizePortalAvancesVisibleColumns', () => {
-  it('al cambiar a fondo base descarta ids de Impulsa', () => {
+  it('al cambiar a fondo app conserva columnas de personas', () => {
     expect(
       sanitizePortalAvancesVisibleColumns(
         ['proyecto', 'idVinculamos', 'sede'],
         'Innovación Docente',
       ),
-    ).toEqual(['proyecto', 'sede']);
+    ).toEqual(['proyecto', 'idVinculamos', 'sede']);
   });
 });
 

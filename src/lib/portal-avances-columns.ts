@@ -21,10 +21,18 @@ export type PortalAvancesColumnDef = {
   label: string;
 };
 
+const PEOPLE_COLUMNS: PortalAvancesColumnDef[] = [
+  { id: 'idVinculamos', label: 'ID Vinculamos' },
+  { id: 'estudiantes', label: 'Estudiantes' },
+  { id: 'docentes', label: 'Docentes' },
+  { id: 'beneficiarios', label: 'Beneficiarios' },
+];
+
 const BASE_COLUMNS: PortalAvancesColumnDef[] = [
   { id: 'proyecto', label: 'Nombre proyecto' },
   { id: 'sede', label: 'Sede' },
   { id: 'escuelas', label: 'Escuelas' },
+  ...PEOPLE_COLUMNS,
   { id: 'presupuestoAdjudicado', label: 'Presupuesto adjudicado' },
   { id: 'gantt', label: 'Gantt' },
   { id: 'indicadores', label: 'Indicadores' },
@@ -38,10 +46,7 @@ const IMPULSA_COLUMNS: PortalAvancesColumnDef[] = [
   { id: 'proyecto', label: 'Nombre proyecto' },
   { id: 'sede', label: 'Sede' },
   { id: 'escuelas', label: 'Escuelas' },
-  { id: 'idVinculamos', label: 'ID Vinculamos' },
-  { id: 'estudiantes', label: 'Estudiantes' },
-  { id: 'docentes', label: 'Docentes' },
-  { id: 'beneficiarios', label: 'Beneficiarios' },
+  ...PEOPLE_COLUMNS,
   { id: 'gantt', label: 'Gantt' },
   { id: 'indicadores', label: 'Indicadores' },
   { id: 'presupuestoAdjudicado', label: 'Presupuesto adjudicado' },
