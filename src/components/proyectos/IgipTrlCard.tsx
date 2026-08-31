@@ -8,15 +8,14 @@ import {
   upsertIgipTrlProyecto,
 } from '@/lib/actions/igip-trl';
 import {
+  IGIP_RADAR_FILL,
+  IGIP_RADAR_STROKE,
   IGIP_SCORE_MAX,
   IGIP_SCORE_MIN,
   IGIP_SUBDIMENSIONS,
   TRL_LEVELS,
   TRL_MAX,
   emptyIgipTrlData,
-  radarLabelSlot,
-  radarPolygonPoints,
-  radarVertex,
   trlRowAppearance,
   nextTrlOnClick,
   trlBadgeWidthPx,
@@ -24,31 +23,11 @@ import {
   type IgipTrlData,
   type IgipTrlPatch,
 } from '@/lib/igip-trl';
+import { IgipRadarChart, IgipRadarVertexSlot } from '@/components/igip/IgipRadarChart';
 import { igipTrlKey } from '@/lib/query-keys';
 import { runOptimisticMutation } from '@/lib/ui/optimistic-mutation';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { cn } from '@/lib/utils';
-
-const CX = 160;
-const CY = 160;
-const RADIUS = 148;
-const VIEW = 320;
-
-const LABEL_ALIGN_CLASS: Record<
-  ReturnType<typeof radarLabelSlot>['align'],
-  string
-> = {
-  top: '-translate-x-1/2 -translate-y-[calc(100%+0.2rem-10px)] items-center text-center',
-  topRight:
-    '-translate-x-1/2 -translate-y-[calc(100%+0.2rem)] items-center text-center',
-  bottomRight:
-    '-translate-x-[calc(50%-15px)] translate-y-1 items-center text-center',
-  bottom: '-translate-x-1/2 translate-y-[calc(2.5rem-35px)] items-center text-center',
-  bottomLeft:
-    '-translate-x-[calc(50%+15px)] translate-y-[calc(0.25rem+15px)] items-center text-center',
-  topLeft:
-    '-translate-x-1/2 -translate-y-[calc(100%+0.2rem)] items-center text-center',
-};
 
 function TrlSelectedArrow({ className }: { className?: string }) {
   return (
@@ -167,82 +146,25 @@ function IgipRadar({
     null
   );
   const scores = IGIP_SUBDIMENSIONS.map((d) => data[d.key]);
-  const polygon = radarPolygonPoints(scores, {
-    cx: CX,
-    cy: CY,
-    radius: RADIUS,
-  });
-  const rings = [1, 2, 3, 4].map((level) =>
-    radarPolygonPoints(
-      Array.from({ length: 6 }, () => level),
-      { cx: CX, cy: CY, radius: RADIUS }
-    )
-  );
-  const axes = IGIP_SUBDIMENSIONS.map((_, index) =>
-    radarVertex(index, IGIP_SCORE_MAX, {
-      count: 6,
-      cx: CX,
-      cy: CY,
-      radius: RADIUS,
-    })
-  );
 
   return (
-    <div
-      className="relative mx-auto aspect-square w-full max-w-[42rem] min-h-[24rem] -mt-6 translate-y-[30px] overflow-visible pb-10"
-      data-tour="igip-trl-radar"
+    <IgipRadarChart
+      layers={[
+        {
+          id: 'igip',
+          scores,
+          fill: IGIP_RADAR_FILL,
+          stroke: IGIP_RADAR_STROKE,
+        },
+      ]}
     >
-      <svg
-        viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="absolute inset-x-[16%] top-[8%] bottom-[24%]"
-        role="img"
-        aria-label="Gráfico radial de subdimensiones IGIP"
-      >
-        {rings.map((points, i) => (
-          <polygon
-            key={i}
-            points={points}
-            fill="none"
-            stroke="#e5e7eb"
-            strokeWidth={1.25}
-          />
-        ))}
-        {axes.map((p, i) => (
-          <line
-            key={i}
-            x1={CX}
-            y1={CY}
-            x2={p.x}
-            y2={p.y}
-            stroke="#d1d5db"
-            strokeWidth={1.25}
-          />
-        ))}
-        <polygon
-          points={polygon}
-          fill="rgba(5, 150, 105, 0.22)"
-          stroke="#059669"
-          strokeWidth={2.5}
-        />
-      </svg>
-      {IGIP_SUBDIMENSIONS.map((dim, index) => {
-        const slot = radarLabelSlot(index, { cy: 42 });
-        const topPct =
-          slot.align === 'bottom' ? slot.yPct + 4 : slot.yPct;
-        return (
-          <div
-            key={dim.key}
-            className={cn(
-              'absolute z-10 flex w-[10.5rem] max-w-[46%] flex-col gap-1',
-              LABEL_ALIGN_CLASS[slot.align]
-            )}
-            style={{ left: `${slot.xPct}%`, top: `${topPct}%` }}
-          >
-            <span className="text-[11px] font-medium leading-snug text-gray-800">
-              {dim.label}
-            </span>
-            <div className="-translate-y-[5px]">
-              <ScoreField
+      {IGIP_SUBDIMENSIONS.map((dim, index) => (
+        <IgipRadarVertexSlot key={dim.key} index={index}>
+          <span className="text-[11px] font-medium leading-snug text-gray-800">
+            {dim.label}
+          </span>
+          <div className="-translate-y-[5px]">
+            <ScoreField
               dimKey={dim.key}
               label={dim.label}
               value={data[dim.key]}
@@ -254,11 +176,10 @@ function IgipRadar({
                 setEditingScore(null);
               }}
             />
-            </div>
           </div>
-        );
-      })}
-    </div>
+        </IgipRadarVertexSlot>
+      ))}
+    </IgipRadarChart>
   );
 }
 

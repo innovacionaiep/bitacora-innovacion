@@ -22,6 +22,7 @@ import {
 import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
 import { VitrinaFichaVideo } from '@/components/vitrina/VitrinaFichaVideo';
 import { VitrinaProjectPhotos } from '@/components/vitrina/VitrinaProjectPhotos';
+import { VitrinaContactModal } from '@/components/vitrina/VitrinaContactModal';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -157,6 +158,7 @@ export function VitrinaProjectFicha({
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [loadingCats, setLoadingCats] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -164,6 +166,7 @@ export function VitrinaProjectFicha({
       setError('');
       setEditing(null);
       setSnapshot(null);
+      setContactOpen(false);
     }
   }, [open]);
 
@@ -367,7 +370,7 @@ export function VitrinaProjectFicha({
           type="url"
           value={draft.videoUrl}
           onChange={(e) => patch({ videoUrl: e.target.value })}
-          placeholder="YouTube, Vimeo o SharePoint"
+          placeholder="YouTube, Vimeo, Drive o SharePoint"
           disabled={busy}
         />
       </div>
@@ -375,6 +378,7 @@ export function VitrinaProjectFicha({
   );
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(90%,58rem)] w-[min(99%,110rem)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border-0 p-0 shadow-2xl sm:max-w-none sm:rounded-2xl">
         <DialogTitle className="sr-only">{title}</DialogTitle>
@@ -643,17 +647,27 @@ export function VitrinaProjectFicha({
               </div>
             </div>
 
-            <HoverEdit
-              canEdit={canEdit}
-              active={editing === 'encargado'}
-              label="encargado"
-              onEdit={() => startEdit('encargado')}
-              onCancel={cancelEdit}
-              onSave={() => void saveEdit()}
-              saving={busy}
-              className="mt-auto mb-8 w-full"
-              editButtonClassName="left-0 right-auto"
-            >
+            <div className="mt-auto mb-8 flex w-full items-end justify-between gap-3">
+              {!isNew ? (
+                <Button
+                  type="button"
+                  className="ml-8 shrink-0 bg-zinc-700 text-white hover:bg-zinc-600"
+                  onClick={() => setContactOpen(true)}
+                >
+                  Contactar
+                </Button>
+              ) : null}
+              <HoverEdit
+                canEdit={canEdit}
+                active={editing === 'encargado'}
+                label="encargado"
+                onEdit={() => startEdit('encargado')}
+                onCancel={cancelEdit}
+                onSave={() => void saveEdit()}
+                saving={busy}
+                className="min-w-0 flex-1"
+                editButtonClassName="left-0 right-auto"
+              >
               <section className="text-right">
                 <SectionLabel className="justify-end normal-case">
                   Encargado/a
@@ -711,7 +725,8 @@ export function VitrinaProjectFicha({
                   />
                 </div>
               </div>
-            </HoverEdit>
+                </HoverEdit>
+            </div>
           </aside>
 
           <div className="order-3 flex min-h-0 flex-col overflow-hidden px-6 py-4 lg:order-2 lg:col-start-2 lg:row-start-1">
@@ -787,6 +802,14 @@ export function VitrinaProjectFicha({
         </div>
       </DialogContent>
     </Dialog>
+    <VitrinaContactModal
+      open={contactOpen}
+      onOpenChange={setContactOpen}
+      proyectoId={draft.id}
+      proyectoNombre={draft.nombre}
+      encargadoCorreo={draft.encargadoCorreo}
+    />
+    </>
   );
 }
 

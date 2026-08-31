@@ -1,4 +1,8 @@
 import { parseVideoUrl } from '@/lib/video-url';
+import {
+  emptyIgipScoreFields,
+  parseIgipScoreFields,
+} from '@/lib/vitrina-igip-scores';
 
 export const VITRINA_PROYECTOS_SETTING_KEY = 'vitrina_proyectos';
 export const VITRINA_PROYECTOS_MAX_FOTOS = 4;
@@ -52,6 +56,24 @@ export type VitrinaProyecto = {
   igipProyeccion: number | null;
   igipFinal: number | null;
   igipFinalComentario: string;
+  igipInicialOriginalidad: number | null;
+  igipInicialEstadoDelArte: number | null;
+  igipInicialContribucionSocial: number | null;
+  igipInicialContribucionConocimiento: number | null;
+  igipInicialPotencialExpansion: number | null;
+  igipInicialTransferenciaTecnologica: number | null;
+  igipProyeccionOriginalidad: number | null;
+  igipProyeccionEstadoDelArte: number | null;
+  igipProyeccionContribucionSocial: number | null;
+  igipProyeccionContribucionConocimiento: number | null;
+  igipProyeccionPotencialExpansion: number | null;
+  igipProyeccionTransferenciaTecnologica: number | null;
+  igipFinalOriginalidad: number | null;
+  igipFinalEstadoDelArte: number | null;
+  igipFinalContribucionSocial: number | null;
+  igipFinalContribucionConocimiento: number | null;
+  igipFinalPotencialExpansion: number | null;
+  igipFinalTransferenciaTecnologica: number | null;
   trlInicial: number | null;
   trlInicialComentario: string;
   trlProyeccion: number | null;
@@ -252,14 +274,7 @@ function validateOptionalVideo(url: string, index: number): string | null {
   if (!url) return null;
   const parsed = parseVideoUrl(url);
   if (!parsed) {
-    return `El video del proyecto ${index + 1} debe ser un enlace de YouTube, Vimeo o SharePoint`;
-  }
-  if (
-    parsed.provider !== 'youtube' &&
-    parsed.provider !== 'vimeo' &&
-    parsed.provider !== 'sharepoint'
-  ) {
-    return `El video del proyecto ${index + 1} debe ser un enlace de YouTube, Vimeo o SharePoint`;
+    return `El video del proyecto ${index + 1} debe ser un enlace de YouTube, Vimeo, Google Drive o SharePoint`;
   }
   return null;
 }
@@ -295,6 +310,7 @@ function emptyProyecto(id?: string): VitrinaProyecto {
     igipProyeccion: null,
     igipFinal: null,
     igipFinalComentario: '',
+    ...emptyIgipScoreFields(),
     trlInicial: null,
     trlInicialComentario: '',
     trlProyeccion: null,
@@ -386,6 +402,7 @@ export function normalizeVitrinaProyectos(
       igipProyeccion: asOptionalDecimal(rec.igipProyeccion),
       igipFinal: asOptionalDecimal(rec.igipFinal),
       igipFinalComentario: asString(rec.igipFinalComentario),
+      ...parseIgipScoreFields(rec),
       trlInicial: asOptionalInt(rec.trlInicial),
       trlInicialComentario: asString(rec.trlInicialComentario),
       trlProyeccion: asOptionalInt(rec.trlProyeccion),

@@ -7,6 +7,7 @@ import {
   clampCoverZoom,
   clampDescripcionFontSize,
 } from '@/lib/vitrina-proyectos';
+import { parseIgipScoreFields } from '@/lib/vitrina-igip-scores';
 
 type NamedRef = { id: string; nombre: string };
 
@@ -27,6 +28,24 @@ export type VitrinaProyectoDbRow = {
   igipProyeccion: unknown;
   igipFinal: unknown;
   igipFinalComentario: string;
+  igipInicialOriginalidad?: number | null;
+  igipInicialEstadoDelArte?: number | null;
+  igipInicialContribucionSocial?: number | null;
+  igipInicialContribucionConocimiento?: number | null;
+  igipInicialPotencialExpansion?: number | null;
+  igipInicialTransferenciaTecnologica?: number | null;
+  igipProyeccionOriginalidad?: number | null;
+  igipProyeccionEstadoDelArte?: number | null;
+  igipProyeccionContribucionSocial?: number | null;
+  igipProyeccionContribucionConocimiento?: number | null;
+  igipProyeccionPotencialExpansion?: number | null;
+  igipProyeccionTransferenciaTecnologica?: number | null;
+  igipFinalOriginalidad?: number | null;
+  igipFinalEstadoDelArte?: number | null;
+  igipFinalContribucionSocial?: number | null;
+  igipFinalContribucionConocimiento?: number | null;
+  igipFinalPotencialExpansion?: number | null;
+  igipFinalTransferenciaTecnologica?: number | null;
   trlInicial: number | null;
   trlInicialComentario: string;
   trlProyeccion: number | null;
@@ -103,6 +122,7 @@ export function mapVitrinaProyectoRow(row: VitrinaProyectoDbRow): VitrinaProyect
     igipProyeccion: decimalToNumber(row.igipProyeccion),
     igipFinal: decimalToNumber(row.igipFinal),
     igipFinalComentario: row.igipFinalComentario ?? '',
+    ...parseIgipScoreFields(row as unknown as Record<string, unknown>),
     trlInicial: row.trlInicial,
     trlInicialComentario: row.trlInicialComentario ?? '',
     trlProyeccion: row.trlProyeccion,

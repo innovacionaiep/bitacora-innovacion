@@ -31,6 +31,30 @@ function scalars(proyecto: VitrinaProyecto) {
     igipProyeccion: proyecto.igipProyeccion,
     igipFinal: proyecto.igipFinal,
     igipFinalComentario: proyecto.igipFinalComentario,
+    igipInicialOriginalidad: proyecto.igipInicialOriginalidad,
+    igipInicialEstadoDelArte: proyecto.igipInicialEstadoDelArte,
+    igipInicialContribucionSocial: proyecto.igipInicialContribucionSocial,
+    igipInicialContribucionConocimiento:
+      proyecto.igipInicialContribucionConocimiento,
+    igipInicialPotencialExpansion: proyecto.igipInicialPotencialExpansion,
+    igipInicialTransferenciaTecnologica:
+      proyecto.igipInicialTransferenciaTecnologica,
+    igipProyeccionOriginalidad: proyecto.igipProyeccionOriginalidad,
+    igipProyeccionEstadoDelArte: proyecto.igipProyeccionEstadoDelArte,
+    igipProyeccionContribucionSocial: proyecto.igipProyeccionContribucionSocial,
+    igipProyeccionContribucionConocimiento:
+      proyecto.igipProyeccionContribucionConocimiento,
+    igipProyeccionPotencialExpansion: proyecto.igipProyeccionPotencialExpansion,
+    igipProyeccionTransferenciaTecnologica:
+      proyecto.igipProyeccionTransferenciaTecnologica,
+    igipFinalOriginalidad: proyecto.igipFinalOriginalidad,
+    igipFinalEstadoDelArte: proyecto.igipFinalEstadoDelArte,
+    igipFinalContribucionSocial: proyecto.igipFinalContribucionSocial,
+    igipFinalContribucionConocimiento:
+      proyecto.igipFinalContribucionConocimiento,
+    igipFinalPotencialExpansion: proyecto.igipFinalPotencialExpansion,
+    igipFinalTransferenciaTecnologica:
+      proyecto.igipFinalTransferenciaTecnologica,
     trlInicial: proyecto.trlInicial,
     trlInicialComentario: proyecto.trlInicialComentario,
     trlProyeccion: proyecto.trlProyeccion,

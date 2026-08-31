@@ -7,12 +7,7 @@ import {
 } from '@/lib/vitrina-igip-scatter';
 
 function projectsFrom(
-  rows: Array<{
-    nombre: string;
-    igipInicial?: number | null;
-    igipProyeccion?: number | null;
-    igipFinal?: number | null;
-  }>,
+  rows: Array<Record<string, unknown> & { nombre: string }>,
 ) {
   const result = normalizeVitrinaProyectos(rows);
   if (!result.ok) throw new Error(result.error);
@@ -87,6 +82,36 @@ describe('buildVitrinaIgipScatter', () => {
       ),
     ).toEqual(['Beehappy', 'AgroTech', 'ClinicApp']);
   });
+
+  it('usa notas 0–4 de una subdimensión e omite incompletos', () => {
+    const proyectos = projectsFrom([
+      {
+        nombre: 'A',
+        igipInicialOriginalidad: 2,
+        igipProyeccionOriginalidad: 4,
+        igipInicial: 9,
+        igipProyeccion: 9,
+      },
+      {
+        nombre: 'B',
+        igipInicialOriginalidad: 1,
+        igipInicial: 1,
+        igipProyeccion: 2,
+      },
+    ]);
+
+    const scatter = buildVitrinaIgipScatter(
+      proyectos,
+      'proyeccion',
+      'variacion',
+      'originalidad',
+    );
+    expect(scatter.included).toBe(1);
+    expect(scatter.omitted).toBe(1);
+    expect(scatter.pairs).toEqual([
+      expect.objectContaining({ nombre: 'A', from: 2, to: 4 }),
+    ]);
+  });
 });
 
 describe('layoutVitrinaIgipScatter', () => {
@@ -108,6 +133,21 @@ describe('layoutVitrinaIgipScatter', () => {
     expect(a.xFrom).toBeLessThan(a.xTo);
     expect(b.xFrom).toBe(b.xTo);
     expect(a.y).toBeLessThan(b.y);
+  });
+
+  it('fija el eje 0–4 para subdimensiones', () => {
+    const layout = layoutVitrinaIgipScatter(
+      {
+        included: 1,
+        omitted: 0,
+        pairs: [{ id: 'a', nombre: 'A', from: 2, to: 3 }],
+      },
+      { width: 100 },
+      'score',
+    );
+    expect(layout.min).toBe(0);
+    expect(layout.max).toBe(4);
+    expect(layout.ticks).toEqual([0, 1, 2, 3, 4]);
   });
 });
 

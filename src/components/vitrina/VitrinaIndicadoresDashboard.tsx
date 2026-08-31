@@ -6,11 +6,14 @@ import {
   layoutVitrinaTrlSankey,
   type VitrinaTrlTarget,
 } from '@/lib/vitrina-trl-sankey';
+import { IGIP_SUBDIMENSIONS } from '@/lib/igip-trl';
+import { IGIP_SUBDIMENSION_SHORT_LABEL } from '@/lib/vitrina-igip-scores';
 import {
   buildVitrinaIgipScatter,
   formatIgip,
   formatIgipDelta,
   layoutVitrinaIgipScatter,
+  type VitrinaIgipMetric,
   type VitrinaIgipSortBy,
   type VitrinaIgipTarget,
 } from '@/lib/vitrina-igip-scatter';
@@ -33,6 +36,7 @@ import {
 } from '@/lib/vitrina-ambos-scatter';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { cn } from '@/lib/utils';
+import { VitrinaIgipRadarCard } from '@/components/vitrina/VitrinaIgipRadarCard';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,12 +47,32 @@ import { ChevronDown } from 'lucide-react';
 
 type IndicatorKind = 'igip' | 'trl' | 'ambos';
 type IndicatorTarget = VitrinaTrlTarget & VitrinaIgipTarget;
-type ChartType = 'dumbbell' | 'sankey';
+type ChartType = 'dumbbell' | 'sankey' | 'radial';
 
 const SVG_W = 960;
 const SVG_H = 520;
 const NAME_COL = 'w-[15.6rem]';
 const DELTA_COL = 'w-20 pr-3';
+
+const IGIP_DUMBBELL_METRIC_OPTIONS: {
+  value: VitrinaIgipMetric;
+  label: string;
+  title: string;
+}[] = [
+  { value: 'igip', label: 'IGIP', title: 'IGIP' },
+  ...IGIP_SUBDIMENSIONS.map((dim) => ({
+    value: dim.key as VitrinaIgipMetric,
+    label: IGIP_SUBDIMENSION_SHORT_LABEL[dim.key],
+    title: dim.label,
+  })),
+];
+
+function igipDumbbellMetricNoun(metric: VitrinaIgipMetric): string {
+  if (metric === 'igip') return 'IGIP';
+  return (
+    IGIP_SUBDIMENSIONS.find((dim) => dim.key === metric)?.label ?? metric
+  );
+}
 
 const LEVEL_COLORS = [
   '#94a3b8',
@@ -140,10 +164,18 @@ export function VitrinaIndicadoresDashboard({
               label="Tipo de gráfico"
               value={chartType}
               onChange={setChartType}
-              options={[
-                { value: 'dumbbell', label: 'Dumbbell' },
-                { value: 'sankey', label: 'Sankey' },
-              ]}
+              options={
+                kind === 'igip'
+                  ? [
+                      { value: 'dumbbell', label: 'Dumbbell' },
+                      { value: 'sankey', label: 'Sankey' },
+                      { value: 'radial', label: 'Radial' },
+                    ]
+                  : [
+                      { value: 'dumbbell', label: 'Dumbbell' },
+                      { value: 'sankey', label: 'Sankey' },
+                    ]
+              }
             />
           </div>
         ) : null}
@@ -154,6 +186,8 @@ export function VitrinaIndicadoresDashboard({
       ) : kind === 'igip' ? (
         chartType === 'dumbbell' ? (
           <IgipDumbbellCard proyectos={proyectos} target={target} />
+        ) : chartType === 'radial' ? (
+          <VitrinaIgipRadarCard proyectos={proyectos} target={target} />
         ) : (
           <IgipSankeyCard proyectos={proyectos} target={target} />
         )
@@ -508,18 +542,25 @@ function IgipDumbbellCard({
   proyectos: VitrinaProyecto[];
   target: VitrinaIgipTarget;
 }) {
-  const targetLabel =
-    target === 'proyeccion' ? 'IGIP Proyección' : 'IGIP Final';
-  const destinationName = targetLabel.replace('IGIP ', '');
+  const destinationName = target === 'proyeccion' ? 'Proyección' : 'Final';
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<VitrinaIgipSortBy>('variacion');
+  const [metric, setMetric] = useState<VitrinaIgipMetric>('igip');
+  const metricNoun = igipDumbbellMetricNoun(metric);
+  const inicialSortLabel = `${metricNoun} Inicial`;
+  const destinoSortLabel = `${metricNoun} ${destinationName}`;
   const scatter = useMemo(
-    () => buildVitrinaIgipScatter(proyectos, target, sortBy),
-    [proyectos, target, sortBy],
+    () => buildVitrinaIgipScatter(proyectos, target, sortBy, metric),
+    [proyectos, target, sortBy, metric],
   );
   const layout = useMemo(
-    () => layoutVitrinaIgipScatter(scatter, { width: 100 }),
-    [scatter],
+    () =>
+      layoutVitrinaIgipScatter(
+        scatter,
+        { width: 100 },
+        metric === 'igip' ? 'igip' : 'score',
+      ),
+    [scatter, metric],
   );
 
   const pct = (value: number) => {
@@ -529,64 +570,73 @@ function IgipDumbbellCard({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {scatter.included > 0 ? (
-        <div className="mb-2 flex shrink-0 flex-wrap items-center justify-end gap-4 text-[11px] text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-slate-600">Ordenar por:</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Ordenar por"
-                  className="inline-flex h-7 w-[9.5rem] items-center justify-between rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <span className="truncate">
-                    {sortBy === 'nombre'
-                      ? 'Nombre'
-                      : sortBy === 'inicial'
-                        ? 'IGIP Inicial'
-                        : sortBy === 'destino'
-                          ? targetLabel
-                          : 'Variación'}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[9.5rem]">
-                <DropdownMenuItem onClick={() => setSortBy('nombre')}>
-                  Nombre
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('inicial')}>
-                  IGIP Inicial
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('destino')}>
-                  {targetLabel}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('variacion')}>
-                  Variación
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500">
+        <PillTabs
+          label="Métrica del dumbbell"
+          size="compact"
+          value={metric}
+          onChange={setMetric}
+          options={IGIP_DUMBBELL_METRIC_OPTIONS}
+        />
+        {scatter.included > 0 ? (
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-slate-600">Ordenar por:</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Ordenar por"
+                    className="inline-flex h-7 w-[9.5rem] items-center justify-between rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <span className="truncate">
+                      {sortBy === 'nombre'
+                        ? 'Nombre'
+                        : sortBy === 'inicial'
+                          ? inicialSortLabel
+                          : sortBy === 'destino'
+                            ? destinoSortLabel
+                            : 'Variación'}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[9.5rem]">
+                  <DropdownMenuItem onClick={() => setSortBy('nombre')}>
+                    Nombre
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('inicial')}>
+                    {inicialSortLabel}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('destino')}>
+                    {destinoSortLabel}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('variacion')}>
+                    Variación
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-slate-500" />
+              Inicial
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {destinationName}
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-slate-500" />
-            Inicial
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            {destinationName}
-          </span>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {scatter.included === 0 ? (
           <p className="flex flex-1 items-center justify-center text-sm text-slate-400">
-            No hay proyectos con IGIP Inicial y {targetLabel}.
+            No hay proyectos con {metricNoun} Inicial y {destinoSortLabel}.
           </p>
         ) : (
           <div
             className="flex min-h-0 flex-1 flex-col"
-            aria-label={`Avance IGIP desde Inicial hacia ${targetLabel}`}
+            aria-label={`Avance ${metricNoun} desde Inicial hacia ${destinoSortLabel}`}
           >
             <DumbbellAxisHeader
               ticks={layout.ticks}
@@ -607,7 +657,7 @@ function IgipDumbbellCard({
                   ticks={layout.ticks}
                   formatValue={formatIgip}
                   formatDelta={formatIgipDelta}
-                  ariaPrefix="IGIP"
+                  ariaPrefix={metricNoun}
                 />
               ))}
             </div>
@@ -759,6 +809,7 @@ function DumbbellAxisHeader({
           {ticks.map((tick) => (
             <span
               key={tick}
+              data-testid="dumbbell-axis-tick"
               className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] tabular-nums text-slate-600"
               style={{ left: `${pct(tick)}%` }}
             >
@@ -807,6 +858,7 @@ function DumbbellRow({
   const left = Math.min(pct(from), pct(to));
   const width = Math.abs(pct(to) - pct(from));
   const rose = to < from;
+  const sameValue = from === to;
   return (
     <div
       role="img"
@@ -838,7 +890,11 @@ function DumbbellRow({
             }}
           />
           <span
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+            data-testid="dumbbell-dot-from"
+            className={cn(
+              'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
+              sameValue && 'z-10',
+            )}
             style={{ left: `${pct(from)}%` }}
           >
             {hovered ? (
@@ -849,7 +905,11 @@ function DumbbellRow({
             <span className="block h-3 w-3 rounded-full border-2 border-white bg-slate-500 shadow-sm" />
           </span>
           <span
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+            data-testid="dumbbell-dot-to"
+            className={cn(
+              'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
+              sameValue && 'z-0',
+            )}
             style={{ left: `${pct(to)}%` }}
           >
             {hovered ? (
@@ -1200,27 +1260,35 @@ function PillTabs<T extends string>({
   value,
   onChange,
   options,
+  size = 'default',
 }: {
   label: string;
   value: T;
   onChange: (next: T) => void;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; title?: string }[];
+  size?: 'default' | 'compact';
 }) {
   return (
     <div
       role="tablist"
       aria-label={label}
-      className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-0.5"
+      className={cn(
+        'inline-flex rounded-full border border-slate-200 bg-slate-100 p-0.5',
+        size === 'compact' && 'max-w-full flex-wrap',
+      )}
     >
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           role="tab"
+          title={option.title}
+          aria-label={option.title ?? option.label}
           aria-selected={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'rounded-full px-4 py-1 text-sm font-semibold transition-colors',
+            'rounded-full font-semibold transition-colors',
+            size === 'compact' ? 'px-2.5 py-1 text-[11px]' : 'px-4 py-1 text-sm',
             value === option.value
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-600 hover:text-slate-900',

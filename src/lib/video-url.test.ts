@@ -44,6 +44,31 @@ describe('parseVideoUrl Vimeo', () => {
   });
 });
 
+describe('parseVideoUrl Google Drive', () => {
+  it('convierte /file/d/{id}/view a preview embebible', () => {
+    const p = parseVideoUrl(
+      'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view?usp=sharing'
+    );
+    expect(p?.provider).toBe('google-drive');
+    expect(p?.externalOnly).toBeFalsy();
+    expect(p?.embedUrl).toBe(
+      'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/preview'
+    );
+    expect(p?.pageUrl).toBe(
+      'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view'
+    );
+    expect(p?.videoId).toBe('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
+  });
+
+  it('acepta open?id=', () => {
+    const p = parseVideoUrl(
+      'https://drive.google.com/open?id=1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'
+    );
+    expect(p?.provider).toBe('google-drive');
+    expect(p?.videoId).toBe('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
+  });
+});
+
 describe('parseVideoUrl SharePoint', () => {
   const streamUrl =
     'https://ipaiep-my.sharepoint.com/personal/jeremy_torres_aiep_cl/_layouts/15/stream.aspx?id=%2Fpersonal%2Fjeremy%5Ftorres%5Faiep%5Fcl%2FDocuments%2FDocumentos%2FClinicApp%2EMP4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIn19&ga=1&referrer=StreamWebApp.Web&isDarkMode=true';

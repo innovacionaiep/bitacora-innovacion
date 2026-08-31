@@ -20,7 +20,16 @@ import {
   testImpulsaExcelSheet,
   updateImpulsaExcelSnapshot,
 } from '@/lib/actions/portal-avances-impulsa';
+import {
+  getPortalOutlookSettings,
+  savePortalOutlookSettings,
+  testPortalOutlook,
+} from '@/lib/actions/portal-outlook';
 import { VITRINA_AI_DEFAULT_MODEL } from '@/lib/vitrina-ai-settings';
+import {
+  PORTAL_OUTLOOK_DEFAULT_HOST,
+  PORTAL_OUTLOOK_DEFAULT_PORT,
+} from '@/lib/portal-outlook-settings';
 import {
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   PORTAL_GUEST_LEVELS,
@@ -99,6 +108,14 @@ export function VitrinaAiSettingsModal({
     DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   );
   const [savingRoles, setSavingRoles] = useState(false);
+  const [outlookUser, setOutlookUser] = useState('');
+  const [outlookPassword, setOutlookPassword] = useState('');
+  const [outlookHost, setOutlookHost] = useState(PORTAL_OUTLOOK_DEFAULT_HOST);
+  const [outlookPort, setOutlookPort] = useState(String(PORTAL_OUTLOOK_DEFAULT_PORT));
+  const [outlookConfigured, setOutlookConfigured] = useState(false);
+  const [outlookMasked, setOutlookMasked] = useState('');
+  const [savingOutlook, setSavingOutlook] = useState(false);
+  const [testingOutlook, setTestingOutlook] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -107,15 +124,24 @@ export function VitrinaAiSettingsModal({
     setInfo('');
     setApiKey('');
     setGuestCodes({ 0: '', 1: '', 2: '', 3: '' });
+    setOutlookPassword('');
     setLoading(true);
     void Promise.all([
       getVitrinaAiSettings(),
       getPortalGuestSettings(),
       getImpulsaExcelSettings(),
       getPortalSessionRoleSettings(),
-    ]).then(([aiResult, guestResult, impulsaResult, roleResult]) => {
+      getPortalOutlookSettings(),
+    ]).then(([aiResult, guestResult, impulsaResult, roleResult, outlookResult]) => {
         if (cancelled) return;
         setLoading(false);
+        if (outlookResult.success && outlookResult.data) {
+          setOutlookConfigured(outlookResult.data.configured);
+          setOutlookUser(outlookResult.data.user);
+          setOutlookMasked(outlookResult.data.passwordMasked);
+          setOutlookHost(outlookResult.data.host);
+          setOutlookPort(String(outlookResult.data.port));
+        }
         if (!aiResult.success || !aiResult.data) {
           setError(aiResult.error ?? 'No se pudo leer la configuración');
           return;
@@ -323,6 +349,56 @@ export function VitrinaAiSettingsModal({
     router.refresh();
   }
 
+  async function handleSaveOutlook(clearPassword = false) {
+    setError('');
+    setInfo('');
+    setSavingOutlook(true);
+    const result = await savePortalOutlookSettings({
+      user: outlookUser,
+      password: outlookPassword,
+      host: outlookHost,
+      port: outlookPort,
+      clearPassword,
+    });
+    setSavingOutlook(false);
+    if (!result.success) {
+      setError(result.error ?? 'No se pudo guardar Outlook');
+      return;
+    }
+    setOutlookPassword('');
+    const next = await getPortalOutlookSettings();
+    if (next.success && next.data) {
+      setOutlookConfigured(next.data.configured);
+      setOutlookUser(next.data.user);
+      setOutlookMasked(next.data.passwordMasked);
+      setOutlookHost(next.data.host);
+      setOutlookPort(String(next.data.port));
+    }
+    setInfo(
+      clearPassword
+        ? 'Credenciales de Outlook eliminadas.'
+        : 'Correo Outlook guardado.',
+    );
+  }
+
+  async function handleTestOutlook() {
+    setError('');
+    setInfo('');
+    setTestingOutlook(true);
+    const result = await testPortalOutlook({
+      user: outlookUser,
+      password: outlookPassword,
+      host: outlookHost,
+      port: outlookPort,
+    });
+    setTestingOutlook(false);
+    if (!result.success) {
+      setError(result.error ?? 'No se pudo conectar a Outlook');
+      return;
+    }
+    setInfo('Conexión SMTP de Outlook correcta.');
+  }
+
   const busy =
     loading ||
     saving ||
@@ -332,7 +408,9 @@ export function VitrinaAiSettingsModal({
     testingFile ||
     testingSheet ||
     updatingImpulsa ||
-    savingRoles;
+    savingRoles ||
+    savingOutlook ||
+    testingOutlook;
   const hasTypedCode = PORTAL_GUEST_LEVELS.some(
     (level) => guestCodes[level].trim(),
   );
@@ -583,6 +661,110 @@ export function VitrinaAiSettingsModal({
             </div>
           </section>
         </div>
+        <section
+          aria-labelledby="portal-settings-outlook"
+          className="rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+        >
+          <div className="mb-4">
+            <h3
+              id="portal-settings-outlook"
+              className="text-sm font-semibold text-slate-900"
+            >
+              Correo Outlook
+            </h3>
+            <p className="mt-1 text-xs leading-snug text-slate-500">
+              Cuenta SMTP que envía los mensajes de Contactar. Con MFA usa una
+              contraseña de aplicación. El remitente del visitante va como
+              respuesta (Reply-To).
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="portal-outlook-user">Correo de la cuenta</Label>
+              <Input
+                id="portal-outlook-user"
+                type="email"
+                autoComplete="off"
+                value={outlookUser}
+                onChange={(e) => setOutlookUser(e.target.value)}
+                placeholder="centroinnovacion@aiep.cl"
+                disabled={busy}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="portal-outlook-password">Contraseña</Label>
+              <Input
+                id="portal-outlook-password"
+                type="password"
+                autoComplete="new-password"
+                value={outlookPassword}
+                onChange={(e) => setOutlookPassword(e.target.value)}
+                placeholder={
+                  outlookConfigured && outlookMasked
+                    ? `Configurada (${outlookMasked})`
+                    : 'Contraseña o contraseña de aplicación'
+                }
+                disabled={busy}
+              />
+              {outlookConfigured && !outlookPassword ? (
+                <p className="text-xs text-slate-500">
+                  Deja el campo vacío para conservar la contraseña actual.
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="portal-outlook-host">Servidor SMTP</Label>
+              <Input
+                id="portal-outlook-host"
+                value={outlookHost}
+                onChange={(e) => setOutlookHost(e.target.value)}
+                placeholder={PORTAL_OUTLOOK_DEFAULT_HOST}
+                disabled={busy}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="portal-outlook-port">Puerto</Label>
+              <Input
+                id="portal-outlook-port"
+                value={outlookPort}
+                onChange={(e) => setOutlookPort(e.target.value)}
+                placeholder={String(PORTAL_OUTLOOK_DEFAULT_PORT)}
+                disabled={busy}
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleTestOutlook()}
+              disabled={busy}
+            >
+              {testingOutlook ? 'Probando…' : 'Probar conexión'}
+            </Button>
+            {outlookConfigured ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-red-600 hover:text-red-700"
+                onClick={() => void handleSaveOutlook(true)}
+                disabled={busy}
+              >
+                Quitar credenciales
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => void handleSaveOutlook(false)}
+              disabled={
+                busy || (!outlookConfigured && !outlookPassword.trim())
+              }
+            >
+              {savingOutlook ? 'Guardando…' : 'Guardar Outlook'}
+            </Button>
+          </div>
+        </section>
         <section
           aria-labelledby="portal-settings-roles"
           className="rounded-lg border border-slate-200 bg-slate-50/70 p-4"

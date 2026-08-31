@@ -7,6 +7,19 @@ import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { asOptionalDecimal, asOptionalInt } from '@/lib/vitrina-proyectos';
 import {
+  asOptionalIgipScore,
+  IGIP_SCORE_FIELDS,
+  IGIP_STADIUMS,
+  type IgipStadium,
+} from '@/lib/vitrina-igip-scores';
+import {
+  IGIP_STADIUM_LABEL,
+  indicadoresHeaderGroups,
+  indicadoresTableColumns,
+  type IndicadoresFamily,
+  type IndicadoresTableColumn,
+} from '@/lib/vitrina-igip-table';
+import {
   applyVitrinaTableCatalog,
   formatVitrinaTableNames,
   type VitrinaTableCatalogField,
@@ -67,36 +80,15 @@ const DESC_VIDEO_COLUMNS = [
   size: ColSize;
 }>;
 
-const INDICADORES_COLUMNS = [
-  { key: 'nombre', label: 'Nombre', size: 'B' },
-  { key: 'igipInicial', label: 'IGIP Inicial', size: 'A' },
-  { key: 'igipInicialComentario', label: 'IGIP Inicial - Comentario', size: 'B' },
-  { key: 'igipProyeccion', label: 'IGIP Proyección', size: 'A' },
-  { key: 'igipFinal', label: 'IGIP Final', size: 'A' },
-  { key: 'igipFinalComentario', label: 'IGIP Final - Comentario', size: 'B' },
-  { key: 'trlInicial', label: 'TRL Inicial', size: 'A' },
-  { key: 'trlInicialComentario', label: 'TRL Inicial - Comentario', size: 'B' },
-  { key: 'trlProyeccion', label: 'TRL Proyección', size: 'A' },
-  { key: 'trlFinal', label: 'TRL Final', size: 'A' },
-  { key: 'trlFinalComentario', label: 'TRL Final - Comentario', size: 'B' },
-] as const satisfies ReadonlyArray<{
-  key: string;
-  label: string;
-  size: ColSize;
-}>;
-
 const PREVIEW_CHARS = 100;
 
-function columnsForView(view: DataTableView) {
+function columnsForView(
+  view: DataTableView,
+  indicadores: IndicadoresTableColumn[],
+) {
   if (view === 'general') return GENERAL_COLUMNS;
   if (view === 'desc-video') return DESC_VIDEO_COLUMNS;
-  return INDICADORES_COLUMNS;
-}
-
-function tableMinWidthForView(view: DataTableView) {
-  if (view === 'general') return 'min-w-[64rem]';
-  if (view === 'desc-video') return 'min-w-[36rem]';
-  return 'min-w-[88rem]';
+  return indicadores;
 }
 
 export function VitrinaProjectsTable({
@@ -117,6 +109,12 @@ export function VitrinaProjectsTable({
   onOptimisticMutationEnd?: () => void;
 }) {
   const [tableView, setTableView] = useState<DataTableView>('general');
+  const [indicadoresFamily, setIndicadoresFamily] =
+    useState<IndicadoresFamily>('igip');
+  const [stadiumVisible, setStadiumVisible] = useState<
+    Record<IgipStadium, boolean>
+  >({ inicial: true, proyeccion: true, final: true });
+  const [expandSubdimensions, setExpandSubdimensions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<VitrinaProyecto | null>(null);
   const [error, setError] = useState('');
@@ -193,35 +191,105 @@ export function VitrinaProjectsTable({
     );
   }
 
-  const columns = columnsForView(tableView);
-  const tableMinWidth = tableMinWidthForView(tableView);
+  const indicadoresColumns = indicadoresTableColumns({
+    family: indicadoresFamily,
+    stadiumVisible,
+    expandSubdimensions,
+  });
+  const columns = columnsForView(tableView, indicadoresColumns);
+  const headerGroups = indicadoresHeaderGroups(indicadoresColumns);
+  const tableMinWidthPx =
+    tableView === 'indicadores'
+      ? columns.reduce((sum, col) => sum + (col.size === 'B' ? 192 : 120), 96)
+      : undefined;
 
   return (
     <div className="flex h-full min-h-0 flex-col px-6 py-6 lg:px-10">
-      <div
-        role="tablist"
-        aria-label="Vista de datos de la tabla"
-        className="mb-3 inline-flex shrink-0 self-start rounded-full border border-slate-200 bg-slate-100 p-0.5"
-      >
-        <ViewTab
-          active={tableView === 'general'}
-          onClick={() => changeView('general')}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3">
+        <div
+          role="tablist"
+          aria-label="Vista de datos de la tabla"
+          className="inline-flex self-start rounded-full border border-slate-200 bg-slate-100 p-0.5"
         >
-          Información General
-        </ViewTab>
-        <ViewTab
-          active={tableView === 'desc-video'}
-          onClick={() => changeView('desc-video')}
-        >
-          Desc. y Vídeo
-        </ViewTab>
-        <ViewTab
-          active={tableView === 'indicadores'}
-          onClick={() => changeView('indicadores')}
-        >
-          Indicadores Técnicos
-        </ViewTab>
+          <ViewTab
+            active={tableView === 'general'}
+            onClick={() => changeView('general')}
+          >
+            Información General
+          </ViewTab>
+          <ViewTab
+            active={tableView === 'desc-video'}
+            onClick={() => changeView('desc-video')}
+          >
+            Desc. y Vídeo
+          </ViewTab>
+          <ViewTab
+            active={tableView === 'indicadores'}
+            onClick={() => changeView('indicadores')}
+          >
+            Indicadores Técnicos
+          </ViewTab>
+        </div>
+        {tableView === 'indicadores' ? (
+          <div
+            role="tablist"
+            aria-label="Familia de indicadores técnicos"
+            className="inline-flex self-start rounded-full border border-slate-200 bg-slate-100 p-0.5"
+          >
+            <ViewTab
+              active={indicadoresFamily === 'igip'}
+              onClick={() => setIndicadoresFamily('igip')}
+            >
+              IGIP
+            </ViewTab>
+            <ViewTab
+              active={indicadoresFamily === 'trl'}
+              onClick={() => setIndicadoresFamily('trl')}
+            >
+              TRL
+            </ViewTab>
+          </div>
+        ) : null}
       </div>
+
+      {tableView === 'indicadores' && indicadoresFamily === 'igip' ? (
+        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+          {IGIP_STADIUMS.map((stadium) => (
+            <button
+              key={stadium}
+              type="button"
+              aria-pressed={stadiumVisible[stadium]}
+              onClick={() =>
+                setStadiumVisible((prev) => ({
+                  ...prev,
+                  [stadium]: !prev[stadium],
+                }))
+              }
+              className={cn(
+                'rounded-full border px-3 py-1 text-[11px] font-semibold',
+                stadiumVisible[stadium]
+                  ? 'border-slate-900 bg-slate-900 text-white'
+                  : 'border-slate-200 bg-white text-slate-600',
+              )}
+            >
+              {IGIP_STADIUM_LABEL[stadium]}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-pressed={expandSubdimensions}
+            onClick={() => setExpandSubdimensions((v) => !v)}
+            className={cn(
+              'rounded-full border px-3 py-1 text-[11px] font-semibold',
+              expandSubdimensions
+                ? 'border-emerald-700 bg-emerald-700 text-white'
+                : 'border-slate-200 bg-white text-slate-600',
+            )}
+          >
+            Expandir subdimensiones
+          </button>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mb-3 shrink-0 text-sm text-red-600" role="alert">
@@ -233,31 +301,81 @@ export function VitrinaProjectsTable({
         <Table
           className={cn(
             'border-collapse text-[11px] [&_th]:border-r [&_th]:border-slate-200 [&_td]:border-r [&_td]:border-slate-200',
-            tableMinWidth,
+            tableView === 'general' && 'min-w-[64rem]',
+            tableView === 'desc-video' && 'min-w-[36rem]',
           )}
+          style={tableMinWidthPx ? { minWidth: tableMinWidthPx } : undefined}
         >
           <TableHeader className="sticky top-0 z-30">
-            <TableRow className="hover:bg-transparent">
-              {columns.map((col) => (
-                <TableHead
-                  key={col.key}
-                  className={cn(
-                    'bg-slate-200',
-                    COL_WIDTH[col.size],
-                    col.key === 'nombre' &&
-                      'sticky left-0 top-0 z-40 shadow-[1px_0_0_0_#e2e8f0]',
+            {tableView === 'indicadores' ? (
+              <>
+                <TableRow className="hover:bg-transparent">
+                  {headerGroups.map((group) =>
+                    group.group === 'nombre' ? (
+                      <TableHead
+                        key="nombre-group"
+                        rowSpan={2}
+                        className={cn(
+                          COL_B,
+                          'sticky left-0 top-0 z-40 bg-slate-200 shadow-[1px_0_0_0_#e2e8f0]',
+                        )}
+                      >
+                        Nombre
+                      </TableHead>
+                    ) : (
+                      <TableHead
+                        key={group.group}
+                        colSpan={group.span}
+                        className="bg-slate-200 text-center"
+                      >
+                        {group.label}
+                      </TableHead>
+                    ),
                   )}
-                >
-                  {col.label}
-                </TableHead>
-              ))}
-              {canEdit ? (
-                <TableHead
-                  aria-label="Acciones"
-                  className="sticky right-0 top-0 z-40 w-24 border-l border-slate-200 bg-slate-200 text-right shadow-[-1px_0_0_0_#e2e8f0]"
-                />
-              ) : null}
-            </TableRow>
+                  {canEdit ? (
+                    <TableHead
+                      aria-label="Acciones"
+                      rowSpan={2}
+                      className="sticky right-0 top-0 z-40 w-24 border-l border-slate-200 bg-slate-200 text-right shadow-[-1px_0_0_0_#e2e8f0]"
+                    />
+                  ) : null}
+                </TableRow>
+                <TableRow className="hover:bg-transparent">
+                  {indicadoresColumns
+                    .filter((col) => col.key !== 'nombre')
+                    .map((col) => (
+                      <TableHead
+                        key={col.key}
+                        className={cn('bg-slate-100', COL_WIDTH[col.size])}
+                      >
+                        {col.label}
+                      </TableHead>
+                    ))}
+                </TableRow>
+              </>
+            ) : (
+              <TableRow className="hover:bg-transparent">
+                {columns.map((col) => (
+                  <TableHead
+                    key={col.key}
+                    className={cn(
+                      'bg-slate-200',
+                      COL_WIDTH[col.size],
+                      col.key === 'nombre' &&
+                        'sticky left-0 top-0 z-40 shadow-[1px_0_0_0_#e2e8f0]',
+                    )}
+                  >
+                    {col.label}
+                  </TableHead>
+                ))}
+                {canEdit ? (
+                  <TableHead
+                    aria-label="Acciones"
+                    className="sticky right-0 top-0 z-40 w-24 border-l border-slate-200 bg-slate-200 text-right shadow-[-1px_0_0_0_#e2e8f0]"
+                  />
+                ) : null}
+              </TableRow>
+            )}
           </TableHeader>
           <TableBody>
             {proyectos.map((proyecto) => {
@@ -423,6 +541,7 @@ export function VitrinaProjectsTable({
                   ) : null}
                   {tableView === 'indicadores' ? (
                     <IndicadoresCells
+                      columns={indicadoresColumns}
                       row={row}
                       draft={draft}
                       editing={isEditing && draft !== null}
@@ -658,29 +777,19 @@ function TruncatedText({
   );
 }
 
-type IndicadoresPatch = Partial<
-  Pick<
-    VitrinaProyecto,
-    | 'igipInicial'
-    | 'igipInicialComentario'
-    | 'igipProyeccion'
-    | 'igipFinal'
-    | 'igipFinalComentario'
-    | 'trlInicial'
-    | 'trlInicialComentario'
-    | 'trlProyeccion'
-    | 'trlFinal'
-    | 'trlFinalComentario'
-  >
->;
+type IndicadoresPatch = Partial<VitrinaProyecto>;
+
+const SCORE_FIELD_SET = new Set<string>(IGIP_SCORE_FIELDS as unknown as string[]);
 
 function IndicadoresCells({
+  columns,
   row,
   draft,
   editing,
   saving,
   onPatch,
 }: {
+  columns: IndicadoresTableColumn[];
   row: VitrinaProyecto;
   draft: VitrinaProyecto | null;
   editing: boolean;
@@ -690,84 +799,39 @@ function IndicadoresCells({
   const source = editing && draft ? draft : row;
   return (
     <>
-      <NumberCell
-        value={source.igipInicial}
-        editing={editing}
-        saving={saving}
-        kind="decimal"
-        className={COL_A}
-        onChange={(igipInicial) => onPatch({ igipInicial })}
-      />
-      <CommentCell
-        value={source.igipInicialComentario}
-        editing={editing}
-        saving={saving}
-        className={COL_B}
-        onChange={(igipInicialComentario) =>
-          onPatch({ igipInicialComentario })
-        }
-      />
-      <NumberCell
-        value={source.igipProyeccion}
-        editing={editing}
-        saving={saving}
-        kind="decimal"
-        className={COL_A}
-        onChange={(igipProyeccion) => onPatch({ igipProyeccion })}
-      />
-      <NumberCell
-        value={source.igipFinal}
-        editing={editing}
-        saving={saving}
-        kind="decimal"
-        className={COL_A}
-        onChange={(igipFinal) => onPatch({ igipFinal })}
-      />
-      <CommentCell
-        value={source.igipFinalComentario}
-        editing={editing}
-        saving={saving}
-        className={COL_B}
-        onChange={(igipFinalComentario) => onPatch({ igipFinalComentario })}
-      />
-      <NumberCell
-        value={source.trlInicial}
-        editing={editing}
-        saving={saving}
-        kind="int"
-        className={COL_A}
-        onChange={(trlInicial) => onPatch({ trlInicial })}
-      />
-      <CommentCell
-        value={source.trlInicialComentario}
-        editing={editing}
-        saving={saving}
-        className={COL_B}
-        onChange={(trlInicialComentario) => onPatch({ trlInicialComentario })}
-      />
-      <NumberCell
-        value={source.trlProyeccion}
-        editing={editing}
-        saving={saving}
-        kind="int"
-        className={COL_A}
-        onChange={(trlProyeccion) => onPatch({ trlProyeccion })}
-      />
-      <NumberCell
-        value={source.trlFinal}
-        editing={editing}
-        saving={saving}
-        kind="int"
-        className={COL_A}
-        onChange={(trlFinal) => onPatch({ trlFinal })}
-      />
-      <CommentCell
-        value={source.trlFinalComentario}
-        editing={editing}
-        saving={saving}
-        className={COL_B}
-        onChange={(trlFinalComentario) => onPatch({ trlFinalComentario })}
-      />
+      {columns
+        .filter((col) => col.key !== 'nombre')
+        .map((col) => {
+          const key = col.key as keyof VitrinaProyecto;
+          if (typeof source[key] === 'string' && key.toString().includes('Comentario')) {
+            return (
+              <CommentCell
+                key={col.key}
+                value={source[key] as string}
+                editing={editing}
+                saving={saving}
+                className={COL_WIDTH[col.size]}
+                onChange={(value) => onPatch({ [key]: value } as IndicadoresPatch)}
+              />
+            );
+          }
+          const kind = SCORE_FIELD_SET.has(col.key)
+            ? 'igip'
+            : col.key.startsWith('trl')
+              ? 'int'
+              : 'decimal';
+          return (
+            <NumberCell
+              key={col.key}
+              value={source[key] as number | null}
+              editing={editing}
+              saving={saving}
+              kind={kind}
+              className={COL_WIDTH[col.size]}
+              onChange={(value) => onPatch({ [key]: value } as IndicadoresPatch)}
+            />
+          );
+        })}
     </>
   );
 }
@@ -783,7 +847,7 @@ function NumberCell({
   value: number | null;
   editing: boolean;
   saving: boolean;
-  kind: 'decimal' | 'int';
+  kind: 'decimal' | 'int' | 'igip';
   className: string;
   onChange: (value: number | null) => void;
 }) {
@@ -793,13 +857,17 @@ function NumberCell({
         <Input
           type="number"
           step={kind === 'decimal' ? 'any' : '1'}
+          min={kind === 'igip' ? 0 : undefined}
+          max={kind === 'igip' ? 4 : undefined}
           value={value ?? ''}
           onChange={(e) => {
             const raw = e.target.value;
             onChange(
               kind === 'decimal'
                 ? asOptionalDecimal(raw)
-                : asOptionalInt(raw),
+                : kind === 'igip'
+                  ? asOptionalIgipScore(raw)
+                  : asOptionalInt(raw),
             );
           }}
           disabled={saving}

@@ -58,12 +58,18 @@ export function VitrinaFichaVideo({
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            {video.provider === 'sharepoint' && openUrl ? (
+            {(video.provider === 'sharepoint' ||
+              video.provider === 'google-drive') &&
+            openUrl ? (
               <a
                 href={openUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Abrir en SharePoint"
+                title={
+                  video.provider === 'google-drive'
+                    ? 'Abrir en Google Drive'
+                    : 'Abrir en SharePoint'
+                }
                 className="absolute bottom-3 right-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white/85 ring-1 ring-white/15 hover:bg-black/75 hover:text-white"
               >
                 <ExternalLink className="h-4 w-4" />

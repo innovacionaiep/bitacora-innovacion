@@ -1,3 +1,9 @@
+export const IGIP_RADAR_CX = 160;
+export const IGIP_RADAR_CY = 160;
+export const IGIP_RADAR_RADIUS = 148;
+export const IGIP_RADAR_VIEW = 320;
+export const IGIP_RADAR_FILL = 'rgba(5, 150, 105, 0.22)';
+export const IGIP_RADAR_STROKE = '#059669';
 export const IGIP_SCORE_MIN = 0;
 export const IGIP_SCORE_MAX = 4;
 export const TRL_MIN = 1;
@@ -101,8 +107,8 @@ export function validateIgipTrlPatch(
 }
 
 export function radarValue(score: number | null): number {
-  if (score == null || !isIgipScore(score)) return 0;
-  return score;
+  if (score == null || !Number.isFinite(score)) return 0;
+  return Math.min(IGIP_SCORE_MAX, Math.max(IGIP_SCORE_MIN, score));
 }
 
 export function radarVertex(

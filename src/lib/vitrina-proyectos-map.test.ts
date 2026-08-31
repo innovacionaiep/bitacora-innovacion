@@ -54,6 +54,7 @@ describe('mapVitrinaProyectoRow', () => {
     expect(mapped.igipInicial).toBe(1.25);
     expect(mapped.igipProyeccion).toBeNull();
     expect(mapped.trlFinal).toBe(7);
+    expect(mapped.igipInicialOriginalidad).toBeNull();
     expect(mapped.videoUrl).toContain('vimeo.com');
   });
 });

@@ -1,0 +1,19 @@
+-- Notas 0–4 por subdimensión IGIP (Inicial / Proyección / Final) en vitrina.
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_originalidad" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_estado_del_arte" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_contribucion_social" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_contribucion_conocimiento" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_potencial_expansion" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_inicial_transferencia_tecnologica" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_originalidad" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_estado_del_arte" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_contribucion_social" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_contribucion_conocimiento" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_potencial_expansion" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_proyeccion_transferencia_tecnologica" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_originalidad" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_estado_del_arte" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_contribucion_social" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_contribucion_conocimiento" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_potencial_expansion" INTEGER;
+ALTER TABLE "vitrina_proyectos" ADD COLUMN IF NOT EXISTS "igip_final_transferencia_tecnologica" INTEGER;

@@ -6,20 +6,15 @@ import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 
 afterEach(cleanup);
 
-function projectsFrom(
-  rows: Array<{
-    nombre: string;
-    trlInicial?: number | null;
-    trlProyeccion?: number | null;
-    trlFinal?: number | null;
-    igipInicial?: number | null;
-    igipProyeccion?: number | null;
-    igipFinal?: number | null;
-  }>,
-) {
+function projectsFrom(rows: Array<Record<string, unknown> & { nombre: string }>) {
   const result = normalizeVitrinaProyectos(rows);
   if (!result.ok) throw new Error(result.error);
   return result.proyectos;
+}
+
+async function goToIgipFamily(user: ReturnType<typeof userEvent.setup>) {
+  const familia = screen.getByRole('tablist', { name: 'Familia de indicadores' });
+  await user.click(within(familia).getByRole('tab', { name: 'IGIP' }));
 }
 
 describe('VitrinaIndicadoresDashboard', () => {
@@ -71,7 +66,7 @@ describe('VitrinaIndicadoresDashboard', () => {
       screen.getByLabelText('TRL 1 → TRL 6: 1 proyecto'),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'IGIP' }));
+    await goToIgipFamily(user);
     expect(screen.getByRole('tab', { name: 'Dumbbell' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -118,7 +113,7 @@ describe('VitrinaIndicadoresDashboard', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText('TRL 2 → 4: A')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'IGIP' }));
+    await goToIgipFamily(user);
     await user.click(within(chartTabs).getByRole('tab', { name: 'Sankey' }));
     expect(
       screen.getByLabelText('Sankey IGIP desde Inicial hacia IGIP Proyección'),
@@ -156,7 +151,7 @@ describe('VitrinaIndicadoresDashboard', () => {
       { nombre: 'AgroTech', igipInicial: 4, igipProyeccion: 6 },
     ]);
     render(<VitrinaIndicadoresDashboard proyectos={proyectos} />);
-    await user.click(screen.getByRole('tab', { name: 'IGIP' }));
+    await goToIgipFamily(user);
 
     const nombre = screen.getByText('Nombre Proyecto');
     const variacion = screen.getByText('Variación', {
@@ -200,6 +195,68 @@ describe('VitrinaIndicadoresDashboard', () => {
     ).toBeInTheDocument();
   });
 
+  it('en Dumbbell IGIP usa el índice por defecto y pasa a notas 0–4 con Originalidad', async () => {
+    const user = userEvent.setup();
+    const proyectos = projectsFrom([
+      {
+        nombre: 'ClinicApp',
+        igipInicial: 1.2,
+        igipProyeccion: 3.5,
+        igipInicialOriginalidad: 2,
+        igipProyeccionOriginalidad: 4,
+      },
+    ]);
+    render(<VitrinaIndicadoresDashboard proyectos={proyectos} />);
+    await goToIgipFamily(user);
+
+    const metricTabs = screen.getByRole('tablist', { name: 'Métrica del dumbbell' });
+    expect(within(metricTabs).getByRole('tab', { name: 'IGIP' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      screen.getByLabelText('IGIP 1.2 → 3.5: ClinicApp'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('1.5')).toBeInTheDocument();
+
+    await user.click(within(metricTabs).getByRole('tab', { name: 'Originalidad' }));
+    expect(within(metricTabs).getByRole('tab', { name: 'Originalidad' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      screen.getByLabelText(
+        'Avance Originalidad desde Inicial hacia Originalidad Proyección',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Originalidad 2 → 4: ClinicApp'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId('dumbbell-axis-tick').map((el) => el.textContent),
+    ).toEqual(['0', '1', '2', '3', '4']);
+  });
+
+  it('pone el punto inicial encima cuando no hay variación', async () => {
+    const user = userEvent.setup();
+    const proyectos = projectsFrom([
+      { nombre: 'NeuroScratch', igipInicial: 3, igipProyeccion: 3 },
+      { nombre: 'ClinicApp', igipInicial: 1.2, igipProyeccion: 3.5 },
+    ]);
+    render(<VitrinaIndicadoresDashboard proyectos={proyectos} />);
+    await goToIgipFamily(user);
+
+    const sinCambio = screen.getByLabelText('IGIP 3 → 3: NeuroScratch');
+    expect(within(sinCambio).getByText('sin cambio')).toBeInTheDocument();
+    expect(within(sinCambio).getByTestId('dumbbell-dot-from')).toHaveClass('z-10');
+    expect(within(sinCambio).getByTestId('dumbbell-dot-to')).toHaveClass('z-0');
+
+    const conAvance = screen.getByLabelText('IGIP 1.2 → 3.5: ClinicApp');
+    expect(within(conAvance).getByTestId('dumbbell-dot-from')).not.toHaveClass(
+      'z-10',
+    );
+  });
+
   it('permite ordenar el gráfico IGIP por nombre o variación', async () => {
     const user = userEvent.setup();
     const proyectos = projectsFrom([
@@ -208,7 +265,7 @@ describe('VitrinaIndicadoresDashboard', () => {
       { nombre: 'Beehappy', igipInicial: 1, igipProyeccion: 3 },
     ]);
     render(<VitrinaIndicadoresDashboard proyectos={proyectos} />);
-    await user.click(screen.getByRole('tab', { name: 'IGIP' }));
+    await goToIgipFamily(user);
 
     expect(screen.getByText('Ordenar por:')).toBeInTheDocument();
     const rows = () =>
@@ -466,5 +523,55 @@ describe('VitrinaIndicadoresDashboard', () => {
     expect(screen.getByText('ClinicApp')).toBeInTheDocument();
     expect(screen.getByText('AgroTech')).toBeInTheDocument();
     expect(screen.queryByText('SoloInicial')).not.toBeInTheDocument();
+  });
+
+  it('en IGIP ofrece Radial y promedia Inicial; Promedio azul ignora el selector', async () => {
+    const user = userEvent.setup();
+    const result = normalizeVitrinaProyectos([
+      {
+        id: 'a',
+        nombre: 'Alfa',
+        igipInicialOriginalidad: 2,
+        igipProyeccionOriginalidad: 3,
+      },
+      {
+        id: 'b',
+        nombre: 'Beta',
+        igipInicialOriginalidad: 4,
+        igipProyeccionOriginalidad: 1,
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+
+    render(<VitrinaIndicadoresDashboard proyectos={result.proyectos} />);
+
+    expect(screen.queryByRole('tab', { name: 'Radial' })).not.toBeInTheDocument();
+
+    await goToIgipFamily(user);
+    expect(screen.getByRole('tab', { name: 'Radial' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Radial' }));
+
+    expect(
+      screen.getByLabelText(
+        'Gráfico radial IGIP desde Inicial hacia IGIP Proyección',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('radar-score-originalidad-inicial')).toHaveTextContent(
+      '3.0',
+    );
+    expect(screen.getByTestId('radar-score-originalidad-destino')).toHaveTextContent(
+      '2.0',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Selector de proyectos' }));
+    await user.click(screen.getByText('Alfa'));
+    expect(screen.getByTestId('radar-score-originalidad-inicial')).toHaveTextContent(
+      '2',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Promedio' }));
+    expect(screen.getByTestId('radar-score-originalidad-promedio')).toHaveTextContent(
+      '3.0',
+    );
   });
 });

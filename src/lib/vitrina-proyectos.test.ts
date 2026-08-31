@@ -166,6 +166,24 @@ describe('normalizeVitrinaProyectos', () => {
     expect(p.trlFinalComentario).toBe('fin');
   });
 
+  it('normaliza notas 0–4 de subdimensiones IGIP y rechaza fuera de rango', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'Con notas',
+        igipInicialOriginalidad: 2,
+        igipProyeccionEstadoDelArte: '4',
+        igipFinalTransferenciaTecnologica: 9,
+      },
+    ]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const p = result.proyectos[0]!;
+    expect(p.igipInicialOriginalidad).toBe(2);
+    expect(p.igipProyeccionEstadoDelArte).toBe(4);
+    expect(p.igipFinalTransferenciaTecnologica).toBeNull();
+    expect(p.igipInicialEstadoDelArte).toBeNull();
+  });
+
   it('deja indicadores técnicos en null/vacío por defecto', () => {
     const result = normalizeVitrinaProyectos([{ nombre: 'Sin indicadores' }]);
     expect(result.ok).toBe(true);
@@ -213,11 +231,24 @@ describe('normalizeVitrinaProyectos', () => {
     expect(result.proyectos).toHaveLength(25);
   });
 
-  it('rechaza video que no es YouTube, Vimeo ni SharePoint', () => {
+  it('rechaza video que no es YouTube, Vimeo, Google Drive ni SharePoint', () => {
     const result = normalizeVitrinaProyectos([
       { nombre: 'X', videoUrl: 'https://example.com/video' },
     ]);
     expect(result.ok).toBe(false);
+  });
+
+  it('acepta video de Google Drive', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'X',
+        videoUrl:
+          'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view',
+      },
+    ]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proyectos[0]?.videoUrl).toContain('drive.google.com');
   });
 
   it('acepta Vimeo', () => {

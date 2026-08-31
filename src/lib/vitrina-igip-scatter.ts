@@ -1,6 +1,15 @@
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
+import {
+  IGIP_SCORE_MAX,
+  IGIP_SCORE_MIN,
+  isIgipScore,
+  type IgipSubdimensionKey,
+} from '@/lib/igip-trl';
+import { igipScoreField } from '@/lib/vitrina-igip-scores';
 
 export type VitrinaIgipTarget = 'proyeccion' | 'final';
+
+export type VitrinaIgipMetric = 'igip' | IgipSubdimensionKey;
 
 export type VitrinaIgipSortBy =
   | 'nombre'
@@ -36,11 +45,35 @@ export type VitrinaIgipScatterLayout = {
   height: number;
 };
 
-function targetValue(
+function targetIndex(
   proyecto: VitrinaProyecto,
   target: VitrinaIgipTarget,
 ): number | null {
   return target === 'proyeccion' ? proyecto.igipProyeccion : proyecto.igipFinal;
+}
+
+function scoreValue(
+  proyecto: VitrinaProyecto,
+  stadium: 'inicial' | 'proyeccion' | 'final',
+  key: IgipSubdimensionKey,
+): number | null {
+  const raw = proyecto[igipScoreField(stadium, key)];
+  return typeof raw === 'number' && isIgipScore(raw) ? raw : null;
+}
+
+export function igipMetricPair(
+  proyecto: VitrinaProyecto,
+  target: VitrinaIgipTarget,
+  metric: VitrinaIgipMetric = 'igip',
+): { from: number | null; to: number | null } {
+  if (metric === 'igip') {
+    return { from: proyecto.igipInicial, to: targetIndex(proyecto, target) };
+  }
+  const toStadium = target === 'final' ? 'final' : 'proyeccion';
+  return {
+    from: scoreValue(proyecto, 'inicial', metric),
+    to: scoreValue(proyecto, toStadium, metric),
+  };
 }
 
 export function formatIgip(value: number): string {
@@ -83,13 +116,13 @@ export function buildVitrinaIgipScatter(
   proyectos: VitrinaProyecto[],
   target: VitrinaIgipTarget,
   sortBy: VitrinaIgipSortBy = 'variacion',
+  metric: VitrinaIgipMetric = 'igip',
 ): VitrinaIgipScatter {
   const pairs: VitrinaIgipScatterPair[] = [];
   let omitted = 0;
 
   for (const proyecto of proyectos) {
-    const from = proyecto.igipInicial;
-    const to = targetValue(proyecto, target);
+    const { from, to } = igipMetricPair(proyecto, target, metric);
     if (from === null || to === null) {
       omitted += 1;
       continue;
@@ -133,20 +166,34 @@ export function igipAxisDomain(
   return { min: ticks[0] ?? lo, max: ticks[ticks.length - 1] ?? hi, ticks };
 }
 
+export function igipScoreAxisDomain(): {
+  min: number;
+  max: number;
+  ticks: number[];
+} {
+  const ticks: number[] = [];
+  for (let n = IGIP_SCORE_MIN; n <= IGIP_SCORE_MAX; n += 1) {
+    ticks.push(n);
+  }
+  return { min: IGIP_SCORE_MIN, max: IGIP_SCORE_MAX, ticks };
+}
+
 export const IGIP_ROW_HEIGHT = 40;
 
 export function layoutVitrinaIgipScatter(
   scatter: VitrinaIgipScatter,
   size: { width: number; height?: number },
+  axis: 'igip' | 'score' = 'igip',
 ): VitrinaIgipScatterLayout {
   const values = scatter.pairs.flatMap((pair) => [pair.from, pair.to]);
   const rawMin = values.length === 0 ? 0 : Math.min(...values);
   const rawMax = values.length === 0 ? 1 : Math.max(...values);
-  const axis = igipAxisDomain(rawMin, rawMax);
+  const domain =
+    axis === 'score' ? igipScoreAxisDomain() : igipAxisDomain(rawMin, rawMax);
   const left = 0;
   const width = Math.max(1, size.width);
-  const span = axis.max - axis.min || 1;
-  const xFor = (value: number) => left + ((value - axis.min) / span) * width;
+  const span = domain.max - domain.min || 1;
+  const xFor = (value: number) => left + ((value - domain.min) / span) * width;
 
   const points = scatter.pairs.map((pair, index) => ({
     ...pair,
@@ -157,9 +204,9 @@ export function layoutVitrinaIgipScatter(
 
   return {
     points,
-    min: axis.min,
-    max: axis.max,
-    ticks: axis.ticks,
+    min: domain.min,
+    max: domain.max,
+    ticks: domain.ticks,
     plot: { left, width },
     height: Math.max(IGIP_ROW_HEIGHT, scatter.pairs.length * IGIP_ROW_HEIGHT),
   };

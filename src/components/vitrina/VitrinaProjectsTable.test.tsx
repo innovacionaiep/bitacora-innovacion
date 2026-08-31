@@ -167,13 +167,14 @@ describe('VitrinaProjectsTable', () => {
     expect(chip).not.toHaveClass('truncate');
   });
 
-  it('en Indicadores Técnicos muestra las columnas IGIP y TRL', async () => {
+  it('en Indicadores Técnicos muestra IGIP por defecto y TRL en su subtab', async () => {
     const user = userEvent.setup();
     const result = normalizeVitrinaProyectos([
       {
         nombre: 'Festival del Futuro',
         igipInicial: 1.2,
         trlInicial: 3,
+        igipInicialOriginalidad: 2,
       },
     ]);
     if (!result.ok) throw new Error(result.error);
@@ -191,19 +192,44 @@ describe('VitrinaProjectsTable', () => {
 
     expect(view.getByText('Festival del Futuro')).toBeInTheDocument();
     expect(
+      view.getByRole('tab', { name: 'IGIP' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
       view.getByRole('columnheader', { name: 'IGIP Inicial' }),
     ).toBeInTheDocument();
     expect(
       view.getByRole('columnheader', { name: 'IGIP Inicial - Comentario' }),
     ).toBeInTheDocument();
     expect(
+      view.queryByRole('columnheader', { name: 'TRL Final - Comentario' }),
+    ).not.toBeInTheDocument();
+    expect(view.getByText('1.2')).toBeInTheDocument();
+    expect(
+      view.queryByRole('columnheader', { name: 'Originalidad' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(view.getByRole('button', { name: 'Expandir subdimensiones' }));
+    expect(
+      view.getAllByRole('columnheader', { name: 'Originalidad' }).length,
+    ).toBe(3);
+    expect(view.getByText('2')).toBeInTheDocument();
+
+    await user.click(view.getByRole('button', { name: 'Inicial' }));
+    expect(
+      view.queryByRole('columnheader', { name: 'IGIP Inicial' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(view.getByRole('tab', { name: 'TRL' }));
+    expect(
       view.getByRole('columnheader', { name: 'TRL Final - Comentario' }),
     ).toBeInTheDocument();
     expect(
+      view.queryByRole('columnheader', { name: 'IGIP Final' }),
+    ).not.toBeInTheDocument();
+    expect(view.getByText('3')).toBeInTheDocument();
+    expect(
       view.queryByRole('columnheader', { name: 'Fondo' }),
     ).not.toBeInTheDocument();
-    expect(view.getByText('1.2')).toBeInTheDocument();
-    expect(view.getByText('3')).toBeInTheDocument();
   });
 
   it('cuando no hay filas muestra el mensaje de filtros si se entrega', () => {

@@ -36,15 +36,16 @@ const DialogContent = React.forwardRef<
     hideCloseButton?: boolean;
     /** Posición del botón cerrar. `outside-top-right` lo deja flotando fuera del modal. */
     closeButtonPosition?: 'inside' | 'outside-top-left' | 'outside-top-right';
+    overlayClassName?: string;
   }
->(({ className, children, hideCloseButton = false, closeButtonPosition = 'inside', ...props }, ref) => {
+>(({ className, children, hideCloseButton = false, closeButtonPosition = 'inside', overlayClassName, ...props }, ref) => {
   const portalContainer = useScalePortalContainer();
   const isOutside =
     closeButtonPosition === 'outside-top-left' ||
     closeButtonPosition === 'outside-top-right';
   return (
   <DialogPrimitive.Portal container={portalContainer ?? undefined}>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(

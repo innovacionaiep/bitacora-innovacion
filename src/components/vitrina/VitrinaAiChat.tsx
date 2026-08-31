@@ -3,9 +3,11 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { ChevronDown, Send, Sparkles } from 'lucide-react';
 import { chatVitrinaAgent } from '@/lib/actions/vitrina-ai';
@@ -19,10 +21,26 @@ import {
   flattenVitrinaAiMarkdownTables,
   parseVitrinaAiInlineMarkdown,
 } from '@/lib/vitrina-ai-chat-format';
+import {
+  clampVitrinaAiChatPos,
+  parseVitrinaAiChatPos,
+  serializeVitrinaAiChatPos,
+  vitrinaAiChatDragExceeded,
+  VITRINA_AI_CHAT_POS_KEY,
+  type VitrinaAiChatPos,
+} from '@/lib/vitrina-ai-chat-position';
 import { cn } from '@/lib/utils';
 import '@/components/vitrina/vitrina-ai-chat.css';
 
 type ChatTurn = { role: 'user' | 'assistant'; content: string };
+
+type DragSession = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  origin: VitrinaAiChatPos;
+  moved: boolean;
+};
 
 function VitrinaAiMessageBody({
   role,
@@ -49,9 +67,36 @@ function VitrinaAiMessageBody({
   );
 }
 
-const FLOAT_POS = 'absolute bottom-5 right-12 z-20';
+const FLOAT_POS_DEFAULT = 'absolute bottom-5 right-12 z-20';
+const FLOAT_POS_CUSTOM = 'absolute z-20';
 const PANEL_SHADOW =
   'shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)]';
+
+function measureRelativePos(el: HTMLElement): VitrinaAiChatPos {
+  const parent = el.offsetParent as HTMLElement | null;
+  const parentRect = parent?.getBoundingClientRect();
+  const rect = el.getBoundingClientRect();
+  if (!parentRect) {
+    return { left: el.offsetLeft, top: el.offsetTop };
+  }
+  return {
+    left: rect.left - parentRect.left,
+    top: rect.top - parentRect.top,
+  };
+}
+
+function clampToParent(
+  pos: VitrinaAiChatPos,
+  el: HTMLElement,
+): VitrinaAiChatPos {
+  const parent = el.offsetParent as HTMLElement | null;
+  if (!parent) return pos;
+  return clampVitrinaAiChatPos(
+    pos,
+    { width: el.offsetWidth, height: el.offsetHeight },
+    { width: parent.clientWidth, height: parent.clientHeight },
+  );
+}
 
 export function VitrinaAiChat({
   configured,
@@ -69,9 +114,15 @@ export function VitrinaAiChat({
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [pos, setPos] = useState<VitrinaAiChatPos | null>(null);
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
   const threadCleanup = useRef<(() => void) | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<DragSession | null>(null);
+  const skipClickRef = useRef(false);
+  const hydratedRef = useRef(false);
 
   const setThreadNode = useCallback((node: HTMLDivElement | null) => {
     threadCleanup.current?.();
@@ -96,6 +147,120 @@ export function VitrinaAiChat({
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  const persistPos = useCallback((next: VitrinaAiChatPos) => {
+    try {
+      localStorage.setItem(VITRINA_AI_CHAT_POS_KEY, serializeVitrinaAiChatPos(next));
+    } catch {
+      /* private mode / quota */
+    }
+  }, []);
+
+  const reclamp = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    setPos((current) => {
+      if (!current) return current;
+      const next = clampToParent(current, el);
+      if (next.left === current.left && next.top === current.top) return current;
+      persistPos(next);
+      return next;
+    });
+  }, [persistPos]);
+
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      let stored: VitrinaAiChatPos | null = null;
+      try {
+        stored = parseVitrinaAiChatPos(
+          localStorage.getItem(VITRINA_AI_CHAT_POS_KEY),
+        );
+      } catch {
+        stored = null;
+      }
+      if (stored) {
+        setPos(clampToParent(stored, el));
+        return;
+      }
+    }
+    reclamp();
+  }, [open, reclamp]);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    const parent = el?.offsetParent as HTMLElement | null;
+    if (!parent) return;
+    const observer = new ResizeObserver(() => reclamp());
+    observer.observe(parent);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reclamp]);
+
+  const endDrag = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      dragRef.current = null;
+      setDragging(false);
+      skipClickRef.current = drag.moved;
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        /* already released */
+      }
+      const el = rootRef.current;
+      if (!el) return;
+      setPos((current) => {
+        if (!current) return current;
+        const next = clampToParent(current, el);
+        persistPos(next);
+        return next;
+      });
+    },
+    [persistPos],
+  );
+
+  const onDragPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      const el = rootRef.current;
+      if (!el) return;
+      const origin = pos ?? measureRelativePos(el);
+      if (!pos) setPos(origin);
+      skipClickRef.current = false;
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        origin,
+        moved: false,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [pos],
+  );
+
+  const onDragPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      const drag = dragRef.current;
+      const el = rootRef.current;
+      if (!drag || drag.pointerId !== event.pointerId || !el) return;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (!drag.moved && !vitrinaAiChatDragExceeded(dx, dy)) return;
+      drag.moved = true;
+      setDragging(true);
+      event.preventDefault();
+      setPos(clampToParent({
+        left: drag.origin.left + dx,
+        top: drag.origin.top + dy,
+      }, el));
+    },
+    [],
+  );
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -131,13 +296,23 @@ export function VitrinaAiChat({
     }
   }
 
+  const dragHandlers = {
+    onPointerDown: onDragPointerDown,
+    onPointerMove: onDragPointerMove,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+  };
+
   return (
     <div
+      ref={rootRef}
       className={cn(
-        FLOAT_POS,
+        pos ? FLOAT_POS_CUSTOM : FLOAT_POS_DEFAULT,
         'vitrina-ai-halo w-fit',
         open ? 'rounded-2xl' : 'rounded-full',
+        dragging && 'cursor-grabbing',
       )}
+      style={pos ? { left: pos.left, top: pos.top } : undefined}
     >
       <span className="vitrina-ai-halo__glow" aria-hidden />
       <span className="vitrina-ai-halo__ring" aria-hidden />
@@ -151,8 +326,14 @@ export function VitrinaAiChat({
           onSubmit={(event) => void handleSubmit(event)}
           aria-label="Chat con IA"
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-3">
-            <p className="flex min-w-0 items-center gap-2 text-sm leading-snug text-slate-700">
+          <div
+            className={cn(
+              'flex shrink-0 touch-none items-center justify-between gap-2 px-4 pt-3',
+              dragging ? 'cursor-grabbing' : 'cursor-grab',
+            )}
+            {...dragHandlers}
+          >
+            <p className="flex min-w-0 select-none items-center gap-2 text-sm leading-snug text-slate-700">
               <span className="inline-flex items-center gap-1">
                 <span className="font-medium text-violet-500">IA</span>
                 <Sparkles
@@ -164,8 +345,9 @@ export function VitrinaAiChat({
             </p>
             <button
               type="button"
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={() => setOpen(false)}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-white hover:text-slate-800"
+              className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-500 hover:bg-white hover:text-slate-800"
               aria-label="Colapsar chat"
             >
               <ChevronDown className="h-4 w-4" aria-hidden />
@@ -228,13 +410,22 @@ export function VitrinaAiChat({
       ) : (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            if (skipClickRef.current) {
+              skipClickRef.current = false;
+              return;
+            }
+            setOpen(true);
+          }}
           className={cn(
             PANEL_SHADOW,
-            'relative z-[1] inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-200/70',
+            'relative z-[1] inline-flex touch-none select-none items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-200/70',
+            dragging ? 'cursor-grabbing' : 'cursor-grab',
           )}
           aria-expanded={false}
           aria-controls="vitrina-ai-chat-panel"
+          aria-label="¿Qué estás buscando? Arrastra para mover"
+          {...dragHandlers}
         >
           <span className="inline-flex items-center gap-1">
             <span className="text-sm font-medium text-violet-500">IA</span>

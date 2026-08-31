@@ -73,6 +73,13 @@ describe('radar math', () => {
     expect(radarValue(3)).toBe(3);
   });
 
+  it('plots decimal averages instead of collapsing them to 0', () => {
+    expect(radarValue(2.5)).toBe(2.5);
+    const p = radarVertex(0, 2.5, { count: 6, cx: 100, cy: 100, radius: 80 });
+    expect(p.x).toBeCloseTo(100, 5);
+    expect(p.y).toBeCloseTo(50, 5);
+  });
+
   it('places the first axis pointing up at full radius when score is 4', () => {
     const p = radarVertex(0, 4, { count: 6, cx: 100, cy: 100, radius: 80 });
     expect(p.x).toBeCloseTo(100, 5);
