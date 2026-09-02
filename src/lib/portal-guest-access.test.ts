@@ -6,6 +6,8 @@ import {
   parsePortalGuestHashes,
   parsePortalGuestTicket,
   portalCanSeeView,
+  portalLevelCaption,
+  portalNeedsVitrinaProyectos,
   portalGuestConfiguredFlags,
   portalReadLevelForSessionRoles,
   portalSessionLevelCaption,
@@ -59,11 +61,18 @@ describe('portal guest hashes', () => {
 });
 
 describe('portal views by level', () => {
-  it('nivel 0 Causalab solo avances', () => {
-    expect(portalViewsForLevel(0)).toEqual(['avances']);
+  it('nivel 0 Causalab ve Avances e Indicadores, solo Impulsa', () => {
+    expect(portalViewsForLevel(0)).toEqual(['avances', 'indicadores']);
     expect(portalCanSeeView(0, 'avances')).toBe(true);
+    expect(portalCanSeeView(0, 'indicadores')).toBe(true);
     expect(portalCanSeeView(0, 'proyectos')).toBe(false);
     expect(clampPortalView(0, 'proyectos')).toBe('avances');
+    expect(clampPortalView(0, 'indicadores')).toBe('indicadores');
+    expect(portalNeedsVitrinaProyectos(0)).toBe(true);
+    expect(portalNeedsVitrinaProyectos(1)).toBe(true);
+    expect(portalLevelCaption(0)).toBe(
+      'Avances, Indicadores (solo Fondo Impulsa)',
+    );
   });
 
   it('sin acceso no ve ninguna vista', () => {

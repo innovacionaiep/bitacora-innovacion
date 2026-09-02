@@ -117,6 +117,19 @@ describe('VitrinaProjectsSidebar', () => {
     ).toHaveAttribute('placeholder', 'Nombre, sede, escuela...');
   });
 
+  it('bloquea el autofill del navegador en Buscar hasta que el usuario lo enfoca', async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+    const input = screen.getByRole('textbox', {
+      name: 'Buscar en todos los campos del proyecto',
+    });
+    expect(input).toHaveAttribute('autocomplete', 'off');
+    expect(input).toHaveAttribute('name', 'vitrina-project-search');
+    expect(input).toHaveAttribute('readonly');
+    await user.click(input);
+    expect(input).not.toHaveAttribute('readonly');
+  });
+
   it('muestra el filtro Columnas solo cuando se pasan columnOptions', async () => {
     const user = userEvent.setup();
     const onToggleColumn = vi.fn();

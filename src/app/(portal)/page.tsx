@@ -9,9 +9,16 @@ import {
 } from '@/lib/actions/vitrina-proyectos';
 import { getSession } from '@/lib/auth-utils';
 import { userHasAdminEnabled } from '@/lib/authz/pure';
-import { portalCanSeeView, portalSessionRedirectsToApp } from '@/lib/portal-guest-access';
+import {
+  PORTAL_CAUSALAB_FONDO,
+  portalNeedsVitrinaProyectos,
+  portalSessionRedirectsToApp,
+} from '@/lib/portal-guest-access';
 import { canLoadPortalAvances } from '@/lib/portal-avances';
-import { EMPTY_VITRINA_FILTERS } from '@/lib/vitrina-project-filters';
+import {
+  EMPTY_VITRINA_FILTERS,
+  restrictVitrinaProyectosToFondo,
+} from '@/lib/vitrina-project-filters';
 import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readVitrinaVideos } from '@/lib/vitrina-videos-store';
 import type { PortalAvancesProyecto } from '@/lib/portal-avances';
@@ -50,10 +57,11 @@ export default async function PortalPage({
   }
   const redirectsToApp = portalSessionRedirectsToApp(access.kind, access.level);
   const hasReadAccess = access.kind !== 'none' && !redirectsToApp;
-  const loadVitrina = portalCanSeeView(access.level, 'proyectos') && !redirectsToApp;
+  const loadVitrina =
+    portalNeedsVitrinaProyectos(access.level) && !redirectsToApp;
   const loadAvances = canLoadPortalAvances(access.level, access.kind);
 
-  const [proyectos, catalogs, avancesResult] = hasReadAccess
+  const [proyectosRaw, catalogsRaw, avancesResult] = hasReadAccess
     ? await Promise.all([
         loadVitrina ? readVitrinaProyectos() : Promise.resolve([]),
         loadVitrina
@@ -67,6 +75,27 @@ export default async function PortalPage({
             }),
       ])
     : [[], EMPTY_CATALOGS, { success: true as const, data: [] as PortalAvancesProyecto[] }];
+
+  const causalab = access.level === 0;
+  const proyectos = causalab
+    ? restrictVitrinaProyectosToFondo(proyectosRaw, PORTAL_CAUSALAB_FONDO)
+    : proyectosRaw;
+  const causalabFondoIds = new Set(
+    catalogsRaw.fondos
+      .filter((item) => item.nombre === PORTAL_CAUSALAB_FONDO)
+      .map((item) => item.id),
+  );
+  const catalogs = causalab
+    ? {
+        ...catalogsRaw,
+        fondos: catalogsRaw.fondos.filter(
+          (item) => item.nombre === PORTAL_CAUSALAB_FONDO,
+        ),
+        lineas: catalogsRaw.lineas.filter((item) =>
+          causalabFondoIds.has(item.fondoId),
+        ),
+      }
+    : catalogsRaw;
 
   const avancesProyectos =
     avancesResult.success && avancesResult.data ? avancesResult.data : [];

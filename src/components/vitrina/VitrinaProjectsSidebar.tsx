@@ -115,6 +115,7 @@ export function VitrinaProjectsSidebar({
   const showAiLabel = vitrinaAiFilterIsActive(aiFilterActive);
   const [openFacet, setOpenFacet] = useState<OpenPanel>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [searchUnlocked, setSearchUnlocked] = useState(false);
 
   return (
     <aside
@@ -183,6 +184,16 @@ export function VitrinaProjectsSidebar({
         </div>
         <div className="relative">
           <Input
+            name="vitrina-project-search"
+            type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-1p-ignore=""
+            data-lpignore="true"
+            readOnly={!searchUnlocked}
+            onFocus={() => setSearchUnlocked(true)}
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder={searchPlaceholder}
@@ -370,6 +381,10 @@ function FilterDropdown({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar..."
+                autoComplete="off"
+                name={`vitrina-filter-search-${facet.key}`}
+                data-1p-ignore=""
+                data-lpignore="true"
                 className="h-8 border-slate-200 text-sm shadow-none"
               />
             </div>

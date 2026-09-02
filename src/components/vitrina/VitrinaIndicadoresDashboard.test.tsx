@@ -309,6 +309,13 @@ describe('VitrinaIndicadoresDashboard', () => {
       'aria-selected',
       'true',
     );
+    const destino = screen.getByRole('tablist', { name: 'Destino indicadores' });
+    const destinoTabs = within(destino).getAllByRole('tab');
+    expect(destinoTabs.map((tab) => tab.textContent)).toEqual([
+      'Inicial',
+      'Proyección',
+      'Final',
+    ]);
     expect(screen.getByRole('tab', { name: 'Proyección' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -332,7 +339,6 @@ describe('VitrinaIndicadoresDashboard', () => {
       screen.queryByLabelText(/AgroTech: TRL 7/),
     ).not.toBeInTheDocument();
 
-    const destino = screen.getByRole('tablist', { name: 'Destino indicadores' });
     await user.click(within(destino).getByRole('tab', { name: 'Final' }));
     expect(
       screen.getByLabelText('Scatter TRL e IGIP desde Inicial hacia Final'),
@@ -343,6 +349,85 @@ describe('VitrinaIndicadoresDashboard', () => {
     expect(
       screen.queryByLabelText(/ClinicApp: TRL 5/),
     ).not.toBeInTheDocument();
+
+    await user.click(within(destino).getByRole('tab', { name: 'Inicial' }));
+    expect(
+      screen.getByLabelText('Scatter TRL e IGIP Inicial'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Inicial AgroTech: TRL 3, IGIP 2'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Inicial ClinicApp: TRL 2, IGIP 1.5'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Proyección ClinicApp/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Final AgroTech/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Mostrar trayectorias' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('en Ambos pinta el color del Fondo y baja la opacidad del destino', async () => {
+    const user = userEvent.setup();
+    const proyectos = projectsFrom([
+      {
+        nombre: 'ClinicApp',
+        fondos: ['Fondo Impulsa'],
+        trlInicial: 2,
+        trlProyeccion: 5,
+        igipInicial: 1.5,
+        igipProyeccion: 3,
+      },
+      {
+        nombre: 'AgroTech',
+        fondos: ['Innovación Docente'],
+        trlInicial: 3,
+        trlProyeccion: 6,
+        igipInicial: 2,
+        igipProyeccion: 4,
+      },
+    ]);
+    render(<VitrinaIndicadoresDashboard proyectos={proyectos} />);
+    await user.click(screen.getByRole('tab', { name: 'Ambos' }));
+
+    const inicialImpulsa = screen.getByLabelText(
+      'Inicial ClinicApp: TRL 2, IGIP 1.5',
+    );
+    const destinoImpulsa = screen.getByLabelText(
+      'Proyección ClinicApp: TRL 5, IGIP 3',
+    );
+    const inicialDocente = screen.getByLabelText(
+      'Inicial AgroTech: TRL 3, IGIP 2',
+    );
+    const destinoDocente = screen.getByLabelText(
+      'Proyección AgroTech: TRL 6, IGIP 4',
+    );
+
+    expect(inicialImpulsa).toHaveAttribute('fill', '#059669');
+    expect(destinoImpulsa).toHaveAttribute('fill', '#059669');
+    expect(inicialImpulsa).toHaveAttribute('fill-opacity', '1');
+    expect(destinoImpulsa).toHaveAttribute('fill-opacity', '0.35');
+    expect(inicialDocente).toHaveAttribute('fill', '#DC143C');
+    expect(destinoDocente).toHaveAttribute('fill-opacity', '0.25');
+
+    expect(screen.getByText('Fondo Impulsa')).toBeInTheDocument();
+    expect(screen.getByText('Innovación Docente')).toBeInTheDocument();
+
+    const leyendaInicial = screen
+      .getAllByText('Inicial')
+      .find((el) => el.tagName !== 'BUTTON');
+    expect(leyendaInicial).toBeTruthy();
+    const trayectorias = screen.getByRole('button', {
+      name: 'Mostrar trayectorias',
+    });
+    expect(
+      leyendaInicial!.compareDocumentPosition(trayectorias) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('al hover de un punto Ambos muestra la línea Inicial → destino', async () => {

@@ -3,6 +3,7 @@ import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 import {
   applyVitrinaAiMatchIds,
   filterVitrinaProyectos,
+  restrictVitrinaProyectosToFondo,
   toggleVitrinaFilterValue,
   uniqueVitrinaFilterOptions,
   vitrinaDiscoveryIsActive,
@@ -92,6 +93,21 @@ describe('uniqueVitrinaFilterOptions', () => {
       escuelas: [],
       etiquetas: [],
     });
+  });
+});
+
+describe('restrictVitrinaProyectosToFondo', () => {
+  it('deja solo proyectos del fondo pedido', () => {
+    const proyectos = projectsFrom([
+      { nombre: 'Huerta', fondos: ['Fondo Impulsa'] },
+      { nombre: 'Solar', fondos: ['Innovación Docente'] },
+      { nombre: 'Mixto', fondos: ['Fondo Impulsa', 'MOVE Incuba'] },
+    ]);
+    expect(
+      restrictVitrinaProyectosToFondo(proyectos, 'Fondo Impulsa').map(
+        (p) => p.nombre,
+      ),
+    ).toEqual(['Huerta', 'Mixto']);
   });
 });
 

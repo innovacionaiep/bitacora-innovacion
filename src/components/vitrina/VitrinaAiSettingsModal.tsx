@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Bot, FileSpreadsheet, KeyRound, Mail, Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   getVitrinaAiSettings,
   saveVitrinaAiSettings,
@@ -58,11 +60,25 @@ const MODEL_SUGGESTIONS = [
 ];
 
 const LEVEL_HINT: Record<PortalGuestLevel, string> = {
-  0: 'Causalab — solo Avances / Fondo Impulsa',
+  0: 'Causalab — Avances e Indicadores / Fondo Impulsa',
   1: 'Tarjetas, filtros y chat IA',
   2: 'Nivel 1 + Indicadores y Avances',
   3: 'Toda la información de lectura',
 };
+
+type PortalSettingsTab = 'ai' | 'guest' | 'impulsa' | 'outlook' | 'roles';
+
+const SETTINGS_TABS: {
+  id: PortalSettingsTab;
+  label: string;
+  icon: typeof Bot;
+}[] = [
+  { id: 'ai', label: 'Asistente I.A.', icon: Bot },
+  { id: 'guest', label: 'Códigos de invitado', icon: KeyRound },
+  { id: 'impulsa', label: 'Fondo Impulsa', icon: FileSpreadsheet },
+  { id: 'outlook', label: 'Correo Outlook', icon: Mail },
+  { id: 'roles', label: 'Cuentas logueadas', icon: Users },
+];
 
 export function VitrinaAiSettingsModal({
   open,
@@ -116,10 +132,12 @@ export function VitrinaAiSettingsModal({
   const [outlookMasked, setOutlookMasked] = useState('');
   const [savingOutlook, setSavingOutlook] = useState(false);
   const [testingOutlook, setTestingOutlook] = useState(false);
+  const [tab, setTab] = useState<PortalSettingsTab>('ai');
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setTab('ai');
     setError('');
     setInfo('');
     setApiKey('');
@@ -415,13 +433,66 @@ export function VitrinaAiSettingsModal({
     (level) => guestCodes[level].trim(),
   );
 
+  function selectTab(next: PortalSettingsTab) {
+    setTab(next);
+    setError('');
+    setInfo('');
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] w-[min(96rem,calc(100vw-2rem))] max-w-[min(96rem,calc(100vw-2rem))] overflow-y-auto">
+      <DialogContent className="relative flex h-[min(36rem,85vh)] w-[min(52rem,calc(100vw-2rem))] max-w-[min(52rem,calc(100vw-2rem))] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Configuración del portal</DialogTitle>
         </DialogHeader>
-        <div className="grid items-stretch gap-4 lg:grid-cols-3 lg:gap-5">
+        <form
+          autoComplete="off"
+          className="flex min-h-0 flex-1 flex-col gap-3"
+          onSubmit={(event) => event.preventDefault()}
+        >
+        <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden">
+          <input
+            type="text"
+            name="portal-settings-autofill-user"
+            autoComplete="username"
+            tabIndex={-1}
+          />
+          <input
+            type="password"
+            name="portal-settings-autofill-pass"
+            autoComplete="new-password"
+            tabIndex={-1}
+          />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row sm:gap-0">
+          <nav
+            aria-label="Secciones de configuración"
+            className="flex shrink-0 gap-1 overflow-x-auto border-slate-200 pb-2 sm:w-52 sm:flex-col sm:overflow-visible sm:border-r sm:pb-0 sm:pr-3"
+          >
+            {SETTINGS_TABS.map((item) => {
+              const Icon = item.icon;
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => selectTab(item.id)}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                    active
+                      ? 'bg-emerald-50 font-medium text-emerald-800'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto sm:pl-5">
+          {tab === 'ai' ? (
           <section
             aria-labelledby="portal-settings-ai"
             className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
@@ -442,7 +513,11 @@ export function VitrinaAiSettingsModal({
               <Input
                 id="vitrina-openrouter-key"
                 type="password"
-                autoComplete="off"
+                autoComplete="new-password"
+                autoCorrect="off"
+                spellCheck={false}
+                data-1p-ignore=""
+                data-lpignore="true"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={
@@ -505,7 +580,9 @@ export function VitrinaAiSettingsModal({
               </Button>
             </div>
           </section>
+          ) : null}
 
+          {tab === 'guest' ? (
           <section
             aria-labelledby="portal-settings-guest"
             className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
@@ -530,7 +607,9 @@ export function VitrinaAiSettingsModal({
                   <Input
                     id={`portal-guest-level-${level}`}
                     type="password"
-                    autoComplete="off"
+                    autoComplete="new-password"
+                    data-1p-ignore=""
+                    data-lpignore="true"
                     value={guestCodes[level]}
                     onChange={(e) =>
                       setGuestCodes((current) => ({
@@ -570,7 +649,9 @@ export function VitrinaAiSettingsModal({
               </Button>
             </div>
           </section>
+          ) : null}
 
+          {tab === 'impulsa' ? (
           <section
             aria-labelledby="portal-settings-impulsa"
             className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
@@ -660,7 +741,9 @@ export function VitrinaAiSettingsModal({
               ) : null}
             </div>
           </section>
-        </div>
+          ) : null}
+
+          {tab === 'outlook' ? (
         <section
           aria-labelledby="portal-settings-outlook"
           className="rounded-lg border border-slate-200 bg-slate-50/70 p-4"
@@ -683,8 +766,11 @@ export function VitrinaAiSettingsModal({
               <Label htmlFor="portal-outlook-user">Correo de la cuenta</Label>
               <Input
                 id="portal-outlook-user"
-                type="email"
+                type="text"
+                inputMode="email"
                 autoComplete="off"
+                data-1p-ignore=""
+                data-lpignore="true"
                 value={outlookUser}
                 onChange={(e) => setOutlookUser(e.target.value)}
                 placeholder="centroinnovacion@aiep.cl"
@@ -696,6 +782,8 @@ export function VitrinaAiSettingsModal({
               <Input
                 id="portal-outlook-password"
                 type="password"
+                data-1p-ignore=""
+                data-lpignore="true"
                 autoComplete="new-password"
                 value={outlookPassword}
                 onChange={(e) => setOutlookPassword(e.target.value)}
@@ -765,6 +853,9 @@ export function VitrinaAiSettingsModal({
             </Button>
           </div>
         </section>
+          ) : null}
+
+          {tab === 'roles' ? (
         <section
           aria-labelledby="portal-settings-roles"
           className="rounded-lg border border-slate-200 bg-slate-50/70 p-4"
@@ -839,6 +930,9 @@ export function VitrinaAiSettingsModal({
             </Button>
           </div>
         </section>
+          ) : null}
+          </div>
+        </div>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         {info ? <p className="text-sm text-emerald-700">{info}</p> : null}
         <DialogFooter>
@@ -851,7 +945,9 @@ export function VitrinaAiSettingsModal({
             Cancelar
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 }
+

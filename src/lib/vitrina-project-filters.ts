@@ -74,6 +74,15 @@ export function uniqueVitrinaFilterOptions(
   };
 }
 
+export function restrictVitrinaProyectosToFondo(
+  proyectos: VitrinaProyecto[],
+  fondo: string,
+): VitrinaProyecto[] {
+  const needle = fondo.trim();
+  if (!needle) return proyectos;
+  return proyectos.filter((proyecto) => proyecto.fondos.includes(needle));
+}
+
 function foldVitrinaFilterText(value: string): string {
   return value
     .normalize('NFD')

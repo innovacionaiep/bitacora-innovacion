@@ -2,7 +2,7 @@ import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { igipAxisDomain, type VitrinaIgipTarget } from '@/lib/vitrina-igip-scatter';
 import { trlAxisDomain } from '@/lib/vitrina-trl-dumbbell';
 
-export type VitrinaAmbosTarget = VitrinaIgipTarget;
+export type VitrinaAmbosTarget = VitrinaIgipTarget | 'inicial';
 export type VitrinaAmbosKind = 'inicial' | 'destino';
 
 export type VitrinaAmbosScatterDatum = {
@@ -10,6 +10,7 @@ export type VitrinaAmbosScatterDatum = {
   proyectoId: string;
   nombre: string;
   kind: VitrinaAmbosKind;
+  fondo: string;
   trl: number;
   igip: number;
 };
@@ -26,22 +27,39 @@ export type VitrinaAmbosScatterPoint = VitrinaAmbosScatterDatum & {
 };
 
 export const AMBOS_STACK_RADIUS = 3.5;
+export const AMBOS_INICIAL_FILL_OPACITY = 1;
+export const AMBOS_DESTINO_FILL_OPACITY = 0.25;
+export const AMBOS_DESTINO_IMPULSA_FILL_OPACITY = 0.35;
 
-function pointGroupKey(
-  kind: VitrinaAmbosKind,
-  trl: number,
-  igip: number,
-): string {
-  return `${kind}:${trl}:${igip}`;
+function isImpulsaFondo(fondo: string): boolean {
+  return fondo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes('impulsa');
 }
 
-/** Separa levemente círculos que comparten TRL+IGIP; quedan solapados. */
+export function vitrinaAmbosFillOpacity(
+  kind: VitrinaAmbosKind,
+  fondo = '',
+): number {
+  if (kind === 'inicial') return AMBOS_INICIAL_FILL_OPACITY;
+  return isImpulsaFondo(fondo)
+    ? AMBOS_DESTINO_IMPULSA_FILL_OPACITY
+    : AMBOS_DESTINO_FILL_OPACITY;
+}
+
+function pointGroupKey(trl: number, igip: number): string {
+  return `${trl}:${igip}`;
+}
+
+/** Separa levemente círculos que comparten TRL+IGIP, sin importar el estadio. */
 export function jitterOverlappingAmbosPoints(
   points: VitrinaAmbosScatterPoint[],
 ): VitrinaAmbosScatterPoint[] {
   const groups = new Map<string, VitrinaAmbosScatterPoint[]>();
   for (const point of points) {
-    const key = pointGroupKey(point.kind, point.trl, point.igip);
+    const key = pointGroupKey(point.trl, point.igip);
     const group = groups.get(key);
     if (group) group.push(point);
     else groups.set(key, [point]);
@@ -91,6 +109,7 @@ function targetTrl(
   proyecto: VitrinaProyecto,
   target: VitrinaAmbosTarget,
 ): number | null {
+  if (target === 'inicial') return null;
   return target === 'proyeccion' ? proyecto.trlProyeccion : proyecto.trlFinal;
 }
 
@@ -98,6 +117,7 @@ function targetIgip(
   proyecto: VitrinaProyecto,
   target: VitrinaAmbosTarget,
 ): number | null {
+  if (target === 'inicial') return null;
   return target === 'proyeccion' ? proyecto.igipProyeccion : proyecto.igipFinal;
 }
 
@@ -122,12 +142,14 @@ export function buildVitrinaAmbosScatter(
     }
 
     included += 1;
+    const fondo = proyecto.fondos.join(' · ');
     if (inicialOk) {
       points.push({
         id: `${proyecto.id}:inicial`,
         proyectoId: proyecto.id,
         nombre: proyecto.nombre,
         kind: 'inicial',
+        fondo,
         trl: proyecto.trlInicial as number,
         igip: proyecto.igipInicial as number,
       });
@@ -138,6 +160,7 @@ export function buildVitrinaAmbosScatter(
         proyectoId: proyecto.id,
         nombre: proyecto.nombre,
         kind: 'destino',
+        fondo,
         trl: destTrl,
         igip: destIgip,
       });

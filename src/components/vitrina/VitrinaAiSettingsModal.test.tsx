@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { VitrinaAiSettingsModal } from '@/components/vitrina/VitrinaAiSettingsModal';
 
 vi.mock('next/navigation', () => ({
@@ -74,12 +75,41 @@ afterEach(() => {
   cleanup();
 });
 
+describe('VitrinaAiSettingsModal sidebar', () => {
+  it('navega entre secciones sin mostrarlas todas a la vez', async () => {
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('navigation', { name: 'Secciones de configuración' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText('API key de OpenRouter')).toHaveAttribute(
+      'autocomplete',
+      'new-password',
+    );
+    expect(screen.getByLabelText('API key de OpenRouter')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Correo de la cuenta')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ruta del archivo .xlsx')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Correo Outlook' }));
+    expect(screen.getByLabelText('Correo de la cuenta')).toBeInTheDocument();
+    expect(screen.queryByLabelText('API key de OpenRouter')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cuentas logueadas' }));
+    expect(screen.getByRole('button', { name: 'Guardar accesos por rol' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Correo de la cuenta')).not.toBeInTheDocument();
+  });
+});
+
 describe('VitrinaAiSettingsModal Outlook', () => {
   it('muestra la sección de correo Outlook', async () => {
+    const user = userEvent.setup();
     render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
     await waitFor(() => {
-      expect(screen.getByText('Correo Outlook')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Correo Outlook' })).toBeInTheDocument();
     });
+    await user.click(screen.getByRole('button', { name: 'Correo Outlook' }));
     expect(screen.getByLabelText('Correo de la cuenta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar Outlook' })).toBeDisabled();
   });

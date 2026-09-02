@@ -3,6 +3,8 @@ import {
   buildVitrinaColumnLists,
   vitrinaColumnChunkSizes,
   vitrinaMarqueeRepeats,
+  vitrinaMarqueeStaggerDelayS,
+  VITRINA_MARQUEE_STAGGER_PX,
 } from '@/lib/vitrina-marquee';
 
 describe('vitrinaColumnChunkSizes', () => {
@@ -42,5 +44,19 @@ describe('vitrinaMarqueeRepeats', () => {
   it('nunca baja de 1 ni pasa del tope', () => {
     expect(vitrinaMarqueeRepeats(800, 200, 0)).toBeGreaterThanOrEqual(1);
     expect(vitrinaMarqueeRepeats(20_000, 40, 1)).toBe(8);
+  });
+});
+
+describe('vitrinaMarqueeStaggerDelayS', () => {
+  it('atrasa ~5.5rem de recorrido sin cambiar el recorte', () => {
+    // copy 880px, loop = copy; 88px / 880px * 10s = 1s
+    expect(vitrinaMarqueeStaggerDelayS(10, 200, 8, 1)).toBeCloseTo(
+      -(VITRINA_MARQUEE_STAGGER_PX / (8 * (200 * 0.82 * 9 / 16 + 28))) * 10,
+    );
+    expect(vitrinaMarqueeStaggerDelayS(10, 200, 8, 1)).toBeLessThan(0);
+  });
+
+  it('es 0 si aún no hay medidas', () => {
+    expect(vitrinaMarqueeStaggerDelayS(10, 0, 8, 1)).toBe(0);
   });
 });

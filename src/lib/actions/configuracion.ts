@@ -7,6 +7,7 @@ import {
   requirePermission,
 } from '@/lib/authz/guards';
 import { namesToImportAgainstExisting } from '@/lib/catalog-import-names';
+import { mapCarrerasConProyectos } from '@/lib/carrera-proyectos';
 
 const CONFIG_PATH = '/configuracion/validacion';
 
@@ -244,9 +245,17 @@ export async function deleteEscuela(id: string) {
 
 // ----- Carreras -----
 export async function getCarreras() {
-  return prisma.carrera.findMany({
+  const rows = await prisma.carrera.findMany({
     orderBy: { nombre: 'asc' },
+    include: {
+      proyectos: {
+        select: {
+          proyecto: { select: { proyecto: true } },
+        },
+      },
+    },
   });
+  return mapCarrerasConProyectos(rows);
 }
 
 export async function createCarrera(nombre: string) {

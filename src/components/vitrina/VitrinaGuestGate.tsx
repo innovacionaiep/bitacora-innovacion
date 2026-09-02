@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { redeemPortalGuestCode } from '@/lib/actions/portal-guest';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,17 +24,19 @@ export function VitrinaGuestGate({ onBack }: { onBack: () => void }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
 
   async function handleRedeem(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setSaving(true);
     const result = await redeemPortalGuestCode(code);
-    setSaving(false);
     if (!result.success) {
+      setSaving(false);
       setError(result.error ?? 'Código inválido');
       return;
     }
+    setLoadingPortal(true);
     setOpen(false);
     router.replace('/?vista=proyectos');
     router.refresh();
@@ -46,32 +48,52 @@ export function VitrinaGuestGate({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-500 hover:text-slate-800"
+          disabled={loadingPortal}
+          className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-500 hover:text-slate-800 disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
           Volver
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6">
-        <Link
-          href={LOGIN_HREF}
-          className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-slate-50"
-        >
-          Iniciar sesión
-        </Link>
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-            setError('');
-          }}
-          className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
-        >
-          Ingresar con código de invitado
-        </button>
+        {loadingPortal ? (
+          <div
+            role="status"
+            aria-label="Cargando la información del portal"
+            className="flex flex-col items-center gap-3 text-slate-600"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-hidden />
+            <p className="text-sm font-medium">Cargando la información del portal…</p>
+          </div>
+        ) : (
+          <>
+            <Link
+              href={LOGIN_HREF}
+              className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              Iniciar sesión
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(true);
+                setError('');
+              }}
+              className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+            >
+              Ingresar con código de invitado
+            </button>
+          </>
+        )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open && !loadingPortal}
+        onOpenChange={(next) => {
+          if (saving || loadingPortal) return;
+          setOpen(next);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Código de invitado</DialogTitle>

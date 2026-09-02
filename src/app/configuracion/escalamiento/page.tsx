@@ -1,34 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import Link from 'next/link';
-import { TrendingUp } from 'lucide-react';
-
+/** La visibilidad del tab Escalamiento se configura en Líneas. */
 export default function ConfiguracionEscalamientoPage() {
-  return (
-    <div className="h-full min-h-0 overflow-y-auto custom-scrollbar pt-4 pb-8">
-      <div className="max-w-3xl space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Escalamiento</h2>
-          <p className="mt-1 text-[13px] text-gray-500 leading-relaxed">
-            Qué líneas ven el tab Escalamiento se configura en{' '}
-            <Link
-              href="/configuracion/lineas"
-              className="text-emerald-700 hover:underline font-medium"
-            >
-              Configuración → Líneas
-            </Link>
-            .
-          </p>
-        </div>
-
-        <div className="flex items-start gap-3 rounded-md border border-gray-200 bg-gray-50/70 px-4 py-3">
-          <TrendingUp className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-          <p className="text-[13px] text-gray-600 leading-relaxed">
-            El contenido se guarda por proyecto. Incluye el plan de acción para
-            activar el escalamiento.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  redirect('/configuracion/lineas');
 }

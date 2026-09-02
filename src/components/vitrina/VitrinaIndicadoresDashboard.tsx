@@ -33,7 +33,10 @@ import {
   buildVitrinaAmbosScatter,
   layoutVitrinaAmbosLabels,
   layoutVitrinaAmbosScatter,
+  vitrinaAmbosFillOpacity,
+  type VitrinaAmbosTarget,
 } from '@/lib/vitrina-ambos-scatter';
+import { vitrinaFondoFillColor } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { cn } from '@/lib/utils';
 import { VitrinaIgipRadarCard } from '@/components/vitrina/VitrinaIgipRadarCard';
@@ -46,7 +49,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 
 type IndicatorKind = 'igip' | 'trl' | 'ambos';
-type IndicatorTarget = VitrinaTrlTarget & VitrinaIgipTarget;
+type IndicatorTarget = VitrinaAmbosTarget;
 type ChartType = 'dumbbell' | 'sankey' | 'radial';
 
 const SVG_W = 960;
@@ -98,6 +101,10 @@ function colorForIgipBin(start: number): string {
 
 function formatCount(value: number): string {
   return value === 1 ? '1 proyecto' : `${value} proyectos`;
+}
+
+function stadiumTarget(target: IndicatorTarget): VitrinaIgipTarget {
+  return target === 'final' ? 'final' : 'proyeccion';
 }
 
 export function VitrinaIndicadoresDashboard({
@@ -153,6 +160,7 @@ export function VitrinaIndicadoresDashboard({
             value={target}
             onChange={setTarget}
             options={[
+              { value: 'inicial', label: 'Inicial' },
               { value: 'proyeccion', label: 'Proyección' },
               { value: 'final', label: 'Final' },
             ]}
@@ -185,16 +193,28 @@ export function VitrinaIndicadoresDashboard({
         <AmbosScatterCard proyectos={proyectos} target={target} />
       ) : kind === 'igip' ? (
         chartType === 'dumbbell' ? (
-          <IgipDumbbellCard proyectos={proyectos} target={target} />
+          <IgipDumbbellCard
+            proyectos={proyectos}
+            target={stadiumTarget(target)}
+          />
         ) : chartType === 'radial' ? (
-          <VitrinaIgipRadarCard proyectos={proyectos} target={target} />
+          <VitrinaIgipRadarCard
+            proyectos={proyectos}
+            target={stadiumTarget(target)}
+          />
         ) : (
-          <IgipSankeyCard proyectos={proyectos} target={target} />
+          <IgipSankeyCard
+            proyectos={proyectos}
+            target={stadiumTarget(target)}
+          />
         )
       ) : chartType === 'dumbbell' ? (
-        <TrlDumbbellCard proyectos={proyectos} target={target} />
+        <TrlDumbbellCard
+          proyectos={proyectos}
+          target={stadiumTarget(target)}
+        />
       ) : (
-        <TrlSankeyCard proyectos={proyectos} target={target} />
+        <TrlSankeyCard proyectos={proyectos} target={stadiumTarget(target)} />
       )}
     </div>
   );
@@ -205,9 +225,11 @@ function AmbosScatterCard({
   target,
 }: {
   proyectos: VitrinaProyecto[];
-  target: VitrinaIgipTarget;
+  target: VitrinaAmbosTarget;
 }) {
-  const destinationName = target === 'proyeccion' ? 'Proyección' : 'Final';
+  const inicialOnly = target === 'inicial';
+  const destinationName =
+    target === 'proyeccion' ? 'Proyección' : target === 'final' ? 'Final' : 'Inicial';
   const scatter = useMemo(
     () => buildVitrinaAmbosScatter(proyectos, target),
     [proyectos, target],
@@ -226,6 +248,7 @@ function AmbosScatterCard({
     kind: 'inicial' | 'destino';
     trl: number;
     igip: number;
+    fondo: string;
   }>(null);
 
   const xFor = (trl: number) => {
@@ -271,7 +294,9 @@ function AmbosScatterCard({
   const nameLabels = useMemo(() => {
     if (!showNames) return [];
     const anchors = layout.points
-      .filter((point) => point.kind === 'destino')
+      .filter((point) =>
+        inicialOnly ? point.kind === 'inicial' : point.kind === 'destino',
+      )
       .map((point) => ({
         id: point.proyectoId,
         nombre: point.nombre,
@@ -279,7 +304,7 @@ function AmbosScatterCard({
         y: yFor(point.igip),
       }));
     return layoutVitrinaAmbosLabels(anchors, layout.plot);
-  }, [showNames, layout.points, layout.plot, layout.xMin, layout.xMax, layout.yMin, layout.yMax]);
+  }, [showNames, inicialOnly, layout.points, layout.plot, layout.xMin, layout.xMax, layout.yMin, layout.yMax]);
 
   const hoverLink = useMemo(() => {
     if (!hover || showAllLinks) return null;
@@ -288,55 +313,105 @@ function AmbosScatterCard({
     );
   }, [hover, showAllLinks, allLinks]);
 
+  const paintedPoints = useMemo(
+    () =>
+      [...layout.points].sort((a, b) => {
+        if (a.kind === b.kind) return 0;
+        return a.kind === 'destino' ? -1 : 1;
+      }),
+    [layout.points],
+  );
+
+  const fondoLegend = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const point of scatter.points) {
+      const label = point.fondo || 'Sin fondo';
+      if (!seen.has(label)) {
+        seen.set(label, vitrinaFondoFillColor(point.fondo));
+      }
+    }
+    return [...seen.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+      .map(([label, fill]) => ({ label, fill }));
+  }, [scatter.points]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {scatter.included > 0 ? (
-        <div className="mb-2 flex shrink-0 flex-wrap items-center justify-end gap-3 text-[11px] text-slate-500">
-          <button
-            type="button"
-            aria-pressed={showAllLinks}
-            onClick={() => setShowAllLinks((prev) => !prev)}
-            className={cn(
-              'inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors',
-              showAllLinks
-                ? 'border-slate-300 bg-slate-800 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+        <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center gap-3">
+            {inicialOnly ? null : (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-slate-700" />
+                  Inicial
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-slate-700/25" />
+                  {destinationName}
+                </span>
+              </>
             )}
-          >
-            {showAllLinks ? 'Ocultar trayectorias' : 'Mostrar trayectorias'}
-          </button>
-          <button
-            type="button"
-            aria-pressed={showNames}
-            onClick={() => setShowNames((prev) => !prev)}
-            className={cn(
-              'inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors',
-              showNames
-                ? 'border-slate-300 bg-slate-800 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+            {fondoLegend.map((item) => (
+              <span
+                key={item.label}
+                className="inline-flex items-center gap-1.5"
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: item.fill }}
+                />
+                {item.label}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {inicialOnly ? null : (
+              <button
+                type="button"
+                aria-pressed={showAllLinks}
+                onClick={() => setShowAllLinks((prev) => !prev)}
+                className={cn(
+                  'inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors',
+                  showAllLinks
+                    ? 'border-slate-300 bg-slate-800 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                )}
+              >
+                {showAllLinks ? 'Ocultar trayectorias' : 'Mostrar trayectorias'}
+              </button>
             )}
-          >
-            {showNames ? 'Ocultar nombres' : 'Mostrar nombres'}
-          </button>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-slate-500" />
-            Inicial
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            {destinationName}
-          </span>
+            <button
+              type="button"
+              aria-pressed={showNames}
+              onClick={() => setShowNames((prev) => !prev)}
+              className={cn(
+                'inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors',
+                showNames
+                  ? 'border-slate-300 bg-slate-800 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+              )}
+            >
+              {showNames ? 'Ocultar nombres' : 'Mostrar nombres'}
+            </button>
+          </div>
         </div>
       ) : null}
       <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white py-6 pl-2 pr-6 shadow-sm">
         {scatter.included === 0 ? (
           <p className="flex flex-1 items-center justify-center text-sm text-slate-400">
-            No hay proyectos con TRL e IGIP para Inicial o {destinationName}.
+            {inicialOnly
+              ? 'No hay proyectos con TRL e IGIP Inicial.'
+              : `No hay proyectos con TRL e IGIP para Inicial o ${destinationName}.`}
           </p>
         ) : (
           <div className="relative min-h-0 flex-1">
             <svg
-              aria-label={`Scatter TRL e IGIP desde Inicial hacia ${destinationName}`}
+              aria-label={
+                inicialOnly
+                  ? 'Scatter TRL e IGIP Inicial'
+                  : `Scatter TRL e IGIP desde Inicial hacia ${destinationName}`
+              }
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
               className="h-full w-full"
               preserveAspectRatio="xMidYMid meet"
@@ -462,14 +537,15 @@ function AmbosScatterCard({
                     </text>
                   ))
                 : null}
-              {layout.points.map((point) => (
+              {paintedPoints.map((point) => (
                 <circle
                   key={point.id}
                   cx={point.x}
                   cy={point.y}
                   r={6}
                   className="cursor-pointer stroke-white stroke-2"
-                  fill={point.kind === 'inicial' ? '#64748b' : '#10b981'}
+                  fill={vitrinaFondoFillColor(point.fondo)}
+                  fillOpacity={vitrinaAmbosFillOpacity(point.kind, point.fondo)}
                   opacity={
                     !showAllLinks &&
                     hover &&
@@ -491,6 +567,7 @@ function AmbosScatterCard({
                       kind: point.kind,
                       trl: point.trl,
                       igip: point.igip,
+                      fondo: point.fondo,
                     });
                   }}
                   onMouseMove={(event) => {
@@ -506,6 +583,7 @@ function AmbosScatterCard({
                       kind: point.kind,
                       trl: point.trl,
                       igip: point.igip,
+                      fondo: point.fondo,
                     });
                   }}
                   onMouseLeave={() => setHover(null)}
@@ -523,6 +601,7 @@ function AmbosScatterCard({
                 </p>
                 <p className="text-[11px] text-slate-500">
                   {hover.kind === 'inicial' ? 'Inicial' : destinationName}
+                  {hover.fondo ? ` · ${hover.fondo}` : ''}
                   {' · '}TRL {hover.trl}
                   {' · '}IGIP {formatIgip(hover.igip)}
                 </p>

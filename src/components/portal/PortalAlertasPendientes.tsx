@@ -293,20 +293,11 @@ export function PortalAlertasPendientes({
                       <p className="text-[13px] font-semibold tabular-nums text-amber-700">
                         {[p.detalle, p.montoLabel].filter(Boolean).join(' · ')}
                       </p>
-                    ) : (
-                      <>
-                        {p.montoLabel ? (
-                          <p className="text-[13px] font-semibold tabular-nums text-amber-700">
-                            {p.montoLabel}
-                          </p>
-                        ) : null}
-                        {p.detalle ? (
-                          <p className="text-[12px] text-gray-600 break-words [overflow-wrap:anywhere]">
-                            {p.detalle}
-                          </p>
-                        ) : null}
-                      </>
-                    )}
+                    ) : p.montoLabel ? (
+                      <p className="text-[13px] font-semibold tabular-nums text-amber-700">
+                        {p.montoLabel}
+                      </p>
+                    ) : null}
                     <p className="text-[12px] text-red-600">
                       Solicitud pendiente
                     </p>

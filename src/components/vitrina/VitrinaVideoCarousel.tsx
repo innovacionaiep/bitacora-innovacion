@@ -7,6 +7,7 @@ import { parseVideoUrl } from '@/lib/video-url';
 import {
   buildVitrinaColumnLists,
   vitrinaMarqueeRepeats,
+  vitrinaMarqueeStaggerDelayS,
 } from '@/lib/vitrina-marquee';
 import { cn } from '@/lib/utils';
 import {
@@ -105,6 +106,7 @@ export function VitrinaVideoCarousel({
   const [hover, setHover] = useState<HoverClone | null>(null);
   const [lightbox, setLightbox] = useState<CarouselItem | null>(null);
   const [repeats, setRepeats] = useState(1);
+  const [colWidth, setColWidth] = useState(0);
   const [mounted, setMounted] = useState(false);
   const vimeoThumbsRef = useRef(vimeoThumbs);
   vimeoThumbsRef.current = vimeoThumbs;
@@ -148,11 +150,12 @@ export function VitrinaVideoCarousel({
 
     const measure = () => {
       const h = wrap.clientHeight;
-      const colW = wrap.clientWidth / COL_COUNT;
-      if (h < 80 || colW < 40) return;
+      const nextColW = wrap.clientWidth / COL_COUNT;
+      if (h < 80 || nextColW < 40) return;
       const minItems = Math.max(1, ...columns.map((c) => c.length));
-      const next = vitrinaMarqueeRepeats(h, colW, minItems);
+      const next = vitrinaMarqueeRepeats(h, nextColW, minItems);
       setRepeats((prev) => (prev === next ? prev : next));
+      setColWidth((prev) => (prev === nextColW ? prev : nextColW));
     };
 
     measure();
@@ -239,17 +242,29 @@ export function VitrinaVideoCarousel({
           const goingDown = col !== 1;
           const durationS =
             (MARQUEE_DURATION_S * Math.max(1, colItems.length / 6) * repeats) / 2;
+          const staggerDelayS =
+            col === 2
+              ? vitrinaMarqueeStaggerDelayS(
+                  durationS,
+                  colWidth,
+                  colItems.length,
+                  repeats,
+                )
+              : 0;
 
           return (
             <div
               key={col}
-              className={`relative h-full overflow-hidden ${
-                col === 2 ? 'pt-[5.5rem]' : ''
-              }`}
+              data-testid="vitrina-marquee-col"
+              className="relative h-full overflow-hidden"
             >
               <div
+                data-testid="vitrina-marquee-track"
                 className={goingDown ? 'vitrina-marquee-down' : 'vitrina-marquee-up'}
-                style={{ animationDuration: `${durationS}s` }}
+                style={{
+                  animationDuration: `${durationS}s`,
+                  animationDelay: staggerDelayS ? `${staggerDelayS}s` : undefined,
+                }}
               >
                 {[0, 1].map((copy) => (
                   <div key={copy} className="flex flex-col gap-7 pb-7">

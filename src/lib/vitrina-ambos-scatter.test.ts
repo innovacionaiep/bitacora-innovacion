@@ -4,11 +4,13 @@ import {
   buildVitrinaAmbosScatter,
   layoutVitrinaAmbosLabels,
   layoutVitrinaAmbosScatter,
+  vitrinaAmbosFillOpacity,
 } from '@/lib/vitrina-ambos-scatter';
 
 function projectsFrom(
   rows: Array<{
     nombre: string;
+    fondos?: string[];
     trlInicial?: number | null;
     trlProyeccion?: number | null;
     trlFinal?: number | null;
@@ -23,10 +25,11 @@ function projectsFrom(
 }
 
 describe('buildVitrinaAmbosScatter', () => {
-  it('crea un punto gris inicial y uno esmeralda de destino por proyecto', () => {
+  it('crea un punto inicial y uno de destino por proyecto, con el fondo de la tarjeta', () => {
     const proyectos = projectsFrom([
       {
         nombre: 'A',
+        fondos: ['Fondo Impulsa'],
         trlInicial: 2,
         trlProyeccion: 4,
         igipInicial: 1.5,
@@ -46,12 +49,14 @@ describe('buildVitrinaAmbosScatter', () => {
         kind: 'inicial',
         trl: 2,
         igip: 1.5,
+        fondo: 'Fondo Impulsa',
       }),
       expect.objectContaining({
         nombre: 'A',
         kind: 'destino',
         trl: 4,
         igip: 3,
+        fondo: 'Fondo Impulsa',
       }),
       expect.objectContaining({
         nombre: 'B',
@@ -109,6 +114,33 @@ describe('buildVitrinaAmbosScatter', () => {
     expect(scatter.points).toHaveLength(1);
     expect(scatter.points[0]).toMatchObject({ kind: 'inicial', trl: 2, igip: 1.5 });
   });
+
+  it('solo emite puntos iniciales cuando el destino es inicial', () => {
+    const proyectos = projectsFrom([
+      {
+        nombre: 'A',
+        trlInicial: 2,
+        trlProyeccion: 4,
+        igipInicial: 1.5,
+        igipProyeccion: 3,
+      },
+      { nombre: 'B', trlInicial: 3, igipInicial: 2 },
+    ]);
+
+    const scatter = buildVitrinaAmbosScatter(proyectos, 'inicial');
+
+    expect(scatter.included).toBe(2);
+    expect(scatter.points).toHaveLength(2);
+    expect(scatter.points.every((p) => p.kind === 'inicial')).toBe(true);
+    expect(scatter.points.map((p) => p.nombre)).toEqual(['A', 'B']);
+  });
+
+  it('usa opacidad plena en inicial, 35% en destino Impulsa y 25% en el resto', () => {
+    expect(vitrinaAmbosFillOpacity('inicial', 'Fondo Impulsa')).toBe(1);
+    expect(vitrinaAmbosFillOpacity('destino', 'Fondo Impulsa')).toBe(0.35);
+    expect(vitrinaAmbosFillOpacity('destino', 'Innovación Docente')).toBe(0.25);
+    expect(vitrinaAmbosFillOpacity('destino', '')).toBe(0.25);
+  });
 });
 
 describe('layoutVitrinaAmbosScatter', () => {
@@ -123,6 +155,7 @@ describe('layoutVitrinaAmbosScatter', () => {
             proyectoId: 'a',
             nombre: 'A',
             kind: 'inicial',
+            fondo: '',
             trl: 2,
             igip: 1,
           },
@@ -131,6 +164,7 @@ describe('layoutVitrinaAmbosScatter', () => {
             proyectoId: 'a',
             nombre: 'A',
             kind: 'destino',
+            fondo: '',
             trl: 8,
             igip: 4,
           },
@@ -161,6 +195,7 @@ describe('layoutVitrinaAmbosScatter', () => {
             proyectoId: 'a',
             nombre: 'Patagon',
             kind: 'inicial',
+            fondo: '',
             trl: 2,
             igip: 2,
           },
@@ -169,6 +204,7 @@ describe('layoutVitrinaAmbosScatter', () => {
             proyectoId: 'b',
             nombre: 'CESFAM',
             kind: 'inicial',
+            fondo: '',
             trl: 2,
             igip: 2,
           },
@@ -187,6 +223,58 @@ describe('layoutVitrinaAmbosScatter', () => {
     );
     expect(dist).toBeGreaterThan(0);
     expect(dist).toBeLessThan(10);
+  });
+
+  it('separa círculos de inicial y destino en las mismas coordenadas', () => {
+    const layout = layoutVitrinaAmbosScatter(
+      {
+        included: 2,
+        omitted: 0,
+        points: [
+          {
+            id: 'a-inicial',
+            proyectoId: 'a',
+            nombre: 'Patagon',
+            kind: 'inicial',
+            fondo: '',
+            trl: 4,
+            igip: 3,
+          },
+          {
+            id: 'a-destino',
+            proyectoId: 'a',
+            nombre: 'Patagon',
+            kind: 'destino',
+            fondo: '',
+            trl: 4,
+            igip: 3,
+          },
+          {
+            id: 'b-destino',
+            proyectoId: 'b',
+            nombre: 'CESFAM',
+            kind: 'destino',
+            fondo: '',
+            trl: 4,
+            igip: 3,
+          },
+        ],
+      },
+      { width: 800, height: 400 },
+    );
+
+    const unique = new Set(
+      layout.points.map((point) => `${point.x}:${point.y}`),
+    );
+    expect(unique.size).toBe(3);
+
+    const inicial = layout.points.find((point) => point.kind === 'inicial')!;
+    const destinos = layout.points.filter((point) => point.kind === 'destino');
+    for (const destino of destinos) {
+      const dist = Math.hypot(inicial.x - destino.x, inicial.y - destino.y);
+      expect(dist).toBeGreaterThan(0);
+      expect(dist).toBeLessThan(10);
+    }
   });
 });
 

@@ -9,7 +9,6 @@ import {
   FileCode,
   Shield,
   FileSignature,
-  TrendingUp,
   Wrench,
   GitBranch,
 } from 'lucide-react';
@@ -61,11 +60,6 @@ export default async function ConfiguracionLayout({
       href: '/configuracion/convenios',
       label: 'Convenios',
       icon: FileSignature,
-    },
-    {
-      href: '/configuracion/escalamiento',
-      label: 'Escalamiento',
-      icon: TrendingUp,
     },
     {
       href: '/configuracion/mantenimiento',

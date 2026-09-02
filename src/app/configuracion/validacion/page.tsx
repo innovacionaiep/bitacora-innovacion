@@ -716,6 +716,7 @@ export default function ConfiguracionValidacionPage() {
               <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                 <TableRow>
                   <TableHead>Nombre</TableHead>
+                  <TableHead>Proyectos</TableHead>
                   <TableHead className="w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -723,6 +724,11 @@ export default function ConfiguracionValidacionPage() {
                 {carreras.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.nombre}</TableCell>
+                    <TableCell className="text-[13px] text-gray-600 max-w-[420px]">
+                      {c.proyectosNombres.length > 0
+                        ? c.proyectosNombres.join(', ')
+                        : '—'}
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"

@@ -658,7 +658,11 @@ export function VitrinaLanding({
                 matchIds={isAvancesView ? null : aiMatchIds}
                 aiFilterActive={isAvancesView ? false : aiApplied}
                 hiddenFacets={
-                  isAvancesView ? ['fondos', 'etiquetas'] : undefined
+                  isAvancesView
+                    ? ['fondos', 'etiquetas']
+                    : accessLevel === 0
+                      ? ['fondos']
+                      : undefined
                 }
                 searchPlaceholder={
                   isAvancesView
@@ -701,6 +705,7 @@ export function VitrinaLanding({
                     }));
                     return;
                   }
+                  if (accessLevel === 0 && facet === 'fondos') return;
                   setFilters((current) => ({
                     ...current,
                     [facet]: toggleVitrinaFilterValue(current[facet], value),

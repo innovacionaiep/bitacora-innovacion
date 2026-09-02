@@ -31,6 +31,13 @@ export function buildVitrinaColumnLists<T>(items: T[]): [T[], T[], T[]] {
 export const VITRINA_MARQUEE_MAX_REPEATS = 8;
 export const VITRINA_MARQUEE_CARD_GAP_PX = 28;
 export const VITRINA_MARQUEE_CARD_WIDTH_RATIO = 0.82;
+/** Desfase visual de la columna derecha (~el antiguo pt-5.5rem), vía fase de animación. */
+export const VITRINA_MARQUEE_STAGGER_PX = 5.5 * 16;
+
+function vitrinaMarqueeSetHeightPx(colWidth: number, itemsInCol: number): number {
+  const cardH = colWidth * VITRINA_MARQUEE_CARD_WIDTH_RATIO * (9 / 16);
+  return Math.max(itemsInCol, 1) * (cardH + VITRINA_MARQUEE_CARD_GAP_PX);
+}
 
 /** Copias del set por mitad de loop: las justas para cubrir el viewport. */
 export function vitrinaMarqueeRepeats(
@@ -38,11 +45,23 @@ export function vitrinaMarqueeRepeats(
   colWidth: number,
   itemsInCol: number,
 ): number {
-  const cardH = colWidth * VITRINA_MARQUEE_CARD_WIDTH_RATIO * (9 / 16);
-  const setH = Math.max(itemsInCol, 1) * (cardH + VITRINA_MARQUEE_CARD_GAP_PX);
+  const setH = vitrinaMarqueeSetHeightPx(colWidth, itemsInCol);
   if (setH <= 0) return 1;
   return Math.min(
     VITRINA_MARQUEE_MAX_REPEATS,
     Math.max(1, Math.ceil(viewportH / setH)),
   );
+}
+
+/** Delay negativo = misma distancia que 5.5rem, sin padding en el overflow. */
+export function vitrinaMarqueeStaggerDelayS(
+  durationS: number,
+  colWidth: number,
+  itemsInCol: number,
+  repeats: number,
+): number {
+  const copyH =
+    vitrinaMarqueeSetHeightPx(colWidth, itemsInCol) * Math.max(repeats, 1);
+  if (colWidth <= 0 || copyH <= 0 || durationS <= 0) return 0;
+  return -((VITRINA_MARQUEE_STAGGER_PX / copyH) * durationS);
 }

@@ -214,7 +214,6 @@ export async function setLineaTabEnabled(
 
     revalidatePath(CONFIG_PATH);
     revalidatePath('/configuracion/convenios');
-    revalidatePath('/configuracion/escalamiento');
     revalidatePath('/proyectos');
     revalidatePath('/dashboard');
     revalidatePath('/fondos');

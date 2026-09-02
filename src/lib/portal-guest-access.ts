@@ -33,7 +33,7 @@ export const PORTAL_VIEWS_BY_LEVEL: Record<
   PortalGuestLevel,
   VitrinaProjectsView[]
 > = {
-  0: ['avances'],
+  0: ['avances', 'indicadores'],
   1: ['proyectos'],
   2: ['proyectos', 'avances', 'indicadores'],
   3: ['proyectos', 'avances', 'analisis', 'indicadores', 'data'],
@@ -114,6 +114,19 @@ export function portalCanSeeView(
   view: VitrinaProjectsView,
 ): boolean {
   return portalViewsForLevel(level).includes(view);
+}
+
+export const PORTAL_CAUSALAB_FONDO = 'Fondo Impulsa';
+
+export function portalNeedsVitrinaProyectos(
+  level: PortalGuestLevel | null,
+): boolean {
+  return (
+    portalCanSeeView(level, 'proyectos') ||
+    portalCanSeeView(level, 'indicadores') ||
+    portalCanSeeView(level, 'analisis') ||
+    portalCanSeeView(level, 'data')
+  );
 }
 
 export function clampPortalView(

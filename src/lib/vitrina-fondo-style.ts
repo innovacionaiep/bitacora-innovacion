@@ -58,6 +58,28 @@ function hashedStripe(nombre: string, stripes: readonly string[]): string {
   return stripes[sum % stripes.length] ?? 'bg-slate-800';
 }
 
+const STRIPE_TO_HEX: Record<string, string> = {
+  'bg-red-600': '#dc2626',
+  'bg-emerald-600': '#059669',
+  'bg-blue-600': '#2563eb',
+  'bg-orange-500': '#f97316',
+  'bg-violet-600': '#7c3aed',
+  'bg-cyan-500': '#06b6d4',
+  'bg-[#DC143C]': '#DC143C',
+  'bg-slate-800': '#1e293b',
+};
+
+const FONDO_FILL_FALLBACK = '#64748b';
+
+export function vitrinaFondoLabel(fondos: string[]): string {
+  return fondos.filter(Boolean).join(' · ');
+}
+
+export function vitrinaFondoFillColor(nombre: string): string {
+  if (!nombre.trim()) return FONDO_FILL_FALLBACK;
+  return STRIPE_TO_HEX[vitrinaFondoStripeClass(nombre)] ?? FONDO_FILL_FALLBACK;
+}
+
 export function vitrinaFondoStripeClass(nombre: string): string {
   const key = normalizeNombre(nombre);
   if (key.includes('impulsa')) return 'bg-emerald-600';
