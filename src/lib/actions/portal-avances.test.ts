@@ -53,6 +53,8 @@ describe('getPortalAvancesProyectos', () => {
         presupuestoAdjudicado: 400_000,
         presupuestoTotal: 0,
         escuelas: [{ escuela: { nombre: 'Salud' } }],
+        carreras: [{ carrera: { nombre: 'Enfermería' } }],
+        asignaturas: [{ asignatura: { nombre: 'Anatomía' } }],
       },
     ] as never);
     itemFindMany.mockResolvedValue([]);
@@ -82,6 +84,8 @@ describe('getPortalAvancesProyectos', () => {
       id: 'p1',
       proyecto: 'Aula',
       escuelas: ['Salud'],
+      carreras: ['Enfermería'],
+      asignaturas: ['Anatomía'],
       presupuestoAdjudicado: 400_000,
       estudiantes: 2,
       docentes: 2,

@@ -84,6 +84,10 @@ describe('VitrinaAiSettingsModal sidebar', () => {
       expect(screen.getByRole('navigation', { name: 'Secciones de configuración' })).toBeInTheDocument();
     });
 
+    // `relative` pisa `fixed` vía twMerge y el modal queda recortado en ScalePortal.
+    expect(screen.getByRole('dialog').className).toMatch(/\bfixed\b/);
+    expect(screen.getByRole('dialog').className).not.toMatch(/\brelative\b/);
+
     expect(screen.getByLabelText('API key de OpenRouter')).toHaveAttribute(
       'autocomplete',
       'new-password',

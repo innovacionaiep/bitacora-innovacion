@@ -8,6 +8,8 @@ import {
   portalAvancesDefaultFondoForLevel,
   portalAvancesFondosForLevel,
   formatPortalAvancesEscuelas,
+  formatPortalAvancesCommaList,
+  formatPortalAvancesSede,
   portalAvancesAppFondoNames,
   portalAvancesIsAppFondo,
   portalAvancesIsExcelFondo,
@@ -111,11 +113,40 @@ describe('rowsForPortalAvancesFondo', () => {
 });
 
 describe('formatPortalAvancesEscuelas', () => {
-  it('ordena y une nombres; vacío es string vacío', () => {
+  it('ordena y une nombres con salto de línea; vacío es string vacío', () => {
     expect(formatPortalAvancesEscuelas(['Negocios', 'Salud'])).toBe(
-      'Negocios, Salud',
+      'Negocios\nSalud',
     );
     expect(formatPortalAvancesEscuelas([])).toBe('');
+    expect(
+      formatPortalAvancesEscuelas(['Ingeniería, Energía y Tecnología']),
+    ).toBe('Ingeniería, Energía y Tecnología');
+  });
+});
+
+describe('formatPortalAvancesCommaList', () => {
+  it('parte por coma y une con salto de línea', () => {
+    expect(
+      formatPortalAvancesCommaList([
+        'Ingeniería en Automatización y Control Industrial, Técnico en Electricidad y Electrónica',
+      ]),
+    ).toBe(
+      'Ingeniería en Automatización y Control Industrial\nTécnico en Electricidad y Electrónica',
+    );
+    expect(
+      formatPortalAvancesCommaList([
+        'TTS601 - Taller Intervención Grupo/Comunidad',
+      ]),
+    ).toBe('TTS601 - Taller Intervención Grupo/Comunidad');
+  });
+});
+
+describe('formatPortalAvancesSede', () => {
+  it('parte sedes múltiples a líneas', () => {
+    expect(formatPortalAvancesSede('Antofagasta, Bellavista')).toBe(
+      'Antofagasta\nBellavista',
+    );
+    expect(formatPortalAvancesSede('Castro')).toBe('Castro');
   });
 });
 
@@ -132,6 +163,15 @@ describe('filterPortalAvancesRows', () => {
       proyecto: 'Huerto',
       sede: 'Calama',
       escuelas: ['Minería'],
+    }),
+    row({
+      id: 'c',
+      proyecto: 'Otro',
+      sede: 'Valparaíso',
+      escuelas: ['Negocios'],
+      carreras: ['Enfermería'],
+      asignaturas: ['Anatomía'],
+      encargado: 'jeremy.torres@aiep.cl',
     }),
   ];
 
@@ -151,6 +191,23 @@ describe('filterPortalAvancesRows', () => {
         (p) => p.id,
       ),
     ).toEqual(['b']);
+    expect(
+      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'enfermeria').map(
+        (p) => p.id,
+      ),
+    ).toEqual(['c']);
+    expect(
+      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'anatomia').map(
+        (p) => p.id,
+      ),
+    ).toEqual(['c']);
+    expect(
+      filterPortalAvancesRows(
+        proyectos,
+        { sedes: [], escuelas: [] },
+        'jeremy.torres',
+      ).map((p) => p.id),
+    ).toEqual(['c']);
   });
 
   it('filtra sede y escuela con OR interno y AND entre facetas', () => {

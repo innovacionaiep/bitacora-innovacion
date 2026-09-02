@@ -29,7 +29,15 @@ describe('portalAvancesColumnsForFondo', () => {
       expect(ids).toContain('estudiantes');
       expect(ids).toContain('docentes');
       expect(ids).toContain('beneficiarios');
-      expect(ids.indexOf('idVinculamos')).toBeGreaterThan(ids.indexOf('escuelas'));
+      expect(ids).toContain('carreras');
+      expect(ids).toContain('asignaturas');
+      expect(ids.indexOf('carreras')).toBeGreaterThan(ids.indexOf('escuelas'));
+      expect(ids.indexOf('asignaturas')).toBeGreaterThan(
+        ids.indexOf('carreras'),
+      );
+      expect(ids.indexOf('idVinculamos')).toBeGreaterThan(
+        ids.indexOf('asignaturas'),
+      );
     }
     expect(base.indexOf('presupuestoAdjudicado')).toBeLessThan(
       base.indexOf('gantt'),
@@ -37,6 +45,13 @@ describe('portalAvancesColumnsForFondo', () => {
     expect(impulsa.indexOf('presupuestoAdjudicado')).toBeGreaterThan(
       impulsa.indexOf('indicadores'),
     );
+    expect(impulsa).toContain('encargado');
+    expect(impulsa.indexOf('encargado')).toBeGreaterThan(
+      impulsa.indexOf('proyecto'),
+    );
+    expect(impulsa.indexOf('sede')).toBeGreaterThan(impulsa.indexOf('encargado'));
+    expect(base).not.toContain('encargado');
+    expect(rie).not.toContain('encargado');
   });
 });
 

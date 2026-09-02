@@ -38,7 +38,13 @@ describe('VitrinaAvancesView', () => {
       <VitrinaAvancesView
         fondoNombre="Innovación Docente"
         onFondoChange={vi.fn()}
-        proyectos={[row({ id: '1' })]}
+        proyectos={[
+          row({
+            id: '1',
+            carreras: ['Enfermería'],
+            asignaturas: ['Anatomía'],
+          }),
+        ]}
       />,
     );
 
@@ -75,6 +81,17 @@ describe('VitrinaAvancesView', () => {
     expect(
       screen.getByRole('columnheader', { name: /Beneficiarios/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Carreras/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Asignaturas/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Enfermería')).toBeInTheDocument();
+    expect(screen.getByText('Anatomía')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: /Encargado\/a/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Proyecto aula' })).toBeNull();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
@@ -90,6 +107,8 @@ describe('VitrinaAvancesView', () => {
           row({
             id: 'rie-1',
             fondo: 'Reto Innovador de Especialidad',
+            carreras: ['Minería'],
+            asignaturas: ['Geología'],
             estudiantes: 8,
             docentes: 4,
             beneficiarios: 0,
@@ -101,12 +120,20 @@ describe('VitrinaAvancesView', () => {
     expect(
       screen.getByRole('columnheader', { name: /ID Vinculamos/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Carreras/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Asignaturas/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Minería')).toBeInTheDocument();
+    expect(screen.getByText('Geología')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument();
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 
-  it('en Impulsa muestra ID Vinculamos y No aplica en Honorarios', () => {
+  it('en Impulsa muestra Carreras, Asignaturas, ID Vinculamos y No aplica en Honorarios', () => {
     render(
       <VitrinaAvancesView
         fondoNombre="Fondo Impulsa"
@@ -116,6 +143,9 @@ describe('VitrinaAvancesView', () => {
             id: 'impulsa:2',
             fondo: 'Fondo Impulsa',
             proyecto: 'ClinicApp',
+            encargado: 'jeremy.torres@aiep.cl',
+            carreras: ['Enfermería'],
+            asignaturas: ['Anatomía'],
             idVinculamos: 'Sin registro',
             estudiantes: 10,
             docentes: 2,
@@ -126,6 +156,18 @@ describe('VitrinaAvancesView', () => {
       />,
     );
 
+    expect(
+      screen.getByRole('columnheader', { name: /Carreras/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Encargado\/a/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('jeremy.torres@aiep.cl')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: /Asignaturas/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Enfermería')).toBeInTheDocument();
+    expect(screen.getByText('Anatomía')).toBeInTheDocument();
     expect(
       screen.getByRole('columnheader', { name: /ID Vinculamos/i }),
     ).toBeInTheDocument();
@@ -185,6 +227,45 @@ describe('VitrinaAvancesView', () => {
     expect(
       screen.queryByRole('columnheader', { name: /Delta/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('separa sede, escuelas, carreras y asignaturas en líneas dentro de la celda', () => {
+    render(
+      <VitrinaAvancesView
+        fondoNombre="Innovación Docente"
+        onFondoChange={vi.fn()}
+        proyectos={[
+          row({
+            id: '1',
+            sede: 'Calama, Bellavista',
+            escuelas: ['Negocios', 'Salud'],
+            carreras: [
+              'Ingeniería en Automatización y Control Industrial, Técnico en Electricidad y Electrónica',
+            ],
+            asignaturas: ['Anatomía', 'Matemáticas'],
+          }),
+        ]}
+      />,
+    );
+
+    const cellText = (wanted: string) => (_: string, el: Element | null) =>
+      el?.tagName === 'TD' && el.textContent === wanted;
+
+    expect(screen.getByText(cellText('Bellavista\nCalama'))).toBeInTheDocument();
+    expect(screen.getByText(cellText('Negocios\nSalud'))).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        cellText(
+          'Ingeniería en Automatización y Control Industrial\nTécnico en Electricidad y Electrónica',
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(cellText('Anatomía\nMatemáticas')),
+    ).toBeInTheDocument();
+    expect(screen.getByText(cellText('Bellavista\nCalama')).className).toMatch(
+      /whitespace-pre-line/,
+    );
   });
 
   it('muestra vacío cuando no hay filas', async () => {

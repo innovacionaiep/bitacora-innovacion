@@ -52,6 +52,35 @@ describe('sortPortalAvancesProyectos', () => {
     expect(sorted.map((r) => r.id)).toEqual(['b', 'a']);
   });
 
+  it('ordena por encargado', () => {
+    const named = [
+      row({ id: 'a', encargado: 'zara@aiep.cl' }),
+      row({ id: 'b', encargado: 'ana@aiep.cl' }),
+    ];
+    expect(
+      sortPortalAvancesProyectos(named, { key: 'encargado', dir: 'asc' }).map(
+        (r) => r.id,
+      ),
+    ).toEqual(['b', 'a']);
+  });
+
+  it('ordena por carreras y asignaturas', () => {
+    const named = [
+      row({ id: 'a', carreras: ['Zootecnia'], asignaturas: ['Química'] }),
+      row({ id: 'b', carreras: ['Enfermería'], asignaturas: ['Anatomía'] }),
+    ];
+    expect(
+      sortPortalAvancesProyectos(named, { key: 'carreras', dir: 'asc' }).map(
+        (r) => r.id,
+      ),
+    ).toEqual(['b', 'a']);
+    expect(
+      sortPortalAvancesProyectos(named, { key: 'asignaturas', dir: 'asc' }).map(
+        (r) => r.id,
+      ),
+    ).toEqual(['b', 'a']);
+  });
+
   it('ciclo de sort igual que Fondos', () => {
     expect(nextPortalAvancesSort({ key: null, dir: 'asc' }, 'gantt')).toEqual({
       key: 'gantt',

@@ -7,7 +7,7 @@ import {
   requirePermission,
 } from '@/lib/authz/guards';
 import { namesToImportAgainstExisting } from '@/lib/catalog-import-names';
-import { mapCarrerasConProyectos } from '@/lib/carrera-proyectos';
+import { mapCatalogoConProyectos } from '@/lib/catalogo-con-proyectos';
 
 const CONFIG_PATH = '/configuracion/validacion';
 
@@ -255,7 +255,7 @@ export async function getCarreras() {
       },
     },
   });
-  return mapCarrerasConProyectos(rows);
+  return mapCatalogoConProyectos(rows);
 }
 
 export async function createCarrera(nombre: string) {
@@ -365,9 +365,22 @@ export async function importCarrerasFromNames(
 
 // ----- Asignaturas -----
 export async function getAsignaturas() {
-  return prisma.asignatura.findMany({
+  const rows = await prisma.asignatura.findMany({
     orderBy: { nombre: 'asc' },
+    include: {
+      proyectos: {
+        select: {
+          proyecto: { select: { proyecto: true } },
+        },
+      },
+      proyectoParticipantes: {
+        select: {
+          proyecto: { select: { proyecto: true } },
+        },
+      },
+    },
   });
+  return mapCatalogoConProyectos(rows);
 }
 
 export async function createAsignatura(nombre: string) {
@@ -430,21 +443,14 @@ export async function deleteAsignatura(id: string) {
   if (!gate.ok) return { success: false, error: gate.error };
 
   try {
-    const inUseProyecto = await prisma.proyectoAsignatura.count({
-      where: { asignaturaId: id },
-    });
-    const inUseParticipante = await prisma.proyectoParticipante.count({
-      where: { asignaturaId: id },
-    });
-    if (inUseProyecto > 0 || inUseParticipante > 0) {
-      return {
-        success: false,
-        error:
-          'No se puede eliminar: hay proyectos o participantes que usan esta asignatura',
-      };
-    }
+    // ProyectoAsignatura: onDelete Cascade (quita la asignatura del proyecto).
+    // ProyectoParticipante.asignatura: onDelete SetNull (deja el campo vacío).
     await prisma.asignatura.delete({ where: { id } });
     revalidatePath(CONFIG_PATH);
+    revalidatePath('/proyectos');
+    revalidatePath('/dashboard');
+    revalidateTag('proyectos');
+    revalidateTag('proyectos-dashboard');
     return { success: true };
   } catch (e) {
     console.error(e);

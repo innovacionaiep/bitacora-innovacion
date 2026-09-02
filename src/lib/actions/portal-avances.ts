@@ -42,6 +42,12 @@ export async function getPortalAvancesProyectos(): Promise<{
         escuelas: {
           select: { escuela: { select: { nombre: true } } },
         },
+        carreras: {
+          select: { carrera: { select: { nombre: true } } },
+        },
+        asignaturas: {
+          select: { asignatura: { select: { nombre: true } } },
+        },
       },
       orderBy: { proyecto: 'asc' },
     });
@@ -87,6 +93,10 @@ export async function getPortalAvancesProyectos(): Promise<{
         proyecto: p.proyecto,
         sede: p.sede,
         escuelas: sortEscuelaNames(p.escuelas.map((e) => e.escuela.nombre)),
+        carreras: sortEscuelaNames(p.carreras.map((c) => c.carrera.nombre)),
+        asignaturas: sortEscuelaNames(
+          p.asignaturas.map((a) => a.asignatura.nombre),
+        ),
         estudiantes: counts?.estudiantes ?? 0,
         docentes: counts?.docentes ?? 0,
         beneficiarios: counts?.beneficiarios ?? 0,

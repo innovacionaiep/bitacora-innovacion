@@ -441,7 +441,7 @@ export function VitrinaAiSettingsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="relative flex h-[min(36rem,85vh)] w-[min(52rem,calc(100vw-2rem))] max-w-[min(52rem,calc(100vw-2rem))] flex-col overflow-hidden">
+      <DialogContent className="flex h-[min(36rem,85%)] w-[min(52rem,calc(100%-2rem))] max-w-[min(52rem,calc(100%-2rem))] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Configuración del portal</DialogTitle>
         </DialogHeader>

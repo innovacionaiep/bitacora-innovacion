@@ -35,8 +35,11 @@ export type ImpulsaHonorarios =
 export type PortalAvancesImpulsaRow = {
   rowNumber: number;
   proyecto: string;
+  encargado: string;
   sede: string;
   escuelas: string[];
+  carreras: string[];
+  asignaturas: string[];
   idVinculamos: string;
   estudiantes: number | null;
   docentes: number | null;
@@ -135,10 +138,18 @@ export function parseImpulsaInt(raw: unknown): number | null {
 }
 
 export function parseImpulsaEscuelas(raw: unknown): string[] {
+  return parseImpulsaNameList(raw, false);
+}
+
+export function parseImpulsaCommaList(raw: unknown): string[] {
+  return parseImpulsaNameList(raw, true);
+}
+
+function parseImpulsaNameList(raw: unknown, allowComma: boolean): string[] {
   const text = cellStr(raw);
   if (!text) return [];
   const parts = text
-    .split(/[;|/]+/)
+    .split(allowComma ? /[;,|]+/ : /[;|]+/)
     .map((s) => s.trim())
     .filter(Boolean);
   return sortEscuelaNames(parts.length ? parts : [text]);
@@ -185,8 +196,13 @@ export function parseImpulsaRowsFromSheet(
     rows.push({
       rowNumber: r,
       proyecto,
+      encargado: cellStr(cellByHeader(excelRow, idx, 'ENCARGADO/A')),
       sede: cellStr(cellByHeader(excelRow, idx, 'SEDES')),
       escuelas: parseImpulsaEscuelas(cellByHeader(excelRow, idx, 'ESCUELAS')),
+      carreras: parseImpulsaCommaList(cellByHeader(excelRow, idx, 'CARRERAS')),
+      asignaturas: parseImpulsaCommaList(
+        cellByHeader(excelRow, idx, 'ASIGNATURAS'),
+      ),
       idVinculamos: cellStr(cellByHeader(excelRow, idx, 'ID VINCULAMOS')),
       estudiantes: parseImpulsaInt(cellByHeader(excelRow, idx, 'ESTUDIANTES')),
       docentes: parseImpulsaInt(cellByHeader(excelRow, idx, 'DOCENTES')),
@@ -270,8 +286,11 @@ export function impulsaRowsToAvances(
     id: `impulsa:${row.rowNumber}`,
     fondo: PORTAL_AVANCES_IMPULSA_FONDO,
     proyecto: row.proyecto,
+    encargado: row.encargado ?? '',
     sede: row.sede,
     escuelas: row.escuelas,
+    carreras: row.carreras ?? [],
+    asignaturas: row.asignaturas ?? [],
     presupuestoAdjudicado: row.presupuestoAdjudicado,
     avanceGantt: row.avanceGantt,
     avanceIndicadores: row.avanceIndicadores,

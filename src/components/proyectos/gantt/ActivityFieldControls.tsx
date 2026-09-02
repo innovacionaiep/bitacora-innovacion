@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { Save, Pencil, X } from 'lucide-react';
 import {
   Tooltip,
@@ -48,9 +49,30 @@ export function ActivityHoverEditButton({
   tooltip?: string;
   className?: string;
 }) {
+  // Solo abrir por hover: el Dialog enfoca el primer botón al abrir y
+  // Radix Tooltip se dispara con focus, mostrando "Editar nombre" al montar.
+  const [open, setOpen] = useState(false);
+  const pointerInsideRef = useRef(false);
+
   return (
-    <div className={`absolute z-10 ${className}`}>
-      <Tooltip>
+    <div
+      className={`absolute z-10 ${className}`}
+      onPointerEnter={() => {
+        pointerInsideRef.current = true;
+        setOpen(true);
+      }}
+      onPointerLeave={() => {
+        pointerInsideRef.current = false;
+        setOpen(false);
+      }}
+    >
+      <Tooltip
+        open={open}
+        onOpenChange={(next) => {
+          if (next && !pointerInsideRef.current) return;
+          setOpen(next);
+        }}
+      >
         <TooltipTrigger asChild>
           <button
             type="button"

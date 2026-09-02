@@ -1,11 +1,18 @@
 import { clampPct } from '@/lib/fondo-gestion-table';
 import type { PortalAvancesProyecto } from '@/lib/portal-avances';
-import { formatPortalAvancesEscuelas } from '@/lib/portal-avances';
+import {
+  formatPortalAvancesCommaList,
+  formatPortalAvancesEscuelas,
+  formatPortalAvancesSede,
+} from '@/lib/portal-avances';
 
 export type PortalAvancesSortKey =
   | 'proyecto'
+  | 'encargado'
   | 'sede'
   | 'escuelas'
+  | 'carreras'
+  | 'asignaturas'
   | 'presupuestoAdjudicado'
   | 'gantt'
   | 'indicadores'
@@ -39,10 +46,16 @@ function sortValue(
   switch (key) {
     case 'proyecto':
       return row.proyecto;
+    case 'encargado':
+      return row.encargado ?? '';
     case 'sede':
-      return row.sede;
+      return formatPortalAvancesSede(row.sede);
     case 'escuelas':
       return formatPortalAvancesEscuelas(row.escuelas);
+    case 'carreras':
+      return formatPortalAvancesCommaList(row.carreras ?? []);
+    case 'asignaturas':
+      return formatPortalAvancesCommaList(row.asignaturas ?? []);
     case 'presupuestoAdjudicado':
       return row.presupuestoAdjudicado;
     case 'gantt':

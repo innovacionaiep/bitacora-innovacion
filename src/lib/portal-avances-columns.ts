@@ -2,8 +2,11 @@ import { portalAvancesIsExcelFondo } from '@/lib/portal-avances';
 
 export type PortalAvancesColumnId =
   | 'proyecto'
+  | 'encargado'
   | 'sede'
   | 'escuelas'
+  | 'carreras'
+  | 'asignaturas'
   | 'idVinculamos'
   | 'estudiantes'
   | 'docentes'
@@ -32,6 +35,8 @@ const BASE_COLUMNS: PortalAvancesColumnDef[] = [
   { id: 'proyecto', label: 'Nombre proyecto' },
   { id: 'sede', label: 'Sede' },
   { id: 'escuelas', label: 'Escuelas' },
+  { id: 'carreras', label: 'Carreras' },
+  { id: 'asignaturas', label: 'Asignaturas' },
   ...PEOPLE_COLUMNS,
   { id: 'presupuestoAdjudicado', label: 'Presupuesto adjudicado' },
   { id: 'gantt', label: 'Gantt' },
@@ -44,8 +49,11 @@ const BASE_COLUMNS: PortalAvancesColumnDef[] = [
 
 const IMPULSA_COLUMNS: PortalAvancesColumnDef[] = [
   { id: 'proyecto', label: 'Nombre proyecto' },
+  { id: 'encargado', label: 'Encargado/a' },
   { id: 'sede', label: 'Sede' },
   { id: 'escuelas', label: 'Escuelas' },
+  { id: 'carreras', label: 'Carreras' },
+  { id: 'asignaturas', label: 'Asignaturas' },
   ...PEOPLE_COLUMNS,
   { id: 'gantt', label: 'Gantt' },
   { id: 'indicadores', label: 'Indicadores' },
@@ -111,8 +119,11 @@ export const PORTAL_AVANCES_DEFAULT_COLUMN_WIDTHS: Record<
   number
 > = {
   proyecto: 260,
+  encargado: 220,
   sede: 140,
   escuelas: 260,
+  carreras: 220,
+  asignaturas: 220,
   idVinculamos: 140,
   estudiantes: 110,
   docentes: 100,

@@ -20,7 +20,9 @@ import { cn } from '@/lib/utils';
 import { formatPresupuestoMonto } from '@/lib/utils/presupuesto-calculos';
 import {
   PORTAL_AVANCES_FONDOS,
+  formatPortalAvancesCommaList,
   formatPortalAvancesEscuelas,
+  formatPortalAvancesSede,
   portalAvancesIsExcelFondo,
   type PortalAvancesFondo,
   type PortalAvancesProyecto,
@@ -293,6 +295,16 @@ export function VitrinaAvancesView({
                     className="sticky left-0 z-30 pl-4 bg-gray-50 shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]"
                   />
                 ) : null}
+                {show('encargado') ? (
+                  <SortableHead
+                    label="Encargado/a"
+                    sortKey="encargado"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('encargado')}
+                    style={colStyle('encargado')}
+                  />
+                ) : null}
                 {show('sede') ? (
                   <SortableHead
                     label="Sede"
@@ -311,6 +323,26 @@ export function VitrinaAvancesView({
                     onSort={onSortKey}
                     onResizeStart={startResize('escuelas')}
                     style={colStyle('escuelas')}
+                  />
+                ) : null}
+                {show('carreras') ? (
+                  <SortableHead
+                    label="Carreras"
+                    sortKey="carreras"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('carreras')}
+                    style={colStyle('carreras')}
+                  />
+                ) : null}
+                {show('asignaturas') ? (
+                  <SortableHead
+                    label="Asignaturas"
+                    sortKey="asignaturas"
+                    sort={sort}
+                    onSort={onSortKey}
+                    onResizeStart={startResize('asignaturas')}
+                    style={colStyle('asignaturas')}
                   />
                 ) : null}
                 {show('idVinculamos') ? (
@@ -454,7 +486,14 @@ export function VitrinaAvancesView({
             </TableHeader>
             <TableBody>
               {ordered.map((p) => {
+                const sedeLabel = formatPortalAvancesSede(p.sede);
                 const escuelasLabel = formatPortalAvancesEscuelas(p.escuelas);
+                const carrerasLabel = formatPortalAvancesCommaList(
+                  p.carreras ?? [],
+                );
+                const asignaturasLabel = formatPortalAvancesCommaList(
+                  p.asignaturas ?? [],
+                );
                 return (
                   <TableRow key={p.id} className="group hover:bg-gray-50/50">
                     {show('proyecto') ? (
@@ -465,20 +504,44 @@ export function VitrinaAvancesView({
                         {p.proyecto}
                       </TableCell>
                     ) : null}
+                    {show('encargado') ? (
+                      <TableCell
+                        style={colStyle('encargado')}
+                        className="text-[13px] text-gray-600 whitespace-normal break-words"
+                      >
+                        {p.encargado?.trim() || '—'}
+                      </TableCell>
+                    ) : null}
                     {show('sede') ? (
                       <TableCell
                         style={colStyle('sede')}
-                        className="text-[13px] text-gray-600"
+                        className="text-[13px] text-gray-600 whitespace-pre-line break-words"
                       >
-                        {p.sede || '—'}
+                        {sedeLabel || '—'}
                       </TableCell>
                     ) : null}
                     {show('escuelas') ? (
                       <TableCell
                         style={colStyle('escuelas')}
-                        className="text-[13px] text-gray-600 whitespace-normal break-words"
+                        className="text-[13px] text-gray-600 whitespace-pre-line break-words"
                       >
                         {escuelasLabel || '—'}
+                      </TableCell>
+                    ) : null}
+                    {show('carreras') ? (
+                      <TableCell
+                        style={colStyle('carreras')}
+                        className="text-[13px] text-gray-600 whitespace-pre-line break-words"
+                      >
+                        {carrerasLabel || '—'}
+                      </TableCell>
+                    ) : null}
+                    {show('asignaturas') ? (
+                      <TableCell
+                        style={colStyle('asignaturas')}
+                        className="text-[13px] text-gray-600 whitespace-pre-line break-words"
+                      >
+                        {asignaturasLabel || '—'}
                       </TableCell>
                     ) : null}
                     {show('idVinculamos') ? (

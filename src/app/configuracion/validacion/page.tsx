@@ -24,11 +24,16 @@ import {
 import * as Config from '@/lib/actions/configuracion';
 import { parseCatalogNamesFromSheetRows } from '@/lib/catalog-import-names';
 import {
+  ASIGNATURAS_PAGE_SIZE,
+  paginateItems,
+} from '@/lib/paginate';
+import {
   Plus,
   Pencil,
   Trash2,
   FileSpreadsheet,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 
@@ -99,10 +104,23 @@ export default function ConfiguracionValidacionPage() {
   const [uploadingAsignaturasXlsx, setUploadingAsignaturasXlsx] = useState(false);
   const [importAsignaturasResult, setImportAsignaturasResult] = useState<string | null>(null);
   const fileInputAsignaturasRef = useRef<HTMLInputElement>(null);
+  const [asignaturaPage, setAsignaturaPage] = useState(1);
+  const [asignaturaBusqueda, setAsignaturaBusqueda] = useState('');
   const [uploadingEtiquetasXlsx, setUploadingEtiquetasXlsx] = useState(false);
   const [importEtiquetasResult, setImportEtiquetasResult] = useState<string | null>(null);
   const fileInputEtiquetasRef = useRef<HTMLInputElement>(null);
   const [expandedFondos, setExpandedFondos] = useState<Set<string>>(new Set());
+
+  const asignaturasFiltradas = useMemo(() => {
+    const q = asignaturaBusqueda.trim().toLowerCase();
+    if (!q) return asignaturas;
+    return asignaturas.filter((a) => a.nombre.toLowerCase().includes(q));
+  }, [asignaturas, asignaturaBusqueda]);
+
+  const asignaturasPaged = useMemo(
+    () => paginateItems(asignaturasFiltradas, asignaturaPage, ASIGNATURAS_PAGE_SIZE),
+    [asignaturasFiltradas, asignaturaPage]
+  );
 
   const lineasByFondoId = useMemo(() => {
     const map = new Map<string, typeof lineas>();
@@ -774,24 +792,46 @@ export default function ConfiguracionValidacionPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-2">
-              Al editar el nombre de una asignatura, el cambio se aplica
-              automáticamente en todos los proyectos y participantes que la
-              tengan asociada.
+              Al editar el nombre, el cambio se refleja en proyectos y
+              participantes. Al eliminar, se quita de esos lugares (el campo
+              queda vacío).
             </p>
             {importAsignaturasResult && (
               <p className="text-sm text-green-600 mb-2">{importAsignaturasResult}</p>
             )}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <Input
+                value={asignaturaBusqueda}
+                onChange={(e) => {
+                  setAsignaturaBusqueda(e.target.value);
+                  setAsignaturaPage(1);
+                }}
+                placeholder="Buscar asignatura…"
+                className="max-w-xs h-8"
+              />
+              <p className="text-xs text-muted-foreground">
+                {asignaturasPaged.total === 0
+                  ? 'Sin resultados'
+                  : `Mostrando ${asignaturasPaged.from}–${asignaturasPaged.to} de ${asignaturasPaged.total}`}
+              </p>
+            </div>
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-white [&_tr]:bg-white">
                 <TableRow>
                   <TableHead>Nombre</TableHead>
+                  <TableHead>Proyectos</TableHead>
                   <TableHead className="w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {asignaturas.map((a) => (
+                {asignaturasPaged.rows.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell>{a.nombre}</TableCell>
+                    <TableCell className="text-[13px] text-gray-600 max-w-[420px]">
+                      {a.proyectosNombres.length > 0
+                        ? a.proyectosNombres.join(', ')
+                        : '—'}
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -812,6 +852,38 @@ export default function ConfiguracionValidacionPage() {
                 ))}
               </TableBody>
             </Table>
+            {asignaturasPaged.totalPages > 1 && (
+              <div className="flex items-center justify-end gap-2 mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={asignaturasPaged.currentPage <= 1}
+                  onClick={() =>
+                    setAsignaturaPage(asignaturasPaged.currentPage - 1)
+                  }
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Página {asignaturasPaged.currentPage} de{' '}
+                  {asignaturasPaged.totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    asignaturasPaged.currentPage >= asignaturasPaged.totalPages
+                  }
+                  onClick={() =>
+                    setAsignaturaPage(asignaturasPaged.currentPage + 1)
+                  }
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="grupo" className="mt-4">

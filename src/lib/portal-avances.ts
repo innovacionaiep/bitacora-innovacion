@@ -58,6 +58,9 @@ export type PortalAvancesProyecto = FondoAvanceMetrics & {
   proyecto: string;
   sede: string;
   escuelas: string[];
+  carreras?: string[];
+  asignaturas?: string[];
+  encargado?: string;
   idVinculamos?: string;
   estudiantes?: number | null;
   docentes?: number | null;
@@ -72,7 +75,27 @@ export function sortEscuelaNames(nombres: string[]): string[] {
 }
 
 export function formatPortalAvancesEscuelas(nombres: string[]): string {
-  return sortEscuelaNames(nombres).join(', ');
+  return sortEscuelaNames(nombres).join('\n');
+}
+
+/** Parte ítems unidos por coma, ; o | (no /: nombres como Grupo/Comunidad). */
+export function expandPortalAvancesCommaItems(nombres: string[]): string[] {
+  return sortEscuelaNames(
+    nombres.flatMap((nombre) =>
+      nombre
+        .split(/[,;|]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+export function formatPortalAvancesCommaList(nombres: string[]): string {
+  return expandPortalAvancesCommaItems(nombres).join('\n');
+}
+
+export function formatPortalAvancesSede(sede: string): string {
+  return formatPortalAvancesCommaList(sede.trim() ? [sede] : []);
 }
 
 export function rowsForPortalAvancesFondo(
@@ -101,8 +124,11 @@ export function portalAvancesMatchesQuery(
   const haystack = foldText(
     [
       proyecto.proyecto,
+      proyecto.encargado ?? '',
       proyecto.sede,
       ...proyecto.escuelas,
+      ...(proyecto.carreras ?? []),
+      ...(proyecto.asignaturas ?? []),
       proyecto.idVinculamos ?? '',
     ].join(' '),
   );

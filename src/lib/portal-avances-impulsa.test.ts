@@ -94,8 +94,11 @@ describe('parseImpulsaWorkbook', () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]).toMatchObject({
       proyecto: 'ClinicApp',
+      encargado: '',
       sede: 'Bellavista',
       escuelas: ['Ingeniería, Energía y Tecnología'],
+      carreras: [],
+      asignaturas: [],
       idVinculamos: 'Sin registro',
       estudiantes: 10,
       docentes: 2,
@@ -111,6 +114,123 @@ describe('parseImpulsaWorkbook', () => {
     const mapped = impulsaRowsToAvances(result.rows);
     expect(mapped[0]?.honorariosNoAplica).toBe(true);
     expect(mapped[0]?.fondo).toBe('Fondo Impulsa');
+    expect(mapped[0]?.carreras).toEqual([]);
+    expect(mapped[0]?.asignaturas).toEqual([]);
+  });
+
+  it('lee Carreras y Asignaturas si existen en la hoja', async () => {
+    const buffer = await workbookBuffer({
+      headers: [
+        'INICIATIVA',
+        'PROYECTO',
+        'SEDES',
+        'ESCUELAS',
+        'CARRERAS',
+        'ASIGNATURAS',
+        'ID VINCULAMOS',
+        'ESTUDIANTES',
+        'DOCENTES',
+        'BENEFICIARIOS',
+        'AVANCE GANTT',
+        'AVANCE INDICADORES',
+        'PRESUPUESTO',
+        '% COMPRAS SOLICITADAS',
+        '% COMPRAS RECEPCIONADAS',
+        '% HONORARIOS PAGADOS',
+        'DELTA',
+      ],
+      rows: [
+        [
+          'Fondo Impulsa',
+          'ClinicApp',
+          'Bellavista',
+          'Ingeniería, Energía y Tecnología',
+          'Ingeniería Comercial, Enfermería',
+          'Matemáticas; Anatomía',
+          'Sin registro',
+          10,
+          2,
+          5,
+          0.07,
+          0.1,
+          2_000_000,
+          0.97,
+          0,
+          'No aplica',
+          -1000,
+        ],
+      ],
+    });
+    const result = await parseImpulsaWorkbook(
+      buffer,
+      PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows[0]).toMatchObject({
+      carreras: ['Enfermería', 'Ingeniería Comercial'],
+      asignaturas: ['Anatomía', 'Matemáticas'],
+    });
+    const mapped = impulsaRowsToAvances(result.rows);
+    expect(mapped[0]?.carreras).toEqual(['Enfermería', 'Ingeniería Comercial']);
+    expect(mapped[0]?.asignaturas).toEqual(['Anatomía', 'Matemáticas']);
+  });
+
+  it('lee Encargado/a si existe la columna ENCARGADO/A', async () => {
+    const buffer = await workbookBuffer({
+      headers: [
+        'INICIATIVA',
+        'PROYECTO',
+        'ENCARGADO/A',
+        'SEDES',
+        'ESCUELAS',
+        'CARRERAS',
+        'ASIGNATURAS',
+        'ID VINCULAMOS',
+        'ESTUDIANTES',
+        'DOCENTES',
+        'BENEFICIARIOS',
+        'AVANCE GANTT',
+        'AVANCE INDICADORES',
+        'PRESUPUESTO',
+        '% COMPRAS SOLICITADAS',
+        '% COMPRAS RECEPCIONADAS',
+        '% HONORARIOS PAGADOS',
+        'DELTA',
+      ],
+      rows: [
+        [
+          'Fondo Impulsa',
+          'ClinicApp',
+          'jeremy.torres@aiep.cl',
+          'Bellavista',
+          'Ingeniería, Energía y Tecnología',
+          '',
+          '',
+          'Sin registro',
+          10,
+          2,
+          5,
+          0.07,
+          0.1,
+          2_000_000,
+          0.97,
+          0,
+          'No aplica',
+          -1000,
+        ],
+      ],
+    });
+    const result = await parseImpulsaWorkbook(
+      buffer,
+      PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows[0]?.encargado).toBe('jeremy.torres@aiep.cl');
+    expect(impulsaRowsToAvances(result.rows)[0]?.encargado).toBe(
+      'jeremy.torres@aiep.cl',
+    );
   });
 
   it('falla si falta la hoja', async () => {
