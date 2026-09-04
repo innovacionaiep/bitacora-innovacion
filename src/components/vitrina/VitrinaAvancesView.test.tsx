@@ -68,6 +68,7 @@ describe('VitrinaAvancesView', () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText('Proyecto aula')).toBeInTheDocument();
     expect(screen.getByText('Proyecto aula').className).toMatch(/sticky/);
+    expect(screen.getByRole('table').className).toMatch(/\[&_td\]:border-b/);
     expect(screen.getByText('Salud')).toBeInTheDocument();
     expect(
       screen.getByRole('columnheader', { name: /ID Vinculamos/i }),
@@ -240,7 +241,7 @@ describe('VitrinaAvancesView', () => {
             sede: 'Calama, Bellavista',
             escuelas: ['Negocios', 'Salud'],
             carreras: [
-              'Ingeniería en Automatización y Control Industrial, Técnico en Electricidad y Electrónica',
+              'Ingeniería en Automatización y Control Industrial | Técnico en Electricidad y Electrónica',
             ],
             asignaturas: ['Anatomía', 'Matemáticas'],
           }),

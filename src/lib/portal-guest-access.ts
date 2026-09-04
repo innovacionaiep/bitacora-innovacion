@@ -36,7 +36,7 @@ export const PORTAL_VIEWS_BY_LEVEL: Record<
   0: ['avances', 'indicadores'],
   1: ['proyectos'],
   2: ['proyectos', 'avances', 'indicadores'],
-  3: ['proyectos', 'avances', 'analisis', 'indicadores', 'data'],
+  3: ['proyectos', 'avances', 'analisis', 'indicadores', 'data', 'vinculamos'],
 };
 
 export function isPortalGuestLevel(value: unknown): value is PortalGuestLevel {
@@ -170,6 +170,7 @@ const PORTAL_VIEW_LABELS: Record<VitrinaProjectsView, string> = {
   analisis: 'Análisis',
   indicadores: 'Indicadores',
   data: 'Data',
+  vinculamos: 'Vinculamos',
 };
 
 export function isPortalSessionRole(value: unknown): value is PortalSessionRole {

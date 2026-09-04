@@ -149,7 +149,7 @@ function parseImpulsaNameList(raw: unknown, allowComma: boolean): string[] {
   const text = cellStr(raw);
   if (!text) return [];
   const parts = text
-    .split(allowComma ? /[;,|]+/ : /[;|]+/)
+    .split(allowComma ? '|' : /[;|]+/)
     .map((s) => s.trim())
     .filter(Boolean);
   return sortEscuelaNames(parts.length ? parts : [text]);

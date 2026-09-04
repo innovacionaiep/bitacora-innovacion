@@ -1138,6 +1138,15 @@ model VitrinaProyectoEtiqueta {
   @@map("vitrina_proyecto_etiquetas")
 }
 
+/// Lookup de sede MideImpacto (no es el payload de la iniciativa).
+model MideimpactoIniciativaSedeCache {
+  inicCodigo  String   @id @map("inic_codigo")
+  sedeNombres String   @default("") @map("sede_nombres")
+  fetchedAt   DateTime @map("fetched_at")
+
+  @@map("mideimpacto_iniciativa_sede_cache")
+}
+
 /// Configuración runtime de la app (key/value). Ej: maintenance_enabled=true|false
 model SystemSetting {
   id        String   @id @default(cuid())

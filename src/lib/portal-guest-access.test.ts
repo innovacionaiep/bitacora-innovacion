@@ -102,7 +102,10 @@ describe('portal views by level', () => {
       'analisis',
       'indicadores',
       'data',
+      'vinculamos',
     ]);
+    expect(portalCanSeeView(3, 'vinculamos')).toBe(true);
+    expect(portalCanSeeView(2, 'vinculamos')).toBe(false);
   });
 
   it('clampa una vista no permitida a la primera permitida', () => {

@@ -32,13 +32,22 @@ describe('VitrinaViewToggle', () => {
     );
     expect(
       screen.getAllByRole('tab').map((tab) => tab.textContent),
-    ).toEqual(['Proyectos', 'Avances', 'Análisis', 'Indicadores', 'Data']);
+    ).toEqual([
+      'Proyectos',
+      'Avances',
+      'Análisis',
+      'Indicadores',
+      'Data',
+      'Vinculamos',
+    ]);
     await user.click(screen.getByRole('tab', { name: 'Análisis' }));
     expect(onChange).toHaveBeenCalledWith('analisis');
     await user.click(screen.getByRole('tab', { name: 'Indicadores' }));
     expect(onChange).toHaveBeenCalledWith('indicadores');
     await user.click(screen.getByRole('tab', { name: 'Data' }));
     expect(onChange).toHaveBeenCalledWith('data');
+    await user.click(screen.getByRole('tab', { name: 'Vinculamos' }));
+    expect(onChange).toHaveBeenCalledWith('vinculamos');
   });
 
   it('muestra Avances cuando el nivel incluye esa vista', async () => {

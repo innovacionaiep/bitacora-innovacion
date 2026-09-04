@@ -125,13 +125,20 @@ describe('formatPortalAvancesEscuelas', () => {
 });
 
 describe('formatPortalAvancesCommaList', () => {
-  it('parte por coma y une con salto de línea', () => {
+  it('parte solo por | y conserva comas en el nombre', () => {
     expect(
       formatPortalAvancesCommaList([
-        'Ingeniería en Automatización y Control Industrial, Técnico en Electricidad y Electrónica',
+        'Ingeniería en Automatización y Control Industrial | Técnico en Electricidad y Electrónica',
       ]),
     ).toBe(
       'Ingeniería en Automatización y Control Industrial\nTécnico en Electricidad y Electrónica',
+    );
+    expect(
+      formatPortalAvancesCommaList([
+        'Técnico en Administración de Empresas, Mención Recursos Humanos',
+      ]),
+    ).toBe(
+      'Técnico en Administración de Empresas, Mención Recursos Humanos',
     );
     expect(
       formatPortalAvancesCommaList([

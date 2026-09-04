@@ -3,4 +3,5 @@ export type VitrinaProjectsView =
   | 'avances'
   | 'analisis'
   | 'indicadores'
-  | 'data';
+  | 'data'
+  | 'vinculamos';

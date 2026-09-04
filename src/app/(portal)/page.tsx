@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { VitrinaLanding } from '@/components/vitrina/VitrinaLanding';
 import { getVitrinaAiPublicStatus } from '@/lib/actions/vitrina-ai';
 import { getPortalAvancesProyectos } from '@/lib/actions/portal-avances';
+import { getMideimpactoIniciativas } from '@/lib/actions/mideimpacto-iniciativas';
 import { resolvePortalAccess } from '@/lib/actions/portal-guest';
 import {
   getVitrinaProjectCatalogs,
@@ -12,6 +13,7 @@ import { userHasAdminEnabled } from '@/lib/authz/pure';
 import {
   PORTAL_CAUSALAB_FONDO,
   portalNeedsVitrinaProyectos,
+  portalCanSeeView,
   portalSessionRedirectsToApp,
 } from '@/lib/portal-guest-access';
 import { canLoadPortalAvances } from '@/lib/portal-avances';
@@ -22,6 +24,7 @@ import {
 import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readVitrinaVideos } from '@/lib/vitrina-videos-store';
 import type { PortalAvancesProyecto } from '@/lib/portal-avances';
+import type { MideimpactoIniciativasPage } from '@/lib/mideimpacto-iniciativas';
 
 const EMPTY_CATALOGS: VitrinaProjectCatalogs = {
   fondos: [],
@@ -60,21 +63,42 @@ export default async function PortalPage({
   const loadVitrina =
     portalNeedsVitrinaProyectos(access.level) && !redirectsToApp;
   const loadAvances = canLoadPortalAvances(access.level, access.kind);
+  const loadVinculamos =
+    portalCanSeeView(access.level, 'vinculamos') && !redirectsToApp;
 
-  const [proyectosRaw, catalogsRaw, avancesResult] = hasReadAccess
-    ? await Promise.all([
-        loadVitrina ? readVitrinaProyectos() : Promise.resolve([]),
-        loadVitrina
-          ? getVitrinaProjectCatalogs()
-          : Promise.resolve(EMPTY_CATALOGS),
-        loadAvances
-          ? getPortalAvancesProyectos()
-          : Promise.resolve({
-              success: true as const,
-              data: [] as PortalAvancesProyecto[],
-            }),
-      ])
-    : [[], EMPTY_CATALOGS, { success: true as const, data: [] as PortalAvancesProyecto[] }];
+  const emptyVinculamos = {
+    success: true as const,
+    data: {
+      rows: [] as MideimpactoIniciativasPage['rows'],
+      page: 1,
+      lastPage: 1,
+      total: 0,
+    },
+  };
+
+  const [proyectosRaw, catalogsRaw, avancesResult, vinculamosInitial] =
+    hasReadAccess
+      ? await Promise.all([
+          loadVitrina ? readVitrinaProyectos() : Promise.resolve([]),
+          loadVitrina
+            ? getVitrinaProjectCatalogs()
+            : Promise.resolve(EMPTY_CATALOGS),
+          loadAvances
+            ? getPortalAvancesProyectos()
+            : Promise.resolve({
+                success: true as const,
+                data: [] as PortalAvancesProyecto[],
+              }),
+          loadVinculamos
+            ? getMideimpactoIniciativas({ page: 1 })
+            : Promise.resolve(emptyVinculamos),
+        ])
+      : [
+          [],
+          EMPTY_CATALOGS,
+          { success: true as const, data: [] as PortalAvancesProyecto[] },
+          emptyVinculamos,
+        ];
 
   const causalab = access.level === 0;
   const proyectos = causalab
@@ -122,6 +146,7 @@ export default async function PortalPage({
       accessLevel={access.level}
       initialScene={initialScene}
       avancesProyectos={avancesProyectos}
+      vinculamosInitial={vinculamosInitial}
     />
   );
 }

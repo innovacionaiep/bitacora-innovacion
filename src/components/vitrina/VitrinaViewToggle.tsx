@@ -11,6 +11,7 @@ const TAB_LABELS: Record<VitrinaProjectsView, string> = {
   analisis: 'Análisis',
   indicadores: 'Indicadores',
   data: 'Data',
+  vinculamos: 'Vinculamos',
 };
 
 const DEFAULT_TABS: VitrinaProjectsView[] = [
@@ -19,6 +20,7 @@ const DEFAULT_TABS: VitrinaProjectsView[] = [
   'analisis',
   'indicadores',
   'data',
+  'vinculamos',
 ];
 
 export function VitrinaViewToggle({

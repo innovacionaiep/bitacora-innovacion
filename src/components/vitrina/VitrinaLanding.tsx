@@ -26,6 +26,7 @@ import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard'
 import { VitrinaGuestGate } from '@/components/vitrina/VitrinaGuestGate';
 import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
 import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
+import { VitrinaVinculamosView } from '@/components/vitrina/VitrinaVinculamosView';
 import {
   VitrinaViewToggle,
   type VitrinaProjectsView,
@@ -95,6 +96,7 @@ import {
   togglePortalAvancesColumn,
   type PortalAvancesColumnId,
 } from '@/lib/portal-avances-columns';
+import type { MideimpactoIniciativasPage } from '@/lib/mideimpacto-iniciativas';
 
 const PATTERN_EDGES = 'left-[calc(50%-50cqw)] right-[calc(50%+6rem)]';
 
@@ -106,6 +108,11 @@ function prefersReducedMotion() {
 }
 
 const LOGIN_HERO_HREF = `/auth/login?callbackUrl=${encodeURIComponent('/')}`;
+
+const EMPTY_VINCULAMOS_INITIAL = {
+  success: true as const,
+  data: { rows: [] as MideimpactoIniciativasPage['rows'], page: 1, lastPage: 1, total: 0 },
+};
 
 export function VitrinaLanding({
   videos,
@@ -119,6 +126,7 @@ export function VitrinaLanding({
   accessLevel = null,
   initialScene = 'hero',
   avancesProyectos = [],
+  vinculamosInitial = EMPTY_VINCULAMOS_INITIAL,
 }: {
   videos: VitrinaVideo[];
   proyectos: VitrinaProyecto[];
@@ -131,6 +139,11 @@ export function VitrinaLanding({
   accessLevel?: PortalGuestLevel | null;
   initialScene?: VitrinaScene;
   avancesProyectos?: PortalAvancesProyecto[];
+  vinculamosInitial?: {
+    success: boolean;
+    data?: MideimpactoIniciativasPage;
+    error?: string;
+  };
 }) {
   const router = useRouter();
   const startProjects = initialScene === 'projects';
@@ -235,6 +248,7 @@ export function VitrinaLanding({
     [filterCatalogs, proyectosLocal],
   );
   const isAvancesView = projectsView === 'avances';
+  const isVinculamosView = projectsView === 'vinculamos';
   const avancesFondoRows = useMemo(
     () => rowsForPortalAvancesFondo(avancesProyectos, avancesFondoNombre),
     [avancesProyectos, avancesFondoNombre],
@@ -647,6 +661,7 @@ export function VitrinaLanding({
             aria-hidden={!cardsShown}
           >
             <div className="flex h-full min-h-0 w-full items-stretch">
+              {!isVinculamosView ? (
               <VitrinaProjectsSidebar
                 options={isAvancesView ? avancesFilterOptions : filterOptions}
                 filters={
@@ -729,6 +744,7 @@ export function VitrinaLanding({
                   setAiApplied(false);
                 }}
               />
+              ) : null}
               <div className="relative min-h-0 min-w-0 flex-1">
                 {portalCanSeeView(accessLevel, 'proyectos') ? (
                 <div
@@ -804,6 +820,15 @@ export function VitrinaLanding({
                     onProyectoUpsert={upsertProyectoLocal}
                     onOptimisticMutationStart={beginOptimisticMutation}
                     onOptimisticMutationEnd={endOptimisticMutation}
+                  />
+                </div>
+                ) : null}
+                {portalCanSeeView(accessLevel, 'vinculamos') &&
+                projectsView === 'vinculamos' ? (
+                <div className="h-full min-h-0 overflow-hidden">
+                  <VitrinaVinculamosView
+                    initial={vinculamosInitial}
+                    onBack={goToHero}
                   />
                 </div>
                 ) : null}

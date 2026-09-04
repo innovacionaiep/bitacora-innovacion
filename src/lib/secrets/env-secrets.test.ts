@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   getConfigUnlockPassword,
+  getMideimpactoApiKey,
   getNovedadesUnlockPassword,
   readRequiredEnv,
   secretsMatch,
 } from '@/lib/secrets/env-secrets';
 
-const KEYS = ['CONFIG_UNLOCK_PASSWORD', 'NOVEDADES_UNLOCK_PASSWORD', 'TEST_SECRET_X'] as const;
+const KEYS = [
+  'CONFIG_UNLOCK_PASSWORD',
+  'NOVEDADES_UNLOCK_PASSWORD',
+  'TEST_SECRET_X',
+  'MIDEIMPACTO_API_KEY',
+] as const;
 
 afterEach(() => {
   for (const k of KEYS) {
@@ -46,5 +52,12 @@ describe('readRequiredEnv / fail-closed secrets', () => {
   it('treats whitespace-only as missing', () => {
     process.env.TEST_SECRET_X = '   ';
     expect(readRequiredEnv('TEST_SECRET_X')).toBeNull();
+  });
+
+  it('lee MIDEIMPACTO_API_KEY recortada y fail-closed', () => {
+    delete process.env.MIDEIMPACTO_API_KEY;
+    expect(getMideimpactoApiKey()).toBeNull();
+    process.env.MIDEIMPACTO_API_KEY = '  token-mide  ';
+    expect(getMideimpactoApiKey()).toBe('token-mide');
   });
 });

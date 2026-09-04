@@ -281,7 +281,7 @@ export function VitrinaAvancesView({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto custom-scrollbar border border-gray-200 rounded-md bg-white">
-          <Table className="w-max min-w-full table-fixed border-separate border-spacing-0">
+          <Table className="w-max min-w-full table-fixed border-separate border-spacing-0 [&_th]:border-b [&_td]:border-b [&_th]:border-gray-200 [&_td]:border-gray-200">
             <TableHeader className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm">
               <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
                 {show('proyecto') ? (

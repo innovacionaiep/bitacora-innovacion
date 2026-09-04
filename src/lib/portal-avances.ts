@@ -78,12 +78,12 @@ export function formatPortalAvancesEscuelas(nombres: string[]): string {
   return sortEscuelaNames(nombres).join('\n');
 }
 
-/** Parte ítems unidos por coma, ; o | (no /: nombres como Grupo/Comunidad). */
+/** Parte ítems solo por `|` (las comas forman parte del nombre, p. ej. carreras). */
 export function expandPortalAvancesCommaItems(nombres: string[]): string[] {
   return sortEscuelaNames(
     nombres.flatMap((nombre) =>
       nombre
-        .split(/[,;|]+/)
+        .split('|')
         .map((s) => s.trim())
         .filter(Boolean),
     ),
@@ -95,7 +95,13 @@ export function formatPortalAvancesCommaList(nombres: string[]): string {
 }
 
 export function formatPortalAvancesSede(sede: string): string {
-  return formatPortalAvancesCommaList(sede.trim() ? [sede] : []);
+  if (!sede.trim()) return '';
+  return sortEscuelaNames(
+    sede
+      .split(/[,;|]+/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  ).join('\n');
 }
 
 export function rowsForPortalAvancesFondo(
