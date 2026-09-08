@@ -262,28 +262,29 @@ export function VitrinaVinculamosSidebar({
             onToggle={onToggleColumn}
           />
           {FACETS.map((facet) => {
-            if (isVinculamosContainsFacet(facet.key)) {
+            const facetKey = facet.key;
+            if (isVinculamosContainsFacet(facetKey)) {
               return (
                 <ContainsFilter
-                  key={facet.key}
+                  key={facetKey}
                   facet={facet}
-                  selected={filters[facet.key]}
-                  onAdd={(value) => onAddContains(facet.key, value)}
-                  onRemove={(value) => onToggle(facet.key, value)}
+                  selected={filters[facetKey]}
+                  onAdd={(value) => onAddContains(facetKey, value)}
+                  onRemove={(value) => onToggle(facetKey, value)}
                 />
               );
             }
-            const values = options[facet.key];
+            const values = options[facetKey];
             if (values.length === 0) return null;
             return (
               <FilterDropdown
-                key={facet.key}
+                key={facetKey}
                 facet={facet}
                 options={values}
-                selected={filters[facet.key]}
-                open={openFacet === facet.key}
-                onOpenChange={(next) => setOpenFacet(next ? facet.key : null)}
-                onToggle={(value) => onToggle(facet.key, value)}
+                selected={filters[facetKey]}
+                open={openFacet === facetKey}
+                onOpenChange={(next) => setOpenFacet(next ? facetKey : null)}
+                onToggle={(value) => onToggle(facetKey, value)}
               />
             );
           })}
