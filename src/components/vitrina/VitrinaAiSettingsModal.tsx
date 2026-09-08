@@ -23,6 +23,13 @@ import {
   updateImpulsaExcelSnapshot,
 } from '@/lib/actions/portal-avances-impulsa';
 import {
+  getVcmExcelSettings,
+  saveVcmExcelSettings,
+  testVcmExcelFile,
+  testVcmExcelSheet,
+  updateVcmExcelSnapshot,
+} from '@/lib/actions/portal-avances-vcm';
+import {
   getPortalOutlookSettings,
   savePortalOutlookSettings,
   testPortalOutlook,
@@ -66,7 +73,7 @@ const LEVEL_HINT: Record<PortalGuestLevel, string> = {
   3: 'Toda la información de lectura',
 };
 
-type PortalSettingsTab = 'ai' | 'guest' | 'impulsa' | 'outlook' | 'roles';
+type PortalSettingsTab = 'ai' | 'guest' | 'impulsa' | 'vcm' | 'outlook' | 'roles';
 
 const SETTINGS_TABS: {
   id: PortalSettingsTab;
@@ -76,6 +83,7 @@ const SETTINGS_TABS: {
   { id: 'ai', label: 'Asistente I.A.', icon: Bot },
   { id: 'guest', label: 'Códigos de invitado', icon: KeyRound },
   { id: 'impulsa', label: 'Fondo Impulsa', icon: FileSpreadsheet },
+  { id: 'vcm', label: 'Vinculación con el Medio', icon: FileSpreadsheet },
   { id: 'outlook', label: 'Correo Outlook', icon: Mail },
   { id: 'roles', label: 'Cuentas logueadas', icon: Users },
 ];
@@ -120,6 +128,16 @@ export function VitrinaAiSettingsModal({
   const [testingSheet, setTestingSheet] = useState(false);
   const [updatingImpulsa, setUpdatingImpulsa] = useState(false);
   const [savingImpulsa, setSavingImpulsa] = useState(false);
+  const [vcmPath, setVcmPath] = useState('');
+  const [vcmSheet, setVcmSheet] = useState('Fondo VcM');
+  const [vcmFileOk, setVcmFileOk] = useState(false);
+  const [vcmSheetOk, setVcmSheetOk] = useState(false);
+  const [vcmSyncedAt, setVcmSyncedAt] = useState<string | null>(null);
+  const [vcmRowCount, setVcmRowCount] = useState(0);
+  const [testingVcmFile, setTestingVcmFile] = useState(false);
+  const [testingVcmSheet, setTestingVcmSheet] = useState(false);
+  const [updatingVcm, setUpdatingVcm] = useState(false);
+  const [savingVcm, setSavingVcm] = useState(false);
   const [roleLevels, setRoleLevels] = useState<PortalSessionRoleLevels>(
     DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   );
@@ -148,9 +166,10 @@ export function VitrinaAiSettingsModal({
       getVitrinaAiSettings(),
       getPortalGuestSettings(),
       getImpulsaExcelSettings(),
+      getVcmExcelSettings(),
       getPortalSessionRoleSettings(),
       getPortalOutlookSettings(),
-    ]).then(([aiResult, guestResult, impulsaResult, roleResult, outlookResult]) => {
+    ]).then(([aiResult, guestResult, impulsaResult, vcmResult, roleResult, outlookResult]) => {
         if (cancelled) return;
         setLoading(false);
         if (outlookResult.success && outlookResult.data) {
@@ -177,6 +196,14 @@ export function VitrinaAiSettingsModal({
           setImpulsaSheetOk(impulsaResult.data.sheetOk);
           setImpulsaSyncedAt(impulsaResult.data.lastSyncedAt);
           setImpulsaRowCount(impulsaResult.data.rowCount);
+        }
+        if (vcmResult.success && vcmResult.data) {
+          setVcmPath(vcmResult.data.filePath);
+          setVcmSheet(vcmResult.data.sheetName);
+          setVcmFileOk(vcmResult.data.fileOk);
+          setVcmSheetOk(vcmResult.data.sheetOk);
+          setVcmSyncedAt(vcmResult.data.lastSyncedAt);
+          setVcmRowCount(vcmResult.data.rowCount);
         }
         if (roleResult.success && roleResult.data) {
           setRoleLevels(roleResult.data);
@@ -353,6 +380,106 @@ export function VitrinaAiSettingsModal({
     router.refresh();
   }
 
+  async function persistVcmConfig() {
+    const result = await saveVcmExcelSettings({
+      filePath: vcmPath,
+      sheetName: vcmSheet,
+    });
+    if (!result.success || !result.data) {
+      return { ok: false as const, error: result.error ?? 'No se pudo guardar la ruta' };
+    }
+    setVcmFileOk(result.data.fileOk);
+    setVcmSheetOk(result.data.sheetOk);
+    setVcmSyncedAt(result.data.lastSyncedAt);
+    setVcmRowCount(result.data.rowCount);
+    return { ok: true as const };
+  }
+
+  async function handleSaveVcm() {
+    setError('');
+    setInfo('');
+    setSavingVcm(true);
+    const saved = await persistVcmConfig();
+    setSavingVcm(false);
+    if (!saved.ok) {
+      setError(saved.error);
+      return;
+    }
+    setInfo('Ruta y hoja de Vinculación con el Medio guardadas.');
+  }
+
+  async function handleTestVcmFile() {
+    setError('');
+    setInfo('');
+    setTestingVcmFile(true);
+    const saved = await persistVcmConfig();
+    if (!saved.ok) {
+      setTestingVcmFile(false);
+      setError(saved.error);
+      return;
+    }
+    const result = await testVcmExcelFile();
+    setTestingVcmFile(false);
+    if (!result.success) {
+      setVcmFileOk(false);
+      setVcmSheetOk(false);
+      setError(result.error ?? 'No se pudo abrir el archivo');
+      return;
+    }
+    setVcmFileOk(true);
+    setInfo('Archivo Excel encontrado y se abre correctamente.');
+  }
+
+  async function handleTestVcmSheet() {
+    setError('');
+    setInfo('');
+    setTestingVcmSheet(true);
+    const saved = await persistVcmConfig();
+    if (!saved.ok) {
+      setTestingVcmSheet(false);
+      setError(saved.error);
+      return;
+    }
+    const result = await testVcmExcelSheet();
+    setTestingVcmSheet(false);
+    if (!result.success) {
+      setVcmSheetOk(false);
+      setError(result.error ?? 'No se pudo leer la hoja');
+      return;
+    }
+    setVcmFileOk(true);
+    setVcmSheetOk(true);
+    setInfo(
+      `Hoja "${vcmSheet.trim() || 'Fondo VcM'}" encontrada y las columnas coinciden.`,
+    );
+  }
+
+  async function handleUpdateVcm() {
+    setError('');
+    setInfo('');
+    setUpdatingVcm(true);
+    const saved = await persistVcmConfig();
+    if (!saved.ok) {
+      setUpdatingVcm(false);
+      setError(saved.error);
+      return;
+    }
+    const result = await updateVcmExcelSnapshot();
+    setUpdatingVcm(false);
+    if (!result.success || !result.data) {
+      setError(result.error ?? 'No se pudo actualizar');
+      return;
+    }
+    setVcmFileOk(result.data.fileOk);
+    setVcmSheetOk(result.data.sheetOk);
+    setVcmSyncedAt(result.data.lastSyncedAt);
+    setVcmRowCount(result.data.rowCount);
+    setInfo(
+      `Actualizado: ${result.data.rowCount} proyecto${result.data.rowCount === 1 ? '' : 's'} de Vinculación con el Medio.`,
+    );
+    router.refresh();
+  }
+
   async function handleSaveRoles() {
     setError('');
     setInfo('');
@@ -426,6 +553,10 @@ export function VitrinaAiSettingsModal({
     testingFile ||
     testingSheet ||
     updatingImpulsa ||
+    savingVcm ||
+    testingVcmFile ||
+    testingVcmSheet ||
+    updatingVcm ||
     savingRoles ||
     savingOutlook ||
     testingOutlook;
@@ -737,6 +868,98 @@ export function VitrinaAiSettingsModal({
                   disabled={busy}
                 >
                   {updatingImpulsa ? 'Actualizando…' : 'Actualizar'}
+                </Button>
+              ) : null}
+            </div>
+          </section>
+          ) : null}
+
+          {tab === 'vcm' ? (
+          <section
+            aria-labelledby="portal-settings-vcm"
+            className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+          >
+            <div>
+              <h3
+                id="portal-settings-vcm"
+                className="text-sm font-semibold text-slate-900"
+              >
+                Vinculación con el Medio (Excel local)
+              </h3>
+              <p className="mt-1 text-xs leading-snug text-slate-500">
+                Actualizar solo desde este equipo con OneDrive sincronizado. El
+                portal publicado muestra el último snapshot, no lee el archivo.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="vcm-excel-path">Ruta del archivo .xlsx</Label>
+              <Input
+                id="vcm-excel-path"
+                value={vcmPath}
+                onChange={(e) => {
+                  setVcmPath(e.target.value);
+                  setVcmFileOk(false);
+                  setVcmSheetOk(false);
+                }}
+                disabled={busy}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="vcm-excel-sheet">Hoja</Label>
+              <Input
+                id="vcm-excel-sheet"
+                value={vcmSheet}
+                onChange={(e) => {
+                  setVcmSheet(e.target.value);
+                  setVcmSheetOk(false);
+                }}
+                disabled={busy}
+              />
+            </div>
+            {vcmSyncedAt ? (
+              <p className="text-xs text-slate-500">
+                Última actualización:{' '}
+                {new Date(vcmSyncedAt).toLocaleString('es-CL')} (
+                {vcmRowCount} filas)
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Aún no hay snapshot de Vinculación con el Medio.
+              </p>
+            )}
+            <div className="mt-auto flex flex-wrap gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleSaveVcm()}
+                disabled={busy}
+              >
+                {savingVcm ? 'Guardando…' : 'Guardar ruta'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleTestVcmFile()}
+                disabled={busy}
+              >
+                {testingVcmFile ? 'Probando…' : 'Probar archivo'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleTestVcmSheet()}
+                disabled={busy}
+              >
+                {testingVcmSheet ? 'Probando…' : 'Probar hoja'}
+              </Button>
+              {vcmFileOk && vcmSheetOk ? (
+                <Button
+                  type="button"
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => void handleUpdateVcm()}
+                  disabled={busy}
+                >
+                  {updatingVcm ? 'Actualizando…' : 'Actualizar'}
                 </Button>
               ) : null}
             </div>

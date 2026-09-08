@@ -55,6 +55,24 @@ vi.mock('@/lib/actions/portal-avances-impulsa', () => ({
   updateImpulsaExcelSnapshot: vi.fn(),
 }));
 
+vi.mock('@/lib/actions/portal-avances-vcm', () => ({
+  getVcmExcelSettings: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: '',
+      sheetName: 'Fondo VcM',
+      fileOk: false,
+      sheetOk: false,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  saveVcmExcelSettings: vi.fn(),
+  testVcmExcelFile: vi.fn(),
+  testVcmExcelSheet: vi.fn(),
+  updateVcmExcelSnapshot: vi.fn(),
+}));
+
 vi.mock('@/lib/actions/portal-outlook', () => ({
   getPortalOutlookSettings: vi.fn(async () => ({
     success: true,
@@ -103,6 +121,27 @@ describe('VitrinaAiSettingsModal sidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Cuentas logueadas' }));
     expect(screen.getByRole('button', { name: 'Guardar accesos por rol' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Correo de la cuenta')).not.toBeInTheDocument();
+  });
+});
+
+describe('VitrinaAiSettingsModal Vinculación con el Medio', () => {
+  it('muestra ruta, hoja Fondo VcM y botones de prueba', async () => {
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Vinculación con el Medio' }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole('button', { name: 'Vinculación con el Medio' }),
+    );
+    expect(screen.getByLabelText('Ruta del archivo .xlsx')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hoja')).toHaveValue('Fondo VcM');
+    expect(screen.getByRole('button', { name: 'Guardar ruta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Probar archivo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Probar hoja' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument();
   });
 });
 

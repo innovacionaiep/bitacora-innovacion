@@ -59,13 +59,17 @@ function sortValue(
     case 'presupuestoAdjudicado':
       return row.presupuestoAdjudicado;
     case 'gantt':
-      return row.avanceGantt;
+      return row.ganttNoAplica ? -1 : row.avanceGantt;
     case 'indicadores':
-      return row.avanceIndicadores;
+      return row.indicadoresNoAplica ? -1 : row.avanceIndicadores;
     case 'presupuestoSolicitado':
-      return row.avanceOperativoSolicitado;
+      return row.operativoSolicitadoNoAplica
+        ? -1
+        : row.avanceOperativoSolicitado;
     case 'presupuestoEjecutado':
-      return row.avanceOperativoEjecutado;
+      return row.operativoEjecutadoNoAplica
+        ? -1
+        : row.avanceOperativoEjecutado;
     case 'honorarios':
       return row.honorariosNoAplica ? -1 : row.avanceHonorarios;
     case 'saldo':

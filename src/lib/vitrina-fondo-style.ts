@@ -92,6 +92,14 @@ export function vitrinaLineaStripeClass(nombre: string): string {
   return hashedStripe(nombre, LINEA_STRIPES);
 }
 
+export function vitrinaLineaBarStripeClass(
+  lineaNombre: string,
+  parentFondo?: string,
+): string {
+  if (parentFondo?.trim()) return vitrinaFondoStripeClass(parentFondo);
+  return vitrinaLineaStripeClass(lineaNombre);
+}
+
 export function vitrinaSedeStripeClass(nombre: string): string {
   return hashedStripe(nombre, SEDE_STRIPES);
 }
@@ -102,4 +110,30 @@ export function vitrinaEscuelaStripeClass(nombre: string): string {
 
 export function vitrinaEtiquetaStripeClass(nombre: string): string {
   return hashedStripe(nombre, ETIQUETA_STRIPES);
+}
+
+const CARRERA_STRIPES = [
+  'bg-indigo-600',
+  'bg-violet-600',
+  'bg-purple-600',
+  'bg-fuchsia-600',
+  'bg-indigo-500',
+  'bg-violet-500',
+] as const;
+
+const ASIGNATURA_STRIPES = [
+  'bg-amber-600',
+  'bg-orange-600',
+  'bg-yellow-600',
+  'bg-amber-500',
+  'bg-orange-500',
+  'bg-yellow-500',
+] as const;
+
+export function vitrinaCarreraStripeClass(nombre: string): string {
+  return hashedStripe(nombre, CARRERA_STRIPES);
+}
+
+export function vitrinaAsignaturaStripeClass(nombre: string): string {
+  return hashedStripe(nombre, ASIGNATURA_STRIPES);
 }

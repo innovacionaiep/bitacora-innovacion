@@ -1,80 +1,325 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
-import { buildVitrinaDataStats, type VitrinaDataBarDatum } from '@/lib/vitrina-data-stats';
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import {
+  FolderKanban,
+  GraduationCap,
+  Handshake,
+  HeartHandshake,
+  Presentation,
+  type LucideIcon,
+} from 'lucide-react';
+import { VitrinaChartProjectTooltip } from '@/components/vitrina/VitrinaChartProjectTooltip';
+import { sumVitrinaAvancesParticipantes } from '@/lib/vitrina-avances-participantes';
+import {
+  portalAvancesFondosForLevel,
+  type PortalAvancesProyecto,
+} from '@/lib/portal-avances';
+import type { PortalGuestLevel } from '@/lib/portal-guest-access';
+import { buildVitrinaDataStats, countVitrinaSociosComunitarios, type VitrinaDataBarDatum, type VitrinaLineaFondoCatalog } from '@/lib/vitrina-data-stats';
+import {
+  vitrinaAsignaturaStripeClass,
+  vitrinaCarreraStripeClass,
   vitrinaEscuelaStripeClass,
   vitrinaEtiquetaStripeClass,
   vitrinaFondoStripeClass,
-  vitrinaLineaStripeClass,
+  vitrinaLineaBarStripeClass,
   vitrinaSedeStripeClass,
 } from '@/lib/vitrina-fondo-style';
+import {
+  buildVitrinaAvancesAsignaturaCobertura,
+  buildVitrinaAvancesAsignaturaStats,
+  buildVitrinaAvancesCarreraStats,
+  type VitrinaAvancesAsignaturaCobertura,
+} from '@/lib/vitrina-avances-dimension-stats';
+import { donutSlicePath } from '@/lib/vitrina-donut-path';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { cn } from '@/lib/utils';
 
+type ChartHover = {
+  x: number;
+  y: number;
+  label: string;
+  nombres: string[];
+};
+
+function formatCount(value: number): string {
+  return value === 1 ? '1 proyecto' : `${value} proyectos`;
+}
+
+function formatCoveragePct(value: number): string {
+  const text = Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return `${text}%`;
+}
+
+function hoverFromEvent(
+  event: MouseEvent<HTMLElement>,
+  item: VitrinaDataBarDatum,
+): ChartHover {
+  return {
+    x: event.clientX,
+    y: event.clientY,
+    label: item.label,
+    nombres: item.nombres,
+  };
+}
+
 export function VitrinaDataDashboard({
   proyectos,
+  avancesProyectos = [],
+  accessLevel = null,
+  lineaCatalog,
+  fondosFiltro = [],
 }: {
   proyectos: VitrinaProyecto[];
+  avancesProyectos?: PortalAvancesProyecto[];
+  accessLevel?: PortalGuestLevel | null;
+  lineaCatalog?: VitrinaLineaFondoCatalog;
+  fondosFiltro?: string[];
 }) {
-  const stats = useMemo(() => buildVitrinaDataStats(proyectos), [proyectos]);
+  const stats = useMemo(
+    () => buildVitrinaDataStats(proyectos, lineaCatalog),
+    [proyectos, lineaCatalog],
+  );
+  const sociosComunitarios = useMemo(
+    () => countVitrinaSociosComunitarios(proyectos),
+    [proyectos],
+  );
+  const participantes = useMemo(
+    () =>
+      sumVitrinaAvancesParticipantes(
+        avancesProyectos,
+        portalAvancesFondosForLevel(accessLevel),
+        fondosFiltro,
+      ),
+    [avancesProyectos, accessLevel, fondosFiltro],
+  );
+  const porCarrera = useMemo(
+    () =>
+      buildVitrinaAvancesCarreraStats(
+        avancesProyectos,
+        portalAvancesFondosForLevel(accessLevel),
+        fondosFiltro,
+      ),
+    [avancesProyectos, accessLevel, fondosFiltro],
+  );
+  const porAsignatura = useMemo(
+    () =>
+      buildVitrinaAvancesAsignaturaStats(
+        avancesProyectos,
+        portalAvancesFondosForLevel(accessLevel),
+        fondosFiltro,
+      ),
+    [avancesProyectos, accessLevel, fondosFiltro],
+  );
+  const coberturaAsignatura = useMemo(
+    () =>
+      buildVitrinaAvancesAsignaturaCobertura(
+        avancesProyectos,
+        portalAvancesFondosForLevel(accessLevel),
+        fondosFiltro,
+      ),
+    [avancesProyectos, accessLevel, fondosFiltro],
+  );
+  const [hover, setHover] = useState<ChartHover | null>(null);
+
+  const barHoverProps = (item: VitrinaDataBarDatum) => ({
+    'aria-label': `${item.label}: ${formatCount(item.value)}`,
+    onMouseEnter: (event: MouseEvent<HTMLElement>) => {
+      setHover(hoverFromEvent(event, item));
+    },
+    onMouseMove: (event: MouseEvent<HTMLElement>) => {
+      setHover(hoverFromEvent(event, item));
+    },
+    onMouseLeave: () => setHover(null),
+  });
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-6 overflow-y-auto px-8 py-6 overscroll-contain lg:overflow-hidden lg:px-12">
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-[minmax(16rem,0.9fr)_1.2fr_1.2fr]">
-        <article className="flex h-full min-h-0 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
-            Proyectos
-          </p>
-          <p className="text-7xl font-bold tracking-tight text-slate-900 tabular-nums">
-            {stats.total}
-          </p>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-6 overflow-y-auto px-6 py-6 overscroll-contain lg:overflow-hidden lg:px-8">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(12rem,0.75fr)]">
+        <article
+          data-resumen-kpis
+          className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <ul className="flex min-h-0 flex-[0.7] flex-col">
+            <ResumenPersonaRow
+              label="Proyectos"
+              value={stats.total}
+              icon={FolderKanban}
+              valueClass="text-4xl"
+              emphasis
+            />
+          </ul>
+
+          <div className="my-3 border-t border-slate-200" role="separator" />
+
+          <ul className="flex min-h-0 flex-1 flex-col">
+            <ResumenPersonaRow
+              compact
+              label="Estudiantes"
+              value={participantes.estudiantes}
+              icon={GraduationCap}
+            />
+            <ResumenPersonaRow
+              compact
+              label="Docentes"
+              value={participantes.docentes}
+              icon={Presentation}
+            />
+          </ul>
+
+          <div className="my-3 border-t border-slate-200" role="separator" />
+
+          <ul className="flex min-h-0 flex-1 flex-col">
+            <ResumenPersonaRow
+              compact
+              label="Socios comunitarios"
+              value={sociosComunitarios}
+              icon={Handshake}
+            />
+            <ResumenPersonaRow
+              compact
+              label="Beneficiarios"
+              value={participantes.beneficiarios}
+              icon={HeartHandshake}
+            />
+          </ul>
         </article>
 
         <ChartCard title="Por fondo">
           <VitrinaVerticalBars
             data={stats.porFondo}
-            colorFor={vitrinaFondoStripeClass}
+            colorFor={(item) => vitrinaFondoStripeClass(item.label)}
+            barHoverProps={barHoverProps}
           />
         </ChartCard>
 
         <ChartCard title="Por línea">
           <VitrinaVerticalBars
             data={stats.porLinea}
-            colorFor={vitrinaLineaStripeClass}
+            colorFor={(item) =>
+              vitrinaLineaBarStripeClass(item.label, item.parentFondo)
+            }
+            barHoverProps={barHoverProps}
+          />
+        </ChartCard>
+
+        <ChartCard title="Asignatura">
+          <VitrinaAsignaturaPie
+            cobertura={coberturaAsignatura}
+            onHover={setHover}
           />
         </ChartCard>
       </div>
 
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
         <ChartCard title="Por sede">
           <VitrinaRowBars
             data={stats.porSede}
-            colorFor={vitrinaSedeStripeClass}
+            colorFor={(item) => vitrinaSedeStripeClass(item.label)}
+            barHoverProps={barHoverProps}
           />
         </ChartCard>
         <ChartCard title="Por escuela">
           <VitrinaRowBars
             data={stats.porEscuela}
-            colorFor={vitrinaEscuelaStripeClass}
+            colorFor={(item) => vitrinaEscuelaStripeClass(item.label)}
+            barHoverProps={barHoverProps}
+          />
+        </ChartCard>
+        <ChartCard title="Por carrera">
+          <VitrinaRowBars
+            data={porCarrera}
+            colorFor={(item) => vitrinaCarreraStripeClass(item.label)}
+            barHoverProps={barHoverProps}
+          />
+        </ChartCard>
+        <ChartCard title="Por asignatura">
+          <VitrinaRowBars
+            data={porAsignatura}
+            colorFor={(item) => vitrinaAsignaturaStripeClass(item.label)}
+            barHoverProps={barHoverProps}
           />
         </ChartCard>
         <ChartCard title="Por etiqueta">
           <VitrinaRowBars
             data={stats.porEtiqueta}
-            colorFor={vitrinaEtiquetaStripeClass}
+            colorFor={(item) => vitrinaEtiquetaStripeClass(item.label)}
+            barHoverProps={barHoverProps}
           />
         </ChartCard>
       </div>
+
+      {hover ? (
+        <VitrinaChartProjectTooltip
+          title={hover.label}
+          nombres={hover.nombres}
+          x={hover.x}
+          y={hover.y}
+        />
+      ) : null}
     </div>
   );
 }
 
-/** Parte el nombre en líneas en cada espacio (p. ej. "Fondo Impulsa" → dos líneas). */
-function formatVerticalBarLabel(label: string) {
-  const trimmed = label.trim();
-  if (!trimmed.includes(' ')) return trimmed;
-  return trimmed.replace(/\s+/g, '\n');
+/** Primera palabra en la línea 1; el resto, en una sola segunda línea. */
+export function formatVerticalBarLabel(label: string) {
+  const trimmed = label.trim().replace(/\s+/g, ' ');
+  const space = trimmed.indexOf(' ');
+  if (space === -1) return trimmed;
+  return `${trimmed.slice(0, space)}\n${trimmed.slice(space + 1)}`;
+}
+
+function ResumenPersonaRow({
+  label,
+  value,
+  icon: Icon,
+  valueClass = 'text-2xl',
+  compact = false,
+  emphasis = false,
+}: {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  valueClass?: string;
+  compact?: boolean;
+  emphasis?: boolean;
+}) {
+  return (
+    <li
+      className={cn(
+        'flex items-center justify-between gap-3 px-1',
+        compact ? 'min-h-0 flex-1 py-1' : 'min-h-0 flex-1 py-2',
+      )}
+      aria-label={`${label}: ${value}`}
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        <Icon
+          className={cn(
+            'shrink-0 text-slate-500',
+            emphasis ? 'h-9 w-9' : 'h-6 w-6',
+          )}
+          aria-hidden
+        />
+        <span
+          className={cn(
+            'truncate font-medium text-slate-600',
+            emphasis ? 'text-2xl font-semibold text-slate-700' : 'text-sm',
+          )}
+        >
+          {label}
+        </span>
+      </span>
+      <span
+        className={cn(
+          'font-bold tracking-tight text-slate-900 tabular-nums',
+          valueClass,
+        )}
+      >
+        {value}
+      </span>
+    </li>
+  );
 }
 
 function ChartCard({
@@ -96,12 +341,21 @@ function ChartCard({
   );
 }
 
+type BarHoverProps = (item: VitrinaDataBarDatum) => {
+  'aria-label': string;
+  onMouseEnter: (event: MouseEvent<HTMLElement>) => void;
+  onMouseMove: (event: MouseEvent<HTMLElement>) => void;
+  onMouseLeave: () => void;
+};
+
 function VitrinaVerticalBars({
   data,
   colorFor,
+  barHoverProps,
 }: {
   data: VitrinaDataBarDatum[];
-  colorFor: (label: string) => string;
+  colorFor: (item: VitrinaDataBarDatum) => string;
+  barHoverProps: BarHoverProps;
 }) {
   if (data.length === 0) {
     return (
@@ -122,8 +376,8 @@ function VitrinaVerticalBars({
         return (
           <div
             key={item.label}
-            className="flex w-16 min-w-16 shrink-0 flex-col"
-            title={`${item.label}: ${item.value}`}
+            className="flex w-[5.5rem] min-w-[5.5rem] shrink-0 cursor-pointer flex-col"
+            {...barHoverProps(item)}
           >
             <div
               className="flex w-full flex-col items-center justify-end"
@@ -135,12 +389,12 @@ function VitrinaVerticalBars({
               <div
                 className={cn(
                   'w-9 shrink-0 rounded-t-md',
-                  colorFor(item.label),
+                  colorFor(item),
                 )}
                 style={{ height: `${(barMaxPx * pct) / 100}px` }}
               />
             </div>
-            <span className="mt-1.5 whitespace-pre-line text-center text-[11px] leading-tight text-slate-600">
+            <span className="mt-1.5 block h-[2.5em] shrink-0 whitespace-pre text-center text-[11px] leading-tight text-slate-600">
               {formatVerticalBarLabel(item.label)}
             </span>
           </div>
@@ -150,12 +404,135 @@ function VitrinaVerticalBars({
   );
 }
 
+const ASIGNATURA_PIE_CON = '#2563eb';
+const ASIGNATURA_PIE_SIN = '#cbd5e1';
+
+function VitrinaAsignaturaPie({
+  cobertura,
+  onHover,
+}: {
+  cobertura: VitrinaAvancesAsignaturaCobertura;
+  onHover: (hover: ChartHover | null) => void;
+}) {
+  if (cobertura.total === 0) {
+    return (
+      <p className="flex h-full min-h-[8rem] items-center justify-center text-sm text-slate-400">
+        No hay datos
+      </p>
+    );
+  }
+
+  const size = 176;
+  const cx = size / 2;
+  const cy = size / 2;
+  const rOuter = 78;
+  const rInner = 46;
+  const slices = [
+    {
+      key: 'con',
+      label: 'Con asignatura',
+      pct: cobertura.conPct,
+      color: ASIGNATURA_PIE_CON,
+      nombres: cobertura.nombresCon,
+      startPct: 0,
+      endPct: cobertura.conPct,
+    },
+    {
+      key: 'sin',
+      label: 'Sin asignatura',
+      pct: cobertura.sinPct,
+      color: ASIGNATURA_PIE_SIN,
+      nombres: cobertura.nombresSin,
+      startPct: cobertura.conPct,
+      endPct: 100,
+    },
+  ];
+
+  return (
+    <div
+      data-asignatura-pie
+      className="flex h-full min-h-0 flex-col justify-end"
+    >
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          role="img"
+          aria-label={`Con asignatura ${formatCoveragePct(cobertura.conPct)}, sin asignatura ${formatCoveragePct(cobertura.sinPct)}`}
+        >
+          {slices.map((slice) => {
+            const d = donutSlicePath(
+              cx,
+              cy,
+              rOuter,
+              rInner,
+              slice.startPct,
+              slice.endPct,
+            );
+            if (!d) return null;
+            return (
+              <path
+                key={slice.key}
+                d={d}
+                suppressHydrationWarning
+                fill={slice.color}
+                fillRule="evenodd"
+                className="cursor-pointer"
+                aria-label={`${slice.label}: ${formatCoveragePct(slice.pct)}`}
+                onMouseEnter={(event) => {
+                  onHover({
+                    x: event.clientX,
+                    y: event.clientY,
+                    label: slice.label,
+                    nombres: slice.nombres,
+                  });
+                }}
+                onMouseMove={(event) => {
+                  onHover({
+                    x: event.clientX,
+                    y: event.clientY,
+                    label: slice.label,
+                    nombres: slice.nombres,
+                  });
+                }}
+                onMouseLeave={() => onHover(null)}
+              />
+            );
+          })}
+        </svg>
+      </div>
+      <ul className="mt-1.5 w-full shrink-0 space-y-1 text-[11px] leading-tight text-slate-600">
+        {slices.map((slice) => (
+          <li
+            key={slice.key}
+            className="flex items-center justify-between gap-2"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: slice.color }}
+              />
+              <span className="truncate">{slice.label}</span>
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums text-slate-800">
+              {formatCoveragePct(slice.pct)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function VitrinaRowBars({
   data,
   colorFor,
+  barHoverProps,
 }: {
   data: VitrinaDataBarDatum[];
-  colorFor: (label: string) => string;
+  colorFor: (item: VitrinaDataBarDatum) => string;
+  barHoverProps: BarHoverProps;
 }) {
   if (data.length === 0) {
     return (
@@ -172,7 +549,11 @@ function VitrinaRowBars({
       {data.map((item) => {
         const pct = Math.max(6, (item.value / max) * 100);
         return (
-          <div key={item.label} title={`${item.label}: ${item.value}`}>
+          <div
+            key={item.label}
+            className="cursor-pointer"
+            {...barHoverProps(item)}
+          >
             <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
               <span className="min-w-0 truncate font-medium text-slate-700">
                 {item.label}
@@ -183,7 +564,7 @@ function VitrinaRowBars({
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className={cn('h-full rounded-full', colorFor(item.label))}
+                className={cn('h-full rounded-full', colorFor(item))}
                 style={{ width: `${pct}%` }}
               />
             </div>

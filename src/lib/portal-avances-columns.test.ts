@@ -52,6 +52,9 @@ describe('portalAvancesColumnsForFondo', () => {
     expect(impulsa.indexOf('sede')).toBeGreaterThan(impulsa.indexOf('encargado'));
     expect(base).not.toContain('encargado');
     expect(rie).not.toContain('encargado');
+    expect(portalAvancesColumnsForFondo('Vinculación con el Medio').map((c) => c.id)).toEqual(
+      impulsa,
+    );
   });
 });
 

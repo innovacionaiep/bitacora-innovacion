@@ -8,11 +8,19 @@ import {
   countPortalAvancesParticipantes,
   portalAvancesAppFondoNames,
   portalAvancesCanLoadAppFondos,
+  portalAvancesLevelCanSeeFondo,
   sortEscuelaNames,
   type PortalAvancesProyecto,
 } from '@/lib/portal-avances';
-import { impulsaRowsToAvances } from '@/lib/portal-avances-impulsa';
-import { readImpulsaStored } from '@/lib/portal-avances-impulsa-store';
+import {
+  impulsaRowsToAvances,
+  PORTAL_AVANCES_IMPULSA_FONDO,
+  PORTAL_AVANCES_VCM_FONDO,
+} from '@/lib/portal-avances-impulsa';
+import {
+  readImpulsaStored,
+  readVcmStored,
+} from '@/lib/portal-avances-impulsa-store';
 
 export async function getPortalAvancesProyectos(): Promise<{
   success: boolean;
@@ -106,7 +114,19 @@ export async function getPortalAvancesProyectos(): Promise<{
   }
 
   const impulsa = await readImpulsaStored();
-  data.push(...impulsaRowsToAvances(impulsa.rows));
+  if (portalAvancesLevelCanSeeFondo(access.level, PORTAL_AVANCES_IMPULSA_FONDO)) {
+    data.push(...impulsaRowsToAvances(impulsa.rows));
+  }
+
+  if (portalAvancesLevelCanSeeFondo(access.level, PORTAL_AVANCES_VCM_FONDO)) {
+    const vcm = await readVcmStored();
+    data.push(
+      ...impulsaRowsToAvances(vcm.rows, {
+        fondo: PORTAL_AVANCES_VCM_FONDO,
+        idPrefix: 'vcm',
+      }),
+    );
+  }
 
   return { success: true, data };
 }

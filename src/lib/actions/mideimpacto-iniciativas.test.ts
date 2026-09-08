@@ -46,7 +46,6 @@ const samplePage = {
       fechaInicio: '2024-01-01',
       fechaTermino: '',
       mecanismo: '',
-      adjuntos: [],
       sede: '',
     },
   ],

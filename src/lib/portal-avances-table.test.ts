@@ -81,6 +81,19 @@ describe('sortPortalAvancesProyectos', () => {
     ).toEqual(['b', 'a']);
   });
 
+  it('ordena No aplica de Gantt antes que 0%', () => {
+    const named = [
+      row({ id: 'a', avanceGantt: 0 }),
+      row({ id: 'b', avanceGantt: 0, ganttNoAplica: true }),
+      row({ id: 'c', avanceGantt: 50 }),
+    ];
+    expect(
+      sortPortalAvancesProyectos(named, { key: 'gantt', dir: 'asc' }).map(
+        (r) => r.id,
+      ),
+    ).toEqual(['b', 'a', 'c']);
+  });
+
   it('ciclo de sort igual que Fondos', () => {
     expect(nextPortalAvancesSort({ key: null, dir: 'asc' }, 'gantt')).toEqual({
       key: 'gantt',

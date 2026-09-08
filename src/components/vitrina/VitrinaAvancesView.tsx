@@ -65,6 +65,21 @@ function PctBarCell({
   );
 }
 
+function AvancesPctCell({
+  value,
+  noAplica,
+  barClass,
+}: {
+  value: number;
+  noAplica?: boolean;
+  barClass: string;
+}) {
+  if (noAplica) {
+    return <span className="text-[13px] text-gray-500">No aplica</span>;
+  }
+  return <PctBarCell value={value} barClass={barClass} />;
+}
+
 function SortableHead({
   label,
   sortKey,
@@ -586,16 +601,18 @@ export function VitrinaAvancesView({
                     ) : null}
                     {show('gantt') ? (
                       <TableCell style={colStyle('gantt')}>
-                        <PctBarCell
+                        <AvancesPctCell
                           value={p.avanceGantt}
+                          noAplica={p.ganttNoAplica}
                           barClass="bg-emerald-500"
                         />
                       </TableCell>
                     ) : null}
                     {show('indicadores') ? (
                       <TableCell style={colStyle('indicadores')}>
-                        <PctBarCell
+                        <AvancesPctCell
                           value={p.avanceIndicadores}
+                          noAplica={p.indicadoresNoAplica}
                           barClass="bg-blue-500"
                         />
                       </TableCell>
@@ -610,32 +627,29 @@ export function VitrinaAvancesView({
                     ) : null}
                     {show('presupuestoSolicitado') ? (
                       <TableCell style={colStyle('presupuestoSolicitado')}>
-                        <PctBarCell
+                        <AvancesPctCell
                           value={p.avanceOperativoSolicitado}
+                          noAplica={p.operativoSolicitadoNoAplica}
                           barClass="bg-amber-500"
                         />
                       </TableCell>
                     ) : null}
                     {show('presupuestoEjecutado') ? (
                       <TableCell style={colStyle('presupuestoEjecutado')}>
-                        <PctBarCell
+                        <AvancesPctCell
                           value={p.avanceOperativoEjecutado}
+                          noAplica={p.operativoEjecutadoNoAplica}
                           barClass="bg-orange-600"
                         />
                       </TableCell>
                     ) : null}
                     {show('honorarios') ? (
                       <TableCell style={colStyle('honorarios')}>
-                        {p.honorariosNoAplica ? (
-                          <span className="text-[13px] text-gray-500">
-                            No aplica
-                          </span>
-                        ) : (
-                          <PctBarCell
-                            value={p.avanceHonorarios}
-                            barClass="bg-violet-500"
-                          />
-                        )}
+                        <AvancesPctCell
+                          value={p.avanceHonorarios}
+                          noAplica={p.honorariosNoAplica}
+                          barClass="bg-violet-500"
+                        />
                       </TableCell>
                     ) : null}
                     {show('saldo') ? (

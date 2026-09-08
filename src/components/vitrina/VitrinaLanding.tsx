@@ -765,14 +765,16 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'analisis') ? (
-                <div
-                  className={cn(
-                    'h-full min-h-0 overflow-hidden',
-                    projectsView !== 'analisis' && 'hidden',
-                  )}
-                >
-                  <VitrinaDataDashboard proyectos={proyectosFiltrados} />
+                {portalCanSeeView(accessLevel, 'analisis') &&
+                projectsView === 'analisis' ? (
+                <div className="h-full min-h-0 overflow-hidden">
+                  <VitrinaDataDashboard
+                    proyectos={proyectosFiltrados}
+                    avancesProyectos={avancesProyectos}
+                    accessLevel={accessLevel}
+                    lineaCatalog={catalogs}
+                    fondosFiltro={filters.fondos}
+                  />
                 </div>
                 ) : null}
                 {portalCanSeeView(accessLevel, 'indicadores') ? (

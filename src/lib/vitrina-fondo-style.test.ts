@@ -3,6 +3,8 @@ import {
   vitrinaFondoFillColor,
   vitrinaFondoLabel,
   vitrinaFondoStripeClass,
+  vitrinaLineaBarStripeClass,
+  vitrinaLineaStripeClass,
 } from '@/lib/vitrina-fondo-style';
 
 describe('vitrinaFondoFillColor', () => {
@@ -22,5 +24,22 @@ describe('vitrinaFondoFillColor', () => {
       'Fondo Impulsa · Incuba',
     );
     expect(vitrinaFondoFillColor('')).toBe('#64748b');
+  });
+});
+
+describe('vitrinaLineaBarStripeClass', () => {
+  it('usa el color del fondo padre cuando existe', () => {
+    expect(
+      vitrinaLineaBarStripeClass('Innovación', 'Fondo Impulsa'),
+    ).toBe('bg-emerald-600');
+    expect(
+      vitrinaLineaBarStripeClass('Innovación en el Aula', 'Innovación Docente'),
+    ).toBe('bg-[#DC143C]');
+  });
+
+  it('cae al color de línea si no hay fondo padre', () => {
+    expect(vitrinaLineaBarStripeClass('Innovación')).toBe(
+      vitrinaLineaStripeClass('Innovación'),
+    );
   });
 });

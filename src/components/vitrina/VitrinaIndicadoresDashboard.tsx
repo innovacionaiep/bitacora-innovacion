@@ -39,6 +39,7 @@ import {
 import { vitrinaFondoFillColor } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { cn } from '@/lib/utils';
+import { VitrinaChartProjectTooltip } from '@/components/vitrina/VitrinaChartProjectTooltip';
 import { VitrinaIgipRadarCard } from '@/components/vitrina/VitrinaIgipRadarCard';
 import {
   DropdownMenu,
@@ -1022,25 +1023,6 @@ function DumbbellRow({
   );
 }
 
-function ProjectNameList({ nombres }: { nombres: string[] }) {
-  return (
-    <ul className="space-y-2.5">
-      {nombres.map((nombre, index) => (
-        <li
-          key={`${nombre}-${index}`}
-          className="flex items-start gap-1.5 text-xs leading-snug text-slate-800"
-        >
-          <span
-            aria-hidden
-            className="mt-1.5 h-1.5 w-1.5 shrink-0 rotate-45 rounded-[0.5px] bg-slate-400"
-          />
-          <span>{nombre}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function TrlSankeyCard({
   proyectos,
   target,
@@ -1222,26 +1204,18 @@ function SankeyChart({
                   }
                   aria-label={`${formatLevel(link.from)} → ${formatLevel(link.to)}: ${formatCount(link.value)}`}
                   onMouseEnter={(event) => {
-                    const box = event.currentTarget.ownerSVGElement
-                      ?.parentElement
-                      ?.getBoundingClientRect();
-                    if (!box) return;
                     setHover({
-                      x: event.clientX - box.left + 14,
-                      y: event.clientY - box.top + 14,
+                      x: event.clientX,
+                      y: event.clientY,
                       from: link.from,
                       to: link.to,
                       nombres: link.nombres,
                     });
                   }}
                   onMouseMove={(event) => {
-                    const box = event.currentTarget.ownerSVGElement
-                      ?.parentElement
-                      ?.getBoundingClientRect();
-                    if (!box) return;
                     setHover({
-                      x: event.clientX - box.left + 14,
-                      y: event.clientY - box.top + 14,
+                      x: event.clientX,
+                      y: event.clientY,
                       from: link.from,
                       to: link.to,
                       nombres: link.nombres,
@@ -1271,16 +1245,12 @@ function SankeyChart({
             </g>
           </svg>
           {hover ? (
-            <div
-              role="tooltip"
-              className="pointer-events-none absolute z-10 max-h-64 max-w-xs overflow-y-auto rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg"
-              style={{ left: hover.x, top: hover.y }}
-            >
-              <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-slate-500">
-                {formatLevel(hover.from)} → {formatLevel(hover.to)}
-              </p>
-              <ProjectNameList nombres={hover.nombres} />
-            </div>
+            <VitrinaChartProjectTooltip
+              title={`${formatLevel(hover.from)} → ${formatLevel(hover.to)}`}
+              nombres={hover.nombres}
+              x={hover.x}
+              y={hover.y}
+            />
           ) : null}
         </div>
       )}

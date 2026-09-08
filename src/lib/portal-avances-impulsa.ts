@@ -11,6 +11,11 @@ export const PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET = 'IMPULSA';
 export const PORTAL_AVANCES_IMPULSA_DEFAULT_PATH =
   'C:\\Users\\Paul\\OneDrive - Instituto profesional AIEP SPA\\InnoB - General\\Control y Seguimiento Proyectos DNIE.xlsx';
 
+export const PORTAL_AVANCES_VCM_SETTING_KEY = 'portal_avances_vcm';
+export const PORTAL_AVANCES_VCM_FONDO = 'Vinculación con el Medio';
+export const PORTAL_AVANCES_VCM_DEFAULT_SHEET = 'Fondo VcM';
+export const PORTAL_AVANCES_VCM_DEFAULT_PATH = PORTAL_AVANCES_IMPULSA_DEFAULT_PATH;
+
 export const IMPULSA_REQUIRED_HEADERS = [
   'PROYECTO',
   'SEDES',
@@ -28,9 +33,11 @@ export const IMPULSA_REQUIRED_HEADERS = [
   'DELTA',
 ] as const;
 
-export type ImpulsaHonorarios =
+export type ImpulsaPct =
   | { kind: 'pct'; value: number }
   | { kind: 'na' };
+
+export type ImpulsaHonorarios = ImpulsaPct;
 
 export type PortalAvancesImpulsaRow = {
   rowNumber: number;
@@ -44,11 +51,11 @@ export type PortalAvancesImpulsaRow = {
   estudiantes: number | null;
   docentes: number | null;
   beneficiarios: number | null;
-  avanceGantt: number;
-  avanceIndicadores: number;
+  avanceGantt: ImpulsaPct;
+  avanceIndicadores: ImpulsaPct;
   presupuestoAdjudicado: number;
-  avanceOperativoSolicitado: number;
-  avanceOperativoEjecutado: number;
+  avanceOperativoSolicitado: ImpulsaPct;
+  avanceOperativoEjecutado: ImpulsaPct;
   honorarios: ImpulsaHonorarios;
   saldoPresupuesto: number;
 };
@@ -65,6 +72,15 @@ export type PortalAvancesImpulsaStored = {
 export const EMPTY_IMPULSA_STORED: PortalAvancesImpulsaStored = {
   filePath: PORTAL_AVANCES_IMPULSA_DEFAULT_PATH,
   sheetName: PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
+  lastSyncedAt: null,
+  fileOk: false,
+  sheetOk: false,
+  rows: [],
+};
+
+export const EMPTY_VCM_STORED: PortalAvancesImpulsaStored = {
+  filePath: PORTAL_AVANCES_VCM_DEFAULT_PATH,
+  sheetName: PORTAL_AVANCES_VCM_DEFAULT_SHEET,
   lastSyncedAt: null,
   fileOk: false,
   sheetOk: false,
@@ -93,6 +109,7 @@ function isNoAplica(raw: unknown): boolean {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/\u00a0/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return t === 'no aplica' || t === 'n/a' || t === 'na';
@@ -111,9 +128,38 @@ export function parseImpulsaPercent(raw: unknown): number {
   return Math.round(n);
 }
 
-export function parseImpulsaHonorarios(raw: unknown): ImpulsaHonorarios {
+export function parseImpulsaPct(raw: unknown): ImpulsaPct {
   if (isNoAplica(raw)) return { kind: 'na' };
   return { kind: 'pct', value: parseImpulsaPercent(raw) };
+}
+
+export function coerceImpulsaPct(raw: unknown): ImpulsaPct {
+  if (raw && typeof raw === 'object' && 'kind' in raw) {
+    const kind = (raw as { kind?: unknown }).kind;
+    if (kind === 'na') return { kind: 'na' };
+    if (kind === 'pct') {
+      const value = (raw as { value?: unknown }).value;
+      return {
+        kind: 'pct',
+        value: typeof value === 'number' && Number.isFinite(value) ? value : 0,
+      };
+    }
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return { kind: 'pct', value: raw };
+  }
+  return parseImpulsaPct(raw);
+}
+
+function pctToAvances(raw: unknown): { value: number; noAplica: boolean } {
+  const pct = coerceImpulsaPct(raw);
+  return pct.kind === 'na'
+    ? { value: 0, noAplica: true }
+    : { value: pct.value, noAplica: false };
+}
+
+export function parseImpulsaHonorarios(raw: unknown): ImpulsaHonorarios {
+  return parseImpulsaPct(raw);
 }
 
 export function parseImpulsaMoney(raw: unknown): number {
@@ -209,22 +255,20 @@ export function parseImpulsaRowsFromSheet(
       beneficiarios: parseImpulsaInt(
         cellByHeader(excelRow, idx, 'BENEFICIARIOS'),
       ),
-      avanceGantt: parseImpulsaPercent(
-        cellByHeader(excelRow, idx, 'AVANCE GANTT'),
-      ),
-      avanceIndicadores: parseImpulsaPercent(
+      avanceGantt: parseImpulsaPct(cellByHeader(excelRow, idx, 'AVANCE GANTT')),
+      avanceIndicadores: parseImpulsaPct(
         cellByHeader(excelRow, idx, 'AVANCE INDICADORES'),
       ),
       presupuestoAdjudicado: parseImpulsaMoney(
         cellByHeader(excelRow, idx, 'PRESUPUESTO'),
       ),
-      avanceOperativoSolicitado: parseImpulsaPercent(
+      avanceOperativoSolicitado: parseImpulsaPct(
         cellByHeader(excelRow, idx, '% COMPRAS SOLICITADAS'),
       ),
-      avanceOperativoEjecutado: parseImpulsaPercent(
+      avanceOperativoEjecutado: parseImpulsaPct(
         cellByHeader(excelRow, idx, '% COMPRAS RECEPCIONADAS'),
       ),
-      honorarios: parseImpulsaHonorarios(
+      honorarios: parseImpulsaPct(
         cellByHeader(excelRow, idx, '% HONORARIOS PAGADOS'),
       ),
       saldoPresupuesto: parseImpulsaMoney(cellByHeader(excelRow, idx, 'DELTA')),
@@ -281,31 +325,45 @@ export async function parseImpulsaWorkbook(
 
 export function impulsaRowsToAvances(
   rows: PortalAvancesImpulsaRow[],
+  opts?: { fondo?: string; idPrefix?: string },
 ): PortalAvancesProyecto[] {
-  return rows.map((row) => ({
-    id: `impulsa:${row.rowNumber}`,
-    fondo: PORTAL_AVANCES_IMPULSA_FONDO,
-    proyecto: row.proyecto,
-    encargado: row.encargado ?? '',
-    sede: row.sede,
-    escuelas: row.escuelas,
-    carreras: row.carreras ?? [],
-    asignaturas: row.asignaturas ?? [],
-    presupuestoAdjudicado: row.presupuestoAdjudicado,
-    avanceGantt: row.avanceGantt,
-    avanceIndicadores: row.avanceIndicadores,
-    avancePresupuestoSolicitado: row.avanceOperativoSolicitado,
-    avancePresupuestoEjecutado: row.avanceOperativoEjecutado,
-    avanceHonorarios: row.honorarios.kind === 'pct' ? row.honorarios.value : 0,
-    honorariosNoAplica: row.honorarios.kind === 'na',
-    avanceOperativoSolicitado: row.avanceOperativoSolicitado,
-    avanceOperativoEjecutado: row.avanceOperativoEjecutado,
-    saldoPresupuesto: row.saldoPresupuesto,
-    idVinculamos: row.idVinculamos,
-    estudiantes: row.estudiantes,
-    docentes: row.docentes,
-    beneficiarios: row.beneficiarios,
-  }));
+  const fondo = opts?.fondo ?? PORTAL_AVANCES_IMPULSA_FONDO;
+  const idPrefix = opts?.idPrefix ?? 'impulsa';
+  return rows.map((row) => {
+    const gantt = pctToAvances(row.avanceGantt);
+    const indicadores = pctToAvances(row.avanceIndicadores);
+    const operativoSolicitado = pctToAvances(row.avanceOperativoSolicitado);
+    const operativoEjecutado = pctToAvances(row.avanceOperativoEjecutado);
+    const honorarios = pctToAvances(row.honorarios);
+    return {
+      id: `${idPrefix}:${row.rowNumber}`,
+      fondo,
+      proyecto: row.proyecto,
+      encargado: row.encargado ?? '',
+      sede: row.sede,
+      escuelas: row.escuelas,
+      carreras: row.carreras ?? [],
+      asignaturas: row.asignaturas ?? [],
+      presupuestoAdjudicado: row.presupuestoAdjudicado,
+      avanceGantt: gantt.value,
+      ganttNoAplica: gantt.noAplica,
+      avanceIndicadores: indicadores.value,
+      indicadoresNoAplica: indicadores.noAplica,
+      avancePresupuestoSolicitado: operativoSolicitado.value,
+      avancePresupuestoEjecutado: operativoEjecutado.value,
+      avanceHonorarios: honorarios.value,
+      honorariosNoAplica: honorarios.noAplica,
+      avanceOperativoSolicitado: operativoSolicitado.value,
+      operativoSolicitadoNoAplica: operativoSolicitado.noAplica,
+      avanceOperativoEjecutado: operativoEjecutado.value,
+      operativoEjecutadoNoAplica: operativoEjecutado.noAplica,
+      saldoPresupuesto: row.saldoPresupuesto,
+      idVinculamos: row.idVinculamos,
+      estudiantes: row.estudiantes,
+      docentes: row.docentes,
+      beneficiarios: row.beneficiarios,
+    };
+  });
 }
 
 export function serializeImpulsaStored(
@@ -321,22 +379,23 @@ export function serializeImpulsaStored(
   });
 }
 
-export function parseStoredImpulsa(
+export function parseStoredExcelAvances(
   value: string | null | undefined,
+  empty: PortalAvancesImpulsaStored,
 ): PortalAvancesImpulsaStored {
-  if (!value?.trim()) return { ...EMPTY_IMPULSA_STORED };
+  if (!value?.trim()) return { ...empty };
   try {
     const parsed = JSON.parse(value) as Partial<PortalAvancesImpulsaStored>;
-    if (!parsed || typeof parsed !== 'object') return { ...EMPTY_IMPULSA_STORED };
+    if (!parsed || typeof parsed !== 'object') return { ...empty };
     return {
       filePath:
         typeof parsed.filePath === 'string' && parsed.filePath.trim()
           ? parsed.filePath
-          : PORTAL_AVANCES_IMPULSA_DEFAULT_PATH,
+          : empty.filePath,
       sheetName:
         typeof parsed.sheetName === 'string' && parsed.sheetName.trim()
           ? parsed.sheetName.trim()
-          : PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
+          : empty.sheetName,
       lastSyncedAt:
         typeof parsed.lastSyncedAt === 'string' ? parsed.lastSyncedAt : null,
       fileOk: Boolean(parsed.fileOk),
@@ -344,6 +403,18 @@ export function parseStoredImpulsa(
       rows: Array.isArray(parsed.rows) ? parsed.rows : [],
     };
   } catch {
-    return { ...EMPTY_IMPULSA_STORED };
+    return { ...empty };
   }
+}
+
+export function parseStoredImpulsa(
+  value: string | null | undefined,
+): PortalAvancesImpulsaStored {
+  return parseStoredExcelAvances(value, EMPTY_IMPULSA_STORED);
+}
+
+export function parseStoredVcm(
+  value: string | null | undefined,
+): PortalAvancesImpulsaStored {
+  return parseStoredExcelAvances(value, EMPTY_VCM_STORED);
 }

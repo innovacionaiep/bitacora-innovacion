@@ -1,5 +1,10 @@
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
-import { portalCanSeeView, type PortalAccessKind, type PortalGuestLevel } from '@/lib/portal-guest-access';
+import {
+  PORTAL_CAUSALAB_FONDO,
+  portalCanSeeView,
+  type PortalAccessKind,
+  type PortalGuestLevel,
+} from '@/lib/portal-guest-access';
 import type { FondoAvanceMetrics } from '@/lib/fondo-avance-metrics';
 
 export type PortalAvancesFondoSource = 'app' | 'excel' | 'external';
@@ -16,7 +21,7 @@ export const PORTAL_AVANCES_FONDOS: readonly PortalAvancesFondo[] = [
   { nombre: 'MOVE Incuba', source: 'external' },
   { nombre: 'MoveLab', source: 'external' },
   { nombre: 'Proyectos Nacionales', source: 'external' },
-  { nombre: 'Vinculación con el Medio', source: 'external' },
+  { nombre: 'Vinculación con el Medio', source: 'excel' },
   { nombre: 'Fondos Externos', source: 'external' },
 ];
 
@@ -66,6 +71,10 @@ export type PortalAvancesProyecto = FondoAvanceMetrics & {
   docentes?: number | null;
   beneficiarios?: number | null;
   honorariosNoAplica?: boolean;
+  ganttNoAplica?: boolean;
+  indicadoresNoAplica?: boolean;
+  operativoSolicitadoNoAplica?: boolean;
+  operativoEjecutadoNoAplica?: boolean;
 };
 
 export function sortEscuelaNames(nombres: string[]): string[] {
@@ -199,7 +208,9 @@ export function portalAvancesFondosForLevel(
   level: PortalGuestLevel | null,
 ): readonly PortalAvancesFondo[] {
   if (level === 0) {
-    return PORTAL_AVANCES_FONDOS.filter((fondo) => fondo.source === 'excel');
+    return PORTAL_AVANCES_FONDOS.filter(
+      (fondo) => fondo.nombre === PORTAL_CAUSALAB_FONDO,
+    );
   }
   return PORTAL_AVANCES_FONDOS;
 }
@@ -209,6 +220,15 @@ export function portalAvancesDefaultFondoForLevel(
 ): string {
   return (
     portalAvancesFondosForLevel(level)[0]?.nombre ?? PORTAL_AVANCES_DEFAULT_FONDO
+  );
+}
+
+export function portalAvancesLevelCanSeeFondo(
+  level: PortalGuestLevel | null,
+  fondoNombre: string,
+): boolean {
+  return portalAvancesFondosForLevel(level).some(
+    (fondo) => fondo.nombre === fondoNombre,
   );
 }
 

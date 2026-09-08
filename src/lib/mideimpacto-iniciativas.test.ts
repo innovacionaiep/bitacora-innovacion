@@ -4,11 +4,12 @@ import {
   MIDEIMPACTO_SEDE_BATCH_LIMIT,
   applySedesToRows,
   clampIniciativaColumnWidth,
+  concatIniciativaPages,
+  stackedEscuelasCarrerasValue,
   fetchMideimpactoIniciativasPage,
   fetchMideimpactoSedesByIds,
   mapIniciativaRow,
   parseIniciativasPage,
-  portalMideimpactoAdjuntoHref,
   sedeNamesFromIniciativaDetail,
 } from '@/lib/mideimpacto-iniciativas';
 import { MIDEIMPACTO_API_BASE } from '@/lib/mideimpacto-client';
@@ -73,9 +74,200 @@ describe('mapIniciativaRow / parseIniciativasPage', () => {
       fechaInicio: '2024-01-01',
       fechaTermino: '2024-12-31',
       mecanismo: 'Extensión',
-      adjuntos: [],
-      sede: '',
     });
+  });
+
+  it('lee ficha anidada datos_generales y escuelas_carreras', () => {
+    const row = mapIniciativaRow({
+      inic_codigo: 20906,
+      datos_generales: {
+        inic_nombre: 'Huertos urbanos',
+        estado_texto: 'En ejecución',
+        inic_estado: 2,
+        fecha_inicio: '2024-01-01',
+        fecha_cierre: '2024-12-31',
+        meca_nombre: 'Extensión',
+        inic_brecha: 'Brecha X',
+        inic_descripcion: 'Desc',
+        inic_alcance: 'nacional',
+      },
+      escuelas_carreras: {
+        escuelas_carreras: [
+          {
+            sede_nombre: 'Casa Central',
+            escu_nombre: 'Salud',
+            sede_codigo: 1,
+          },
+        ],
+      },
+      territorios: {
+        territorios: [{ region: 'Valparaíso', comuna: 'Viña' }],
+      },
+      adjuntos: [
+        {
+          inev_codigo: 4,
+          inev_nombre: 'Informe.pdf',
+          download_url:
+            'https://api.mideimpacto.com/api/external/v1/iniciativas/20906/adjuntos/4/descargar',
+        },
+      ],
+    });
+    expect(row).toMatchObject({
+      id: '20906',
+      nombre: 'Huertos urbanos',
+      estado: 'En ejecución',
+      fechaInicio: '2024-01-01',
+      fechaTermino: '2024-12-31',
+      mecanismo: 'Extensión',
+      brecha: 'Brecha X',
+      sede: 'Casa Central',
+    });
+    expect(row).not.toHaveProperty('descripcion');
+    expect(row).not.toHaveProperty('estadoCodigo');
+    expect(row).not.toHaveProperty('adjuntos');
+    expect(row.escuelasCarreras).toEqual([
+      {
+        sedeNombre: 'Casa Central',
+        escuNombre: 'Salud',
+        painEstudiantes: '',
+        painEstudiantesFinal: '',
+        painDocentes: '',
+        painDocentesFinal: '',
+      },
+    ]);
+    expect(row.territorios).toEqual([
+      {
+        region: 'Valparaíso',
+        provincia: '',
+        comuna: 'Viña',
+      },
+    ]);
+  });
+
+  it('abre escuelas_carreras en subfilas con solo seis campos', () => {
+    const row = mapIniciativaRow({
+      inic_codigo: 1,
+      escuelas_carreras: {
+        escuelas_carreras: [
+          {
+            sede_nombre: 'Aiep Online',
+            escu_nombre: 'Desarrollo Social y Educación',
+            pain_estudiantes: 71,
+            pain_estudiantes_final: 0,
+            pain_docentes: 1,
+            pain_docentes_final: 0,
+            pain_total: 0,
+            escu_codigo: 650,
+            sede_codigo: 142,
+          },
+          {
+            sede_nombre: 'Casa Central',
+            escu_nombre: 'Salud',
+            pain_estudiantes: 3,
+            pain_estudiantes_final: 1,
+            pain_docentes: 2,
+            pain_docentes_final: 2,
+          },
+        ],
+      },
+    });
+    expect(row.escuelasCarreras).toEqual([
+      {
+        sedeNombre: 'Aiep Online',
+        escuNombre: 'Desarrollo Social y Educación',
+        painEstudiantes: '71',
+        painEstudiantesFinal: '0',
+        painDocentes: '1',
+        painDocentesFinal: '0',
+      },
+      {
+        sedeNombre: 'Casa Central',
+        escuNombre: 'Salud',
+        painEstudiantes: '3',
+        painEstudiantesFinal: '1',
+        painDocentes: '2',
+        painDocentesFinal: '2',
+      },
+    ]);
+    expect(JSON.stringify(row.escuelasCarreras)).not.toMatch(/pain_total|escu_codigo/);
+    expect(
+      stackedEscuelasCarrerasValue(row.escuelasCarreras, 'sedeNombre'),
+    ).toBe('Aiep Online\nCasa Central');
+  });
+
+  it('abre territorios, participantes externos y preguntas en subcolumnas', () => {
+    const row = mapIniciativaRow({
+      inic_codigo: 1,
+      territorios: {
+        territorios: [
+          {
+            region: 'Valparaíso',
+            provincia: 'Valparaíso',
+            comuna: 'Viña del Mar',
+          },
+          { region: 'Metropolitana', provincia: 'Santiago', comuna: 'Providencia' },
+        ],
+      },
+      participantes_externos: {
+        participantes: [
+          {
+            soco_nombre: 'Junta de Vecinos',
+            grupo_nombre: 'Adultos',
+            subgrupo_nombre: 'Mayores',
+            total_participantes: 12,
+            total_participantes_final: 0,
+          },
+        ],
+      },
+      preguntas_iniciativas: [
+        {
+          pregunta: '¿La iniciativa se desarrolla con alguno de los siguientes grupos?',
+          opciones_seleccionadas: [
+            { respuesta: 'Personas mayores' },
+            { respuesta: 'Personas de pueblos originarios' },
+          ],
+        },
+        {
+          pregunta: '¿La iniciativa aborda alguna de las siguientes temáticas?',
+          opciones_seleccionadas: [
+            { respuesta: 'Sostenibilidad' },
+            { respuesta: 'Medioambiente' },
+          ],
+        },
+        {
+          pregunta: 'Cobertura',
+          opciones_seleccionadas: [{ respuesta: 'Comunal' }],
+        },
+      ],
+    });
+    expect(row.territorios).toEqual([
+      {
+        region: 'Valparaíso',
+        provincia: 'Valparaíso',
+        comuna: 'Viña del Mar',
+      },
+      {
+        region: 'Metropolitana',
+        provincia: 'Santiago',
+        comuna: 'Providencia',
+      },
+    ]);
+    expect(row.participantesExternos).toEqual([
+      {
+        socioComunitario: 'Junta de Vecinos',
+        grupo: 'Adultos',
+        subgrupo: 'Mayores',
+        beneficiarios: '12',
+        beneficiariosFinal: '0',
+      },
+    ]);
+    expect(row.gruposInteres).toEqual([
+      'Personas mayores',
+      'Personas de pueblos originarios',
+    ]);
+    expect(row.tematicas).toEqual(['Sostenibilidad', 'Medioambiente']);
+    expect(row).not.toHaveProperty('preguntas');
+    expect(row).not.toHaveProperty('participantesIndicadores');
   });
 
   it('aplana nested y pagina Laravel-like', () => {
@@ -83,14 +275,13 @@ describe('mapIniciativaRow / parseIniciativasPage', () => {
     expect(parsed.page).toBe(2);
     expect(parsed.lastPage).toBe(4);
     expect(parsed.total).toBe(40);
-    expect(parsed.rows[0]).toEqual({
+    expect(parsed.rows[0]).toMatchObject({
       id: '12',
       nombre: 'Huertos urbanos',
       estado: 'activa',
       fechaInicio: '2024-01-01',
       fechaTermino: '2024-12-31',
       mecanismo: 'Extensión',
-      adjuntos: [],
       sede: '',
     });
   });
@@ -114,13 +305,12 @@ describe('mapIniciativaRow / parseIniciativasPage', () => {
       fechaInicio: '2023-03-01',
       fechaTermino: '2023-06-01',
       mecanismo: 'Prácticas',
-      adjuntos: [],
       sede: '',
     });
     expect(parseIniciativasPage([row], 1).lastPage).toBe(1);
   });
 
-  it('mapea adjuntos con include y download_url', () => {
+  it('no mapea adjuntos', () => {
     const row = mapIniciativaRow({
       inic_codigo: '9',
       inic_nombre: 'Alfa',
@@ -131,50 +321,112 @@ describe('mapIniciativaRow / parseIniciativasPage', () => {
           download_url:
             '/api/external/v1/iniciativas/9/adjuntos/4/descargar',
         },
-        {
-          inev_codigo: 4,
-          download_url:
-            '/api/external/v1/iniciativas/9/adjuntos/4/descargar',
-        },
       ],
     });
-    expect(row.adjuntos).toEqual([
-      {
-        id: '4',
-        nombre: 'Informe.pdf',
-        downloadUrl:
-          'https://api.mideimpacto.com/api/external/v1/iniciativas/9/adjuntos/4/descargar',
-      },
-    ]);
-    expect(portalMideimpactoAdjuntoHref('9', row.adjuntos[0]!)).toBe(
-      '/api/mideimpacto-adjunto?iniciativa=9&adjunto=4&nombre=Informe.pdf',
-    );
+    expect(row).not.toHaveProperty('adjuntos');
+    expect(row.nombre).toBe('Alfa');
   });
 
-  it('mantiene las columnas fijas del listado', () => {
-    expect(INICIATIVA_COLUMN_ORDER.map((c) => c.key)).toEqual([
+  it('incluye solo las columnas que se muestran en Vinculamos', () => {
+    const keys = INICIATIVA_COLUMN_ORDER.map((c) => c.key);
+    expect(keys).toEqual(expect.arrayContaining([
       'id',
       'nombre',
       'estado',
-      'fechaInicio',
-      'fechaTermino',
+      'brecha',
       'mecanismo',
+      'sedeNombre',
+      'escuNombre',
+      'region',
+      'provincia',
+      'comuna',
+      'socioComunitario',
+      'grupo',
+      'subgrupo',
+      'beneficiarios',
+      'beneficiariosFinal',
+      'gruposInteres',
+      'tematicas',
+    ]));
+    expect(keys).not.toEqual(expect.arrayContaining([
+      'visible',
+      'anho',
+      'anhoHasta',
+      'creado',
+      'indi',
+      'contribuciones',
+      'ods',
+      'edr',
+      'pactoEducativo',
+      'recursosDinero',
+      'recursosInfra',
+      'recursosRrhh',
+      'productos',
+      'responsables',
       'adjuntos',
-    ]);
-    expect(INICIATIVA_COLUMN_ORDER.map((c) => c.label)).toEqual([
-      'ID',
-      'Nombre proyecto',
-      'Estado',
-      'Fecha inicio',
-      'Fecha término',
-      'Mecanismo',
-      'Adjuntos',
+      'estadoCodigo',
+      'formato',
+      'alcance',
+      'descripcion',
+      'objetivo',
+      'escuelaEjecutora',
+      'fechaEjecucion',
+      'actualizado',
+      'idCliente',
+      'convCodigo',
+      'convCodigoLegado',
+      'convNombre',
+      'progCodigo',
+      'progCodigoLegado',
+      'progNombre',
+      'mecaCodigo',
+      'mecaCodigoLegado',
+      'tiacCodigo',
+      'tiacCodigoLegado',
+      'asignaturas',
+      'unidades',
+      'ambitosAccion',
+      'proyectos',
+      'desafios',
+      'invi',
+      'participantesIndicadores',
+      'territorios',
+      'participantesExternos',
+      'preguntas',
+      'pregunta',
+      'respuesta',
+    ]));
+    expect(keys[0]).toBe('id');
+    expect(keys.at(-1)).toBe('tematicas');
+    expect(
+      INICIATIVA_COLUMN_ORDER.find((c) => c.key === 'gruposInteres')?.label,
+    ).toBe('Grupos de Interés');
+    expect(
+      INICIATIVA_COLUMN_ORDER.find((c) => c.key === 'tematicas')?.label,
+    ).toBe('Temáticas');
+    expect(
+      INICIATIVA_COLUMN_ORDER.find((c) => c.key === 'sedeNombre')?.label,
+    ).toBe('Sede*');
+    expect(
+      INICIATIVA_COLUMN_ORDER.find((c) => c.key === 'sede')?.label,
+    ).toBe('Sede');
+  });
+
+  it('concatena páginas sin duplicar id y conserva el orden', () => {
+    const a = mapIniciativaRow({ inic_codigo: '1', inic_nombre: 'Uno' });
+    const b = mapIniciativaRow({ inic_codigo: '2', inic_nombre: 'Dos' });
+    const dup = mapIniciativaRow({ inic_codigo: '1', inic_nombre: 'Uno otra vez' });
+    const c = mapIniciativaRow({ inic_codigo: '3', inic_nombre: 'Tres' });
+    expect(concatIniciativaPages([a, b], [dup, c]).map((row) => row.id)).toEqual([
+      '1',
+      '2',
+      '3',
     ]);
   });
 
-  it('acota el ancho de columna entre 72 y 640', () => {
+  it('acota el ancho de columna entre 72 y 960', () => {
     expect(clampIniciativaColumnWidth(40)).toBe(72);
-    expect(clampIniciativaColumnWidth(900)).toBe(640);
+    expect(clampIniciativaColumnWidth(2000)).toBe(960);
     expect(clampIniciativaColumnWidth(200.4)).toBe(200);
   });
 
@@ -210,7 +462,7 @@ describe('fetchMideimpactoIniciativasPage', () => {
   it('envía Bearer y page, sin devolver el token en errores', async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe(
-        `${MIDEIMPACTO_API_BASE}/iniciativas?page=3&include=adjuntos`,
+        `${MIDEIMPACTO_API_BASE}/iniciativas?page=3`,
       );
       expect(init?.headers).toEqual(
         expect.objectContaining({

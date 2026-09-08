@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useTransition,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
@@ -22,9 +21,11 @@ import { getMideimpactoIniciativas } from '@/lib/actions/mideimpacto-iniciativas
 import {
   INICIATIVA_COLUMN_ORDER,
   clampIniciativaColumnWidth,
+  concatIniciativaPages,
   defaultIniciativaColumnWidths,
   iniciativaColumnWidthStyle,
-  portalMideimpactoAdjuntoHref,
+  stackedSubcolumnCell,
+  isPreguntaChipColumn,
   type MideimpactoIniciativa,
   type MideimpactoIniciativaColumn,
   type MideimpactoIniciativaColumnKey,
@@ -32,26 +33,34 @@ import {
 } from '@/lib/mideimpacto-iniciativas';
 import {
   EMPTY_VINCULAMOS_FILTERS,
+  defaultVinculamosVisibleColumns,
   filterVinculamosRows,
+  toggleVinculamosColumn,
   toggleVinculamosFilter,
+  addVinculamosContainsTerm,
   uniqueVinculamosFilterOptions,
   type VinculamosFilters,
 } from '@/lib/portal-vinculamos-filters';
 import { cn } from '@/lib/utils';
 
-function AdjuntosCell({ row }: { row: MideimpactoIniciativa }) {
-  if (row.adjuntos.length === 0) return '—';
+function PreguntaChips({
+  values,
+  label,
+}: {
+  values: string[];
+  label: string;
+}) {
+  if (values.length === 0) return '—';
   return (
-    <ul className="flex flex-col gap-1">
-      {row.adjuntos.map((adjunto) => (
-        <li key={adjunto.id}>
-          <a
-            href={portalMideimpactoAdjuntoHref(row.id, adjunto)}
-            className="break-all text-emerald-700 underline-offset-2 hover:underline"
-            title={adjunto.downloadUrl || adjunto.nombre}
-          >
-            {adjunto.nombre || adjunto.downloadUrl || 'Descargar'}
-          </a>
+    <ul
+      className="flex flex-wrap gap-1"
+      aria-label={label}
+    >
+      {values.map((value, index) => (
+        <li key={`${value}-${index}`}>
+          <span className="inline-block max-w-full break-words rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+            {value}
+          </span>
         </li>
       ))}
     </ul>
@@ -70,7 +79,7 @@ function ResizableHead({
   return (
     <TableHead
       style={style}
-      className="relative text-[12px] font-medium tracking-wide text-gray-500 uppercase"
+      className="sticky top-0 z-20 bg-white text-[12px] font-medium tracking-wide text-gray-500 uppercase"
     >
       <span className="block truncate pr-2">{col.label}</span>
       <span
@@ -84,6 +93,19 @@ function ResizableHead({
   );
 }
 
+const PAGE_RETRY_MS = 800;
+const PAGE_RETRY_LIMIT = 3;
+
+function formatVinculamosCount(value: number): string {
+  return new Intl.NumberFormat('es-CL').format(value);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export function VitrinaVinculamosView({
   initial,
   onBack,
@@ -95,9 +117,17 @@ export function VitrinaVinculamosView({
   };
   onBack: () => void;
 }) {
-  const [result, setResult] = useState(initial);
+  const [rows, setRows] = useState<MideimpactoIniciativa[]>(
+    initial.data?.rows ?? [],
+  );
+  const [lastPage, setLastPage] = useState(initial.data?.lastPage ?? 1);
+  const [total, setTotal] = useState<number | null>(initial.data?.total ?? null);
+  const [loadingPage, setLoadingPage] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<VinculamosFilters>(EMPTY_VINCULAMOS_FILTERS);
-  const [pending, startTransition] = useTransition();
+  const [visibleColumns, setVisibleColumns] = useState(
+    defaultVinculamosVisibleColumns,
+  );
   const [columnWidths, setColumnWidths] = useState(defaultIniciativaColumnWidths);
   const dragRef = useRef<{
     id: MideimpactoIniciativaColumnKey;
@@ -106,7 +136,63 @@ export function VitrinaVinculamosView({
   } | null>(null);
 
   useEffect(() => {
-    setResult(initial);
+    setRows(initial.data?.rows ?? []);
+    setLastPage(initial.data?.lastPage ?? 1);
+    setTotal(initial.data?.total ?? null);
+    setLoadError(null);
+    setLoadingPage(null);
+  }, [initial]);
+
+  useEffect(() => {
+    if (!initial.success || !initial.data) return;
+    const startPage = initial.data.page;
+    let targetLast = initial.data.lastPage;
+    if (targetLast <= startPage) return;
+    let cancelled = false;
+    let accumulated = initial.data.rows;
+
+    async function loadRest() {
+      for (let pageNum = startPage + 1; pageNum <= targetLast; pageNum += 1) {
+        if (cancelled) return;
+        setLoadingPage(pageNum);
+        let fetched = false;
+        for (let attempt = 1; attempt <= PAGE_RETRY_LIMIT; attempt += 1) {
+          if (cancelled) return;
+          const next = await getMideimpactoIniciativas({ page: pageNum });
+          if (cancelled) return;
+          if (next.success && next.data) {
+            accumulated = concatIniciativaPages(accumulated, next.data.rows);
+            setRows(accumulated);
+            if (next.data.total != null) setTotal(next.data.total);
+            if (next.data.lastPage > targetLast) {
+              targetLast = next.data.lastPage;
+              setLastPage(targetLast);
+            }
+            fetched = true;
+            break;
+          }
+          const limited = (next.error ?? '').toLowerCase().includes('límite');
+          if (!limited || attempt === PAGE_RETRY_LIMIT) {
+            setLoadError(
+              next.error ?? 'No se pudieron cargar el resto de las páginas',
+            );
+            setLoadingPage(null);
+            return;
+          }
+          await sleep(PAGE_RETRY_MS);
+        }
+        if (!fetched) {
+          setLoadingPage(null);
+          return;
+        }
+      }
+      if (!cancelled) setLoadingPage(null);
+    }
+
+    void loadRest();
+    return () => {
+      cancelled = true;
+    };
   }, [initial]);
 
   useEffect(() => {
@@ -152,26 +238,19 @@ export function VitrinaVinculamosView({
   const colStyle = (id: MideimpactoIniciativaColumnKey) =>
     iniciativaColumnWidthStyle(columnWidths[id]);
 
-  const page = result.data;
-  const rows = page?.rows ?? [];
   const filtered = useMemo(
     () => filterVinculamosRows(rows, filters),
     [rows, filters],
   );
   const options = useMemo(() => uniqueVinculamosFilterOptions(rows), [rows]);
-  const columns = INICIATIVA_COLUMN_ORDER;
-  const currentPage = page?.page ?? 1;
-  const lastPage = page?.lastPage ?? 1;
-  const error = result.success
+  const columns = useMemo(
+    () =>
+      INICIATIVA_COLUMN_ORDER.filter((col) => visibleColumns.includes(col.key)),
+    [visibleColumns],
+  );
+  const error = initial.success
     ? null
-    : result.error ?? 'No se pudieron cargar las iniciativas';
-
-  const goTo = (nextPage: number) => {
-    startTransition(async () => {
-      const next = await getMideimpactoIniciativas({ page: nextPage });
-      setResult(next);
-    });
-  };
+    : initial.error ?? 'No se pudieron cargar las iniciativas';
 
   return (
     <div className="flex h-full min-h-0 w-full items-stretch bg-white">
@@ -181,8 +260,18 @@ export function VitrinaVinculamosView({
         onToggle={(facet, value) => {
           setFilters((current) => toggleVinculamosFilter(current, facet, value));
         }}
+        onAddContains={(facet, value) => {
+          setFilters((current) => addVinculamosContainsTerm(current, facet, value));
+        }}
         onClear={() => setFilters(EMPTY_VINCULAMOS_FILTERS)}
         onBack={onBack}
+        columnOptions={INICIATIVA_COLUMN_ORDER}
+        visibleColumns={visibleColumns}
+        onToggleColumn={(columnId) => {
+          setVisibleColumns((current) =>
+            toggleVinculamosColumn(current, columnId),
+          );
+        }}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-auto px-4 py-4 lg:px-8">
@@ -220,14 +309,21 @@ export function VitrinaVinculamosView({
                         key={col.key}
                         style={colStyle(col.key)}
                         className={cn(
-                          'align-top text-slate-800',
+                          'align-top break-words text-slate-800',
+                          isPreguntaChipColumn(col.key)
+                            ? 'whitespace-normal'
+                            : 'whitespace-pre-line',
                           col.key === 'nombre' && 'font-medium',
-                          col.key === 'adjuntos' && 'whitespace-normal break-words',
                         )}
                       >
-                        {col.key === 'adjuntos'
-                          ? <AdjuntosCell row={row} />
-                          : row[col.key] || '—'}
+                        {isPreguntaChipColumn(col.key) ? (
+                          <PreguntaChips
+                            values={row[col.key]}
+                            label={col.label}
+                          />
+                        ) : (
+                          stackedSubcolumnCell(row, col.key)
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -239,27 +335,20 @@ export function VitrinaVinculamosView({
         {!error ? (
           <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 lg:px-8">
             <p className="text-xs text-slate-500">
-              Página {currentPage} de {lastPage}
-              {page?.total != null ? ` · ${page.total} iniciativas` : ''}
+              {formatVinculamosCount(rows.length)}
+              {total != null
+                ? ` / ${formatVinculamosCount(total)} iniciativas`
+                : ' iniciativas'}
             </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={pending || currentPage <= 1}
-                onClick={() => goTo(currentPage - 1)}
-                className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 disabled:opacity-40"
-              >
-                Anterior
-              </button>
-              <button
-                type="button"
-                disabled={pending || currentPage >= lastPage}
-                onClick={() => goTo(currentPage + 1)}
-                className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 disabled:opacity-40"
-              >
-                Siguiente
-              </button>
-            </div>
+            {loadingPage != null ? (
+              <p className="text-xs text-slate-500">
+                Cargando página {loadingPage} de {lastPage}…
+              </p>
+            ) : loadError ? (
+              <p className="text-xs text-amber-700" role="status">
+                {loadError}
+              </p>
+            ) : null}
           </footer>
         ) : null}
       </div>

@@ -13,6 +13,7 @@ import {
   portalAvancesAppFondoNames,
   portalAvancesIsAppFondo,
   portalAvancesIsExcelFondo,
+  portalAvancesLevelCanSeeFondo,
   rowsForPortalAvancesFondo,
   uniquePortalAvancesFilterOptions,
   countPortalAvancesParticipantes,
@@ -62,6 +63,7 @@ describe('PORTAL_AVANCES_FONDOS', () => {
     ]);
     expect(portalAvancesIsAppFondo('Fondo Impulsa')).toBe(false);
     expect(portalAvancesIsExcelFondo('Fondo Impulsa')).toBe(true);
+    expect(portalAvancesIsExcelFondo('Vinculación con el Medio')).toBe(true);
     expect(portalAvancesIsAppFondo('Innovación Docente')).toBe(true);
   });
 });
@@ -109,6 +111,22 @@ describe('rowsForPortalAvancesFondo', () => {
     expect(
       rowsForPortalAvancesFondo(mix, 'Fondo Impulsa').map((p) => p.id),
     ).toEqual(['impulsa:2']);
+  });
+
+  it('devuelve filas excel de Vinculación con el Medio', () => {
+    const mix = [
+      ...proyectos,
+      row({
+        id: 'vcm:4',
+        fondo: 'Vinculación con el Medio',
+        proyecto: 'Iniciativa VcM',
+      }),
+    ];
+    expect(
+      rowsForPortalAvancesFondo(mix, 'Vinculación con el Medio').map(
+        (p) => p.id,
+      ),
+    ).toEqual(['vcm:4']);
   });
 });
 
@@ -309,6 +327,10 @@ describe('portalAvancesFondosForLevel', () => {
     ]);
     expect(portalAvancesDefaultFondoForLevel(0)).toBe('Fondo Impulsa');
     expect(portalAvancesCanLoadAppFondos(0)).toBe(false);
+    expect(portalAvancesLevelCanSeeFondo(0, 'Fondo Impulsa')).toBe(true);
+    expect(
+      portalAvancesLevelCanSeeFondo(0, 'Vinculación con el Medio'),
+    ).toBe(false);
   });
 
   it('niveles 2 y 3 ven toda la botonera', () => {

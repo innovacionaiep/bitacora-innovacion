@@ -178,6 +178,53 @@ describe('VitrinaAvancesView', () => {
     expect(screen.getByText('ClinicApp')).toHaveStyle({ width: '260px' });
   });
 
+  it('en Vinculación muestra No aplica en porcentajes, no 0%', () => {
+    render(
+      <VitrinaAvancesView
+        fondoNombre="Vinculación con el Medio"
+        onFondoChange={vi.fn()}
+        proyectos={[
+          row({
+            id: 'vcm:2',
+            fondo: 'Vinculación con el Medio',
+            proyecto: 'Iniciativa VcM',
+            ganttNoAplica: true,
+            indicadoresNoAplica: true,
+            operativoSolicitadoNoAplica: true,
+            operativoEjecutadoNoAplica: true,
+            honorariosNoAplica: true,
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByText('No aplica')).toHaveLength(5);
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+
+  it('en Vinculación con el Medio muestra Encargado/a como fondo Excel', () => {
+    render(
+      <VitrinaAvancesView
+        fondoNombre="Vinculación con el Medio"
+        onFondoChange={vi.fn()}
+        proyectos={[
+          row({
+            id: 'vcm:2',
+            fondo: 'Vinculación con el Medio',
+            proyecto: 'Iniciativa VcM',
+            encargado: 'ana@aiep.cl',
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('columnheader', { name: /Encargado\/a/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('ana@aiep.cl')).toBeInTheDocument();
+    expect(screen.getByText('Iniciativa VcM')).toBeInTheDocument();
+  });
+
   it('permite redimensionar columnas arrastrando el separador del header', () => {
     render(
       <VitrinaAvancesView

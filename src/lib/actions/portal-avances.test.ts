@@ -94,4 +94,94 @@ describe('getPortalAvancesProyectos', () => {
     expect(result.data?.[0]?.idVinculamos).toBeUndefined();
     expect(result.data?.some((p) => p.fondo === 'Fondo Impulsa')).toBe(false);
   });
+
+  it('incluye snapshot VcM en nivel 2 y lo omite en Causalab', async () => {
+    const vcmValue = JSON.stringify({
+      filePath: 'C:\\x.xlsx',
+      sheetName: 'Fondo VcM',
+      lastSyncedAt: '2026-09-03T00:00:00.000Z',
+      fileOk: true,
+      sheetOk: true,
+      rows: [
+        {
+          rowNumber: 2,
+          proyecto: 'Iniciativa VcM',
+          encargado: '',
+          sede: 'Bellavista',
+          escuelas: ['Salud'],
+          carreras: [],
+          asignaturas: [],
+          idVinculamos: '10',
+          estudiantes: 1,
+          docentes: 1,
+          beneficiarios: 0,
+          avanceGantt: 10,
+          avanceIndicadores: 0,
+          presupuestoAdjudicado: 1000,
+          avanceOperativoSolicitado: 0,
+          avanceOperativoEjecutado: 0,
+          honorarios: { kind: 'pct', value: 0 },
+          saldoPresupuesto: 0,
+        },
+      ],
+    });
+    const impulsaValue = JSON.stringify({
+      filePath: 'C:\\x.xlsx',
+      sheetName: 'IMPULSA',
+      lastSyncedAt: '2026-09-03T00:00:00.000Z',
+      fileOk: true,
+      sheetOk: true,
+      rows: [
+        {
+          rowNumber: 2,
+          proyecto: 'ClinicApp',
+          encargado: '',
+          sede: 'Bellavista',
+          escuelas: ['Salud'],
+          carreras: [],
+          asignaturas: [],
+          idVinculamos: '1',
+          estudiantes: 1,
+          docentes: 1,
+          beneficiarios: 0,
+          avanceGantt: 7,
+          avanceIndicadores: 0,
+          presupuestoAdjudicado: 2000,
+          avanceOperativoSolicitado: 0,
+          avanceOperativoEjecutado: 0,
+          honorarios: { kind: 'na' },
+          saldoPresupuesto: 0,
+        },
+      ],
+    });
+    settingFindUnique.mockImplementation(async (args: { where: { key: string } }) => {
+      if (args.where.key === 'portal_avances_vcm') {
+        return { value: vcmValue };
+      }
+      if (args.where.key === 'portal_avances_impulsa') {
+        return { value: impulsaValue };
+      }
+      return null;
+    });
+
+    accessMock.mockResolvedValue({ kind: 'guest', level: 2 });
+    proyectoFindMany.mockResolvedValue([] as never);
+    itemFindMany.mockResolvedValue([]);
+    const level2 = await getPortalAvancesProyectos();
+    expect(level2.success).toBe(true);
+    expect(level2.data?.some((p) => p.id === 'vcm:2')).toBe(true);
+    expect(level2.data?.some((p) => p.id === 'impulsa:2')).toBe(true);
+
+    settingFindUnique.mockClear();
+    accessMock.mockResolvedValue({ kind: 'guest', level: 0 });
+    const level0 = await getPortalAvancesProyectos();
+    expect(level0.success).toBe(true);
+    expect(level0.data?.some((p) => p.id === 'vcm:2')).toBe(false);
+    expect(level0.data?.some((p) => p.id === 'impulsa:2')).toBe(true);
+    expect(
+      settingFindUnique.mock.calls.some(
+        (call) => call[0]?.where?.key === 'portal_avances_vcm',
+      ),
+    ).toBe(false);
+  });
 });

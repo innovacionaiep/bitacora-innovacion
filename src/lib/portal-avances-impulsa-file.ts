@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 export const IMPULSA_SYNC_LOCAL_ONLY =
-  'La actualización del Excel de Impulsa solo está disponible en local (el archivo de OneDrive no existe en el servidor).';
+  'La actualización del Excel solo está disponible en local (el archivo de OneDrive no existe en el servidor).';
 
 export function isImpulsaExcelCloudRuntime(): boolean {
   return process.env.VERCEL === '1';

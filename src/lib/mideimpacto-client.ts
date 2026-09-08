@@ -18,7 +18,6 @@ export function mideimpactoIniciativasUrl(
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const url = new URL(`${baseUrl.replace(/\/$/, '')}/iniciativas`);
   url.searchParams.set('page', String(safePage));
-  url.searchParams.set('include', 'adjuntos');
   return url.toString();
 }
 

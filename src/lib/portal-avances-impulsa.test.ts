@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   parseImpulsaHonorarios,
   parseImpulsaPercent,
+  parseImpulsaPct,
   parseImpulsaWorkbook,
   parseStoredImpulsa,
+  parseStoredVcm,
   impulsaRowsToAvances,
   PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
 } from '@/lib/portal-avances-impulsa';
@@ -61,6 +63,14 @@ describe('parseImpulsaHonorarios', () => {
   });
 });
 
+describe('parseImpulsaPct', () => {
+  it('marca No aplica en porcentajes y no lo trata como 0%', () => {
+    expect(parseImpulsaPct('No aplica')).toEqual({ kind: 'na' });
+    expect(parseImpulsaPct('N/A')).toEqual({ kind: 'na' });
+    expect(parseImpulsaPercent('No aplica')).toBe(0);
+  });
+});
+
 describe('parseImpulsaWorkbook', () => {
   it('omite filas sin PROYECTO y mapea columnas', async () => {
     const buffer = await workbookBuffer({
@@ -103,19 +113,99 @@ describe('parseImpulsaWorkbook', () => {
       estudiantes: 10,
       docentes: 2,
       beneficiarios: 5,
-      avanceGantt: 7,
-      avanceIndicadores: 10,
+      avanceGantt: { kind: 'pct', value: 7 },
+      avanceIndicadores: { kind: 'pct', value: 10 },
       presupuestoAdjudicado: 2_000_000,
-      avanceOperativoSolicitado: 97,
-      avanceOperativoEjecutado: 0,
+      avanceOperativoSolicitado: { kind: 'pct', value: 97 },
+      avanceOperativoEjecutado: { kind: 'pct', value: 0 },
       honorarios: { kind: 'na' },
       saldoPresupuesto: -1000,
     });
     const mapped = impulsaRowsToAvances(result.rows);
     expect(mapped[0]?.honorariosNoAplica).toBe(true);
     expect(mapped[0]?.fondo).toBe('Fondo Impulsa');
+    expect(mapped[0]?.id).toBe(`impulsa:${result.rows[0]?.rowNumber}`);
     expect(mapped[0]?.carreras).toEqual([]);
     expect(mapped[0]?.asignaturas).toEqual([]);
+    const vcmMapped = impulsaRowsToAvances(result.rows, {
+      fondo: 'Vinculación con el Medio',
+      idPrefix: 'vcm',
+    });
+    expect(vcmMapped[0]?.fondo).toBe('Vinculación con el Medio');
+    expect(vcmMapped[0]?.id).toBe(`vcm:${result.rows[0]?.rowNumber}`);
+  });
+
+  it('marca No aplica en Gantt, Indicadores y compras, no 0%', async () => {
+    const buffer = await workbookBuffer({
+      sheetName: 'Fondo VcM',
+      rows: [
+        [
+          'Vinculación',
+          'Iniciativa VcM',
+          'Bellavista',
+          'Salud',
+          'Sin registro',
+          1,
+          1,
+          0,
+          'No aplica',
+          'No aplica',
+          1_000_000,
+          'No aplica',
+          'n/a',
+          'No aplica',
+          0,
+        ],
+      ],
+    });
+    const result = await parseImpulsaWorkbook(buffer, 'Fondo VcM');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows[0]).toMatchObject({
+      avanceGantt: { kind: 'na' },
+      avanceIndicadores: { kind: 'na' },
+      avanceOperativoSolicitado: { kind: 'na' },
+      avanceOperativoEjecutado: { kind: 'na' },
+      honorarios: { kind: 'na' },
+    });
+    const mapped = impulsaRowsToAvances(result.rows, {
+      fondo: 'Vinculación con el Medio',
+      idPrefix: 'vcm',
+    });
+    expect(mapped[0]?.ganttNoAplica).toBe(true);
+    expect(mapped[0]?.indicadoresNoAplica).toBe(true);
+    expect(mapped[0]?.operativoSolicitadoNoAplica).toBe(true);
+    expect(mapped[0]?.operativoEjecutadoNoAplica).toBe(true);
+    expect(mapped[0]?.honorariosNoAplica).toBe(true);
+    expect(mapped[0]?.avanceGantt).toBe(0);
+  });
+
+  it('mapea snapshots viejos con porcentajes numéricos', () => {
+    const mapped = impulsaRowsToAvances([
+      {
+        rowNumber: 2,
+        proyecto: 'ClinicApp',
+        encargado: '',
+        sede: 'Bellavista',
+        escuelas: [],
+        carreras: [],
+        asignaturas: [],
+        idVinculamos: '',
+        estudiantes: null,
+        docentes: null,
+        beneficiarios: null,
+        avanceGantt: 7 as never,
+        avanceIndicadores: 10 as never,
+        presupuestoAdjudicado: 1,
+        avanceOperativoSolicitado: 97 as never,
+        avanceOperativoEjecutado: 0 as never,
+        honorarios: { kind: 'na' },
+        saldoPresupuesto: 0,
+      },
+    ]);
+    expect(mapped[0]?.avanceGantt).toBe(7);
+    expect(mapped[0]?.ganttNoAplica).toBe(false);
+    expect(mapped[0]?.honorariosNoAplica).toBe(true);
   });
 
   it('lee Carreras y Asignaturas si existen en la hoja', async () => {
@@ -257,6 +347,15 @@ describe('parseStoredImpulsa', () => {
   it('usa defaults si el JSON está vacío', () => {
     const stored = parseStoredImpulsa(null);
     expect(stored.sheetName).toBe('IMPULSA');
+    expect(stored.rows).toEqual([]);
+    expect(stored.fileOk).toBe(false);
+  });
+});
+
+describe('parseStoredVcm', () => {
+  it('usa hoja Fondo VcM si el JSON está vacío', () => {
+    const stored = parseStoredVcm(null);
+    expect(stored.sheetName).toBe('Fondo VcM');
     expect(stored.rows).toEqual([]);
     expect(stored.fileOk).toBe(false);
   });

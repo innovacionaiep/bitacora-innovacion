@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MideimpactoIniciativa } from '@/lib/mideimpacto-iniciativas';
-import { applySedesToRows } from '@/lib/mideimpacto-iniciativas';
+import { applySedesToRows, emptyMideimpactoIniciativa } from '@/lib/mideimpacto-iniciativas';
 import {
   SEDE_CACHE_TTL_MS,
   attachSedesFromCache,
@@ -13,12 +13,8 @@ function row(
   patch: Partial<MideimpactoIniciativa> & Pick<MideimpactoIniciativa, 'id' | 'nombre'>,
 ): MideimpactoIniciativa {
   return {
+    ...emptyMideimpactoIniciativa(),
     estado: 'Activa',
-    fechaInicio: '',
-    fechaTermino: '',
-    mecanismo: '',
-    adjuntos: [],
-    sede: '',
     ...patch,
   };
 }
