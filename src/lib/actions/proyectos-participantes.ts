@@ -47,18 +47,31 @@ async function nombreCatalogoParticipante(
   if (!id) return null;
   if (id === previousId && previousNombre != null) return previousNombre;
   const select = { nombre: true } as const;
-  if (model === 'socioComunitario') {
-    const row = await prisma.socioComunitario.findUnique({
-      where: { id },
-      select,
-    });
-    return row?.nombre ?? null;
+  switch (model) {
+    case 'socioComunitario': {
+      const row = await prisma.socioComunitario.findUnique({
+        where: { id },
+        select,
+      });
+      return row?.nombre ?? null;
+    }
+    case 'sede': {
+      const row = await prisma.sede.findUnique({ where: { id }, select });
+      return row?.nombre ?? null;
+    }
+    case 'escuela': {
+      const row = await prisma.escuela.findUnique({ where: { id }, select });
+      return row?.nombre ?? null;
+    }
+    case 'carrera': {
+      const row = await prisma.carrera.findUnique({ where: { id }, select });
+      return row?.nombre ?? null;
+    }
+    case 'asignatura': {
+      const row = await prisma.asignatura.findUnique({ where: { id }, select });
+      return row?.nombre ?? null;
+    }
   }
-  const row = await prisma[model].findUnique({
-    where: { id },
-    select,
-  });
-  return row?.nombre ?? null;
 }
 
 /** Mantiene el Int denormalizado `proyecto.participantes` alineado con la relación. */
