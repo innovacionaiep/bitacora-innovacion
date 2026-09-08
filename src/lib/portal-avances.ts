@@ -2,8 +2,10 @@ import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
 import {
   PORTAL_CAUSALAB_FONDO,
   portalCanSeeView,
+  portalIsCausalab,
   type PortalAccessKind,
   type PortalGuestLevel,
+  type PortalGuestProfile,
 } from '@/lib/portal-guest-access';
 import type { FondoAvanceMetrics } from '@/lib/fondo-avance-metrics';
 
@@ -206,8 +208,10 @@ export function canLoadPortalAvances(
 
 export function portalAvancesFondosForLevel(
   level: PortalGuestLevel | null,
+  profile: PortalGuestProfile | null = null,
+  kind: PortalAccessKind | null = 'guest',
 ): readonly PortalAvancesFondo[] {
-  if (level === 0) {
+  if (portalIsCausalab({ kind: kind ?? 'guest', level, profile })) {
     return PORTAL_AVANCES_FONDOS.filter(
       (fondo) => fondo.nombre === PORTAL_CAUSALAB_FONDO,
     );
@@ -217,17 +221,22 @@ export function portalAvancesFondosForLevel(
 
 export function portalAvancesDefaultFondoForLevel(
   level: PortalGuestLevel | null,
+  profile: PortalGuestProfile | null = null,
+  kind: PortalAccessKind | null = 'guest',
 ): string {
   return (
-    portalAvancesFondosForLevel(level)[0]?.nombre ?? PORTAL_AVANCES_DEFAULT_FONDO
+    portalAvancesFondosForLevel(level, profile, kind)[0]?.nombre ??
+    PORTAL_AVANCES_DEFAULT_FONDO
   );
 }
 
 export function portalAvancesLevelCanSeeFondo(
   level: PortalGuestLevel | null,
   fondoNombre: string,
+  profile: PortalGuestProfile | null = null,
+  kind: PortalAccessKind | null = 'guest',
 ): boolean {
-  return portalAvancesFondosForLevel(level).some(
+  return portalAvancesFondosForLevel(level, profile, kind).some(
     (fondo) => fondo.nombre === fondoNombre,
   );
 }
@@ -235,8 +244,12 @@ export function portalAvancesLevelCanSeeFondo(
 export function portalAvancesCanLoadAppFondos(
   level: PortalGuestLevel | null,
   kind: PortalAccessKind | null = 'guest',
+  profile: PortalGuestProfile | null = null,
 ): boolean {
-  return canLoadPortalAvances(level, kind) && level !== 0;
+  return (
+    canLoadPortalAvances(level, kind) &&
+    !portalIsCausalab({ kind: kind ?? 'guest', level, profile })
+  );
 }
 
 export type PortalAvancesParticipanteInput = {

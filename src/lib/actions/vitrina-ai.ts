@@ -24,7 +24,7 @@ import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readRequiredEnv } from '@/lib/secrets/env-secrets';
 import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
 import { resolvePortalAccess } from '@/lib/actions/portal-guest';
-import { portalCanSeeView } from '@/lib/portal-guest-access';
+import { portalCanUseAiChat } from '@/lib/portal-guest-access';
 
 export type VitrinaAiSettingsView = {
   configured: boolean;
@@ -158,7 +158,7 @@ export async function chatVitrinaAgent(input: {
   }
 
   const access = await resolvePortalAccess();
-  if (access.kind === 'none' || !portalCanSeeView(access.level, 'proyectos')) {
+  if (!portalCanUseAiChat(access)) {
     return {
       success: false,
       error: 'Inicia sesión o ingresa un código de invitado',

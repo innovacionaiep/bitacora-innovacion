@@ -270,7 +270,7 @@ describe('uniquePortalAvancesFilterOptions', () => {
 });
 
 describe('canLoadPortalAvances', () => {
-  it('nivel 0 Causalab invitado, 2 y 3 sí; sesión 0, 1 y sin acceso no', () => {
+  it('nivel 0 general, Causalab invitado, 2 y 3 sí; sesión 0, 1 y sin acceso no', () => {
     expect(canLoadPortalAvances(null)).toBe(false);
     expect(canLoadPortalAvances(0)).toBe(true);
     expect(canLoadPortalAvances(0, 'guest')).toBe(true);
@@ -321,16 +321,29 @@ describe('countPortalAvancesParticipantes', () => {
 });
 
 describe('portalAvancesFondosForLevel', () => {
-  it('nivel 0 Causalab solo Fondo Impulsa', () => {
-    expect(portalAvancesFondosForLevel(0).map((f) => f.nombre)).toEqual([
-      'Fondo Impulsa',
-    ]);
-    expect(portalAvancesDefaultFondoForLevel(0)).toBe('Fondo Impulsa');
-    expect(portalAvancesCanLoadAppFondos(0)).toBe(false);
-    expect(portalAvancesLevelCanSeeFondo(0, 'Fondo Impulsa')).toBe(true);
+  it('perfil Causalab solo Fondo Impulsa', () => {
     expect(
-      portalAvancesLevelCanSeeFondo(0, 'Vinculación con el Medio'),
+      portalAvancesFondosForLevel(0, 'causalab').map((f) => f.nombre),
+    ).toEqual(['Fondo Impulsa']);
+    expect(portalAvancesDefaultFondoForLevel(0, 'causalab')).toBe(
+      'Fondo Impulsa',
+    );
+    expect(portalAvancesCanLoadAppFondos(0, 'guest', 'causalab')).toBe(false);
+    expect(
+      portalAvancesLevelCanSeeFondo(0, 'Fondo Impulsa', 'causalab'),
+    ).toBe(true);
+    expect(
+      portalAvancesLevelCanSeeFondo(
+        0,
+        'Vinculación con el Medio',
+        'causalab',
+      ),
     ).toBe(false);
+  });
+
+  it('nivel 0 general ve toda la botonera', () => {
+    expect(portalAvancesFondosForLevel(0)).toEqual(PORTAL_AVANCES_FONDOS);
+    expect(portalAvancesCanLoadAppFondos(0)).toBe(true);
   });
 
   it('niveles 2 y 3 ven toda la botonera', () => {

@@ -2,10 +2,12 @@ import type { VitrinaProjectsView } from '@/lib/vitrina-views';
 
 export type PortalGuestLevel = 0 | 1 | 2 | 3;
 export type PortalAccessKind = 'none' | 'session' | 'guest';
+export type PortalGuestProfile = 'causalab' | 'vinculacion';
 
 export type PortalAccess = {
   kind: PortalAccessKind;
   level: PortalGuestLevel | null;
+  profile?: PortalGuestProfile | null;
 };
 
 export type PortalGuestHashes = {
@@ -13,11 +15,14 @@ export type PortalGuestHashes = {
   1: string;
   2: string;
   3: string;
+  causalab: string;
+  vinculacion: string;
 };
 
 export type PortalGuestTicket = {
   level: PortalGuestLevel;
   hash: string;
+  profile: PortalGuestProfile | null;
 };
 
 export const EMPTY_PORTAL_GUEST_HASHES: PortalGuestHashes = {
@@ -25,9 +30,23 @@ export const EMPTY_PORTAL_GUEST_HASHES: PortalGuestHashes = {
   1: '',
   2: '',
   3: '',
+  causalab: '',
+  vinculacion: '',
 };
 
 export const PORTAL_GUEST_LEVELS: PortalGuestLevel[] = [0, 1, 2, 3];
+export const PORTAL_GUEST_PROFILES: PortalGuestProfile[] = [
+  'causalab',
+  'vinculacion',
+];
+
+export const PORTAL_GUEST_PROFILE_LEVEL: Record<
+  PortalGuestProfile,
+  PortalGuestLevel
+> = {
+  causalab: 0,
+  vinculacion: 3,
+};
 
 export const PORTAL_VIEWS_BY_LEVEL: Record<
   PortalGuestLevel,
@@ -43,19 +62,33 @@ export function isPortalGuestLevel(value: unknown): value is PortalGuestLevel {
   return value === 0 || value === 1 || value === 2 || value === 3;
 }
 
+export function isPortalGuestProfile(
+  value: unknown,
+): value is PortalGuestProfile {
+  return value === 'causalab' || value === 'vinculacion';
+}
+
+function asHash(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 export function parsePortalGuestHashes(
   raw: string | null | undefined,
 ): PortalGuestHashes {
   if (!raw?.trim()) return { ...EMPTY_PORTAL_GUEST_HASHES };
   try {
-    const parsed = JSON.parse(raw) as Partial<
-      Record<'0' | '1' | '2' | '3', unknown>
-    >;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const hasProfiles =
+      Object.prototype.hasOwnProperty.call(parsed, 'causalab') ||
+      Object.prototype.hasOwnProperty.call(parsed, 'vinculacion');
+    const legacyZero = asHash(parsed['0']);
     return {
-      0: typeof parsed[0] === 'string' ? parsed[0] : '',
-      1: typeof parsed[1] === 'string' ? parsed[1] : '',
-      2: typeof parsed[2] === 'string' ? parsed[2] : '',
-      3: typeof parsed[3] === 'string' ? parsed[3] : '',
+      0: hasProfiles ? legacyZero : '',
+      1: asHash(parsed['1']),
+      2: asHash(parsed['2']),
+      3: asHash(parsed['3']),
+      causalab: hasProfiles ? asHash(parsed.causalab) : legacyZero,
+      vinculacion: asHash(parsed.vinculacion),
     };
   } catch {
     return { ...EMPTY_PORTAL_GUEST_HASHES };
@@ -68,6 +101,8 @@ export function serializePortalGuestHashes(hashes: PortalGuestHashes): string {
     1: hashes[1] ?? '',
     2: hashes[2] ?? '',
     3: hashes[3] ?? '',
+    causalab: hashes.causalab ?? '',
+    vinculacion: hashes.vinculacion ?? '',
   });
 }
 
@@ -76,12 +111,16 @@ export function portalGuestConfiguredFlags(hashes: PortalGuestHashes): {
   1: boolean;
   2: boolean;
   3: boolean;
+  causalab: boolean;
+  vinculacion: boolean;
 } {
   return {
     0: Boolean(hashes[0]),
     1: Boolean(hashes[1]),
     2: Boolean(hashes[2]),
     3: Boolean(hashes[3]),
+    causalab: Boolean(hashes.causalab),
+    vinculacion: Boolean(hashes.vinculacion),
   };
 }
 
@@ -89,17 +128,24 @@ export function parsePortalGuestTicket(
   raw: unknown,
 ): PortalGuestTicket | null {
   if (!raw || typeof raw !== 'object') return null;
-  const value = raw as { level?: unknown; hash?: unknown };
+  const value = raw as { level?: unknown; hash?: unknown; profile?: unknown };
   const hash = typeof value.hash === 'string' ? value.hash : '';
   if (!isPortalGuestLevel(value.level) || !hash) return null;
-  return { level: value.level, hash };
+  const profile = isPortalGuestProfile(value.profile) ? value.profile : null;
+  return { level: value.level, hash, profile };
 }
 
 export function guestTicketStillValid(
   ticket: PortalGuestTicket,
   hashes: PortalGuestHashes,
 ): boolean {
-  return hashes[ticket.level] === ticket.hash && Boolean(ticket.hash);
+  if (!ticket.hash) return false;
+  if (ticket.profile) {
+    return hashes[ticket.profile] === ticket.hash;
+  }
+  if (hashes[ticket.level] === ticket.hash) return true;
+  if (ticket.level === 0 && hashes.causalab === ticket.hash) return true;
+  return false;
 }
 
 export function portalViewsForLevel(
@@ -181,14 +227,19 @@ export function isPortalSessionRole(value: unknown): value is PortalSessionRole 
 }
 
 export function portalLevelCaption(level: PortalGuestLevel): string {
-  const labels = PORTAL_VIEWS_BY_LEVEL[level]
+  return PORTAL_VIEWS_BY_LEVEL[level]
     .map((view) => PORTAL_VIEW_LABELS[view])
     .join(', ');
-  if (level === 0) return `${labels} (solo Fondo Impulsa)`;
-  return labels;
 }
 
-/** Nivel 0 en cuentas logueadas: no entran al portal, van a /inicio. El 0 de invitado sigue siendo Causalab. */
+export function portalProfileCaption(profile: PortalGuestProfile): string {
+  if (profile === 'causalab') {
+    return `${portalLevelCaption(0)} (solo Fondo Impulsa)`;
+  }
+  return 'Toda la información de lectura, sin chat IA ni ingreso a la app';
+}
+
+/** Nivel 0 en cuentas logueadas: no entran al portal, van a /inicio. */
 export function portalSessionRedirectsToApp(
   kind: PortalAccessKind,
   level: PortalGuestLevel | null,
@@ -203,6 +254,23 @@ export function portalCanEnterProjectsPortal(
   if (kind === 'none' || level === null) return false;
   if (portalSessionRedirectsToApp(kind, level)) return false;
   return portalViewsForLevel(level).length > 0;
+}
+
+export function portalIsCausalab(access: PortalAccess): boolean {
+  return access.kind === 'guest' && access.profile === 'causalab';
+}
+
+export function portalCanUseAiChat(access: PortalAccess): boolean {
+  if (access.kind === 'none' || access.level === null) return false;
+  if (portalSessionRedirectsToApp(access.kind, access.level)) return false;
+  if (access.profile === 'causalab' || access.profile === 'vinculacion') {
+    return false;
+  }
+  return portalCanSeeView(access.level, 'proyectos');
+}
+
+export function portalCanEnterApp(access: PortalAccess): boolean {
+  return !(access.kind === 'guest' && access.profile === 'vinculacion');
 }
 
 export function portalSessionLevelCaption(level: PortalGuestLevel): string {
@@ -254,11 +322,22 @@ export async function matchPortalGuestCode(
 ): Promise<PortalGuestTicket | null> {
   const plain = code.trim();
   if (!plain) return null;
+  for (const profile of PORTAL_GUEST_PROFILES) {
+    const hash = hashes[profile];
+    if (!hash) continue;
+    if (await compare(plain, hash)) {
+      return {
+        level: PORTAL_GUEST_PROFILE_LEVEL[profile],
+        hash,
+        profile,
+      };
+    }
+  }
   for (const level of PORTAL_GUEST_LEVELS) {
     const hash = hashes[level];
     if (!hash) continue;
     if (await compare(plain, hash)) {
-      return { level, hash };
+      return { level, hash, profile: null };
     }
   }
   return null;

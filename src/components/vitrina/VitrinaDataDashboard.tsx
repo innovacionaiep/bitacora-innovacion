@@ -15,7 +15,7 @@ import {
   portalAvancesFondosForLevel,
   type PortalAvancesProyecto,
 } from '@/lib/portal-avances';
-import type { PortalGuestLevel } from '@/lib/portal-guest-access';
+import type { PortalGuestLevel, PortalGuestProfile } from '@/lib/portal-guest-access';
 import { buildVitrinaDataStats, countVitrinaSociosComunitarios, type VitrinaDataBarDatum, type VitrinaLineaFondoCatalog } from '@/lib/vitrina-data-stats';
 import {
   vitrinaAsignaturaStripeClass,
@@ -68,12 +68,14 @@ export function VitrinaDataDashboard({
   proyectos,
   avancesProyectos = [],
   accessLevel = null,
+  accessProfile = null,
   lineaCatalog,
   fondosFiltro = [],
 }: {
   proyectos: VitrinaProyecto[];
   avancesProyectos?: PortalAvancesProyecto[];
   accessLevel?: PortalGuestLevel | null;
+  accessProfile?: PortalGuestProfile | null;
   lineaCatalog?: VitrinaLineaFondoCatalog;
   fondosFiltro?: string[];
 }) {
@@ -89,37 +91,37 @@ export function VitrinaDataDashboard({
     () =>
       sumVitrinaAvancesParticipantes(
         avancesProyectos,
-        portalAvancesFondosForLevel(accessLevel),
+        portalAvancesFondosForLevel(accessLevel, accessProfile),
         fondosFiltro,
       ),
-    [avancesProyectos, accessLevel, fondosFiltro],
+    [avancesProyectos, accessLevel, accessProfile, fondosFiltro],
   );
   const porCarrera = useMemo(
     () =>
       buildVitrinaAvancesCarreraStats(
         avancesProyectos,
-        portalAvancesFondosForLevel(accessLevel),
+        portalAvancesFondosForLevel(accessLevel, accessProfile),
         fondosFiltro,
       ),
-    [avancesProyectos, accessLevel, fondosFiltro],
+    [avancesProyectos, accessLevel, accessProfile, fondosFiltro],
   );
   const porAsignatura = useMemo(
     () =>
       buildVitrinaAvancesAsignaturaStats(
         avancesProyectos,
-        portalAvancesFondosForLevel(accessLevel),
+        portalAvancesFondosForLevel(accessLevel, accessProfile),
         fondosFiltro,
       ),
-    [avancesProyectos, accessLevel, fondosFiltro],
+    [avancesProyectos, accessLevel, accessProfile, fondosFiltro],
   );
   const coberturaAsignatura = useMemo(
     () =>
       buildVitrinaAvancesAsignaturaCobertura(
         avancesProyectos,
-        portalAvancesFondosForLevel(accessLevel),
+        portalAvancesFondosForLevel(accessLevel, accessProfile),
         fondosFiltro,
       ),
-    [avancesProyectos, accessLevel, fondosFiltro],
+    [avancesProyectos, accessLevel, accessProfile, fondosFiltro],
   );
   const [hover, setHover] = useState<ChartHover | null>(null);
 

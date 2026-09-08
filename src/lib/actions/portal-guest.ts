@@ -11,9 +11,11 @@ import {
   portalGuestConfiguredFlags,
   portalReadLevelForSessionRoles,
   PORTAL_GUEST_LEVELS,
+  PORTAL_GUEST_PROFILES,
   type PortalAccess,
   type PortalGuestHashes,
   type PortalGuestLevel,
+  type PortalGuestProfile,
   type PortalSessionRoleLevels,
 } from '@/lib/portal-guest-access';
 import {
@@ -46,17 +48,23 @@ export async function resolvePortalAccess(): Promise<PortalAccess> {
         session.user.availableRoles,
         roleLevels,
       ),
+      profile: null,
     };
   }
 
   const ticket = await readPortalGuestTicket();
-  if (!ticket) return { kind: 'none', level: null };
+  if (!ticket) return { kind: 'none', level: null, profile: null };
 
   const hashes = await readPortalGuestHashes();
   if (!guestTicketStillValid(ticket, hashes)) {
-    return { kind: 'none', level: null };
+    return { kind: 'none', level: null, profile: null };
   }
-  return { kind: 'guest', level: ticket.level };
+  const profile =
+    ticket.profile ??
+    (ticket.level === 0 && hashes.causalab === ticket.hash
+      ? 'causalab'
+      : null);
+  return { kind: 'guest', level: ticket.level, profile };
 }
 
 export async function redeemPortalGuestCode(code: string): Promise<{
@@ -86,9 +94,11 @@ export async function leavePortalGuestSession(): Promise<{
   return { success: true };
 }
 
+type PortalGuestCodeKey = PortalGuestLevel | PortalGuestProfile;
+
 export async function getPortalGuestSettings(): Promise<{
   success: boolean;
-  data?: { 0: boolean; 1: boolean; 2: boolean; 3: boolean };
+  data?: ReturnType<typeof portalGuestConfiguredFlags>;
   error?: string;
 }> {
   const gate = await requireAdmin();
@@ -98,8 +108,8 @@ export async function getPortalGuestSettings(): Promise<{
 }
 
 export async function savePortalGuestSettings(input: {
-  codes: Partial<Record<PortalGuestLevel, string>>;
-  clear?: Partial<Record<PortalGuestLevel, boolean>>;
+  codes: Partial<Record<PortalGuestCodeKey, string>>;
+  clear?: Partial<Record<PortalGuestCodeKey, boolean>>;
 }): Promise<{ success: boolean; error?: string }> {
   const gate = await requireAdmin();
   if (!gate.ok) return { success: false, error: gate.error };
@@ -115,6 +125,16 @@ export async function savePortalGuestSettings(input: {
     const typed = input.codes[level]?.trim() ?? '';
     if (!typed) continue;
     next[level] = await bcrypt.hash(typed, PORTAL_GUEST_SALT_ROUNDS);
+  }
+
+  for (const profile of PORTAL_GUEST_PROFILES) {
+    if (input.clear?.[profile]) {
+      next[profile] = '';
+      continue;
+    }
+    const typed = input.codes[profile]?.trim() ?? '';
+    if (!typed) continue;
+    next[profile] = await bcrypt.hash(typed, PORTAL_GUEST_SALT_ROUNDS);
   }
 
   try {

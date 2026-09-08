@@ -173,7 +173,11 @@ describe('getPortalAvancesProyectos', () => {
     expect(level2.data?.some((p) => p.id === 'impulsa:2')).toBe(true);
 
     settingFindUnique.mockClear();
-    accessMock.mockResolvedValue({ kind: 'guest', level: 0 });
+    accessMock.mockResolvedValue({
+      kind: 'guest',
+      level: 0,
+      profile: 'causalab',
+    });
     const level0 = await getPortalAvancesProyectos();
     expect(level0.success).toBe(true);
     expect(level0.data?.some((p) => p.id === 'vcm:2')).toBe(false);

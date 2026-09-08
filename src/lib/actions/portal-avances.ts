@@ -34,7 +34,7 @@ export async function getPortalAvancesProyectos(): Promise<{
 
   const data: PortalAvancesProyecto[] = [];
 
-  if (portalAvancesCanLoadAppFondos(access.level, access.kind)) {
+  if (portalAvancesCanLoadAppFondos(access.level, access.kind, access.profile)) {
     const fondos = portalAvancesAppFondoNames();
     const rows = await prisma.proyecto.findMany({
       where: { fondo: { in: fondos } },
@@ -114,11 +114,25 @@ export async function getPortalAvancesProyectos(): Promise<{
   }
 
   const impulsa = await readImpulsaStored();
-  if (portalAvancesLevelCanSeeFondo(access.level, PORTAL_AVANCES_IMPULSA_FONDO)) {
+  if (
+    portalAvancesLevelCanSeeFondo(
+      access.level,
+      PORTAL_AVANCES_IMPULSA_FONDO,
+      access.profile,
+      access.kind,
+    )
+  ) {
     data.push(...impulsaRowsToAvances(impulsa.rows));
   }
 
-  if (portalAvancesLevelCanSeeFondo(access.level, PORTAL_AVANCES_VCM_FONDO)) {
+  if (
+    portalAvancesLevelCanSeeFondo(
+      access.level,
+      PORTAL_AVANCES_VCM_FONDO,
+      access.profile,
+      access.kind,
+    )
+  ) {
     const vcm = await readVcmStored();
     data.push(
       ...impulsaRowsToAvances(vcm.rows, {

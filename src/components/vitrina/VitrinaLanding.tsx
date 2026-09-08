@@ -72,11 +72,15 @@ import {
 import type { VitrinaPerfDirection } from '@/lib/vitrina-transition-perf';
 import {
   clampPortalView,
+  portalCanEnterApp,
   portalCanSeeView,
+  portalCanUseAiChat,
+  portalIsCausalab,
   portalSessionRedirectsToApp,
   portalViewsForLevel,
   type PortalAccessKind,
   type PortalGuestLevel,
+  type PortalGuestProfile,
 } from '@/lib/portal-guest-access';
 import {
   EMPTY_PORTAL_AVANCES_FILTERS,
@@ -124,6 +128,7 @@ export function VitrinaLanding({
   sessionEmail = null,
   accessKind = 'none',
   accessLevel = null,
+  accessProfile = null,
   initialScene = 'hero',
   avancesProyectos = [],
   vinculamosInitial = EMPTY_VINCULAMOS_INITIAL,
@@ -137,6 +142,7 @@ export function VitrinaLanding({
   sessionEmail?: string | null;
   accessKind?: PortalAccessKind;
   accessLevel?: PortalGuestLevel | null;
+  accessProfile?: PortalGuestProfile | null;
   initialScene?: VitrinaScene;
   avancesProyectos?: PortalAvancesProyecto[];
   vinculamosInitial?: {
@@ -148,6 +154,14 @@ export function VitrinaLanding({
   const router = useRouter();
   const startProjects = initialScene === 'projects';
   const hasAccess = accessKind !== 'none';
+  const access = {
+    kind: accessKind,
+    level: accessLevel,
+    profile: accessProfile,
+  };
+  const isCausalab = portalIsCausalab(access);
+  const showAppCta = portalCanEnterApp(access);
+  const showAiChat = portalCanUseAiChat(access);
   const visibleTabs = portalViewsForLevel(accessLevel);
   const [proyectosLocal, setProyectosLocal] = useState(proyectos);
   const [heroOff, setHeroOff] = useState(startProjects);
@@ -165,7 +179,7 @@ export function VitrinaLanding({
     clampPortalView(accessLevel, 'proyectos'),
   );
   const [avancesFondoNombre, setAvancesFondoNombre] = useState(() =>
-    portalAvancesDefaultFondoForLevel(accessLevel),
+    portalAvancesDefaultFondoForLevel(accessLevel, accessProfile),
   );
   const [avancesFilters, setAvancesFilters] = useState<PortalAvancesFilters>(
     EMPTY_PORTAL_AVANCES_FILTERS,
@@ -175,7 +189,7 @@ export function VitrinaLanding({
     PortalAvancesColumnId[]
   >(() =>
     defaultPortalAvancesVisibleColumns(
-      portalAvancesDefaultFondoForLevel(accessLevel),
+      portalAvancesDefaultFondoForLevel(accessLevel, accessProfile),
     ),
   );
   const [perfDirection, setPerfDirection] = useState<VitrinaPerfDirection | null>(
@@ -228,7 +242,7 @@ export function VitrinaLanding({
 
   const handleAvancesFondoChange = useCallback((nombre: string) => {
     if (
-      !portalAvancesFondosForLevel(accessLevel).some(
+      !portalAvancesFondosForLevel(accessLevel, accessProfile).some(
         (fondo) => fondo.nombre === nombre,
       )
     ) {
@@ -238,7 +252,7 @@ export function VitrinaLanding({
     setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
     setAvancesQuery('');
     setAvancesVisibleColumns(defaultPortalAvancesVisibleColumns(nombre));
-  }, [accessLevel]);
+  }, [accessLevel, accessProfile]);
 
   const scene: VitrinaScene = heroOff ? 'projects' : 'hero';
   const typewriterPaused = vitrinaTypewriterPaused(scene, busy);
@@ -288,14 +302,14 @@ export function VitrinaLanding({
   }, [accessLevel]);
 
   useEffect(() => {
-    const allowed = portalAvancesFondosForLevel(accessLevel);
+    const allowed = portalAvancesFondosForLevel(accessLevel, accessProfile);
     if (allowed.some((fondo) => fondo.nombre === avancesFondoNombre)) return;
-    const next = portalAvancesDefaultFondoForLevel(accessLevel);
+    const next = portalAvancesDefaultFondoForLevel(accessLevel, accessProfile);
     setAvancesFondoNombre(next);
     setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
     setAvancesQuery('');
     setAvancesVisibleColumns(defaultPortalAvancesVisibleColumns(next));
-  }, [accessLevel, avancesFondoNombre]);
+  }, [accessLevel, accessProfile, avancesFondoNombre]);
 
   useEffect(() => {
     return () => {
@@ -625,12 +639,14 @@ export function VitrinaLanding({
                     >
                       {VITRINA_HERO.primaryCta}
                     </button>
+                    {showAppCta ? (
                     <Link
                       href={appCtaHref}
                       className={`inline-flex items-center justify-center rounded-full border bg-transparent px-6 py-3 text-sm font-semibold shadow-sm transition-colors duration-500 ${ctaOutlineClassName}`}
                     >
                       {VITRINA_HERO.appCta}
                     </Link>
+                    ) : null}
                   </div>
                 </div>
               </section>
@@ -675,7 +691,7 @@ export function VitrinaLanding({
                 hiddenFacets={
                   isAvancesView
                     ? ['fondos', 'etiquetas']
-                    : accessLevel === 0
+                    : isCausalab
                       ? ['fondos']
                       : undefined
                 }
@@ -720,7 +736,7 @@ export function VitrinaLanding({
                     }));
                     return;
                   }
-                  if (accessLevel === 0 && facet === 'fondos') return;
+                  if (isCausalab && facet === 'fondos') return;
                   setFilters((current) => ({
                     ...current,
                     [facet]: toggleVitrinaFilterValue(current[facet], value),
@@ -772,6 +788,7 @@ export function VitrinaLanding({
                     proyectos={proyectosFiltrados}
                     avancesProyectos={avancesProyectos}
                     accessLevel={accessLevel}
+                    accessProfile={accessProfile}
                     lineaCatalog={catalogs}
                     fondosFiltro={filters.fondos}
                   />
@@ -799,7 +816,10 @@ export function VitrinaLanding({
                     onFondoChange={handleAvancesFondoChange}
                     proyectos={avancesFiltrados}
                     visibleColumns={avancesVisibleColumns}
-                    fondos={portalAvancesFondosForLevel(accessLevel)}
+                    fondos={portalAvancesFondosForLevel(
+                      accessLevel,
+                      accessProfile,
+                    )}
                   />
                 </div>
                 ) : null}
@@ -834,7 +854,7 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'proyectos') ? (
+                {showAiChat ? (
                 <VitrinaAiChat
                   configured={aiConfigured}
                   filters={filters}

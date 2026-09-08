@@ -120,7 +120,7 @@ describe('sumVitrinaAvancesParticipantes', () => {
     expect(
       sumVitrinaAvancesParticipantes(
         proyectos,
-        portalAvancesFondosForLevel(0),
+        portalAvancesFondosForLevel(0, 'causalab'),
       ),
     ).toEqual({
       estudiantes: 7,

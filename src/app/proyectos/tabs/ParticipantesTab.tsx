@@ -331,6 +331,141 @@ function PersonaPicker({
   );
 }
 
+function foldCatalogQuery(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** Combobox de catálogo (Carrera/Asignatura): Radix Select no deja escribir en un input. */
+function CatalogSearchSelect({
+  value,
+  placeholder,
+  searchPlaceholder,
+  options,
+  onValueChange,
+}: {
+  value?: string;
+  placeholder: string;
+  searchPlaceholder: string;
+  options: { id: string; nombre: string }[];
+  onValueChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const query = foldCatalogQuery(search);
+
+  const filteredOptions = useMemo(() => {
+    if (!query) return options;
+    return options.filter((opt) =>
+      foldCatalogQuery(opt.nombre).includes(query)
+    );
+  }, [options, query]);
+
+  const selectedLabel = useMemo(() => {
+    if (!value) return null;
+    return options.find((o) => o.id === value)?.nombre ?? null;
+  }, [value, options]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSearch('');
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
+
+  const pick = (next: string) => {
+    onValueChange(next);
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            SELECT_TRIGGER,
+            'flex items-center justify-between gap-1 rounded-md border border-input bg-transparent px-2 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
+          )}
+        >
+          <span
+            className={cn(
+              'min-w-0 flex-1 truncate',
+              !selectedLabel && 'text-muted-foreground'
+            )}
+          >
+            {selectedLabel ?? placeholder}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={4}
+        collisionPadding={{ top: 16, bottom: 12, left: 8, right: 8 }}
+        className="w-[var(--radix-popover-trigger-width)] min-w-[16rem] p-1"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }}
+      >
+        <div className="space-y-1 px-1 pb-1.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-6 border-gray-200 bg-white py-0 pl-5 pr-1.5 text-[10px] leading-none shadow-none md:text-[10px] placeholder:text-[10px]"
+            />
+          </div>
+        </div>
+        <div className="max-h-48 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => pick('')}
+            className={cn(
+              'flex w-full rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-accent',
+              !value && 'bg-accent'
+            )}
+          >
+            —
+          </button>
+          {filteredOptions.map((opt) => (
+            <button
+              type="button"
+              key={opt.id}
+              onClick={() => pick(opt.id)}
+              className={cn(
+                'flex w-full rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-accent',
+                value === opt.id && 'bg-accent'
+              )}
+            >
+              {opt.nombre}
+            </button>
+          ))}
+          {filteredOptions.length === 0 ? (
+            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+              {options.length === 0 ? 'Sin opciones' : 'Sin resultados'}
+            </div>
+          ) : null}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function ParticipantesTab({
   project,
   setProject,
@@ -1346,80 +1481,42 @@ export function ParticipantesTab({
                         </TableCell>
                         <TableCell className={cn(CELL_BASE, COL_W.carrera)}>
                           {isEditing && draft ? (
-                            <Select
-                              value={draft.carreraId || SELECT_NONE_VALUE}
+                            <CatalogSearchSelect
+                              value={draft.carreraId}
+                              options={carrerasParticipantes}
+                              placeholder={
+                                carreraAsignaturaRequired
+                                  ? 'Carrera *'
+                                  : 'Carrera'
+                              }
+                              searchPlaceholder="Buscar carrera…"
                               onValueChange={(v) =>
                                 setEditDraft((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        carreraId:
-                                          v === SELECT_NONE_VALUE ? '' : v,
-                                      }
-                                    : prev
+                                  prev ? { ...prev, carreraId: v } : prev
                                 )
                               }
-                            >
-                              <SelectTrigger className={SELECT_TRIGGER}>
-                                <SelectValue
-                                  placeholder={
-                                    carreraAsignaturaRequired
-                                      ? 'Carrera *'
-                                      : 'Carrera'
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={SELECT_NONE_VALUE}>
-                                  —
-                                </SelectItem>
-                                {carrerasParticipantes.map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.nombre}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           ) : (
                             carreraNombre
                           )}
                         </TableCell>
                         <TableCell className={cn(CELL_BASE, COL_W.asignatura)}>
                           {isEditing && draft ? (
-                            <Select
-                              value={draft.asignaturaId || SELECT_NONE_VALUE}
+                            <CatalogSearchSelect
+                              value={draft.asignaturaId}
+                              options={asignaturasParticipantes}
+                              placeholder={
+                                carreraAsignaturaRequired
+                                  ? 'Asignatura *'
+                                  : 'Asignatura'
+                              }
+                              searchPlaceholder="Buscar asignatura…"
                               onValueChange={(v) =>
                                 setEditDraft((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        asignaturaId:
-                                          v === SELECT_NONE_VALUE ? '' : v,
-                                      }
-                                    : prev
+                                  prev ? { ...prev, asignaturaId: v } : prev
                                 )
                               }
-                            >
-                              <SelectTrigger className={SELECT_TRIGGER}>
-                                <SelectValue
-                                  placeholder={
-                                    carreraAsignaturaRequired
-                                      ? 'Asignatura *'
-                                      : 'Asignatura'
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={SELECT_NONE_VALUE}>
-                                  —
-                                </SelectItem>
-                                {asignaturasParticipantes.map((a) => (
-                                  <SelectItem key={a.id} value={a.id}>
-                                    {a.nombre}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           ) : (
                             asignaturaNombre
                           )}
@@ -1694,66 +1791,40 @@ export function ParticipantesTab({
                       </Select>
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.carrera)}>
-                      <Select
-                        value={
-                          newParticipanteData.carreraId || SELECT_NONE_VALUE
+                      <CatalogSearchSelect
+                        value={newParticipanteData.carreraId}
+                        options={carrerasParticipantes}
+                        placeholder={
+                          newParticipanteData.rol === 'Estudiante'
+                            ? 'Carrera *'
+                            : 'Carrera'
                         }
+                        searchPlaceholder="Buscar carrera…"
                         onValueChange={(v) =>
                           setNewParticipanteData((prev) => ({
                             ...prev,
-                            carreraId: v === SELECT_NONE_VALUE ? '' : v,
+                            carreraId: v,
                           }))
                         }
-                      >
-                        <SelectTrigger className={SELECT_TRIGGER}>
-                          <SelectValue
-                            placeholder={
-                              newParticipanteData.rol === 'Estudiante'
-                                ? 'Carrera *'
-                                : 'Carrera'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                          {carrerasParticipantes.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.asignatura)}>
-                      <Select
-                        value={
-                          newParticipanteData.asignaturaId || SELECT_NONE_VALUE
+                      <CatalogSearchSelect
+                        value={newParticipanteData.asignaturaId}
+                        options={asignaturasParticipantes}
+                        placeholder={
+                          newParticipanteData.rol === 'Estudiante'
+                            ? 'Asignatura *'
+                            : 'Asignatura'
                         }
+                        searchPlaceholder="Buscar asignatura…"
                         onValueChange={(v) =>
                           setNewParticipanteData((prev) => ({
                             ...prev,
-                            asignaturaId: v === SELECT_NONE_VALUE ? '' : v,
+                            asignaturaId: v,
                           }))
                         }
-                      >
-                        <SelectTrigger className={SELECT_TRIGGER}>
-                          <SelectValue
-                            placeholder={
-                              newParticipanteData.rol === 'Estudiante'
-                                ? 'Asignatura *'
-                                : 'Asignatura'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SELECT_NONE_VALUE}>—</SelectItem>
-                          {asignaturasParticipantes.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </TableCell>
                     <TableCell className={cn(CELL_BASE, COL_W.socio)}>
                       {newParticipanteData.rol === 'Beneficiario' ? (

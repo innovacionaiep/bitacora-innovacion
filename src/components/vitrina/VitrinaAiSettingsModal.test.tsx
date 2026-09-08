@@ -19,7 +19,14 @@ vi.mock('@/lib/actions/vitrina-ai', () => ({
 vi.mock('@/lib/actions/portal-guest', () => ({
   getPortalGuestSettings: vi.fn(async () => ({
     success: true,
-    data: { 0: false, 1: false, 2: false, 3: false },
+    data: {
+      0: false,
+      1: false,
+      2: false,
+      3: false,
+      causalab: false,
+      vinculacion: false,
+    },
   })),
   getPortalSessionRoleSettings: vi.fn(async () => ({
     success: true,
@@ -142,6 +149,28 @@ describe('VitrinaAiSettingsModal Vinculación con el Medio', () => {
     expect(screen.getByRole('button', { name: 'Probar archivo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Probar hoja' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('VitrinaAiSettingsModal códigos de invitado', () => {
+  it('separa acceso general e invitados específicos', async () => {
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Códigos de invitado' }),
+      ).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Códigos de invitado' }));
+    expect(screen.getByText('Acceso general')).toBeInTheDocument();
+    expect(screen.getByText('Invitados específicos')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Nivel 0 — Avances e Indicadores'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Causalab — Avances, Indicadores/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Vinculación —/)).toBeInTheDocument();
   });
 });
 

@@ -8,6 +8,11 @@ import {
 } from '@/lib/permissions/check';
 import { revalidatePath } from 'next/cache';
 import { createHistorialEntry } from './historial';
+import {
+  buildCompromisoCambioGenerado,
+  buildReunionCambioGenerado,
+  compromisoElementoHistorial,
+} from '@/lib/seguimiento-historial';
 import { toggleTaskCompletion } from './gantt';
 import { updateIndicadorResultado } from './indicadores';
 
@@ -156,7 +161,12 @@ export async function updateCompromiso(
 
     const compromiso = await prisma.compromisoProyecto.findUnique({
       where: { id: compromisoId },
-      select: { proyectoId: true, titulo: true, descripcion: true },
+      select: {
+        proyectoId: true,
+        titulo: true,
+        descripcion: true,
+        fechaLimite: true,
+      },
     });
 
     if (!compromiso) {
@@ -181,6 +191,17 @@ export async function updateCompromiso(
       };
     }
 
+    const nextTitulo =
+      data.titulo !== undefined ? data.titulo?.trim() || null : compromiso.titulo;
+    const nextDescripcion =
+      data.descripcion !== undefined
+        ? data.descripcion
+        : compromiso.descripcion;
+    const nextFechaLimite =
+      data.fechaLimite !== undefined
+        ? data.fechaLimite
+        : compromiso.fechaLimite;
+
     const updated = await prisma.compromisoProyecto.update({
       where: { id: compromisoId },
       data: {
@@ -196,21 +217,30 @@ export async function updateCompromiso(
       },
     });
 
-    await createHistorialEntry({
-      proyectoId: compromiso.proyectoId,
-      accion: 'Actualizar',
-      tabProyecto: 'Seguimiento',
-      elementoEspecifico:
-        (
-          data.titulo ??
-          data.descripcion ??
-          compromiso.titulo ??
-          compromiso.descripcion
-        )
-          ?.toString()
-          .substring(0, 80) ?? '',
-      cambioGenerado: '',
+    const cambioGenerado = buildCompromisoCambioGenerado({
+      before: {
+        titulo: compromiso.titulo,
+        descripcion: compromiso.descripcion,
+        fechaLimite: compromiso.fechaLimite,
+      },
+      after: {
+        titulo: nextTitulo,
+        descripcion: nextDescripcion,
+        fechaLimite: nextFechaLimite,
+      },
     });
+    if (cambioGenerado) {
+      await createHistorialEntry({
+        proyectoId: compromiso.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'Seguimiento',
+        elementoEspecifico: compromisoElementoHistorial(
+          compromiso.titulo,
+          compromiso.descripcion
+        ),
+        cambioGenerado,
+      });
+    }
 
     revalidatePath('/proyectos');
     return { success: true, data: updated };
@@ -611,7 +641,13 @@ export async function updateReunion(
 
     const reunion = await prisma.reunionSeguimiento.findUnique({
       where: { id: reunionId },
-      select: { id: true, proyectoId: true, numero: true },
+      select: {
+        id: true,
+        proyectoId: true,
+        numero: true,
+        fecha: true,
+        resumen: true,
+      },
     });
     if (!reunion) {
       return { success: false, error: 'Reunión no encontrada', data: null };
@@ -684,18 +720,27 @@ export async function updateReunion(
       },
     });
 
-    await createHistorialEntry({
-      proyectoId: reunion.proyectoId,
-      accion: 'Actualizar',
-      tabProyecto: 'Seguimiento',
-      elementoEspecifico: `Reunión N° ${updated.numero}`,
-      cambioGenerado:
-        data.resumen !== undefined && data.resumen.trim()
-          ? data.resumen.trim()
-          : data.fecha !== undefined
-            ? data.fecha.toLocaleDateString('es-CL')
-            : '',
+    const cambioGenerado = buildReunionCambioGenerado({
+      before: {
+        numero: reunion.numero,
+        fecha: reunion.fecha,
+        resumen: reunion.resumen,
+      },
+      after: {
+        numero: updated.numero,
+        fecha: updated.fecha,
+        resumen: updated.resumen,
+      },
     });
+    if (cambioGenerado) {
+      await createHistorialEntry({
+        proyectoId: reunion.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'Seguimiento',
+        elementoEspecifico: `Reunión N° ${reunion.numero}`,
+        cambioGenerado,
+      });
+    }
 
     revalidatePath('/proyectos');
     return { success: true, data: updated };

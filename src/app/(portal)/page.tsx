@@ -12,8 +12,9 @@ import { getSession } from '@/lib/auth-utils';
 import { userHasAdminEnabled } from '@/lib/authz/pure';
 import {
   PORTAL_CAUSALAB_FONDO,
-  portalNeedsVitrinaProyectos,
   portalCanSeeView,
+  portalIsCausalab,
+  portalNeedsVitrinaProyectos,
   portalSessionRedirectsToApp,
 } from '@/lib/portal-guest-access';
 import { canLoadPortalAvances } from '@/lib/portal-avances';
@@ -100,7 +101,7 @@ export default async function PortalPage({
           emptyVinculamos,
         ];
 
-  const causalab = access.level === 0;
+  const causalab = portalIsCausalab(access);
   const proyectos = causalab
     ? restrictVitrinaProyectosToFondo(proyectosRaw, PORTAL_CAUSALAB_FONDO)
     : proyectosRaw;
@@ -144,6 +145,7 @@ export default async function PortalPage({
       sessionEmail={sessionEmail}
       accessKind={access.kind}
       accessLevel={access.level}
+      accessProfile={access.profile ?? null}
       initialScene={initialScene}
       avancesProyectos={avancesProyectos}
       vinculamosInitial={vinculamosInitial}

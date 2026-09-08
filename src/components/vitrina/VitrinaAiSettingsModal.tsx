@@ -42,10 +42,13 @@ import {
 import {
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   PORTAL_GUEST_LEVELS,
+  PORTAL_GUEST_PROFILES,
   PORTAL_SESSION_ROLES,
   portalLevelCaption,
+  portalProfileCaption,
   portalSessionLevelCaption,
   type PortalGuestLevel,
+  type PortalGuestProfile,
   type PortalSessionRoleLevels,
 } from '@/lib/portal-guest-access';
 import { Button } from '@/components/ui/button';
@@ -67,11 +70,36 @@ const MODEL_SUGGESTIONS = [
 ];
 
 const LEVEL_HINT: Record<PortalGuestLevel, string> = {
-  0: 'Causalab — Avances e Indicadores / Fondo Impulsa',
+  0: 'Avances e Indicadores',
   1: 'Tarjetas, filtros y chat IA',
   2: 'Nivel 1 + Indicadores y Avances',
   3: 'Toda la información de lectura',
 };
+
+const PROFILE_LABEL: Record<PortalGuestProfile, string> = {
+  causalab: 'Causalab',
+  vinculacion: 'Vinculación',
+};
+
+const EMPTY_GUEST_CODES = {
+  0: '',
+  1: '',
+  2: '',
+  3: '',
+  causalab: '',
+  vinculacion: '',
+};
+
+const EMPTY_GUEST_FLAGS = {
+  0: false,
+  1: false,
+  2: false,
+  3: false,
+  causalab: false,
+  vinculacion: false,
+};
+
+type PortalGuestCodeKey = PortalGuestLevel | PortalGuestProfile;
 
 type PortalSettingsTab = 'ai' | 'guest' | 'impulsa' | 'vcm' | 'outlook' | 'roles';
 
@@ -100,18 +128,8 @@ export function VitrinaAiSettingsModal({
   const [model, setModel] = useState(VITRINA_AI_DEFAULT_MODEL);
   const [keyMasked, setKeyMasked] = useState('');
   const [configured, setConfigured] = useState(false);
-  const [guestConfigured, setGuestConfigured] = useState({
-    0: false,
-    1: false,
-    2: false,
-    3: false,
-  });
-  const [guestCodes, setGuestCodes] = useState({
-    0: '',
-    1: '',
-    2: '',
-    3: '',
-  });
+  const [guestConfigured, setGuestConfigured] = useState(EMPTY_GUEST_FLAGS);
+  const [guestCodes, setGuestCodes] = useState(EMPTY_GUEST_CODES);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -159,7 +177,7 @@ export function VitrinaAiSettingsModal({
     setError('');
     setInfo('');
     setApiKey('');
-    setGuestCodes({ 0: '', 1: '', 2: '', 3: '' });
+    setGuestCodes({ ...EMPTY_GUEST_CODES });
     setOutlookPassword('');
     setLoading(true);
     void Promise.all([
@@ -245,19 +263,19 @@ export function VitrinaAiSettingsModal({
       setError(result.error ?? 'No se pudieron guardar los códigos');
       return;
     }
-    setGuestCodes({ 0: '', 1: '', 2: '', 3: '' });
+    setGuestCodes({ ...EMPTY_GUEST_CODES });
     const next = await getPortalGuestSettings();
     if (next.success && next.data) setGuestConfigured(next.data);
     setInfo('Códigos de invitado actualizados.');
   }
 
-  async function handleClearCode(level: PortalGuestLevel) {
+  async function handleClearCode(key: PortalGuestCodeKey) {
     setError('');
     setInfo('');
     setSavingCodes(true);
     const result = await savePortalGuestSettings({
       codes: {},
-      clear: { [level]: true },
+      clear: { [key]: true },
     });
     setSavingCodes(false);
     if (!result.success) {
@@ -266,7 +284,9 @@ export function VitrinaAiSettingsModal({
     }
     const next = await getPortalGuestSettings();
     if (next.success && next.data) setGuestConfigured(next.data);
-    setInfo(`Código de nivel ${level} eliminado.`);
+    const label =
+      typeof key === 'number' ? `nivel ${key}` : PROFILE_LABEL[key];
+    setInfo(`Código de ${label} eliminado.`);
   }
 
   async function handleTest() {
@@ -560,9 +580,9 @@ export function VitrinaAiSettingsModal({
     savingRoles ||
     savingOutlook ||
     testingOutlook;
-  const hasTypedCode = PORTAL_GUEST_LEVELS.some(
-    (level) => guestCodes[level].trim(),
-  );
+  const hasTypedCode =
+    PORTAL_GUEST_LEVELS.some((level) => guestCodes[level].trim()) ||
+    PORTAL_GUEST_PROFILES.some((profile) => guestCodes[profile].trim());
 
   function selectTab(next: PortalSettingsTab) {
     setTab(next);
@@ -726,49 +746,100 @@ export function VitrinaAiSettingsModal({
                 Códigos de invitado
               </h3>
               <p className="mt-1 text-xs leading-snug text-slate-500">
-                Un código por nivel de acceso al portal.
+                Códigos generales por nivel, y códigos específicos con reglas
+                propias.
               </p>
             </div>
-            {PORTAL_GUEST_LEVELS.map((level) => (
-              <div key={level} className="space-y-1.5">
-                <Label htmlFor={`portal-guest-level-${level}`}>
-                  Nivel {level} — {LEVEL_HINT[level]}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id={`portal-guest-level-${level}`}
-                    type="password"
-                    autoComplete="new-password"
-                    data-1p-ignore=""
-                    data-lpignore="true"
-                    value={guestCodes[level]}
-                    onChange={(e) =>
-                      setGuestCodes((current) => ({
-                        ...current,
-                        [level]: e.target.value,
-                      }))
-                    }
-                    placeholder={
-                      guestConfigured[level]
-                        ? 'Configurado. Escribe uno nuevo para reemplazar'
-                        : 'Sin configurar'
-                    }
-                    disabled={busy}
-                  />
-                  {guestConfigured[level] ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="shrink-0 text-red-600 hover:text-red-700"
-                      onClick={() => void handleClearCode(level)}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Acceso general
+              </h4>
+              {PORTAL_GUEST_LEVELS.map((level) => (
+                <div key={level} className="space-y-1.5">
+                  <Label htmlFor={`portal-guest-level-${level}`}>
+                    Nivel {level} — {LEVEL_HINT[level]}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`portal-guest-level-${level}`}
+                      type="password"
+                      autoComplete="new-password"
+                      data-1p-ignore=""
+                      data-lpignore="true"
+                      value={guestCodes[level]}
+                      onChange={(e) =>
+                        setGuestCodes((current) => ({
+                          ...current,
+                          [level]: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        guestConfigured[level]
+                          ? 'Configurado. Escribe uno nuevo para reemplazar'
+                          : 'Sin configurar'
+                      }
                       disabled={busy}
-                    >
-                      Quitar
-                    </Button>
-                  ) : null}
+                    />
+                    {guestConfigured[level] ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="shrink-0 text-red-600 hover:text-red-700"
+                        onClick={() => void handleClearCode(level)}
+                        disabled={busy}
+                      >
+                        Quitar
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="space-y-3 border-t border-slate-200 pt-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Invitados específicos
+              </h4>
+              {PORTAL_GUEST_PROFILES.map((profile) => (
+                <div key={profile} className="space-y-1.5">
+                  <Label htmlFor={`portal-guest-profile-${profile}`}>
+                    {PROFILE_LABEL[profile]} — {portalProfileCaption(profile)}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`portal-guest-profile-${profile}`}
+                      type="password"
+                      autoComplete="new-password"
+                      data-1p-ignore=""
+                      data-lpignore="true"
+                      value={guestCodes[profile]}
+                      onChange={(e) =>
+                        setGuestCodes((current) => ({
+                          ...current,
+                          [profile]: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        guestConfigured[profile]
+                          ? 'Configurado. Escribe uno nuevo para reemplazar'
+                          : 'Sin configurar'
+                      }
+                      disabled={busy}
+                    />
+                    {guestConfigured[profile] ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="shrink-0 text-red-600 hover:text-red-700"
+                        onClick={() => void handleClearCode(profile)}
+                        disabled={busy}
+                      >
+                        Quitar
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="mt-auto pt-2">
               <Button
                 type="button"

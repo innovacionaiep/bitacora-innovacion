@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { createHistorialEntry } from './historial';
+import { buildParticipanteCambioGenerado } from '@/lib/participantes-historial';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { ProyectoWithRelations } from '@/types/proyecto';
 import {
@@ -36,6 +37,29 @@ const proyectoIncludeForParticipante = {
     },
   },
 } as const;
+
+async function nombreCatalogoParticipante(
+  id: string | null,
+  previousId: string | null,
+  previousNombre: string | null | undefined,
+  model: 'sede' | 'escuela' | 'carrera' | 'asignatura' | 'socioComunitario'
+): Promise<string | null> {
+  if (!id) return null;
+  if (id === previousId && previousNombre != null) return previousNombre;
+  const select = { nombre: true } as const;
+  if (model === 'socioComunitario') {
+    const row = await prisma.socioComunitario.findUnique({
+      where: { id },
+      select,
+    });
+    return row?.nombre ?? null;
+  }
+  const row = await prisma[model].findUnique({
+    where: { id },
+    select,
+  });
+  return row?.nombre ?? null;
+}
 
 /** Mantiene el Int denormalizado `proyecto.participantes` alineado con la relación. */
 async function syncProyectoParticipantesCount(proyectoId: string) {
@@ -240,6 +264,13 @@ export async function updateParticipanteProyecto(
   try {
     const existing = await prisma.proyectoParticipante.findUnique({
       where: { id: participanteId },
+      include: {
+        socioComunitario: { select: { nombre: true } },
+        sede: { select: { nombre: true } },
+        escuela: { select: { nombre: true } },
+        carrera: { select: { nombre: true } },
+        asignatura: { select: { nombre: true } },
+      },
     });
     if (!existing) {
       return { success: false, error: 'Participante no encontrado' };
@@ -418,13 +449,91 @@ export async function updateParticipanteProyecto(
     });
     const nombreParticipante =
       resolvedNombre || existing.nombre || existing.rol || 'Participante';
-    await createHistorialEntry({
-      proyectoId: existing.proyectoId,
-      accion: 'Actualizar',
-      tabProyecto: 'Participantes',
-      elementoEspecifico: `${nombreParticipante} (${finalRol})`,
-      cambioGenerado: '',
-    });
+    const nextLabor =
+      data.laborEnProyecto !== undefined
+        ? data.laborEnProyecto.trim() || null
+        : existing.laborEnProyecto;
+    const nextSocioId =
+      data.socioComunitarioId !== undefined
+        ? finalRol === 'Beneficiario'
+          ? data.socioComunitarioId || null
+          : null
+        : existing.socioComunitarioId;
+    const [
+      sedeNombre,
+      escuelaNombre,
+      carreraNombre,
+      asignaturaNombre,
+      socioNombre,
+    ] = await Promise.all([
+      nombreCatalogoParticipante(
+        finalSedeId,
+        existing.sedeId,
+        existing.sede?.nombre,
+        'sede'
+      ),
+      nombreCatalogoParticipante(
+        finalEscuelaId,
+        existing.escuelaId,
+        existing.escuela?.nombre,
+        'escuela'
+      ),
+      nombreCatalogoParticipante(
+        finalCarreraId,
+        existing.carreraId,
+        existing.carrera?.nombre,
+        'carrera'
+      ),
+      nombreCatalogoParticipante(
+        finalAsignaturaId,
+        existing.asignaturaId,
+        existing.asignatura?.nombre,
+        'asignatura'
+      ),
+      nombreCatalogoParticipante(
+        nextSocioId,
+        existing.socioComunitarioId,
+        existing.socioComunitario?.nombre,
+        'socioComunitario'
+      ),
+    ]);
+    const cambioGenerado = buildParticipanteCambioGenerado(
+      {
+        rol: existing.rol,
+        nombre: existing.nombre,
+        rut: existing.rut,
+        email: existing.email,
+        cargo: existing.cargo,
+        laborEnProyecto: existing.laborEnProyecto,
+        socioNombre: existing.socioComunitario?.nombre ?? null,
+        sedeNombre: existing.sede?.nombre ?? null,
+        escuelaNombre: existing.escuela?.nombre ?? null,
+        carreraNombre: existing.carrera?.nombre ?? null,
+        asignaturaNombre: existing.asignatura?.nombre ?? null,
+      },
+      {
+        rol: finalRol,
+        nombre: resolvedNombre,
+        rut: finalRut,
+        email: resolvedEmail,
+        cargo: finalCargo,
+        laborEnProyecto: nextLabor,
+        socioNombre,
+        sedeNombre,
+        escuelaNombre,
+        carreraNombre,
+        asignaturaNombre,
+      }
+    );
+    if (cambioGenerado) {
+      await createHistorialEntry({
+        proyectoId: existing.proyectoId,
+        accion: 'Actualizar',
+        tabProyecto: 'Participantes',
+        elementoEspecifico: `${nombreParticipante} (${finalRol})`,
+        cambioGenerado,
+      });
+    }
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: existing.proyectoId },
       include: proyectoIncludeForParticipante,
