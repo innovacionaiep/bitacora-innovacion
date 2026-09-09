@@ -9,6 +9,7 @@ import {
   layoutSedeLabels,
   METROPOLITANA_REGION_ID,
   sedeLabelParts,
+  VITRINA_MAP_LABEL_PX,
   zoomPinRadius,
 } from '@/lib/aiep-sede-geo';
 import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
@@ -16,7 +17,6 @@ import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
 const CARD_WIDTH = 115;
 const CARD_HEIGHT = 90;
 const CARD_GUTTER = CARD_WIDTH + 18;
-const SEDE_LABEL_PX = 10;
 
 type OverlayRect = { left: number; top: number; width: number; height: number };
 
@@ -153,7 +153,7 @@ export function ChileRegionZoom({
     [mapRect, overlaySize.height, overlaySize.width, pins, positions, region.id],
   );
 
-  const fontSize = SEDE_LABEL_PX / labelPxPerUnit;
+  const fontSize = VITRINA_MAP_LABEL_PX / labelPxPerUnit;
   const labelAnchors = useMemo(
     () =>
       layoutSedeLabels(

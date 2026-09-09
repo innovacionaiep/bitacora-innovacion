@@ -28,26 +28,7 @@ import { igipTrlKey } from '@/lib/query-keys';
 import { runOptimisticMutation } from '@/lib/ui/optimistic-mutation';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { cn } from '@/lib/utils';
-
-function TrlSelectedArrow({ className }: { className?: string }) {
-  return (
-    <svg
-      data-testid="trl-selected-chevron"
-      viewBox="0 0 24 24"
-      className={className}
-      aria-hidden
-    >
-      <path
-        d="M8 5.5 17.5 12 8 18.5Z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeWidth={6}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+import { TrlSelectedArrow } from '@/components/ui/TrlSelectedArrow';
 
 type IgipTrlCardProps = {
   projectId: string;

@@ -47,7 +47,7 @@ export function VitrinaMapaView({
         </button>
       </div>
       <div className="relative flex min-h-0 flex-1 gap-8 overflow-visible pb-6 pl-36 pr-8 pt-12">
-        <div className="ml-6 h-full w-[220px] shrink-0">
+        <div className="ml-6 h-full w-[220px] shrink-0 overflow-visible">
           <ChileVerticalMap
             selectedRegionId={regionId}
             regionPins={regionPins}

@@ -307,6 +307,24 @@
   fill: #10b981 !important;
 }
 
+.chile-region-hover-label {
+  fill: #334155;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke: #ffffff;
+  stroke-width: 0.35;
+  stroke-linejoin: round;
+  transition: opacity 0.15s ease;
+}
+
+.chile-region-hit:hover .chile-region-hover-label,
+.chile-region-hit:focus-within .chile-region-hover-label {
+  opacity: 1;
+}
+
 .chile-region-zoom-path {
   fill: #e2e8f0 !important;
   stroke: #cbd5e1 !important;

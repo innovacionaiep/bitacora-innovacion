@@ -495,6 +495,9 @@ export type FloatingMapCard = {
   top: number;
 };
 
+export const VITRINA_MAP_LABEL_PX = 12;
+/** Hover del mapa nacional: px en pantalla (el SVG escala las unidades). */
+export const VITRINA_MAP_HOVER_LABEL_PX = 14;
 export const METROPOLITANA_REGION_ID = 13;
 
 export type MapCompassZone = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
@@ -620,7 +623,7 @@ export function layoutSedeLabels(
 
 const RM_SEDE_ZONE: Record<string, MapCompassZone> = {
   'santiago-norte': 'n',
-  'barrio-universitario': 'ne',
+  'barrio-universitario': 'nw',
   bellavista: 'e',
   'san-joaquin': 'se',
   'san-bernardo': 's',

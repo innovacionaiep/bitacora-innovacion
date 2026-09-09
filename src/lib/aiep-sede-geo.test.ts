@@ -313,7 +313,7 @@ describe('región metropolitana', () => {
     expect(metropolitanSedeZone('san-bernardo', 0, 1)).toBe('s');
     expect(metropolitanSedeZone('san-joaquin', 1, 1)).toBe('se');
     expect(metropolitanSedeZone('bellavista', 1, 0)).toBe('e');
-    expect(metropolitanSedeZone('barrio-universitario', 1, -1)).toBe('ne');
+    expect(metropolitanSedeZone('barrio-universitario', 1, -1)).toBe('nw');
     expect(metropolitanSedeZone('santiago-norte', 0, -1)).toBe('n');
     expect(ids).toHaveLength(6);
   });
@@ -360,5 +360,9 @@ describe('región metropolitana', () => {
     expect(by('san-joaquin')!.top).toBeGreaterThanOrEqual(
       mapRect.top + mapRect.height,
     );
+    expect(by('barrio-universitario')!.left + 80).toBeLessThanOrEqual(
+      mapRect.left,
+    );
+    expect(by('barrio-universitario')!.top + 70).toBeLessThanOrEqual(mapRect.top);
   });
 });

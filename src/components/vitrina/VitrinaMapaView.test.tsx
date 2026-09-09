@@ -42,6 +42,12 @@ describe('VitrinaMapaView', () => {
     expect(
       screen.queryByRole('button', { name: 'Valparaíso: 2 proyectos' }),
     ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('[data-region-hover-label="5"]'),
+    ).toHaveTextContent('Región de Valparaíso');
+    expect(
+      document.querySelector('[data-testid="trl-selected-chevron"]'),
+    ).not.toBeInTheDocument();
   });
 
   it('al hacer clic en una región muestra el svg, el título y tarjetas con foto', async () => {
@@ -82,6 +88,7 @@ describe('VitrinaMapaView', () => {
     expect(
       screen.getByRole('button', { name: 'Región de Valparaíso' }),
     ).toHaveAttribute('fill', '#10b981');
+    expect(screen.getByTestId('trl-selected-chevron')).toBeInTheDocument();
     expect(screen.getByText('ClinicApp')).toBeInTheDocument();
     expect(screen.getByText('Beehappy')).toBeInTheDocument();
     expect(
