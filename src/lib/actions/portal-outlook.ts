@@ -11,6 +11,10 @@ import {
   writePortalOutlookStored,
 } from '@/lib/portal-outlook-settings-store';
 import {
+  readPortalContactHtmlTemplate,
+  writePortalContactHtmlTemplate,
+} from '@/lib/portal-contact-template-store';
+import {
   maskPortalOutlookPassword,
   normalizePortalOutlookHost,
   normalizePortalOutlookPort,
@@ -28,6 +32,7 @@ export type PortalOutlookSettingsView = {
   host: string;
   port: number;
   secure: boolean;
+  htmlTemplate: string;
 };
 
 export async function getPortalOutlookSettings(): Promise<{
@@ -40,6 +45,7 @@ export async function getPortalOutlookSettings(): Promise<{
 
   const stored = await readPortalOutlookStored();
   const creds = stored ? await readPortalOutlookCredentials() : null;
+  const htmlTemplate = await readPortalContactHtmlTemplate();
   return {
     success: true,
     data: {
@@ -49,8 +55,25 @@ export async function getPortalOutlookSettings(): Promise<{
       host: stored?.host || PORTAL_OUTLOOK_DEFAULT_HOST,
       port: stored?.port ?? PORTAL_OUTLOOK_DEFAULT_PORT,
       secure: stored?.secure ?? PORTAL_OUTLOOK_DEFAULT_SECURE,
+      htmlTemplate,
     },
   };
+}
+
+export async function savePortalContactEmailTemplate(input: {
+  html: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    await writePortalContactHtmlTemplate(input.html);
+    revalidatePath('/');
+    return { success: true };
+  } catch (e) {
+    console.error('[portal] savePortalContactEmailTemplate', e);
+    return { success: false, error: 'No se pudo guardar el formato del correo' };
+  }
 }
 
 export async function savePortalOutlookSettings(input: {

@@ -62,10 +62,15 @@ export default async function PortalPage({
   const redirectsToApp = portalSessionRedirectsToApp(access.kind, access.level);
   const hasReadAccess = access.kind !== 'none' && !redirectsToApp;
   const loadVitrina =
-    portalNeedsVitrinaProyectos(access.level) && !redirectsToApp;
-  const loadAvances = canLoadPortalAvances(access.level, access.kind);
+    portalNeedsVitrinaProyectos(access.level, access.profile) && !redirectsToApp;
+  const loadAvances = canLoadPortalAvances(
+    access.level,
+    access.kind,
+    access.profile,
+  );
   const loadVinculamos =
-    portalCanSeeView(access.level, 'vinculamos') && !redirectsToApp;
+    portalCanSeeView(access.level, 'vinculamos', access.profile) &&
+    !redirectsToApp;
 
   const emptyVinculamos = {
     success: true as const,

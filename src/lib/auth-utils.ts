@@ -41,6 +41,16 @@ export const REGISTER_ROLES: Exclude<Role, 'Admin'>[] = [
   'Beneficiario',
 ];
 
+/** Next.js lanza esto al prerenderizar rutas que usan headers/cookies; no es un fallo real. */
+export function isNextDynamicServerUsage(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    (error as { digest?: string }).digest === 'DYNAMIC_SERVER_USAGE'
+  );
+}
+
 /**
  * Obtener la sesión del servidor (deduped per RSC/request via React.cache).
  */

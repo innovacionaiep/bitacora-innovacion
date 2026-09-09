@@ -195,4 +195,24 @@ describe('buildPortalContactSendPayload', () => {
     expect(payload.text).toContain('AIEP');
     expect(payload.html).toContain('Ana Soto');
   });
+
+  it('aplica una plantilla HTML con placeholders y escapa el mensaje', () => {
+    const payload = buildPortalContactSendPayload({
+      smtpUser: 'centroinnovacion@aiep.cl',
+      proyectoNombre: 'AuditorIA',
+      encargadoCorreo: 'lucia.ramirezc@correoaiep.cl',
+      remitente: 'visitante@mail.cl',
+      mensaje: 'Hola <b>mundo</b>',
+      nombre: 'Ana Soto',
+      cargo: 'Docente',
+      institucion: 'AIEP',
+      htmlTemplate:
+        '<p><strong>Proyecto:</strong> {{proyecto}}</p><p>{{mensaje}}</p><p>{{firma}}</p>',
+    });
+    expect(payload.html).toContain('<strong>Proyecto:</strong> AuditorIA');
+    expect(payload.html).toContain('Hola &lt;b&gt;mundo&lt;/b&gt;');
+    expect(payload.html).not.toContain('<b>mundo</b>');
+    expect(payload.html).toContain('Ana Soto');
+    expect(payload.text).toContain('Hola <b>mundo</b>');
+  });
 });

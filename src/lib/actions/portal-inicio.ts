@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-utils';
+import { getCurrentUser, isNextDynamicServerUsage } from '@/lib/auth-utils';
 import { getCompromisosPendientesParaUsuario } from '@/lib/actions/seguimiento';
 import { getHistorialRecienteParaUsuario } from '@/lib/actions/historial';
 import {
@@ -550,7 +550,9 @@ export async function getInicioInitialData(
       historial: historial as InicioInitialData['historial'],
     };
   } catch (error) {
-    console.error('[getInicioInitialData] Error:', error);
+    if (!isNextDynamicServerUsage(error)) {
+      console.error('[getInicioInitialData] Error:', error);
+    }
     return null;
   }
 }

@@ -24,6 +24,12 @@ type Tone = 'proyecto' | 'fondo' | 'sede' | 'escuela' | 'tag' | 'column';
 type OpenPanel = Facet | 'columnas' | null;
 
 const SEARCH_THRESHOLD = 7;
+const CHIP_MAX_CHARS = 20;
+
+function truncateChipLabel(label: string, max = CHIP_MAX_CHARS) {
+  if (label.length <= max) return label;
+  return `${label.slice(0, max)}…`;
+}
 
 const FACETS: {
   key: Facet;
@@ -426,14 +432,16 @@ function FilterDropdown({
       {selected.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {selected.map((value) => (
-            <li key={value}>
+            <li key={value} className="min-w-0 max-w-full">
               <span
                 className={cn(
                   'inline-flex max-w-full items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-medium',
                   CHIP_CLASS[facet.tone],
                 )}
               >
-                <span className="truncate">{value}</span>
+                <span className="truncate" title={value}>
+                  {truncateChipLabel(value)}
+                </span>
                 <button
                   type="button"
                   onClick={() => onToggle(value)}
@@ -548,14 +556,16 @@ function ColumnsDropdown({
       {hidden.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {hidden.map((col) => (
-            <li key={col.id}>
+            <li key={col.id} className="min-w-0 max-w-full">
               <span
                 className={cn(
                   'inline-flex max-w-full items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-medium',
                   CHIP_CLASS.column,
                 )}
               >
-                <span className="truncate">{col.label}</span>
+                <span className="truncate" title={col.label}>
+                  {truncateChipLabel(col.label)}
+                </span>
                 <button
                   type="button"
                   onClick={() => onToggle(col.id)}

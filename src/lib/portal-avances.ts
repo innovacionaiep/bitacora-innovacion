@@ -229,9 +229,10 @@ export function avancesFiltersToVitrina(
 export function canLoadPortalAvances(
   level: PortalGuestLevel | null,
   kind: PortalAccessKind | null = 'guest',
+  profile: PortalGuestProfile | null = null,
 ): boolean {
   if (kind === 'session' && level === 0) return false;
-  return portalCanSeeView(level, 'avances');
+  return portalCanSeeView(level, 'avances', profile);
 }
 
 export function portalAvancesFondosForLevel(
@@ -275,7 +276,7 @@ export function portalAvancesCanLoadAppFondos(
   profile: PortalGuestProfile | null = null,
 ): boolean {
   return (
-    canLoadPortalAvances(level, kind) &&
+    canLoadPortalAvances(level, kind, profile) &&
     !portalIsCausalab({ kind: kind ?? 'guest', level, profile })
   );
 }

@@ -111,6 +111,7 @@ export function ActividadDetalleModal({
   const [loadingEvidencias, setLoadingEvidencias] = useState(false);
   const [loadingComentarios, setLoadingComentarios] = useState(false);
   const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
+  const [evidenciaUploadOk, setEvidenciaUploadOk] = useState(false);
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [sendingComentario, setSendingComentario] = useState(false);
   const [editingField, setEditingField] = useState<ActivityEditableField | null>(
@@ -126,6 +127,7 @@ export function ActividadDetalleModal({
       setEvidencias([]);
       setComentarios([]);
       setEditingField(null);
+      setEvidenciaUploadOk(false);
       return;
     }
     let cancelled = false;
@@ -142,11 +144,16 @@ export function ActividadDetalleModal({
 
   useEffect(() => {
     if (!open || !actividadId || actividadId.startsWith('temp-')) return;
+    let cancelled = false;
     setLoadingEvidencias(true);
     getEvidenciasActividad(actividadId).then((res) => {
+      if (cancelled) return;
       setLoadingEvidencias(false);
       if (res.success && res.data) setEvidencias(res.data);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [open, actividadId]);
 
   useEffect(() => {
@@ -158,10 +165,17 @@ export function ActividadDetalleModal({
     });
   }, [open, actividadId]);
 
+  useEffect(() => {
+    if (!evidenciaUploadOk) return;
+    const timer = window.setTimeout(() => setEvidenciaUploadOk(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [evidenciaUploadOk]);
+
   const handleUploadEvidencia = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activity) return;
     setUploadingEvidencia(true);
+    setEvidenciaUploadOk(false);
     const result = await uploadEvidenciaFile(file);
     if ('error' in result) {
       alert(result.error);
@@ -176,7 +190,13 @@ export function ActividadDetalleModal({
       nombreArchivo: result.nombreArchivo,
     });
     if (createResult.success && createResult.data) {
-      setEvidencias((prev) => [...prev, createResult.data!]);
+      setEvidencias((prev) => {
+        if (prev.some((item) => item.id === createResult.data!.id)) {
+          return prev;
+        }
+        return [...prev, createResult.data!];
+      });
+      setEvidenciaUploadOk(true);
       onSuccess?.();
     } else {
       alert(createResult.error ?? 'Error al guardar evidencia');
@@ -523,6 +543,15 @@ export function ActividadDetalleModal({
                           </div>
                         )}
                       </>
+                    )}
+                    {evidenciaUploadOk && (
+                      <p
+                        role="status"
+                        className="mt-2 flex items-center gap-1 text-[12px] text-emerald-700"
+                      >
+                        <Check className="h-3.5 w-3.5 shrink-0" />
+                        Evidencia subida correctamente
+                      </p>
                     )}
                   </div>
                 </div>

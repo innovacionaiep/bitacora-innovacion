@@ -32,6 +32,7 @@ import {
 import {
   getPortalOutlookSettings,
   savePortalOutlookSettings,
+  savePortalContactEmailTemplate,
   testPortalOutlook,
 } from '@/lib/actions/portal-outlook';
 import {
@@ -45,6 +46,11 @@ import {
   PORTAL_OUTLOOK_DEFAULT_HOST,
   PORTAL_OUTLOOK_DEFAULT_PORT,
 } from '@/lib/portal-outlook-settings';
+import {
+  applyPortalContactHtmlTemplate,
+  PORTAL_CONTACT_EMAIL_SAMPLE,
+  PORTAL_CONTACT_HTML_TEMPLATE_DEFAULT,
+} from '@/lib/portal-contact-template';
 import {
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   PORTAL_GUEST_LEVELS,
@@ -67,6 +73,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PortalContactHtmlEditor } from '@/components/vitrina/PortalContactHtmlEditor';
 
 const MODEL_SUGGESTIONS = [
   'openai/gpt-4o-mini',
@@ -85,6 +92,7 @@ const LEVEL_HINT: Record<PortalGuestLevel, string> = {
 const PROFILE_LABEL: Record<PortalGuestProfile, string> = {
   causalab: 'Causalab',
   vinculacion: 'Vinculación',
+  visor: 'Visor',
 };
 
 const EMPTY_GUEST_CODES = {
@@ -94,6 +102,7 @@ const EMPTY_GUEST_CODES = {
   3: '',
   causalab: '',
   vinculacion: '',
+  visor: '',
 };
 
 const EMPTY_GUEST_FLAGS = {
@@ -103,6 +112,7 @@ const EMPTY_GUEST_FLAGS = {
   3: false,
   causalab: false,
   vinculacion: false,
+  visor: false,
 };
 
 type PortalGuestCodeKey = PortalGuestLevel | PortalGuestProfile;
@@ -182,6 +192,10 @@ export function VitrinaAiSettingsModal({
   const [outlookMasked, setOutlookMasked] = useState('');
   const [savingOutlook, setSavingOutlook] = useState(false);
   const [testingOutlook, setTestingOutlook] = useState(false);
+  const [contactHtml, setContactHtml] = useState(
+    PORTAL_CONTACT_HTML_TEMPLATE_DEFAULT,
+  );
+  const [savingContactHtml, setSavingContactHtml] = useState(false);
   const [fondoColors, setFondoColors] = useState<PortalFondoColorItem[]>([]);
   const [savingFondos, setSavingFondos] = useState(false);
   const [tab, setTab] = useState<PortalSettingsTab>('ai');
@@ -222,6 +236,10 @@ export function VitrinaAiSettingsModal({
           setOutlookMasked(outlookResult.data.passwordMasked);
           setOutlookHost(outlookResult.data.host);
           setOutlookPort(String(outlookResult.data.port));
+          setContactHtml(
+            outlookResult.data.htmlTemplate ||
+              PORTAL_CONTACT_HTML_TEMPLATE_DEFAULT,
+          );
         }
         if (fondosResult.success && fondosResult.data) {
           setFondoColors(fondosResult.data);
@@ -593,6 +611,19 @@ export function VitrinaAiSettingsModal({
     setInfo('Conexión SMTP de Outlook correcta.');
   }
 
+  async function handleSaveContactHtml() {
+    setError('');
+    setInfo('');
+    setSavingContactHtml(true);
+    const result = await savePortalContactEmailTemplate({ html: contactHtml });
+    setSavingContactHtml(false);
+    if (!result.success) {
+      setError(result.error ?? 'No se pudo guardar el formato del correo');
+      return;
+    }
+    setInfo('Formato del correo guardado.');
+  }
+
   async function handleSaveFondos() {
     setError('');
     setInfo('');
@@ -642,6 +673,7 @@ export function VitrinaAiSettingsModal({
     savingRoles ||
     savingOutlook ||
     testingOutlook ||
+    savingContactHtml ||
     savingFondos;
   const hasTypedCode =
     PORTAL_GUEST_LEVELS.some((level) => guestCodes[level].trim()) ||
@@ -1303,6 +1335,47 @@ export function VitrinaAiSettingsModal({
             >
               {savingOutlook ? 'Guardando…' : 'Guardar Outlook'}
             </Button>
+          </div>
+          <div className="mt-6 border-t border-slate-200 pt-4">
+            <h4 className="text-sm font-semibold text-slate-900">
+              Formato del correo
+            </h4>
+            <p className="mt-1 text-xs leading-snug text-slate-500">
+              Define cómo se ve el mensaje de Contactar. Usa negrita y otros
+              estilos; inserta Proyecto, Remitente, Mensaje y Firma. La firma
+              del visitante se pega al enviar, no se previsualiza en el
+              formulario.
+            </p>
+            <div className="mt-3">
+              <PortalContactHtmlEditor
+                value={contactHtml}
+                onChange={setContactHtml}
+                disabled={busy}
+              />
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <Label>Vista previa (texto de ejemplo)</Label>
+              <div
+                data-testid="portal-contact-email-preview"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+                dangerouslySetInnerHTML={{
+                  __html: applyPortalContactHtmlTemplate(
+                    contactHtml,
+                    PORTAL_CONTACT_EMAIL_SAMPLE,
+                  ),
+                }}
+              />
+            </div>
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleSaveContactHtml()}
+                disabled={busy}
+              >
+                {savingContactHtml ? 'Guardando…' : 'Guardar formato'}
+              </Button>
+            </div>
           </div>
         </section>
           ) : null}

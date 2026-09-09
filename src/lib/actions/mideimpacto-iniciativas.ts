@@ -16,7 +16,7 @@ export async function getMideimpactoIniciativas(input?: {
   error?: string;
 }> {
   const access = await resolvePortalAccess();
-  if (!portalCanSeeView(access.level, 'vinculamos')) {
+  if (!portalCanSeeView(access.level, 'vinculamos', access.profile)) {
     return { success: false, error: 'No tienes acceso a esta vista' };
   }
 

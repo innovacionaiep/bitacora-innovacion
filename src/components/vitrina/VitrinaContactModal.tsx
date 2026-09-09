@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { sendPortalContactEmail } from '@/lib/actions/portal-contact';
 import {
   buildPortalContactRecipients,
-  buildPortalContactSignature,
   buildPortalContactSubject,
   validatePortalContactInput,
 } from '@/lib/portal-contact';
@@ -59,7 +58,6 @@ export function VitrinaContactModal({
     [encargadoCorreo, remitente],
   );
   const subject = buildPortalContactSubject(proyectoNombre);
-  const firma = buildPortalContactSignature({ nombre, cargo, institucion });
 
   const canSend = validatePortalContactInput({
     remitente,
@@ -105,7 +103,7 @@ export function VitrinaContactModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="z-[70]"
-        className="z-[70] sm:max-w-lg"
+        className="z-[70] max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl"
         aria-describedby={undefined}
       >
         <DialogHeader>
@@ -192,17 +190,6 @@ export function VitrinaContactModal({
               disabled={sending}
             />
           </div>
-          {firma ? (
-            <div className="space-y-1.5">
-              <Label>Firma</Label>
-              <pre
-                data-testid="portal-contact-signature"
-                className="whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-sans text-sm text-slate-700"
-              >
-                {firma}
-              </pre>
-            </div>
-          ) : null}
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           {info ? <p className="text-sm text-emerald-700">{info}</p> : null}
         </div>

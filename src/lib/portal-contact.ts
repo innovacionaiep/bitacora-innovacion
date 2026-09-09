@@ -1,4 +1,8 @@
 import { isValidEmail } from '@/lib/excel-import/utils';
+import {
+  applyPortalContactHtmlTemplate,
+  PORTAL_CONTACT_HTML_TEMPLATE_DEFAULT,
+} from '@/lib/portal-contact-template';
 import { nextRateLimitWindow } from '@/lib/vitrina-ai-rate-limit';
 
 export const PORTAL_CONTACT_CENTRO_EMAIL = 'centroinnovacion@aiep.cl';
@@ -39,15 +43,6 @@ export type PortalContactValidated =
       institucion: string;
     }
   | { ok: false; error: string };
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function pushUniqueEmail(recipients: string[], email: string | null | undefined) {
   const extra = (email ?? '').trim();
@@ -143,6 +138,7 @@ export function buildPortalContactSendPayload(input: {
   nombre: string;
   cargo: string;
   institucion: string;
+  htmlTemplate?: string;
 }): {
   from: string;
   to: string[];
@@ -164,11 +160,15 @@ export function buildPortalContactSendPayload(input: {
     '',
     cuerpo,
   ].join('\n');
-  const html = [
-    `<p><strong>Proyecto:</strong> ${escapeHtml(nombre)}</p>`,
-    `<p><strong>Remitente:</strong> ${escapeHtml(input.remitente)}</p>`,
-    `<p>${escapeHtml(cuerpo).replace(/\n/g, '<br />')}</p>`,
-  ].join('');
+  const html = applyPortalContactHtmlTemplate(
+    input.htmlTemplate ?? PORTAL_CONTACT_HTML_TEMPLATE_DEFAULT,
+    {
+      proyecto: nombre,
+      remitente: input.remitente,
+      mensaje: input.mensaje,
+      firma,
+    },
+  );
 
   return {
     from: input.smtpUser,

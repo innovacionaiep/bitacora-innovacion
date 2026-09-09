@@ -89,6 +89,24 @@ describe('portal-outlook settings actions', () => {
     expect(value).not.toContain('app-pass-1234');
     expect(value).toContain('centro@aiep.cl');
   });
+
+  it('guarda la plantilla HTML del correo Contactar', async () => {
+    const { savePortalContactEmailTemplate } = await loadOutlookActions();
+    const result = await savePortalContactEmailTemplate({
+      html: '<p><strong>Proyecto:</strong> {{proyecto}}</p><script>x</script>',
+    });
+    expect(result.success).toBe(true);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          key: 'portal_contact_email_template',
+        }),
+      }),
+    );
+    const value = String(upsert.mock.calls[0][0].create.value);
+    expect(value).toContain('{{proyecto}}');
+    expect(value).not.toContain('script');
+  });
 });
 
 describe('sendPortalContactEmail', () => {

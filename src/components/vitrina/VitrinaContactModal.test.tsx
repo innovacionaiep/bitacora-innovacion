@@ -34,6 +34,7 @@ describe('VitrinaContactModal', () => {
       screen.queryByRole('textbox', { name: /destinatarios/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeDisabled();
+    expect(screen.getByRole('dialog').className).toMatch(/sm:max-w-2xl/);
     expect(screen.getByTestId('portal-contact-subject')).toHaveTextContent(
       'Quiero contactar con su proyecto (AuditorIA)',
     );
@@ -64,9 +65,8 @@ describe('VitrinaContactModal', () => {
     await user.type(screen.getByLabelText('Su nombre'), 'Ana Soto');
     await user.type(screen.getByLabelText('Su cargo o título'), 'Docente');
     await user.type(screen.getByLabelText('Su institución'), 'AIEP');
-    expect(screen.getByTestId('portal-contact-signature')).toHaveTextContent(
-      'Ana Soto',
-    );
+    expect(screen.queryByTestId('portal-contact-signature')).not.toBeInTheDocument();
+    expect(screen.queryByText('Firma')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
     expect(sendMock).toHaveBeenCalledWith({

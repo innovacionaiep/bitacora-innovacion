@@ -23,7 +23,7 @@ function safeFilename(value: string | null): string {
 
 export async function GET(request: NextRequest) {
   const access = await resolvePortalAccess();
-  if (!portalCanSeeView(access.level, 'vinculamos')) {
+  if (!portalCanSeeView(access.level, 'vinculamos', access.profile)) {
     return NextResponse.json(
       { error: 'No tienes acceso a esta vista' },
       { status: 403 },

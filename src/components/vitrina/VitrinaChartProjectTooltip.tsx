@@ -31,11 +31,13 @@ export function VitrinaChartProjectTooltip({
   nombres,
   x,
   y,
+  titleClassName,
 }: {
   title: string;
   nombres: string[];
   x: number;
   y: number;
+  titleClassName?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [placed, setPlaced] = useState(() =>
@@ -86,7 +88,12 @@ export function VitrinaChartProjectTooltip({
       className={TOOLTIP_BOX_CLASS}
       style={{ left: placed.left, top: placed.top }}
     >
-      <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-slate-500">
+      <p
+        className={
+          titleClassName ??
+          'mb-1.5 text-[11px] font-semibold tracking-wide text-slate-500'
+        }
+      >
         {title}
       </p>
       <VitrinaProjectNameList nombres={nombres} />

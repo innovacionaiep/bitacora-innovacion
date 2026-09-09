@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import '@/app/globals.css';
 import { SessionProvider } from '@/components/SessionProvider';
 import { RouteAwareShell } from '@/components/RouteAwareShell';
-import { getSession } from '@/lib/auth-utils';
+import { getSession, isNextDynamicServerUsage } from '@/lib/auth-utils';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -49,7 +49,9 @@ export default async function RootLayout({
   try {
     session = await getSession();
   } catch (error) {
-    console.error('[RootLayout] getSession failed:', error);
+    if (!isNextDynamicServerUsage(error)) {
+      console.error('[RootLayout] getSession failed:', error);
+    }
   }
 
   return (

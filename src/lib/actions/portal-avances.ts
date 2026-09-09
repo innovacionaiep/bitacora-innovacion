@@ -28,7 +28,7 @@ export async function getPortalAvancesProyectos(): Promise<{
   error?: string;
 }> {
   const access = await resolvePortalAccess();
-  if (!canLoadPortalAvances(access.level, access.kind)) {
+  if (!canLoadPortalAvances(access.level, access.kind, access.profile)) {
     return { success: false, error: 'No tienes acceso a esta vista' };
   }
 

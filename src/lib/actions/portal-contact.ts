@@ -10,6 +10,7 @@ import {
   buildPortalContactSendPayload,
   validatePortalContactInput,
 } from '@/lib/portal-contact';
+import { readPortalContactHtmlTemplate } from '@/lib/portal-contact-template-store';
 import { readPortalOutlookCredentials } from '@/lib/portal-outlook-settings-store';
 
 function clientKeyFromHeaders(headerList: Headers): string {
@@ -31,7 +32,10 @@ export async function sendPortalContactEmail(input: {
   to?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const access = await resolvePortalAccess();
-  if (access.kind === 'none' || !portalCanSeeView(access.level, 'proyectos')) {
+  if (
+    access.kind === 'none' ||
+    !portalCanSeeView(access.level, 'proyectos', access.profile)
+  ) {
     return {
       success: false,
       error: 'Inicia sesión o ingresa un código de invitado',
@@ -79,6 +83,7 @@ export async function sendPortalContactEmail(input: {
     return { success: false, error: 'Proyecto no encontrado' };
   }
 
+  const htmlTemplate = await readPortalContactHtmlTemplate();
   const mail = buildPortalContactSendPayload({
     smtpUser: creds.user,
     proyectoNombre: proyecto.nombre,
@@ -88,6 +93,7 @@ export async function sendPortalContactEmail(input: {
     nombre: validated.nombre,
     cargo: validated.cargo,
     institucion: validated.institucion,
+    htmlTemplate,
   });
 
   try {

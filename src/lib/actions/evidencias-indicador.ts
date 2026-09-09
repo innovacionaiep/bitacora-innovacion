@@ -1,7 +1,6 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
@@ -73,7 +72,7 @@ export async function createEvidenciaIndicador(
       cambioGenerado: data.nombreArchivo ?? '',
     });
 
-    revalidatePath('/proyectos');
+    // No revalidatePath('/proyectos'): refresca el árbol y anula las miniaturas del modal.
     return { success: true, data: evidencia as EvidenciaIndicadorData };
   } catch (error) {
     console.error('Error al crear evidencia del indicador:', error);
@@ -148,7 +147,6 @@ export async function deleteEvidenciaIndicador(id: string) {
       cambioGenerado: evidencia.nombreArchivo ?? '',
     });
 
-    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error al eliminar evidencia del indicador:', error);

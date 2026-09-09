@@ -1,7 +1,6 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
 import { requireProjectAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
@@ -73,7 +72,7 @@ export async function createEvidenciaActividad(
       cambioGenerado: data.nombreArchivo ?? '',
     });
 
-    revalidatePath('/proyectos');
+    // No revalidatePath('/proyectos'): refresca el árbol y anula la UI (miniaturas) del popup.
     return { success: true, data: evidencia as EvidenciaActividadData };
   } catch (error) {
     console.error('Error al crear evidencia:', error);
@@ -159,7 +158,6 @@ export async function deleteEvidenciaActividad(id: string) {
       cambioGenerado: evidencia.nombreArchivo ?? '',
     });
 
-    revalidatePath('/proyectos');
     return { success: true };
   } catch (error) {
     console.error('Error al eliminar evidencia:', error);

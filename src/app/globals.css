@@ -271,3 +271,46 @@
     soporte-chat-hint-pulse 1.6s ease-in-out 0.45s infinite;
 }
 
+@keyframes vitrina-map-pin-in {
+  from {
+    opacity: 0;
+    scale: 0.35;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.vitrina-map-pin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vitrina-map-pin-in 0.45s ease-out both;
+}
+
+.chile-region-path {
+  fill: #e2e8f0 !important;
+  cursor: pointer;
+  outline: none;
+  transition: fill 0.18s ease;
+}
+
+.chile-region-path:hover,
+.chile-region-path:focus,
+.chile-region-path:focus-visible {
+  fill: #10b981 !important;
+}
+
+.chile-region-path-selected,
+.chile-region-path-selected:hover,
+.chile-region-path-selected:focus {
+  fill: #10b981 !important;
+}
+
+.chile-region-zoom-path {
+  fill: #e2e8f0 !important;
+  stroke: #cbd5e1 !important;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+

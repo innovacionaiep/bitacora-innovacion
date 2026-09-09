@@ -26,6 +26,7 @@ import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard'
 import { VitrinaFondoColorsProvider } from '@/components/vitrina/VitrinaFondoColorsContext';
 import { VitrinaGuestGate } from '@/components/vitrina/VitrinaGuestGate';
 import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
+import { VitrinaMapaView } from '@/components/vitrina/VitrinaMapaView';
 import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
 import { VitrinaVinculamosView } from '@/components/vitrina/VitrinaVinculamosView';
 import {
@@ -79,7 +80,7 @@ import {
   portalCanUseAiChat,
   portalIsCausalab,
   portalSessionRedirectsToApp,
-  portalViewsForLevel,
+  portalViewsForAccess,
   type PortalAccessKind,
   type PortalGuestLevel,
   type PortalGuestProfile,
@@ -164,7 +165,7 @@ export function VitrinaLanding({
   const isCausalab = portalIsCausalab(access);
   const showAppCta = portalCanEnterApp(access);
   const showAiChat = portalCanUseAiChat(access);
-  const visibleTabs = portalViewsForLevel(accessLevel);
+  const visibleTabs = portalViewsForAccess(accessLevel, accessProfile);
   const fondoColors = useMemo(
     () => buildFondoColorMap(catalogs.fondos),
     [catalogs.fondos],
@@ -182,7 +183,7 @@ export function VitrinaLanding({
   const [aiApplied, setAiApplied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [projectsView, setProjectsView] = useState<VitrinaProjectsView>(() =>
-    clampPortalView(accessLevel, 'proyectos'),
+    clampPortalView(accessLevel, 'proyectos', accessProfile),
   );
   const [avancesFondoNombre, setAvancesFondoNombre] = useState(() =>
     portalAvancesDefaultFondoForLevel(accessLevel, accessProfile),
@@ -278,6 +279,7 @@ export function VitrinaLanding({
   );
   const isAvancesView = projectsView === 'avances';
   const isVinculamosView = projectsView === 'vinculamos';
+  const isMapaView = projectsView === 'mapa';
   const avancesFondoRows = useMemo(
     () => rowsForPortalAvancesFondo(avancesProyectos, avancesFondoNombre),
     [avancesProyectos, avancesFondoNombre],
@@ -325,8 +327,10 @@ export function VitrinaLanding({
   }, []);
 
   useEffect(() => {
-    setProjectsView((current) => clampPortalView(accessLevel, current));
-  }, [accessLevel]);
+    setProjectsView((current) =>
+      clampPortalView(accessLevel, current, accessProfile),
+    );
+  }, [accessLevel, accessProfile]);
 
   useEffect(() => {
     const allowed = portalAvancesFondosForLevel(accessLevel, accessProfile);
@@ -397,7 +401,9 @@ export function VitrinaLanding({
       return;
     }
     setHasVisitedProjects(true);
-    setProjectsView((current) => clampPortalView(accessLevel, current));
+    setProjectsView((current) =>
+      clampPortalView(accessLevel, current, accessProfile),
+    );
     router.replace('/?vista=proyectos', { scroll: false });
     if (prefersReducedMotion()) {
       setHeroOff(true);
@@ -421,7 +427,9 @@ export function VitrinaLanding({
       setCardsShown(false);
       setHeaderCompact(false);
       setHeroOff(false);
-      setProjectsView(clampPortalView(accessLevel, 'proyectos'));
+      setProjectsView(
+        clampPortalView(accessLevel, 'proyectos', accessProfile),
+      );
       return;
     }
     clearTimers();
@@ -430,7 +438,9 @@ export function VitrinaLanding({
     setCardsShown(false);
     setHeaderCompact(false);
     setHeroOff(false);
-    setProjectsView(clampPortalView(accessLevel, 'proyectos'));
+    setProjectsView(
+      clampPortalView(accessLevel, 'proyectos', accessProfile),
+    );
     queue(() => setBusy(false), VITRINA_ANIM_MS);
   };
 
@@ -705,7 +715,7 @@ export function VitrinaLanding({
             aria-hidden={!cardsShown}
           >
             <div className="flex h-full min-h-0 w-full items-stretch">
-              {!isVinculamosView ? (
+              {!isVinculamosView && !isMapaView ? (
               <VitrinaProjectsSidebar
                 options={isAvancesView ? avancesFilterOptions : filterOptions}
                 filters={
@@ -806,7 +816,7 @@ export function VitrinaLanding({
               />
               ) : null}
               <div className="relative min-h-0 min-w-0 flex-1">
-                {portalCanSeeView(accessLevel, 'proyectos') ? (
+                {portalCanSeeView(accessLevel, 'proyectos', accessProfile) ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-y-auto overscroll-contain pb-[38rem]',
@@ -825,7 +835,21 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'analisis') &&
+                {portalCanSeeView(accessLevel, 'mapa', accessProfile) ? (
+                <div
+                  className={cn(
+                    'h-full min-h-0 overflow-visible',
+                    projectsView !== 'mapa' && 'hidden',
+                  )}
+                >
+                  <VitrinaMapaView
+                    proyectos={proyectosLocal}
+                    onBack={goToHero}
+                    onOpenProyecto={(id) => setFicha(id)}
+                  />
+                </div>
+                ) : null}
+                {portalCanSeeView(accessLevel, 'analisis', accessProfile) &&
                 projectsView === 'analisis' ? (
                 <div className="h-full min-h-0 overflow-hidden">
                   <VitrinaDataDashboard
@@ -838,7 +862,7 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'indicadores') ? (
+                {portalCanSeeView(accessLevel, 'indicadores', accessProfile) ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -848,7 +872,7 @@ export function VitrinaLanding({
                   <VitrinaIndicadoresDashboard proyectos={proyectosFiltrados} />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'avances') ? (
+                {portalCanSeeView(accessLevel, 'avances', accessProfile) ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -867,7 +891,7 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'data') ? (
+                {portalCanSeeView(accessLevel, 'data', accessProfile) ? (
                 <div
                   className={cn(
                     'h-full min-h-0 overflow-hidden',
@@ -889,7 +913,7 @@ export function VitrinaLanding({
                   />
                 </div>
                 ) : null}
-                {portalCanSeeView(accessLevel, 'vinculamos') &&
+                {portalCanSeeView(accessLevel, 'vinculamos', accessProfile) &&
                 projectsView === 'vinculamos' ? (
                 <div className="h-full min-h-0 overflow-hidden">
                   <VitrinaVinculamosView

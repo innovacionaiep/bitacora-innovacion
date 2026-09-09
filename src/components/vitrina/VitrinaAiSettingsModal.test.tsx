@@ -26,6 +26,7 @@ vi.mock('@/lib/actions/portal-guest', () => ({
       3: false,
       causalab: false,
       vinculacion: false,
+      visor: false,
     },
   })),
   getPortalSessionRoleSettings: vi.fn(async () => ({
@@ -90,9 +91,12 @@ vi.mock('@/lib/actions/portal-outlook', () => ({
       host: 'smtp.office365.com',
       port: 587,
       secure: false,
+      htmlTemplate:
+        '<p><strong>Remitente:</strong> {{remitente}}</p><p>{{mensaje}}</p>',
     },
   })),
   savePortalOutlookSettings: vi.fn(),
+  savePortalContactEmailTemplate: vi.fn(async () => ({ success: true })),
   testPortalOutlook: vi.fn(),
 }));
 
@@ -186,6 +190,7 @@ describe('VitrinaAiSettingsModal códigos de invitado', () => {
       screen.getByLabelText(/Causalab — Avances, Indicadores/),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/Vinculación —/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Visor —/)).toBeInTheDocument();
   });
 });
 
@@ -199,6 +204,24 @@ describe('VitrinaAiSettingsModal Outlook', () => {
     await user.click(screen.getByRole('button', { name: 'Correo Outlook' }));
     expect(screen.getByLabelText('Correo de la cuenta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar Outlook' })).toBeDisabled();
+  });
+
+  it('permite editar formato del correo y previsualiza con texto de ejemplo', async () => {
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Correo Outlook' })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Correo Outlook' }));
+    expect(screen.getByRole('button', { name: 'Negrita' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cursiva' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Formato del correo')).toBeInTheDocument();
+    expect(screen.getByTestId('portal-contact-email-preview')).toHaveTextContent(
+      'visitante@ejemplo.cl',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Guardar formato' }),
+    ).toBeInTheDocument();
   });
 });
 

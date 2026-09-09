@@ -2,7 +2,7 @@ import type { VitrinaProjectsView } from '@/lib/vitrina-views';
 
 export type PortalGuestLevel = 0 | 1 | 2 | 3;
 export type PortalAccessKind = 'none' | 'session' | 'guest';
-export type PortalGuestProfile = 'causalab' | 'vinculacion';
+export type PortalGuestProfile = 'causalab' | 'vinculacion' | 'visor';
 
 export type PortalAccess = {
   kind: PortalAccessKind;
@@ -17,6 +17,7 @@ export type PortalGuestHashes = {
   3: string;
   causalab: string;
   vinculacion: string;
+  visor: string;
 };
 
 export type PortalGuestTicket = {
@@ -32,12 +33,14 @@ export const EMPTY_PORTAL_GUEST_HASHES: PortalGuestHashes = {
   3: '',
   causalab: '',
   vinculacion: '',
+  visor: '',
 };
 
 export const PORTAL_GUEST_LEVELS: PortalGuestLevel[] = [0, 1, 2, 3];
 export const PORTAL_GUEST_PROFILES: PortalGuestProfile[] = [
   'causalab',
   'vinculacion',
+  'visor',
 ];
 
 export const PORTAL_GUEST_PROFILE_LEVEL: Record<
@@ -46,6 +49,7 @@ export const PORTAL_GUEST_PROFILE_LEVEL: Record<
 > = {
   causalab: 0,
   vinculacion: 3,
+  visor: 1,
 };
 
 export const PORTAL_VIEWS_BY_LEVEL: Record<
@@ -53,9 +57,17 @@ export const PORTAL_VIEWS_BY_LEVEL: Record<
   VitrinaProjectsView[]
 > = {
   0: ['avances', 'indicadores'],
-  1: ['proyectos'],
-  2: ['proyectos', 'avances', 'indicadores'],
-  3: ['proyectos', 'avances', 'analisis', 'indicadores', 'data', 'vinculamos'],
+  1: ['proyectos', 'mapa'],
+  2: ['proyectos', 'mapa', 'avances', 'indicadores'],
+  3: [
+    'proyectos',
+    'mapa',
+    'avances',
+    'analisis',
+    'indicadores',
+    'data',
+    'vinculamos',
+  ],
 };
 
 export function isPortalGuestLevel(value: unknown): value is PortalGuestLevel {
@@ -65,7 +77,9 @@ export function isPortalGuestLevel(value: unknown): value is PortalGuestLevel {
 export function isPortalGuestProfile(
   value: unknown,
 ): value is PortalGuestProfile {
-  return value === 'causalab' || value === 'vinculacion';
+  return (
+    value === 'causalab' || value === 'vinculacion' || value === 'visor'
+  );
 }
 
 function asHash(value: unknown): string {
@@ -89,6 +103,7 @@ export function parsePortalGuestHashes(
       3: asHash(parsed['3']),
       causalab: hasProfiles ? asHash(parsed.causalab) : legacyZero,
       vinculacion: asHash(parsed.vinculacion),
+      visor: asHash(parsed.visor),
     };
   } catch {
     return { ...EMPTY_PORTAL_GUEST_HASHES };
@@ -103,6 +118,7 @@ export function serializePortalGuestHashes(hashes: PortalGuestHashes): string {
     3: hashes[3] ?? '',
     causalab: hashes.causalab ?? '',
     vinculacion: hashes.vinculacion ?? '',
+    visor: hashes.visor ?? '',
   });
 }
 
@@ -113,6 +129,7 @@ export function portalGuestConfiguredFlags(hashes: PortalGuestHashes): {
   3: boolean;
   causalab: boolean;
   vinculacion: boolean;
+  visor: boolean;
 } {
   return {
     0: Boolean(hashes[0]),
@@ -121,6 +138,7 @@ export function portalGuestConfiguredFlags(hashes: PortalGuestHashes): {
     3: Boolean(hashes[3]),
     causalab: Boolean(hashes.causalab),
     vinculacion: Boolean(hashes.vinculacion),
+    visor: Boolean(hashes.visor),
   };
 }
 
@@ -148,6 +166,12 @@ export function guestTicketStillValid(
   return false;
 }
 
+export const PORTAL_GUEST_PROFILE_VIEWS: Partial<
+  Record<PortalGuestProfile, VitrinaProjectsView[]>
+> = {
+  visor: ['proyectos', 'mapa', 'indicadores'],
+};
+
 export function portalViewsForLevel(
   level: PortalGuestLevel | null,
 ): VitrinaProjectsView[] {
@@ -155,32 +179,47 @@ export function portalViewsForLevel(
   return PORTAL_VIEWS_BY_LEVEL[level];
 }
 
+export function portalViewsForAccess(
+  level: PortalGuestLevel | null,
+  profile?: PortalGuestProfile | null,
+): VitrinaProjectsView[] {
+  if (profile) {
+    const custom = PORTAL_GUEST_PROFILE_VIEWS[profile];
+    if (custom) return custom;
+  }
+  return portalViewsForLevel(level);
+}
+
 export function portalCanSeeView(
   level: PortalGuestLevel | null,
   view: VitrinaProjectsView,
+  profile?: PortalGuestProfile | null,
 ): boolean {
-  return portalViewsForLevel(level).includes(view);
+  return portalViewsForAccess(level, profile).includes(view);
 }
 
 export const PORTAL_CAUSALAB_FONDO = 'Fondo Impulsa';
 
 export function portalNeedsVitrinaProyectos(
   level: PortalGuestLevel | null,
+  profile?: PortalGuestProfile | null,
 ): boolean {
   return (
-    portalCanSeeView(level, 'proyectos') ||
-    portalCanSeeView(level, 'indicadores') ||
-    portalCanSeeView(level, 'analisis') ||
-    portalCanSeeView(level, 'data')
+    portalCanSeeView(level, 'proyectos', profile) ||
+    portalCanSeeView(level, 'mapa', profile) ||
+    portalCanSeeView(level, 'indicadores', profile) ||
+    portalCanSeeView(level, 'analisis', profile) ||
+    portalCanSeeView(level, 'data', profile)
   );
 }
 
 export function clampPortalView(
   level: PortalGuestLevel | null,
   view: VitrinaProjectsView,
+  profile?: PortalGuestProfile | null,
 ): VitrinaProjectsView {
-  if (portalCanSeeView(level, view)) return view;
-  return portalViewsForLevel(level)[0] ?? 'proyectos';
+  if (portalCanSeeView(level, view, profile)) return view;
+  return portalViewsForAccess(level, profile)[0] ?? 'proyectos';
 }
 
 export const PORTAL_SESSION_ROLES = [
@@ -212,6 +251,7 @@ export const DEFAULT_PORTAL_SESSION_ROLE_LEVELS: PortalSessionRoleLevels = {
 
 const PORTAL_VIEW_LABELS: Record<VitrinaProjectsView, string> = {
   proyectos: 'Proyectos',
+  mapa: 'Mapa',
   avances: 'Avances',
   analisis: 'Análisis',
   indicadores: 'Indicadores',
@@ -236,6 +276,9 @@ export function portalProfileCaption(profile: PortalGuestProfile): string {
   if (profile === 'causalab') {
     return `${portalLevelCaption(0)} (solo Fondo Impulsa)`;
   }
+  if (profile === 'visor') {
+    return 'Proyectos, Mapa e Indicadores, con chat IA';
+  }
   return 'Toda la información de lectura, sin chat IA ni ingreso a la app';
 }
 
@@ -253,7 +296,7 @@ export function portalCanEnterProjectsPortal(
 ): boolean {
   if (kind === 'none' || level === null) return false;
   if (portalSessionRedirectsToApp(kind, level)) return false;
-  return portalViewsForLevel(level).length > 0;
+  return portalViewsForAccess(level).length > 0;
 }
 
 export function portalIsCausalab(access: PortalAccess): boolean {
@@ -266,7 +309,7 @@ export function portalCanUseAiChat(access: PortalAccess): boolean {
   if (access.profile === 'causalab' || access.profile === 'vinculacion') {
     return false;
   }
-  return portalCanSeeView(access.level, 'proyectos');
+  return portalCanSeeView(access.level, 'proyectos', access.profile);
 }
 
 export function portalCanEnterApp(access: PortalAccess): boolean {

@@ -358,6 +358,8 @@ describe('canLoadPortalAvances', () => {
     expect(canLoadPortalAvances(1)).toBe(false);
     expect(canLoadPortalAvances(2)).toBe(true);
     expect(canLoadPortalAvances(3)).toBe(true);
+    expect(canLoadPortalAvances(1, 'guest', 'visor')).toBe(false);
+    expect(canLoadPortalAvances(2, 'guest', 'visor')).toBe(false);
   });
 });
 

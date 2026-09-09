@@ -157,6 +157,7 @@ export function IndicadorModal({
   >([]);
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
+  const [evidenciaUploadOk, setEvidenciaUploadOk] = useState(false);
   const evidenciasFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -300,6 +301,12 @@ export function IndicadorModal({
       isCancelled = true;
     };
   }, [indicador.id]);
+
+  useEffect(() => {
+    if (!evidenciaUploadOk) return;
+    const timer = window.setTimeout(() => setEvidenciaUploadOk(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [evidenciaUploadOk]);
 
   const handleEnviarComentario = async () => {
     if (!nuevoComentario.trim() || !session?.user) return;
@@ -836,6 +843,7 @@ export function IndicadorModal({
                       const file = e.target.files?.[0];
                       if (!file) return;
                       setIsUploadingEvidencia(true);
+                      setEvidenciaUploadOk(false);
                       const result = await uploadEvidenciaFile(file);
                       if ('error' in result) {
                         alert(result.error);
@@ -853,10 +861,17 @@ export function IndicadorModal({
                         }
                       );
                       if (createResult.success && createResult.data) {
-                        setEvidenciasIndicador((prev) => [
-                          ...prev,
-                          createResult.data!,
-                        ]);
+                        setEvidenciasIndicador((prev) => {
+                          if (
+                            prev.some(
+                              (item) => item.id === createResult.data!.id
+                            )
+                          ) {
+                            return prev;
+                          }
+                          return [...prev, createResult.data!];
+                        });
+                        setEvidenciaUploadOk(true);
                       } else {
                         alert(
                           createResult.error ?? 'Error al guardar evidencia'
@@ -889,6 +904,15 @@ export function IndicadorModal({
                     Imágenes máx. 250 KB (se comprimen automáticamente). PDF
                     máx. 2 MB.
                   </p>
+                  {evidenciaUploadOk && (
+                    <p
+                      role="status"
+                      className="mt-1.5 flex items-center gap-1 text-[12px] text-emerald-700"
+                    >
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                      Evidencia subida correctamente
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

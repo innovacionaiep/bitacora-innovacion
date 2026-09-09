@@ -820,6 +820,7 @@ export default function GanttChart({
   >([]);
   const [isLoadingEvidencias, setIsLoadingEvidencias] = useState(false);
   const [isUploadingEvidencia, setIsUploadingEvidencia] = useState(false);
+  const [evidenciaUploadOk, setEvidenciaUploadOk] = useState(false);
   const [isSubmittingActivityAction, setIsSubmittingActivityAction] =
     useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -959,6 +960,7 @@ export default function GanttChart({
     if (!actividadId || actividadId.startsWith('temp-') || !showActivityPopup) {
       setComentariosActividad([]);
       setEvidenciasActividad([]);
+      setEvidenciaUploadOk(false);
       return;
     }
 
@@ -986,6 +988,12 @@ export default function GanttChart({
       isCancelled = true;
     };
   }, [selectedActivityForPopup?.id, showActivityPopup]);
+
+  useEffect(() => {
+    if (!evidenciaUploadOk) return;
+    const timer = window.setTimeout(() => setEvidenciaUploadOk(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [evidenciaUploadOk]);
 
   // Manejar cambios en el formulario de actividad
   const handleActivityInputChange = (field: string, value: string) => {
@@ -2904,6 +2912,7 @@ export default function GanttChart({
                               )
                                 return;
                               setIsUploadingEvidencia(true);
+                              setEvidenciaUploadOk(false);
                               const result = await uploadEvidenciaFile(file);
                               if ('error' in result) {
                                 alert(result.error);
@@ -2919,10 +2928,22 @@ export default function GanttChart({
                                   nombreArchivo: result.nombreArchivo,
                                 });
                               if (createResult.success && createResult.data) {
-                                setEvidenciasActividad((prev) => [
-                                  ...prev,
-                                  createResult.data! as EvidenciaActividadData,
-                                ]);
+                                setEvidenciasActividad((prev) => {
+                                  if (
+                                    prev.some(
+                                      (item) =>
+                                        item.id === createResult.data!.id
+                                    )
+                                  ) {
+                                    return prev;
+                                  }
+                                  return [
+                                    ...prev,
+                                    createResult.data! as EvidenciaActividadData,
+                                  ];
+                                });
+                                setIsLoadingEvidencias(false);
+                                setEvidenciaUploadOk(true);
                               } else {
                                 alert(
                                   createResult.error ??
@@ -2957,6 +2978,15 @@ export default function GanttChart({
                             Imágenes máx. 250 KB (se comprimen automáticamente).
                             PDF máx. 2 MB.
                           </p>
+                          {evidenciaUploadOk && (
+                            <p
+                              role="status"
+                              className="mt-1.5 flex items-center gap-1 text-[12px] text-emerald-700"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                              Evidencia subida correctamente
+                            </p>
+                          )}
                         </div>
                       )}
                   </div>

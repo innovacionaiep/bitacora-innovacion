@@ -103,6 +103,31 @@ describe('VitrinaProjectsSidebar', () => {
     expect(panel).toHaveTextContent('TEX3D');
   });
 
+  it('trunca chips de filtros a 20 caracteres y conserva el nombre completo al quitar', () => {
+    const longName =
+      'Aula Aerotransportada: Habilitación Normativa y Certificación RPAS';
+
+    render(
+      <VitrinaProjectsSidebar
+        options={{ ...options, nombres: [longName] }}
+        filters={{ ...EMPTY_VITRINA_FILTERS, nombres: [longName] }}
+        query=""
+        matchIds={null}
+        aiFilterActive={false}
+        onToggle={vi.fn()}
+        onQueryChange={vi.fn()}
+        onClear={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Aula Aerotransportad…')).toBeInTheDocument();
+    expect(screen.queryByText(longName)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: `Quitar ${longName}` }),
+    ).toBeInTheDocument();
+  });
+
   it('oculta Fondo y Etiqueta cuando se piden hiddenFacets', () => {
     render(
       <VitrinaProjectsSidebar

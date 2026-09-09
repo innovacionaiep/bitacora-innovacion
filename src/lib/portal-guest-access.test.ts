@@ -16,6 +16,7 @@ import {
   portalReadLevelForSessionRoles,
   portalSessionLevelCaption,
   portalSessionRedirectsToApp,
+  portalViewsForAccess,
   portalViewsForLevel,
   serializePortalGuestHashes,
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
@@ -32,6 +33,7 @@ describe('portal guest hashes', () => {
       3: 'h3',
       causalab: 'hc',
       vinculacion: 'hv',
+      visor: 'hv2',
     });
     expect(parsePortalGuestHashes(raw)).toEqual({
       0: 'h0',
@@ -40,6 +42,7 @@ describe('portal guest hashes', () => {
       3: 'h3',
       causalab: 'hc',
       vinculacion: 'hv',
+      visor: 'hv2',
     });
     expect(portalGuestConfiguredFlags(parsePortalGuestHashes(raw))).toEqual({
       0: true,
@@ -48,6 +51,7 @@ describe('portal guest hashes', () => {
       3: true,
       causalab: true,
       vinculacion: true,
+      visor: true,
     });
   });
 
@@ -59,6 +63,7 @@ describe('portal guest hashes', () => {
       3: 'h3',
       causalab: '',
       vinculacion: '',
+      visor: '',
     });
     expect(parsePortalGuestHashes('{"0":"old0","1":"h1","2":"","3":"h3"}')).toEqual({
       0: '',
@@ -67,6 +72,7 @@ describe('portal guest hashes', () => {
       3: 'h3',
       causalab: 'old0',
       vinculacion: '',
+      visor: '',
     });
   });
 
@@ -82,6 +88,8 @@ describe('portal guest hashes', () => {
       3: '',
       causalab: 'c0',
       vinculacion: '',
+      visor: '',
+      visor: '',
     });
   });
 
@@ -93,6 +101,7 @@ describe('portal guest hashes', () => {
       3: '',
       causalab: '',
       vinculacion: '',
+      visor: '',
     });
   });
 });
@@ -115,24 +124,27 @@ describe('portal views by level', () => {
     expect(portalCanSeeView(null, 'avances')).toBe(false);
   });
 
-  it('nivel 1 solo proyectos', () => {
-    expect(portalViewsForLevel(1)).toEqual(['proyectos']);
+  it('nivel 1 ve Proyectos y Mapa', () => {
+    expect(portalViewsForLevel(1)).toEqual(['proyectos', 'mapa']);
     expect(portalCanSeeView(1, 'analisis')).toBe(false);
     expect(portalCanSeeView(1, 'proyectos')).toBe(true);
+    expect(portalCanSeeView(1, 'mapa')).toBe(true);
   });
 
   it('nivel 2 suma avances e indicadores', () => {
     expect(portalViewsForLevel(2)).toEqual([
       'proyectos',
+      'mapa',
       'avances',
       'indicadores',
     ]);
     expect(portalCanSeeView(2, 'data')).toBe(false);
   });
 
-  it('nivel 3 ve todo, con Avances entre Proyectos y Análisis', () => {
+  it('nivel 3 ve todo, con Mapa entre Proyectos y Avances', () => {
     expect(portalViewsForLevel(3)).toEqual([
       'proyectos',
+      'mapa',
       'avances',
       'analisis',
       'indicadores',
@@ -165,6 +177,28 @@ describe('perfiles de invitado', () => {
     expect(
       portalIsCausalab({ kind: 'session', level: 0, profile: null }),
     ).toBe(false);
+  });
+
+  it('Visor ve Proyectos, Mapa e Indicadores, con chat IA', () => {
+    expect(portalViewsForAccess(1, 'visor')).toEqual([
+      'proyectos',
+      'mapa',
+      'indicadores',
+    ]);
+    expect(portalCanSeeView(1, 'avances', 'visor')).toBe(false);
+    expect(portalCanSeeView(1, 'analisis', 'visor')).toBe(false);
+    expect(portalCanSeeView(1, 'indicadores', 'visor')).toBe(true);
+    expect(portalCanSeeView(1, 'mapa', 'visor')).toBe(true);
+    expect(clampPortalView(1, 'avances', 'visor')).toBe('proyectos');
+    expect(portalProfileCaption('visor')).toBe(
+      'Proyectos, Mapa e Indicadores, con chat IA',
+    );
+    expect(
+      portalCanUseAiChat({ kind: 'guest', level: 1, profile: 'visor' }),
+    ).toBe(true);
+    expect(
+      portalCanEnterApp({ kind: 'guest', level: 1, profile: 'visor' }),
+    ).toBe(true);
   });
 
   it('Vinculación replica vistas de nivel 3, sin chat ni ingreso a la app', () => {
@@ -233,6 +267,7 @@ describe('guest ticket', () => {
         3: '',
         causalab: '',
         vinculacion: '',
+        visor: '',
       }),
     ).toBe(true);
     expect(
@@ -243,6 +278,7 @@ describe('guest ticket', () => {
         3: '',
         causalab: '',
         vinculacion: '',
+        visor: '',
       }),
     ).toBe(false);
   });
@@ -255,6 +291,7 @@ describe('guest ticket', () => {
       3: '',
       causalab: 'c0',
       vinculacion: '',
+      visor: '',
     };
     const profiled = parsePortalGuestTicket({
       level: 0,
@@ -288,6 +325,7 @@ describe('guest ticket', () => {
         3: 'g3',
         causalab: '',
         vinculacion: 'v1',
+        visor: '',
       }),
     ).toBe(true);
     expect(
@@ -298,6 +336,7 @@ describe('guest ticket', () => {
         3: 'g3',
         causalab: '',
         vinculacion: 'otro',
+        visor: '',
       }),
     ).toBe(false);
   });
@@ -314,6 +353,7 @@ describe('matchPortalGuestCode', () => {
         3: 'h3',
         causalab: '',
         vinculacion: '',
+        visor: '',
       },
       async (plain, hash) => plain === 'secreto' && hash === 'h2',
     );
@@ -330,12 +370,34 @@ describe('matchPortalGuestCode', () => {
         3: '',
         causalab: 'hc',
         vinculacion: '',
+        visor: '',
       },
       async (plain, hash) =>
         (plain === 'causalab' && hash === 'hc') ||
         (plain === 'causalab' && hash === 'h0'),
       );
     expect(ticket).toEqual({ level: 0, hash: 'hc', profile: 'causalab' });
+  });
+
+  it('matchea el código de Visor', async () => {
+    const ticket = await matchPortalGuestCode(
+      'visor-guest',
+      {
+        0: '',
+        1: 'h1',
+        2: '',
+        3: '',
+        causalab: '',
+        vinculacion: '',
+        visor: 'hs',
+      },
+      async (plain, hash) => plain === 'visor-guest' && hash === 'hs',
+    );
+    expect(ticket).toEqual({
+      level: 1,
+      hash: 'hs',
+      profile: 'visor',
+    });
   });
 
   it('matchea el código de Vinculación', async () => {
@@ -348,6 +410,7 @@ describe('matchPortalGuestCode', () => {
         3: 'h3',
         causalab: '',
         vinculacion: 'hv',
+        visor: '',
       },
       async (plain, hash) => plain === 'vcm-guest' && hash === 'hv',
     );
@@ -363,14 +426,14 @@ describe('matchPortalGuestCode', () => {
     expect(
       await matchPortalGuestCode(
         '',
-        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '' },
+        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '', visor: '' },
         compare,
       ),
     ).toBeNull();
     expect(
       await matchPortalGuestCode(
         'x',
-        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '' },
+        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '', visor: '' },
         compare,
       ),
     ).toBeNull();
@@ -416,7 +479,7 @@ describe('portalReadLevelForSessionRoles', () => {
     expect(portalSessionRedirectsToApp('guest', 0)).toBe(false);
     expect(portalSessionRedirectsToApp('session', 1)).toBe(false);
     expect(portalSessionLevelCaption(0)).toBe('Redirige a Inicio en la app');
-    expect(portalSessionLevelCaption(1)).toBe('Proyectos');
+    expect(portalSessionLevelCaption(1)).toBe('Proyectos, Mapa');
   });
 });
 
