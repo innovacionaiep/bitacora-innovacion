@@ -36,7 +36,7 @@ describe('VitrinaProjectsSidebar', () => {
     renderSidebar();
 
     const toggle = screen.getByRole('button', { name: 'Ocultar filtros' });
-    const footer = screen.getByText('Dirección Nacional de Emprendimiento e I+D');
+    const footer = screen.getByText('Dirección Nacional de Emprendimiento, Innovación y Desarrollo');
     expect(
       toggle.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -52,7 +52,7 @@ describe('VitrinaProjectsSidebar', () => {
 
     expect(screen.queryByText('Descubre proyectos')).not.toBeInTheDocument();
     expect(
-      screen.queryByText('Dirección Nacional de Emprendimiento e I+D'),
+      screen.queryByText('Dirección Nacional de Emprendimiento, Innovación y Desarrollo'),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveAttribute(
       'data-collapsed',
@@ -62,7 +62,7 @@ describe('VitrinaProjectsSidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Mostrar filtros' }));
     expect(screen.getByText('Descubre proyectos')).toBeInTheDocument();
     expect(
-      screen.getByText('Dirección Nacional de Emprendimiento e I+D'),
+      screen.getByText('Dirección Nacional de Emprendimiento, Innovación y Desarrollo'),
     ).toBeInTheDocument();
   });
 

@@ -40,6 +40,7 @@ import { vitrinaFondoFillColor } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 import { cn } from '@/lib/utils';
 import { VitrinaChartProjectTooltip } from '@/components/vitrina/VitrinaChartProjectTooltip';
+import { useVitrinaFondoColors } from '@/components/vitrina/VitrinaFondoColorsContext';
 import { VitrinaIgipRadarCard } from '@/components/vitrina/VitrinaIgipRadarCard';
 import {
   DropdownMenu,
@@ -231,6 +232,7 @@ function AmbosScatterCard({
   const inicialOnly = target === 'inicial';
   const destinationName =
     target === 'proyeccion' ? 'Proyección' : target === 'final' ? 'Final' : 'Inicial';
+  const fondoColors = useVitrinaFondoColors();
   const scatter = useMemo(
     () => buildVitrinaAmbosScatter(proyectos, target),
     [proyectos, target],
@@ -328,13 +330,13 @@ function AmbosScatterCard({
     for (const point of scatter.points) {
       const label = point.fondo || 'Sin fondo';
       if (!seen.has(label)) {
-        seen.set(label, vitrinaFondoFillColor(point.fondo));
+        seen.set(label, vitrinaFondoFillColor(point.fondo, fondoColors));
       }
     }
     return [...seen.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], 'es'))
       .map(([label, fill]) => ({ label, fill }));
-  }, [scatter.points]);
+  }, [scatter.points, fondoColors]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -545,7 +547,7 @@ function AmbosScatterCard({
                   cy={point.y}
                   r={6}
                   className="cursor-pointer stroke-white stroke-2"
-                  fill={vitrinaFondoFillColor(point.fondo)}
+                  fill={vitrinaFondoFillColor(point.fondo, fondoColors)}
                   fillOpacity={vitrinaAmbosFillOpacity(point.kind, point.fondo)}
                   opacity={
                     !showAllLinks &&

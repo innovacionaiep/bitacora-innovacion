@@ -144,7 +144,7 @@ function LoginForm() {
         </Card>
 
         <p className="text-center text-sm text-gray-500">
-          Dirección Nacional de Emprendimiento e I+D
+          Dirección Nacional de Emprendimiento, Innovación y Desarrollo
         </p>
       </div>
     </div>

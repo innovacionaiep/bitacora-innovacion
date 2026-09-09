@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Bitácora',
   description:
-    'Portal de proyectos de la Dirección Nacional de Emprendimiento e I+D.',
+    'Portal de proyectos de la Dirección Nacional de Emprendimiento, Innovación y Desarrollo.',
 };
 
 export default function PortalLayout({

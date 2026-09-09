@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bot, FileSpreadsheet, KeyRound, Mail, Users } from 'lucide-react';
+import { Bot, FileSpreadsheet, KeyRound, Mail, Palette, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getVitrinaAiSettings,
@@ -34,6 +34,12 @@ import {
   savePortalOutlookSettings,
   testPortalOutlook,
 } from '@/lib/actions/portal-outlook';
+import {
+  getPortalFondoColors,
+  savePortalFondoColors,
+  type PortalFondoColorItem,
+} from '@/lib/actions/portal-fondo-colors';
+import { normalizeFondoColorHex } from '@/lib/vitrina-fondo-style';
 import { VITRINA_AI_DEFAULT_MODEL } from '@/lib/vitrina-ai-settings';
 import {
   PORTAL_OUTLOOK_DEFAULT_HOST,
@@ -101,7 +107,14 @@ const EMPTY_GUEST_FLAGS = {
 
 type PortalGuestCodeKey = PortalGuestLevel | PortalGuestProfile;
 
-type PortalSettingsTab = 'ai' | 'guest' | 'impulsa' | 'vcm' | 'outlook' | 'roles';
+type PortalSettingsTab =
+  | 'ai'
+  | 'guest'
+  | 'impulsa'
+  | 'vcm'
+  | 'outlook'
+  | 'roles'
+  | 'fondos';
 
 const SETTINGS_TABS: {
   id: PortalSettingsTab;
@@ -110,6 +123,7 @@ const SETTINGS_TABS: {
 }[] = [
   { id: 'ai', label: 'Asistente I.A.', icon: Bot },
   { id: 'guest', label: 'Códigos de invitado', icon: KeyRound },
+  { id: 'fondos', label: 'Colores de fondos', icon: Palette },
   { id: 'impulsa', label: 'Fondo Impulsa', icon: FileSpreadsheet },
   { id: 'vcm', label: 'Vinculación con el Medio', icon: FileSpreadsheet },
   { id: 'outlook', label: 'Correo Outlook', icon: Mail },
@@ -168,6 +182,8 @@ export function VitrinaAiSettingsModal({
   const [outlookMasked, setOutlookMasked] = useState('');
   const [savingOutlook, setSavingOutlook] = useState(false);
   const [testingOutlook, setTestingOutlook] = useState(false);
+  const [fondoColors, setFondoColors] = useState<PortalFondoColorItem[]>([]);
+  const [savingFondos, setSavingFondos] = useState(false);
   const [tab, setTab] = useState<PortalSettingsTab>('ai');
 
   useEffect(() => {
@@ -187,7 +203,17 @@ export function VitrinaAiSettingsModal({
       getVcmExcelSettings(),
       getPortalSessionRoleSettings(),
       getPortalOutlookSettings(),
-    ]).then(([aiResult, guestResult, impulsaResult, vcmResult, roleResult, outlookResult]) => {
+      getPortalFondoColors(),
+    ]).then(
+      ([
+        aiResult,
+        guestResult,
+        impulsaResult,
+        vcmResult,
+        roleResult,
+        outlookResult,
+        fondosResult,
+      ]) => {
         if (cancelled) return;
         setLoading(false);
         if (outlookResult.success && outlookResult.data) {
@@ -196,6 +222,9 @@ export function VitrinaAiSettingsModal({
           setOutlookMasked(outlookResult.data.passwordMasked);
           setOutlookHost(outlookResult.data.host);
           setOutlookPort(String(outlookResult.data.port));
+        }
+        if (fondosResult.success && fondosResult.data) {
+          setFondoColors(fondosResult.data);
         }
         if (!aiResult.success || !aiResult.data) {
           setError(aiResult.error ?? 'No se pudo leer la configuración');
@@ -564,6 +593,39 @@ export function VitrinaAiSettingsModal({
     setInfo('Conexión SMTP de Outlook correcta.');
   }
 
+  async function handleSaveFondos() {
+    setError('');
+    setInfo('');
+    setSavingFondos(true);
+    const result = await savePortalFondoColors(
+      fondoColors.map((item) => ({
+        id: item.id,
+        colorHex: item.colorHex,
+      })),
+    );
+    setSavingFondos(false);
+    if (!result.success) {
+      setError(result.error ?? 'No se pudieron guardar los colores');
+      return;
+    }
+    const next = await getPortalFondoColors();
+    if (next.success && next.data) setFondoColors(next.data);
+    setInfo('Colores de fondos actualizados.');
+    router.refresh();
+  }
+
+  function updateFondoColor(id: string, raw: string) {
+    setFondoColors((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const trimmed = raw.trim();
+        if (!trimmed) return { ...item, colorHex: null };
+        const hex = normalizeFondoColorHex(trimmed);
+        return { ...item, colorHex: hex ?? trimmed };
+      }),
+    );
+  }
+
   const busy =
     loading ||
     saving ||
@@ -579,7 +641,8 @@ export function VitrinaAiSettingsModal({
     updatingVcm ||
     savingRoles ||
     savingOutlook ||
-    testingOutlook;
+    testingOutlook ||
+    savingFondos;
   const hasTypedCode =
     PORTAL_GUEST_LEVELS.some((level) => guestCodes[level].trim()) ||
     PORTAL_GUEST_PROFILES.some((profile) => guestCodes[profile].trim());
@@ -848,6 +911,101 @@ export function VitrinaAiSettingsModal({
                 disabled={busy || !hasTypedCode}
               >
                 {savingCodes ? 'Guardando códigos…' : 'Guardar códigos'}
+              </Button>
+            </div>
+          </section>
+          ) : null}
+
+          {tab === 'fondos' ? (
+          <section
+            aria-labelledby="portal-settings-fondos"
+            className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+          >
+            <div>
+              <h3
+                id="portal-settings-fondos"
+                className="text-sm font-semibold text-slate-900"
+              >
+                Colores de fondos
+              </h3>
+              <p className="mt-1 text-xs leading-snug text-slate-500">
+                Define el color de la franja en las tarjetas y en los gráficos
+                del portal. Vacío usa el color automático por nombre.
+              </p>
+            </div>
+            {fondoColors.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No hay fondos en el catálogo.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {fondoColors.map((fondo) => {
+                  const preview = normalizeFondoColorHex(fondo.colorHex ?? '')
+                    ?? fondo.fallbackHex;
+                  const inputValue = fondo.colorHex ?? '';
+                  return (
+                    <li
+                      key={fondo.id}
+                      className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+                    >
+                      <span
+                        className="h-8 w-8 shrink-0 rounded-md border border-slate-200"
+                        style={{ backgroundColor: preview }}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-slate-900">
+                          {fondo.nombre}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Automático: {fondo.fallbackHex}
+                        </p>
+                      </div>
+                      <Input
+                        type="color"
+                        aria-label={`Selector de color de ${fondo.nombre}`}
+                        className="h-9 w-12 cursor-pointer p-1"
+                        value={preview}
+                        onChange={(e) =>
+                          updateFondoColor(fondo.id, e.target.value)
+                        }
+                        disabled={busy}
+                      />
+                      <Input
+                        id={`portal-fondo-color-${fondo.id}`}
+                        aria-label={`Color hex de ${fondo.nombre}`}
+                        className="w-28 font-mono uppercase"
+                        value={inputValue}
+                        placeholder={fondo.fallbackHex}
+                        onChange={(e) =>
+                          updateFondoColor(fondo.id, e.target.value)
+                        }
+                        disabled={busy}
+                      />
+                      {fondo.colorHex ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="text-slate-600"
+                          onClick={() => updateFondoColor(fondo.id, '')}
+                          disabled={busy}
+                        >
+                          Automático
+                        </Button>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="pt-1">
+              <Button
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => void handleSaveFondos()}
+                disabled={busy || fondoColors.length === 0}
+              >
+                {savingFondos ? 'Guardando…' : 'Guardar colores'}
               </Button>
             </div>
           </section>

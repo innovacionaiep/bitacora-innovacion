@@ -1,7 +1,7 @@
 /** Contenido de marketing de la landing oculta. No proviene de la BD ni de proyectos reales. */
 
 export const VITRINA_HERO = {
-  kicker: 'Dirección Nacional de Emprendimiento e I+D',
+  kicker: 'Dirección Nacional de Emprendimiento, Innovación y Desarrollo',
   headlineLead: 'Proyectos de impacto',
   headlineRotating: [
     {

@@ -70,14 +70,72 @@ const STRIPE_TO_HEX: Record<string, string> = {
 };
 
 const FONDO_FILL_FALLBACK = '#64748b';
+const HEX_COLOR_RE = /^#([0-9A-Fa-f]{6})$/;
+
+export type VitrinaStripePaint = {
+  className: string;
+  style?: { backgroundColor: string };
+};
+
+export function normalizeFondoColorHex(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  if (!HEX_COLOR_RE.test(withHash)) return null;
+  return withHash.toUpperCase();
+}
+
+export function buildFondoColorMap(
+  fondos: Array<{ nombre: string; colorHex?: string | null }>,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const fondo of fondos) {
+    const hex = normalizeFondoColorHex(fondo.colorHex ?? '');
+    if (!hex || !fondo.nombre.trim()) continue;
+    map[fondo.nombre] = hex;
+  }
+  return map;
+}
+
+function colorFromMap(
+  nombre: string,
+  colors?: Record<string, string>,
+): string | undefined {
+  if (!colors) return undefined;
+  const direct = colors[nombre];
+  if (direct) return direct;
+  const key = normalizeNombre(nombre);
+  for (const [label, hex] of Object.entries(colors)) {
+    if (normalizeNombre(label) === key) return hex;
+  }
+  const first = nombre.split(' · ')[0]?.trim();
+  if (first && first !== nombre) return colorFromMap(first, colors);
+  return undefined;
+}
 
 export function vitrinaFondoLabel(fondos: string[]): string {
   return fondos.filter(Boolean).join(' · ');
 }
 
-export function vitrinaFondoFillColor(nombre: string): string {
+export function vitrinaFondoFillColor(
+  nombre: string,
+  colors?: Record<string, string>,
+): string {
   if (!nombre.trim()) return FONDO_FILL_FALLBACK;
-  return STRIPE_TO_HEX[vitrinaFondoStripeClass(nombre)] ?? FONDO_FILL_FALLBACK;
+  return (
+    colorFromMap(nombre, colors) ??
+    STRIPE_TO_HEX[vitrinaFondoStripeClass(nombre)] ??
+    FONDO_FILL_FALLBACK
+  );
+}
+
+export function vitrinaFondoStripePaint(
+  nombre: string,
+  colors?: Record<string, string>,
+): VitrinaStripePaint {
+  const custom = colorFromMap(nombre, colors);
+  if (custom) return { className: '', style: { backgroundColor: custom } };
+  return { className: vitrinaFondoStripeClass(nombre) };
 }
 
 export function vitrinaFondoStripeClass(nombre: string): string {
@@ -98,6 +156,15 @@ export function vitrinaLineaBarStripeClass(
 ): string {
   if (parentFondo?.trim()) return vitrinaFondoStripeClass(parentFondo);
   return vitrinaLineaStripeClass(lineaNombre);
+}
+
+export function vitrinaLineaBarStripePaint(
+  lineaNombre: string,
+  parentFondo?: string,
+  colors?: Record<string, string>,
+): VitrinaStripePaint {
+  if (parentFondo?.trim()) return vitrinaFondoStripePaint(parentFondo, colors);
+  return { className: vitrinaLineaStripeClass(lineaNombre) };
 }
 
 export function vitrinaSedeStripeClass(nombre: string): string {

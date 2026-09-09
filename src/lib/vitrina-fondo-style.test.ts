@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildFondoColorMap,
+  normalizeFondoColorHex,
   vitrinaFondoFillColor,
   vitrinaFondoLabel,
   vitrinaFondoStripeClass,
+  vitrinaFondoStripePaint,
   vitrinaLineaBarStripeClass,
+  vitrinaLineaBarStripePaint,
   vitrinaLineaStripeClass,
 } from '@/lib/vitrina-fondo-style';
 
@@ -41,5 +45,48 @@ describe('vitrinaLineaBarStripeClass', () => {
     expect(vitrinaLineaBarStripeClass('Innovación')).toBe(
       vitrinaLineaStripeClass('Innovación'),
     );
+  });
+});
+
+describe('colores configurados de fondo', () => {
+  it('normaliza hex y rechaza valores inválidos', () => {
+    expect(normalizeFondoColorHex('#aabbcc')).toBe('#AABBCC');
+    expect(normalizeFondoColorHex('112233')).toBe('#112233');
+    expect(normalizeFondoColorHex('')).toBeNull();
+    expect(normalizeFondoColorHex('#fff')).toBeNull();
+    expect(normalizeFondoColorHex('red')).toBeNull();
+  });
+
+  it('prioriza el color persistido sobre la paleta por nombre', () => {
+    const colors = buildFondoColorMap([
+      { nombre: 'Fondo Impulsa', colorHex: '#123456' },
+    ]);
+    expect(vitrinaFondoFillColor('Fondo Impulsa', colors)).toBe('#123456');
+    expect(vitrinaFondoStripePaint('Fondo Impulsa', colors)).toEqual({
+      className: '',
+      style: { backgroundColor: '#123456' },
+    });
+    expect(vitrinaFondoStripeClass('Fondo Impulsa')).toBe('bg-emerald-600');
+  });
+
+  it('usa el primer fondo de una etiqueta combinada', () => {
+    const colors = buildFondoColorMap([
+      { nombre: 'Fondo Impulsa', colorHex: '#010203' },
+    ]);
+    expect(vitrinaFondoFillColor('Fondo Impulsa · Incuba', colors)).toBe(
+      '#010203',
+    );
+  });
+
+  it('pinta la barra de línea con el color del fondo padre configurado', () => {
+    const colors = buildFondoColorMap([
+      { nombre: 'Fondo Impulsa', colorHex: '#abcdef' },
+    ]);
+    expect(
+      vitrinaLineaBarStripePaint('Innovación', 'Fondo Impulsa', colors),
+    ).toEqual({
+      className: '',
+      style: { backgroundColor: '#ABCDEF' },
+    });
   });
 });

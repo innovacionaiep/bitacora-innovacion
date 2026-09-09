@@ -14,7 +14,11 @@ export const VITRINA_DESCRIPCION_FONT_DEFAULT = 15;
 export const VITRINA_DESCRIPCION_FONT_MIN = 12;
 export const VITRINA_DESCRIPCION_FONT_MAX = 28;
 
-export type VitrinaCatalogOption = { id: string; nombre: string };
+export type VitrinaCatalogOption = {
+  id: string;
+  nombre: string;
+  colorHex?: string | null;
+};
 
 export type VitrinaProyectoFoto = {
   url: string;

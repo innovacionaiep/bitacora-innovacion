@@ -22,10 +22,12 @@ import {
   vitrinaCarreraStripeClass,
   vitrinaEscuelaStripeClass,
   vitrinaEtiquetaStripeClass,
-  vitrinaFondoStripeClass,
-  vitrinaLineaBarStripeClass,
+  vitrinaFondoStripePaint,
+  vitrinaLineaBarStripePaint,
   vitrinaSedeStripeClass,
+  type VitrinaStripePaint,
 } from '@/lib/vitrina-fondo-style';
+import { useVitrinaFondoColors } from '@/components/vitrina/VitrinaFondoColorsContext';
 import {
   buildVitrinaAvancesAsignaturaCobertura,
   buildVitrinaAvancesAsignaturaStats,
@@ -79,6 +81,7 @@ export function VitrinaDataDashboard({
   lineaCatalog?: VitrinaLineaFondoCatalog;
   fondosFiltro?: string[];
 }) {
+  const fondoColors = useVitrinaFondoColors();
   const stats = useMemo(
     () => buildVitrinaDataStats(proyectos, lineaCatalog),
     [proyectos, lineaCatalog],
@@ -191,7 +194,7 @@ export function VitrinaDataDashboard({
         <ChartCard title="Por fondo">
           <VitrinaVerticalBars
             data={stats.porFondo}
-            colorFor={(item) => vitrinaFondoStripeClass(item.label)}
+            colorFor={(item) => vitrinaFondoStripePaint(item.label, fondoColors)}
             barHoverProps={barHoverProps}
           />
         </ChartCard>
@@ -200,7 +203,7 @@ export function VitrinaDataDashboard({
           <VitrinaVerticalBars
             data={stats.porLinea}
             colorFor={(item) =>
-              vitrinaLineaBarStripeClass(item.label, item.parentFondo)
+              vitrinaLineaBarStripePaint(item.label, item.parentFondo, fondoColors)
             }
             barHoverProps={barHoverProps}
           />
@@ -350,13 +353,20 @@ type BarHoverProps = (item: VitrinaDataBarDatum) => {
   onMouseLeave: () => void;
 };
 
+type BarColor = string | VitrinaStripePaint;
+
+function resolveBarColor(color: BarColor): VitrinaStripePaint {
+  if (typeof color === 'string') return { className: color };
+  return color;
+}
+
 function VitrinaVerticalBars({
   data,
   colorFor,
   barHoverProps,
 }: {
   data: VitrinaDataBarDatum[];
-  colorFor: (item: VitrinaDataBarDatum) => string;
+  colorFor: (item: VitrinaDataBarDatum) => BarColor;
   barHoverProps: BarHoverProps;
 }) {
   if (data.length === 0) {
@@ -375,6 +385,7 @@ function VitrinaVerticalBars({
     <div className="flex h-full min-h-0 items-end gap-3 overflow-x-auto px-1">
       {data.map((item) => {
         const pct = Math.max(8, (item.value / max) * 100);
+        const paint = resolveBarColor(colorFor(item));
         return (
           <div
             key={item.label}
@@ -391,9 +402,12 @@ function VitrinaVerticalBars({
               <div
                 className={cn(
                   'w-9 shrink-0 rounded-t-md',
-                  colorFor(item),
+                  paint.className,
                 )}
-                style={{ height: `${(barMaxPx * pct) / 100}px` }}
+                style={{
+                  height: `${(barMaxPx * pct) / 100}px`,
+                  ...paint.style,
+                }}
               />
             </div>
             <span className="mt-1.5 block h-[2.5em] shrink-0 whitespace-pre text-center text-[11px] leading-tight text-slate-600">

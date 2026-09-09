@@ -35,7 +35,7 @@ export async function getVitrinaProjectCatalogs(): Promise<VitrinaProjectCatalog
   const [fondos, lineas, sedes, escuelas, socios, etiquetas] = await Promise.all([
     prisma.fondo.findMany({
       orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
-      select: { id: true, nombre: true },
+      select: { id: true, nombre: true, colorHex: true },
     }),
     prisma.linea.findMany({
       orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],

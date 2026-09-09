@@ -9,7 +9,8 @@ import {
   VITRINA_COVER_ZOOM_MIN,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
-import { vitrinaFondoStripeClass } from '@/lib/vitrina-fondo-style';
+import { vitrinaFondoStripePaint } from '@/lib/vitrina-fondo-style';
+import { useVitrinaFondoColors } from '@/components/vitrina/VitrinaFondoColorsContext';
 import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
 import { Label } from '@/components/ui/label';
 
@@ -82,6 +83,7 @@ type Props = {
 
 export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
   const router = useRouter();
+  const fondoColors = useVitrinaFondoColors();
   const [framing, setFraming] = useState(false);
   const [frame, setFrame] = useState({
     x: proyecto.coverOffsetX,
@@ -101,6 +103,7 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
 
   const cover = proyecto.fotos[0];
   const fondoLabel = proyecto.fondos.join(' · ');
+  const fondoStripe = vitrinaFondoStripePaint(fondoLabel, fondoColors);
 
   function startFraming(event: React.SyntheticEvent) {
     event.stopPropagation();
@@ -162,7 +165,8 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
     >
       {fondoLabel ? (
         <div
-          className={`flex min-h-6 shrink-0 items-center justify-center px-3 py-0.5 ${vitrinaFondoStripeClass(fondoLabel)}`}
+          className={`flex min-h-6 shrink-0 items-center justify-center px-3 py-0.5 ${fondoStripe.className}`}
+          style={fondoStripe.style}
         >
           <p className="truncate text-center text-xs font-semibold tracking-wide text-white">
             {fondoLabel}

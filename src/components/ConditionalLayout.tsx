@@ -12,6 +12,9 @@ import { useActiveRolePermissions } from '@/components/permissions/ActiveRolePer
 import { viewPermissionForPath } from '@/lib/permissions/catalog';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
+/** Widget flotante de chat de soporte: oculto en toda la app por ahora. */
+const SHOW_SUPPORT_CHAT_WIDGET = false;
+
 const ChatSoporteFloatingWidget = dynamic(
   () =>
     import('@/components/support-chat/ChatSoporteFloatingWidget').then(
@@ -98,7 +101,9 @@ function ConditionalLayoutInner({ children }: ConditionalLayoutProps) {
           </ResponsiveMain>
         </SidebarProvider>
       </div>
-      {pathname !== '/soporte' && <ChatSoporteFloatingWidget />}
+      {SHOW_SUPPORT_CHAT_WIDGET && pathname !== '/soporte' && (
+        <ChatSoporteFloatingWidget />
+      )}
     </>
   );
 }

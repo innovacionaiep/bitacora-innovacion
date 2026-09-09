@@ -96,6 +96,21 @@ vi.mock('@/lib/actions/portal-outlook', () => ({
   testPortalOutlook: vi.fn(),
 }));
 
+vi.mock('@/lib/actions/portal-fondo-colors', () => ({
+  getPortalFondoColors: vi.fn(async () => ({
+    success: true,
+    data: [
+      {
+        id: 'f1',
+        nombre: 'Fondo Impulsa',
+        colorHex: null,
+        fallbackHex: '#059669',
+      },
+    ],
+  })),
+  savePortalFondoColors: vi.fn(),
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -184,5 +199,27 @@ describe('VitrinaAiSettingsModal Outlook', () => {
     await user.click(screen.getByRole('button', { name: 'Correo Outlook' }));
     expect(screen.getByLabelText('Correo de la cuenta')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar Outlook' })).toBeDisabled();
+  });
+});
+
+describe('VitrinaAiSettingsModal colores de fondos', () => {
+  it('lista fondos y permite guardar colores', async () => {
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Colores de fondos' }),
+      ).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Colores de fondos' }));
+    expect(
+      screen.getByRole('heading', { name: 'Colores de fondos' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Color hex de Fondo Impulsa'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Guardar colores' }),
+    ).toBeInTheDocument();
   });
 });

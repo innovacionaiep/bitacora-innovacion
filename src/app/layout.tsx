@@ -11,7 +11,7 @@ const inter = Inter({
   display: 'swap',
 });
 
-const siteTitle = 'Bitácora - Dir. Nac. Emprendimiento e I+D';
+const siteTitle = 'Bitácora - Dir. Nac. Emprendimiento, Innovación y Desarrollo';
 const siteDescription =
   'App para seguimiento de proyectos: Innovación Docente, Reto Innovador, Fondo Impulsa.';
 

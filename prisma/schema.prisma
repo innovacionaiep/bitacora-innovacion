@@ -272,6 +272,7 @@ model Fondo {
   id                String  @id @default(cuid())
   nombre            String
   orden             Int     @default(0)
+  colorHex          String? @map("color_hex")
   /** Deprecated: la fuente de verdad es Linea.tabConvenioEnabled. No DROP. */
   conveniosEnabled  Boolean @default(false) @map("convenios_enabled")
   /** Deprecated: la fuente de verdad es Linea.tabEscalamientoEnabled. No DROP. */

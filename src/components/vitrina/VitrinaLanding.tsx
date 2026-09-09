@@ -23,6 +23,7 @@ import { VitrinaProjectsSidebar } from '@/components/vitrina/VitrinaProjectsSide
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
 import { VitrinaAvancesView } from '@/components/vitrina/VitrinaAvancesView';
 import { VitrinaDataDashboard } from '@/components/vitrina/VitrinaDataDashboard';
+import { VitrinaFondoColorsProvider } from '@/components/vitrina/VitrinaFondoColorsContext';
 import { VitrinaGuestGate } from '@/components/vitrina/VitrinaGuestGate';
 import { VitrinaIndicadoresDashboard } from '@/components/vitrina/VitrinaIndicadoresDashboard';
 import { VitrinaProjectsTable } from '@/components/vitrina/VitrinaProjectsTable';
@@ -46,6 +47,7 @@ import {
   upsertVitrinaProyectoInList,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
+import { buildFondoColorMap } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import { leavePortalGuestSession } from '@/lib/actions/portal-guest';
 import {
@@ -163,6 +165,10 @@ export function VitrinaLanding({
   const showAppCta = portalCanEnterApp(access);
   const showAiChat = portalCanUseAiChat(access);
   const visibleTabs = portalViewsForLevel(accessLevel);
+  const fondoColors = useMemo(
+    () => buildFondoColorMap(catalogs.fondos),
+    [catalogs.fondos],
+  );
   const [proyectosLocal, setProyectosLocal] = useState(proyectos);
   const [heroOff, setHeroOff] = useState(startProjects);
   const [headerCompact, setHeaderCompact] = useState(startProjects);
@@ -415,6 +421,7 @@ export function VitrinaLanding({
     : 'duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]';
 
   return (
+    <VitrinaFondoColorsProvider colors={fondoColors}>
     <div
       className={cn(
         'relative overflow-x-hidden bg-white text-slate-900',
@@ -903,6 +910,7 @@ export function VitrinaLanding({
         vuelta={perf.vuelta}
       />
     </div>
+    </VitrinaFondoColorsProvider>
   );
 }
 

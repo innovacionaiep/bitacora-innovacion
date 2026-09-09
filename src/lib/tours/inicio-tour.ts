@@ -116,12 +116,6 @@ export function buildInicioTourSteps(
       '#tour-alertas',
       'Alertas y compromisos',
       'Pendientes de todos tus proyectos: evidencias, presupuesto, atrasos y compromisos (según tu rol en cada uno).'
-    ),
-    step(
-      '#tour-chat-soporte',
-      'Chat de soporte',
-      'Botón flotante para escribir al equipo de soporte si tienes dudas o problemas con la plataforma. Te responden por este mismo chat.',
-      { side: 'left', align: 'end' }
     )
   );
 
