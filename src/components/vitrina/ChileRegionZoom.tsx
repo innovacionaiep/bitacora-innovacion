@@ -272,7 +272,7 @@ export function ChileRegionZoom({
             <button
               type="button"
               key={`${card.pinId}-${card.proyecto.id}`}
-              className="absolute z-[1] overflow-hidden rounded-xl border-2 border-white bg-white text-left shadow-md"
+              className="absolute z-[1] cursor-pointer overflow-hidden rounded-xl border-2 border-white bg-white text-left shadow-md transition-[border-color,box-shadow,transform] duration-150 hover:z-[3] hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-lg"
               style={{
                 width: CARD_WIDTH,
                 left: card.left,
