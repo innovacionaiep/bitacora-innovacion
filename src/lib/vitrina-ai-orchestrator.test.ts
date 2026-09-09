@@ -111,6 +111,66 @@ describe('runVitrinaAiOrchestrator', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
+  it('con tools de UI desactivadas no aplica filtros aunque el modelo las llame', async () => {
+    let round = 0;
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      round += 1;
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        tools?: Array<{ function?: { name?: string } }>;
+      };
+      expect(body.tools?.map((tool) => tool.function?.name)).toEqual([
+        'search_projects',
+        'list_catalog',
+      ]);
+      if (round === 1) {
+        return jsonResponse({
+          choices: [
+            {
+              finish_reason: 'tool_calls',
+              message: {
+                role: 'assistant',
+                tool_calls: [
+                  toolCall('c1', 'apply_filters', {
+                    sedes: ['Valparaíso'],
+                    projectIds: ['p-huerta'],
+                  }),
+                ],
+              },
+            },
+          ],
+        });
+      }
+      return jsonResponse({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'Hay un proyecto de huerta en Valparaíso.',
+            },
+          },
+        ],
+      });
+    });
+
+    const result = await runVitrinaAiOrchestrator({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini',
+      userMessage: 'Muéstrame los proyectos de huerta en Valparaíso',
+      history: [],
+      proyectos,
+      catalogs,
+      enableUiTools: false,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.applied).toBe(false);
+    expect(result.matchIds).toBeNull();
+    expect(result.filters.sedes).toEqual([]);
+  });
+
   it('devuelve error si OpenRouter falla', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: { message: 'bad key' } }, 401));
     const result = await runVitrinaAiOrchestrator({

@@ -27,7 +27,7 @@ import {
   executeVitrinaAiTool,
   isVitrinaAiLocalToolName,
   OPENROUTER_WEB_SEARCH_TOOL,
-  VITRINA_AI_TOOL_DEFINITIONS,
+  vitrinaAiToolDefinitions,
   type VitrinaAiToolState,
 } from '@/lib/vitrina-ai-tools';
 import {
@@ -58,6 +58,7 @@ export type VitrinaAiOrchestratorInput = {
   catalogs: VitrinaAiCatalogs;
   currentFilters?: VitrinaProjectFilters;
   currentMatchIds?: string[] | null;
+  enableUiTools?: boolean;
   referer?: string;
   fetchImpl?: typeof fetch;
 };
@@ -398,10 +399,14 @@ async function callOpenRouter(params: {
   referer?: string;
   fetchImpl: typeof fetch;
   enableWebSearch?: boolean;
+  enableUiTools?: boolean;
 }): Promise<{ ok: true; choice: OrChoice } | { ok: false; error: string }> {
+  const localTools = vitrinaAiToolDefinitions({
+    enableUiTools: params.enableUiTools,
+  });
   const tools = params.enableWebSearch
-    ? [...VITRINA_AI_TOOL_DEFINITIONS, OPENROUTER_WEB_SEARCH_TOOL]
-    : VITRINA_AI_TOOL_DEFINITIONS;
+    ? [...localTools, OPENROUTER_WEB_SEARCH_TOOL]
+    : localTools;
   let response: Response;
   try {
     response = await params.fetchImpl(OPENROUTER_CHAT_URL, {
@@ -450,6 +455,7 @@ export async function runVitrinaAiOrchestrator(
   input: VitrinaAiOrchestratorInput,
 ): Promise<VitrinaAiOrchestratorResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
+  const enableUiTools = input.enableUiTools !== false;
   const index = buildVitrinaAiIndex(input.proyectos);
   const history = takeHistory(input.history);
   const intent = classifyVitrinaAiIntent(
@@ -457,7 +463,8 @@ export async function runVitrinaAiOrchestrator(
     history.length,
     input.catalogs,
   );
-  const allowFilterChange = vitrinaAiIntentAllowsFilters(intent);
+  const allowFilterChange =
+    enableUiTools && vitrinaAiIntentAllowsFilters(intent);
   const isTopic = isVitrinaAiTopicQuery(input.userMessage, input.catalogs);
   const isAnalysis = isVitrinaAiAnalysisQuery(input.userMessage);
   const isWebSearch = isVitrinaAiWebSearchQuery(input.userMessage);
@@ -586,6 +593,7 @@ export async function runVitrinaAiOrchestrator(
     {
       role: 'system',
       content: `${SYSTEM_PROMPT}
+${enableUiTools ? '' : '\nEl visitante no está en la vista de tarjetas: responde en texto. NO llames apply_filters ni clear_filters.\n'}
 
 ${formatPoolFichasForPrompt(pool)}
 
@@ -610,6 +618,7 @@ ${preliminaryNote}`,
       referer: input.referer,
       fetchImpl,
       enableWebSearch: isWebSearch,
+      enableUiTools,
     });
     if (!call.ok) return call;
 
@@ -662,7 +671,7 @@ ${preliminaryNote}`,
     const reply = flattenVitrinaAiMarkdownTables(
       call.choice.message?.content?.trim() || '',
     );
-    if (intent === 'reset') {
+    if (intent === 'reset' && enableUiTools) {
       return {
         ok: true,
         reply:
@@ -698,7 +707,7 @@ ${preliminaryNote}`,
     };
   }
 
-  if (intent === 'reset') {
+  if (intent === 'reset' && enableUiTools) {
     return {
       ok: true,
       reply: 'Listo, quité los filtros. Ya puedes ver todos los proyectos.',

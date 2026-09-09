@@ -145,6 +145,7 @@ export async function chatVitrinaAgent(input: {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   filters?: VitrinaProjectFilters;
   matchIds?: string[] | null;
+  enableUiTools?: boolean;
 }): Promise<{
   success: boolean;
   reply?: string;
@@ -205,6 +206,7 @@ export async function chatVitrinaAgent(input: {
     catalogs: buildVitrinaAiCatalogs(filterCatalogs, proyectos),
     currentFilters: input.filters,
     currentMatchIds: input.matchIds,
+    enableUiTools: input.enableUiTools !== false,
     referer: readRequiredEnv('NEXTAUTH_URL') || undefined,
   });
 

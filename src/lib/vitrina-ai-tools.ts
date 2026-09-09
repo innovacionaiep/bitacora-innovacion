@@ -43,6 +43,19 @@ export function isVitrinaAiLocalToolName(name: string): boolean {
   return VITRINA_AI_LOCAL_TOOL_NAMES.has(name);
 }
 
+export function vitrinaAiToolDefinitions(options?: {
+  enableUiTools?: boolean;
+}) {
+  if (options?.enableUiTools === false) {
+    return VITRINA_AI_TOOL_DEFINITIONS.filter(
+      (tool) =>
+        tool.function.name !== 'apply_filters' &&
+        tool.function.name !== 'clear_filters',
+    );
+  }
+  return VITRINA_AI_TOOL_DEFINITIONS;
+}
+
 export const VITRINA_AI_TOOL_DEFINITIONS = [
   {
     type: 'function' as const,

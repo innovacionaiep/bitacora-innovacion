@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { VitrinaAiChat } from '@/components/vitrina/VitrinaAiChat';
+import { chatVitrinaAgent } from '@/lib/actions/vitrina-ai';
 import { EMPTY_VITRINA_FILTERS } from '@/lib/vitrina-project-filters';
 import { VITRINA_AI_CHAT_POS_KEY } from '@/lib/vitrina-ai-chat-position';
 
@@ -28,9 +30,12 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   localStorage.removeItem(VITRINA_AI_CHAT_POS_KEY);
+  vi.mocked(chatVitrinaAgent).mockReset();
 });
 
-function renderChat() {
+function renderChat(
+  props?: Partial<ComponentProps<typeof VitrinaAiChat>>,
+) {
   return render(
     <div
       data-testid="chat-parent"
@@ -41,6 +46,7 @@ function renderChat() {
         filters={EMPTY_VITRINA_FILTERS}
         matchIds={null}
         onResult={() => undefined}
+        {...props}
       />
     </div>,
   );
@@ -115,5 +121,37 @@ describe('VitrinaAiChat drag', () => {
     expect(root.style.left).toBe('392px');
     expect(root.style.top).toBe('378px');
     expect(localStorage.getItem(VITRINA_AI_CHAT_POS_KEY)).toContain('392');
+  });
+});
+
+describe('VitrinaAiChat tools', () => {
+  it('pide tools de UI apagadas y no aplica filtros en Mapa', async () => {
+    const onResult = vi.fn();
+    vi.mocked(chatVitrinaAgent).mockResolvedValue({
+      success: true,
+      reply: 'Hay un proyecto de huerta.',
+      filters: { ...EMPTY_VITRINA_FILTERS, sedes: ['Valparaíso'] },
+      matchIds: ['p-huerta'],
+    });
+
+    renderChat({ configured: true, enableTools: false, onResult });
+    fireEvent.click(
+      screen.getByRole('button', { name: /qué estás buscando/i }),
+    );
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'muéstrame huertas' },
+    });
+    fireEvent.submit(screen.getByRole('form', { name: 'Chat con IA' }));
+
+    await waitFor(() => {
+      expect(chatVitrinaAgent).toHaveBeenCalled();
+    });
+    expect(vi.mocked(chatVitrinaAgent).mock.calls[0]?.[0]).toMatchObject({
+      enableUiTools: false,
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Hay un proyecto de huerta.')).toBeInTheDocument();
+    });
+    expect(onResult).not.toHaveBeenCalled();
   });
 });

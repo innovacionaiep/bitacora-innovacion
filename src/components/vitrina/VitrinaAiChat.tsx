@@ -100,11 +100,13 @@ function clampToParent(
 
 export function VitrinaAiChat({
   configured,
+  enableTools = true,
   filters,
   matchIds,
   onResult,
 }: {
   configured: boolean;
+  enableTools?: boolean;
   filters: VitrinaProjectFilters;
   matchIds: string[] | null;
   onResult: (filters: VitrinaProjectFilters, matchIds: string[] | null) => void;
@@ -281,6 +283,7 @@ export function VitrinaAiChat({
       history,
       filters,
       matchIds,
+      enableUiTools: enableTools,
     });
     setPending(false);
     setOpen(true);
@@ -292,7 +295,7 @@ export function VitrinaAiChat({
 
     const reply = result.reply?.trim() || 'Revisé los proyectos de la vitrina.';
     setTurns((current) => [...current, { role: 'assistant', content: reply }]);
-    if (result.filters) {
+    if (enableTools && result.filters) {
       onResult(result.filters, result.matchIds ?? null);
     }
   }

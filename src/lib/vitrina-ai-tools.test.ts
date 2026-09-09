@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 import { EMPTY_VITRINA_FILTERS } from '@/lib/vitrina-project-filters';
 import { buildVitrinaAiCatalogs, buildVitrinaAiIndex } from '@/lib/vitrina-ai-index';
-import { executeVitrinaAiTool } from '@/lib/vitrina-ai-tools';
+import {
+  executeVitrinaAiTool,
+  vitrinaAiToolDefinitions,
+} from '@/lib/vitrina-ai-tools';
 
 function sample() {
   const result = normalizeVitrinaProyectos([
@@ -28,6 +31,16 @@ function sample() {
   if (!result.ok) throw new Error(result.error);
   return result.proyectos;
 }
+
+describe('vitrinaAiToolDefinitions', () => {
+  it('omite apply_filters y clear_filters si las tools de UI están apagadas', () => {
+    expect(
+      vitrinaAiToolDefinitions({ enableUiTools: false }).map(
+        (tool) => tool.function.name,
+      ),
+    ).toEqual(['search_projects', 'list_catalog']);
+  });
+});
 
 describe('executeVitrinaAiTool', () => {
   const proyectos = sample();

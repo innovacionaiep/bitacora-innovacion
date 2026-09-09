@@ -86,6 +86,10 @@ import {
   type PortalGuestProfile,
 } from '@/lib/portal-guest-access';
 import {
+  vitrinaAiChatIsVisible,
+  vitrinaAiToolsAreEnabled,
+} from '@/lib/vitrina-views';
+import {
   EMPTY_PORTAL_AVANCES_FILTERS,
   cascadingPortalAvancesFilterOptions,
   portalAvancesDefaultFondoForLevel,
@@ -164,7 +168,6 @@ export function VitrinaLanding({
   };
   const isCausalab = portalIsCausalab(access);
   const showAppCta = portalCanEnterApp(access);
-  const showAiChat = portalCanUseAiChat(access);
   const visibleTabs = portalViewsForAccess(accessLevel, accessProfile);
   const fondoColors = useMemo(
     () => buildFondoColorMap(catalogs.fondos),
@@ -185,6 +188,8 @@ export function VitrinaLanding({
   const [projectsView, setProjectsView] = useState<VitrinaProjectsView>(() =>
     clampPortalView(accessLevel, 'proyectos', accessProfile),
   );
+  const showAiChat =
+    portalCanUseAiChat(access) && vitrinaAiChatIsVisible(projectsView);
   const [avancesFondoNombre, setAvancesFondoNombre] = useState(() =>
     portalAvancesDefaultFondoForLevel(accessLevel, accessProfile),
   );
@@ -925,6 +930,7 @@ export function VitrinaLanding({
                 {showAiChat ? (
                 <VitrinaAiChat
                   configured={aiConfigured}
+                  enableTools={vitrinaAiToolsAreEnabled(projectsView)}
                   filters={filters}
                   matchIds={aiMatchIds}
                   onResult={(nextFilters, nextMatchIds) => {
