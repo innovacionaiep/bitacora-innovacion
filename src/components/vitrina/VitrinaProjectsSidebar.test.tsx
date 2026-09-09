@@ -9,6 +9,7 @@ afterEach(() => {
 });
 
 const options = {
+  nombres: ['Taller Integrado', 'TEX3D'],
   fondos: ['Impulsa', 'Crea'],
   sedes: ['Rancagua'],
   escuelas: ['Salud'],
@@ -90,6 +91,18 @@ describe('VitrinaProjectsSidebar', () => {
     expect(panel).toHaveTextContent('Crea');
   });
 
+  it('lista proyectos en el facet Proyecto', async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    await user.click(
+      screen.getByRole('button', { name: /Todos los proyectos/i }),
+    );
+    const panel = screen.getByRole('dialog', { name: 'Proyecto' });
+    expect(panel).toHaveTextContent('Taller Integrado');
+    expect(panel).toHaveTextContent('TEX3D');
+  });
+
   it('oculta Fondo y Etiqueta cuando se piden hiddenFacets', () => {
     render(
       <VitrinaProjectsSidebar
@@ -111,6 +124,7 @@ describe('VitrinaProjectsSidebar', () => {
     expect(screen.queryByText('Etiqueta')).not.toBeInTheDocument();
     expect(screen.getByText('Sede')).toBeInTheDocument();
     expect(screen.getByText('Escuela')).toBeInTheDocument();
+    expect(screen.getByText('Proyecto')).toBeInTheDocument();
     expect(screen.queryByText('Columnas')).not.toBeInTheDocument();
     expect(
       screen.getByRole('textbox', { name: 'Buscar en todos los campos del proyecto' }),

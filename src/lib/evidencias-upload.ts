@@ -1,8 +1,7 @@
 /**
- * Utilidad cliente para subir evidencias (imágenes y PDF) a Cloudinary.
- * Carpeta: evidencias_actividades
- * Imágenes: compresión a máximo 250 KB. Solo JPG/JPEG.
- * PDF: máximo 2 MB.
+ * Utilidad cliente para subir evidencias (imágenes y PDF).
+ * Imágenes: compresión a máximo 250 KB, luego POST a /api/evidencias-upload.
+ * PDF: máximo 2 MB. El servidor hace el upload firmado a Cloudinary.
  */
 
 import {
@@ -10,23 +9,17 @@ import {
   compressImageToMaxKb,
   jpegUploadName,
 } from '@/lib/compress-image';
+import {
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_PDF_TYPE,
+  EVIDENCIAS_UPLOAD_PATH,
+  MAX_PDF_BYTES,
+} from '@/lib/evidencias-constants';
 
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-const UPLOAD_PRESET_RAW =
-  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_RAW ??
-  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-/** Preset dedicado para evidencias (imágenes). Debe tener en Cloudinary Folder = "evidencias_actividades". Si no está definido, se usa el preset general y se envía folder por API (el dashboard puede seguir mostrando la carpeta del preset). */
-const EVIDENCIAS_PRESET_IMAGE =
-  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS;
-/** Preset dedicado para evidencias (PDF/raw). Debe tener en Cloudinary Folder = "evidencias_actividades" y Resource type = Raw. */
-const EVIDENCIAS_PRESET_RAW =
-  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET_EVIDENCIAS_RAW;
-const EVIDENCIAS_FOLDER = 'evidencias_actividades';
-const MAX_PDF_BYTES = 2 * 1024 * 1024; // 2 MB
-
-export const ACCEPTED_IMAGE_TYPES = ['image/jpeg'];
-export const ACCEPTED_PDF_TYPE = 'application/pdf';
+export {
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_PDF_TYPE,
+} from '@/lib/evidencias-constants';
 
 export interface UploadEvidenciaResult {
   url: string;
@@ -35,63 +28,79 @@ export interface UploadEvidenciaResult {
   nombreArchivo?: string;
 }
 
+async function postEvidenciaFile(
+  file: File,
+  fallbackNombre: string,
+  connectionError: string,
+  fallbackHttpError: string,
+): Promise<UploadEvidenciaResult | { error: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch(EVIDENCIAS_UPLOAD_PATH, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      url?: string;
+      publicId?: string;
+      tipo?: 'image' | 'pdf';
+      nombreArchivo?: string;
+      error?: string;
+    };
+    if (!response.ok) {
+      return { error: data.error || fallbackHttpError };
+    }
+    if (!data.url || !data.publicId || !data.tipo) {
+      return { error: 'Respuesta inválida al subir evidencia' };
+    }
+    return {
+      url: data.url,
+      publicId: data.publicId,
+      tipo: data.tipo,
+      nombreArchivo: fallbackNombre,
+    };
+  } catch {
+    return { error: connectionError };
+  }
+}
+
 /**
- * Sube una imagen (JPG) a Cloudinary en la carpeta evidencias_actividades.
- * Comprime a máximo 250 KB antes de subir.
+ * Sube una imagen (JPG) vía API del servidor. Comprime a máximo 250 KB antes.
  */
 export async function uploadEvidenciaImage(
-  file: File
+  file: File,
 ): Promise<UploadEvidenciaResult | { error: string }> {
-  const preset = EVIDENCIAS_PRESET_IMAGE || UPLOAD_PRESET;
-  if (!CLOUD_NAME || !preset) {
-    return { error: 'Configuración de Cloudinary no encontrada' };
-  }
-  if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+  if (file.type !== 'image/jpeg') {
     return { error: 'Solo se permiten imágenes en formato JPG o JPEG' };
   }
 
   let blob: Blob;
   try {
     blob = await compressImageToMaxKb(file, MAX_IMAGE_BYTES);
-  } catch (e) {
+  } catch {
     return { error: 'No se pudo comprimir la imagen' };
   }
 
-  const formData = new FormData();
-  formData.append('file', blob, jpegUploadName(file.name));
-  formData.append('upload_preset', preset);
-  if (!EVIDENCIAS_PRESET_IMAGE) formData.append('folder', EVIDENCIAS_FOLDER);
+  const jpegFile = new File([blob], jpegUploadName(file.name), {
+    type: 'image/jpeg',
+  });
 
-  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-  try {
-    const response = await fetch(uploadUrl, { method: 'POST', body: formData });
-    if (!response.ok) {
-      const errText = await response.text();
-      return { error: 'Error al subir imagen. Intenta de nuevo.' };
-    }
-    const data = await response.json();
-    return {
-      url: data.secure_url,
-      publicId: data.public_id,
-      tipo: 'image',
-      nombreArchivo: file.name,
-    };
-  } catch {
-    return { error: 'Error de conexión al subir imagen' };
-  }
+  return postEvidenciaFile(
+    jpegFile,
+    file.name,
+    'Error de conexión al subir imagen',
+    'Error al subir imagen. Intenta de nuevo.',
+  );
 }
 
 /**
- * Sube un PDF a Cloudinary en la carpeta evidencias_actividades.
- * Tamaño máximo: 2 MB.
+ * Sube un PDF vía API del servidor. Tamaño máximo: 2 MB.
  */
 export async function uploadEvidenciaPdf(
-  file: File
+  file: File,
 ): Promise<UploadEvidenciaResult | { error: string }> {
-  const preset = EVIDENCIAS_PRESET_RAW || UPLOAD_PRESET_RAW;
-  if (!CLOUD_NAME || !preset) {
-    return { error: 'Configuración de Cloudinary no encontrada' };
-  }
   if (file.type !== ACCEPTED_PDF_TYPE) {
     return { error: 'Solo se permiten archivos PDF' };
   }
@@ -99,39 +108,27 @@ export async function uploadEvidenciaPdf(
     return { error: 'El PDF no puede superar 2 MB' };
   }
 
-  const formData = new FormData();
-  formData.append('file', file, file.name.replace(/\.[^.]+$/, '.pdf'));
-  formData.append('upload_preset', preset);
-  if (!EVIDENCIAS_PRESET_RAW) formData.append('folder', EVIDENCIAS_FOLDER);
+  const pdfFile = new File(
+    [file],
+    file.name.replace(/\.[^.]+$/, '.pdf'),
+    { type: ACCEPTED_PDF_TYPE },
+  );
 
-  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
-  try {
-    const response = await fetch(uploadUrl, { method: 'POST', body: formData });
-    if (!response.ok) {
-      return {
-        error:
-          'Error al subir PDF. Verifica que el preset de Cloudinary permita archivos raw.',
-      };
-    }
-    const data = await response.json();
-    return {
-      url: data.secure_url,
-      publicId: data.public_id,
-      tipo: 'pdf',
-      nombreArchivo: file.name,
-    };
-  } catch (err) {
-    return { error: 'Error de conexión al subir PDF' };
-  }
+  return postEvidenciaFile(
+    pdfFile,
+    file.name,
+    'Error de conexión al subir PDF',
+    'Error al subir PDF. Intenta de nuevo.',
+  );
 }
 
 /**
  * Sube un archivo de evidencia (imagen JPG o PDF) según su tipo.
  */
 export async function uploadEvidenciaFile(
-  file: File
+  file: File,
 ): Promise<UploadEvidenciaResult | { error: string }> {
-  if (ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+  if (file.type === 'image/jpeg') {
     return uploadEvidenciaImage(file);
   }
   if (file.type === ACCEPTED_PDF_TYPE) {

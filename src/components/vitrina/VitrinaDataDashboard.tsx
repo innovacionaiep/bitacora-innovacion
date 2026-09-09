@@ -141,7 +141,7 @@ export function VitrinaDataDashboard({
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-6 overflow-y-auto px-6 py-6 overscroll-contain lg:overflow-hidden lg:px-8">
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(12rem,0.75fr)]">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(0,1fr)] grid-cols-1 gap-6 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(0,2.2fr)_minmax(12rem,0.75fr)]">
         <article
           data-resumen-kpis
           className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
@@ -191,23 +191,36 @@ export function VitrinaDataDashboard({
           </ul>
         </article>
 
-        <ChartCard title="Por fondo">
-          <VitrinaVerticalBars
-            data={stats.porFondo}
-            colorFor={(item) => vitrinaFondoStripePaint(item.label, fondoColors)}
-            barHoverProps={barHoverProps}
-          />
-        </ChartCard>
+        <article
+          data-fondo-linea-stack
+          className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <h2 className="mb-2 shrink-0 text-sm font-semibold tracking-wide text-slate-700">
+            Por fondo
+          </h2>
+          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+            <VitrinaVerticalBars
+              data={stats.porFondo}
+              colorFor={(item) => vitrinaFondoStripePaint(item.label, fondoColors)}
+              barHoverProps={barHoverProps}
+            />
+          </div>
 
-        <ChartCard title="Por línea">
-          <VitrinaVerticalBars
-            data={stats.porLinea}
-            colorFor={(item) =>
-              vitrinaLineaBarStripePaint(item.label, item.parentFondo, fondoColors)
-            }
-            barHoverProps={barHoverProps}
-          />
-        </ChartCard>
+          <div className="my-3 border-t border-slate-200" role="separator" />
+
+          <h2 className="mb-2 shrink-0 text-sm font-semibold tracking-wide text-slate-700">
+            Por línea
+          </h2>
+          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+            <VitrinaVerticalBars
+              data={stats.porLinea}
+              colorFor={(item) =>
+                vitrinaLineaBarStripePaint(item.label, item.parentFondo, fondoColors)
+              }
+              barHoverProps={barHoverProps}
+            />
+          </div>
+        </article>
 
         <ChartCard title="Asignatura">
           <VitrinaAsignaturaPie
@@ -217,7 +230,7 @@ export function VitrinaDataDashboard({
         </ChartCard>
       </div>
 
-      <div className="grid min-h-0 flex-1 auto-rows-[minmax(16rem,1fr)] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid min-h-0 flex-1 auto-rows-[minmax(0,1fr)] grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
         <ChartCard title="Por sede">
           <VitrinaRowBars
             data={stats.porSede}
@@ -378,8 +391,6 @@ function VitrinaVerticalBars({
   }
 
   const max = Math.max(...data.map((item) => item.value), 1);
-  /** Altura útil de la barra (deja sitio fijo al número encima). */
-  const barMaxPx = 148;
 
   return (
     <div className="flex h-full min-h-0 items-end gap-3 overflow-x-auto px-1">
@@ -389,23 +400,23 @@ function VitrinaVerticalBars({
         return (
           <div
             key={item.label}
-            className="flex w-[5.5rem] min-w-[5.5rem] shrink-0 cursor-pointer flex-col"
+            className="flex h-full min-h-0 w-[5.5rem] min-w-[5.5rem] shrink-0 cursor-pointer flex-col"
             {...barHoverProps(item)}
           >
-            <div
-              className="flex w-full flex-col items-center justify-end"
-              style={{ height: barMaxPx + 20 }}
-            >
-              <span className="mb-1.5 text-xs font-semibold leading-none tabular-nums text-slate-700">
+            <div className="flex min-h-0 w-full flex-1 flex-col items-center">
+              <div
+                className="min-h-0 w-full"
+                style={{ flexGrow: 100 - pct, flexBasis: 0 }}
+                aria-hidden
+              />
+              <span className="mb-1.5 shrink-0 text-xs font-semibold leading-none tabular-nums text-slate-700">
                 {item.value}
               </span>
               <div
-                className={cn(
-                  'w-9 shrink-0 rounded-t-md',
-                  paint.className,
-                )}
+                className={cn('w-9 min-h-2 shrink-0 rounded-t-md', paint.className)}
                 style={{
-                  height: `${(barMaxPx * pct) / 100}px`,
+                  flexGrow: pct,
+                  flexBasis: 0,
                   ...paint.style,
                 }}
               />

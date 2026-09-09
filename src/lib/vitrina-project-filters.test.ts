@@ -5,6 +5,7 @@ import {
   filterVitrinaProyectos,
   restrictVitrinaProyectosToFondo,
   toggleVitrinaFilterValue,
+  cascadingVitrinaFilterOptions,
   uniqueVitrinaFilterOptions,
   vitrinaDiscoveryIsActive,
   vitrinaFiltersAreActive,
@@ -33,6 +34,7 @@ function projectsFrom(
 }
 
 const emptyFilters: VitrinaProjectFilters = {
+  nombres: [],
   fondos: [],
   sedes: [],
   escuelas: [],
@@ -42,6 +44,7 @@ const emptyFilters: VitrinaProjectFilters = {
 describe('uniqueVitrinaFilterOptions', () => {
   it('usa el catálogo completo y conserva su orden', () => {
     const catalogs: VitrinaProjectFilters = {
+      nombres: [],
       fondos: ['Fondo Impulsa', 'Innovación Docente'],
       sedes: ['Valparaíso', 'Antofagasta', 'Concepción'],
       escuelas: ['Salud', 'Artes e Industrias Creativas'],
@@ -56,7 +59,13 @@ describe('uniqueVitrinaFilterOptions', () => {
     ]);
     expect(
       uniqueVitrinaFilterOptions(
-        { sedes: ['Valparaíso', 'Concepción'], escuelas: [], etiquetas: [], fondos: [] },
+        {
+          nombres: [],
+          sedes: ['Valparaíso', 'Concepción'],
+          escuelas: [],
+          etiquetas: [],
+          fondos: [],
+        },
         proyectos,
       ).sedes,
     ).toEqual(['Valparaíso', 'Concepción', 'Osorno']);
@@ -69,6 +78,7 @@ describe('uniqueVitrinaFilterOptions', () => {
     expect(
       uniqueVitrinaFilterOptions(
         {
+          nombres: [],
           fondos: ['Fondo Impulsa', 'Fondo Pruebas', 'Innovación Docente'],
           sedes: [],
           escuelas: [],
@@ -79,20 +89,120 @@ describe('uniqueVitrinaFilterOptions', () => {
     ).toEqual(['Fondo Impulsa', 'Innovación Docente']);
   });
 
+  it('lista nombres de proyecto ordenados', () => {
+    const proyectos = projectsFrom([
+      { nombre: 'Solar' },
+      { nombre: 'Huerta' },
+      { nombre: 'Solar' },
+    ]);
+    expect(
+      uniqueVitrinaFilterOptions(emptyFilters, proyectos).nombres,
+    ).toEqual(['Huerta', 'Solar']);
+  });
+
   it('omite vacíos', () => {
     expect(
       uniqueVitrinaFilterOptions({
+        nombres: [],
         fondos: [],
         sedes: [],
         escuelas: [],
         etiquetas: [],
       }),
     ).toEqual({
+      nombres: [],
       fondos: [],
       sedes: [],
       escuelas: [],
       etiquetas: [],
     });
+  });
+});
+
+describe('cascadingVitrinaFilterOptions', () => {
+  const catalogs: VitrinaProjectFilters = {
+    nombres: [],
+    fondos: ['Fondo Impulsa', 'Innovación Docente'],
+    sedes: ['Valparaíso', 'Chillán', 'Antofagasta', 'Concepción'],
+    escuelas: ['Salud', 'Artes e Industrias Creativas', 'Ingeniería, Energía y Tecnología'],
+    etiquetas: ['Campamentos', 'Tecnología', 'Sostenibilidad'],
+  };
+  const proyectos = projectsFrom([
+    {
+      nombre: 'Huerta',
+      fondos: ['Fondo Impulsa'],
+      sedes: ['Chillán'],
+      escuelas: ['Artes e Industrias Creativas'],
+      etiquetas: ['Sostenibilidad'],
+    },
+    {
+      nombre: 'Solar',
+      fondos: ['Innovación Docente'],
+      sedes: ['Antofagasta', 'Concepción'],
+      escuelas: ['Ingeniería, Energía y Tecnología'],
+      etiquetas: ['Tecnología'],
+    },
+    {
+      nombre: 'Campamento',
+      fondos: ['Fondo Impulsa'],
+      sedes: ['Concepción'],
+      escuelas: ['Artes e Industrias Creativas'],
+      etiquetas: ['Campamentos', 'Tecnología'],
+    },
+  ]);
+
+  it('sin filtros lista valores presentes en los proyectos', () => {
+    const options = cascadingVitrinaFilterOptions(
+      catalogs,
+      proyectos,
+      emptyFilters,
+    );
+    expect(options.nombres).toEqual(['Campamento', 'Huerta', 'Solar']);
+    expect(options.fondos).toEqual(['Fondo Impulsa', 'Innovación Docente']);
+    expect(options.sedes).toEqual(['Chillán', 'Antofagasta', 'Concepción']);
+    expect(options.escuelas).toEqual([
+      'Artes e Industrias Creativas',
+      'Ingeniería, Energía y Tecnología',
+    ]);
+  });
+
+  it('un facet recorta las opciones de los demás y conserva las suyas', () => {
+    const options = cascadingVitrinaFilterOptions(catalogs, proyectos, {
+      ...emptyFilters,
+      fondos: ['Fondo Impulsa'],
+    });
+    expect(options.nombres).toEqual(['Campamento', 'Huerta']);
+    expect(options.sedes).toEqual(['Chillán', 'Concepción']);
+    expect(options.escuelas).toEqual(['Artes e Industrias Creativas']);
+    expect(options.etiquetas).toEqual(['Campamentos', 'Tecnología', 'Sostenibilidad']);
+    expect(options.fondos).toEqual(['Fondo Impulsa', 'Innovación Docente']);
+  });
+
+  it('el segundo facet recorta otra vez el resto', () => {
+    const options = cascadingVitrinaFilterOptions(catalogs, proyectos, {
+      ...emptyFilters,
+      fondos: ['Fondo Impulsa'],
+      sedes: ['Concepción'],
+    });
+    expect(options.nombres).toEqual(['Campamento']);
+    expect(options.escuelas).toEqual(['Artes e Industrias Creativas']);
+    expect(options.sedes).toEqual(['Chillán', 'Concepción']);
+    expect(options.fondos).toEqual(['Fondo Impulsa', 'Innovación Docente']);
+  });
+
+  it('el texto libre también recorta las opciones', () => {
+    const options = cascadingVitrinaFilterOptions(
+      catalogs,
+      proyectos,
+      emptyFilters,
+      'concepción',
+    );
+    expect(options.nombres).toEqual(['Campamento', 'Solar']);
+    expect(options.fondos).toEqual(['Fondo Impulsa', 'Innovación Docente']);
+    expect(options.escuelas).toEqual([
+      'Artes e Industrias Creativas',
+      'Ingeniería, Energía y Tecnología',
+    ]);
   });
 });
 
@@ -150,6 +260,14 @@ describe('filterVitrinaProyectos', () => {
     expect(names).toEqual(['Solar', 'Campamento']);
   });
 
+  it('filtra por nombre de proyecto', () => {
+    const names = filterVitrinaProyectos(proyectos, {
+      ...emptyFilters,
+      nombres: ['Solar', 'Huerta'],
+    }).map((p) => p.nombre);
+    expect(names).toEqual(['Huerta', 'Solar']);
+  });
+
   it('filtra por fondo', () => {
     const names = filterVitrinaProyectos(proyectos, {
       ...emptyFilters,
@@ -160,6 +278,7 @@ describe('filterVitrinaProyectos', () => {
 
   it('combina facets con AND', () => {
     const names = filterVitrinaProyectos(proyectos, {
+      nombres: [],
       fondos: [],
       sedes: ['Concepción'],
       escuelas: ['Artes e Industrias Creativas'],
@@ -258,6 +377,9 @@ describe('vitrinaFiltersAreActive', () => {
     expect(vitrinaFiltersAreActive(emptyFilters)).toBe(false);
     expect(
       vitrinaFiltersAreActive({ ...emptyFilters, etiquetas: ['Tecnología'] }),
+    ).toBe(true);
+    expect(
+      vitrinaFiltersAreActive({ ...emptyFilters, nombres: ['Huerta'] }),
     ).toBe(true);
   });
 });

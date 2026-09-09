@@ -22,7 +22,10 @@ import {
 } from '@/lib/vitrina-ai-settings-store';
 import { readVitrinaProyectos } from '@/lib/vitrina-proyectos-store';
 import { readRequiredEnv } from '@/lib/secrets/env-secrets';
-import type { VitrinaProjectFilters } from '@/lib/vitrina-project-filters';
+import {
+  EMPTY_VITRINA_FILTERS,
+  type VitrinaProjectFilters,
+} from '@/lib/vitrina-project-filters';
 import { resolvePortalAccess } from '@/lib/actions/portal-guest';
 import { portalCanUseAiChat } from '@/lib/portal-guest-access';
 
@@ -186,6 +189,7 @@ export async function chatVitrinaAgent(input: {
     getVitrinaProjectCatalogs(),
   ]);
   const filterCatalogs = {
+    ...EMPTY_VITRINA_FILTERS,
     fondos: catalogs.fondos.map((item) => item.nombre),
     sedes: catalogs.sedes.map((item) => item.nombre),
     escuelas: catalogs.escuelas.map((item) => item.nombre),

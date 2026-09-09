@@ -1,6 +1,7 @@
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
 
 export type VitrinaProjectFilters = {
+  nombres?: string[];
   fondos: string[];
   sedes: string[];
   escuelas: string[];
@@ -8,6 +9,7 @@ export type VitrinaProjectFilters = {
 };
 
 export const EMPTY_VITRINA_FILTERS: VitrinaProjectFilters = {
+  nombres: [],
   fondos: [],
   sedes: [],
   escuelas: [],
@@ -49,11 +51,90 @@ export function mergeVitrinaFilterNames(
   return [...fromCatalog, ...extras];
 }
 
+export type VitrinaFilterFacet = keyof VitrinaProjectFilters;
+
+const VITRINA_FILTER_FACETS: VitrinaFilterFacet[] = [
+  'nombres',
+  'fondos',
+  'sedes',
+  'escuelas',
+  'etiquetas',
+];
+
+function facetValuesOfProyecto(
+  proyecto: VitrinaProyecto,
+  facet: VitrinaFilterFacet,
+): string[] {
+  if (facet === 'nombres') return [proyecto.nombre];
+  if (facet === 'fondos') return proyecto.fondos;
+  if (facet === 'sedes') return proyecto.sedes;
+  if (facet === 'escuelas') return proyecto.escuelas;
+  return proyecto.etiquetas;
+}
+
+function omitVitrinaFilterFacet(
+  filters: VitrinaProjectFilters,
+  facet: VitrinaFilterFacet,
+): VitrinaProjectFilters {
+  return { ...filters, [facet]: [] };
+}
+
+function optionsFromPresent(
+  catalogNames: string[],
+  present: string[],
+  exclude?: (name: string) => boolean,
+): string[] {
+  const presentSet = new Set(
+    present.filter((name) => Boolean(name) && !exclude?.(name)),
+  );
+  return mergeVitrinaFilterNames(
+    catalogNames.filter((name) => presentSet.has(name)),
+    [...presentSet],
+    exclude,
+  );
+}
+
+/** Opciones de cada facet según los demás filtros (cascada). */
+export function cascadingVitrinaFilterOptions(
+  catalogs: VitrinaProjectFilters,
+  proyectos: VitrinaProyecto[] = [],
+  filters: VitrinaProjectFilters = EMPTY_VITRINA_FILTERS,
+  query = '',
+): VitrinaProjectFilters {
+  const next: VitrinaProjectFilters = {
+    nombres: [],
+    fondos: [],
+    sedes: [],
+    escuelas: [],
+    etiquetas: [],
+  };
+  for (const facet of VITRINA_FILTER_FACETS) {
+    const pool = filterVitrinaProyectos(
+      proyectos,
+      omitVitrinaFilterFacet(filters, facet),
+      query,
+    );
+    const present = pool.flatMap((proyecto) =>
+      facetValuesOfProyecto(proyecto, facet),
+    );
+    next[facet] = optionsFromPresent(
+      facet === 'nombres' ? (catalogs.nombres ?? []) : catalogs[facet],
+      present,
+      facet === 'fondos' ? isExcludedVitrinaFondo : undefined,
+    );
+  }
+  return next;
+}
+
 export function uniqueVitrinaFilterOptions(
   catalogs: VitrinaProjectFilters,
   proyectos: VitrinaProyecto[] = [],
 ): VitrinaProjectFilters {
   return {
+    nombres: mergeVitrinaFilterNames(
+      catalogs.nombres ?? [],
+      proyectos.map((p) => p.nombre),
+    ),
     fondos: mergeVitrinaFilterNames(
       catalogs.fondos,
       proyectos.flatMap((p) => p.fondos),
@@ -132,6 +213,7 @@ export function filterVitrinaProyectos(
 ): VitrinaProyecto[] {
   return proyectos.filter(
     (proyecto) =>
+      matchesFacet([proyecto.nombre], filters.nombres ?? []) &&
       matchesFacet(proyecto.fondos, filters.fondos) &&
       matchesFacet(proyecto.sedes, filters.sedes) &&
       matchesFacet(proyecto.escuelas, filters.escuelas) &&
@@ -151,6 +233,7 @@ export function toggleVitrinaFilterValue(
 
 export function vitrinaFiltersAreActive(filters: VitrinaProjectFilters): boolean {
   return (
+    (filters.nombres?.length ?? 0) > 0 ||
     filters.fondos.length > 0 ||
     filters.sedes.length > 0 ||
     filters.escuelas.length > 0 ||

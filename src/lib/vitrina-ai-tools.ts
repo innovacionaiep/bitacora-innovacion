@@ -170,6 +170,7 @@ export function executeVitrinaAiTool(
       knownIds.has(id),
     );
     const filters: VitrinaProjectFilters = {
+      ...EMPTY_VITRINA_FILTERS,
       fondos: resolveCatalogValues(asStringArray(args.fondos), ctx.catalogs.fondos),
       sedes: resolveCatalogValues(asStringArray(args.sedes), ctx.catalogs.sedes),
       escuelas: resolveCatalogValues(

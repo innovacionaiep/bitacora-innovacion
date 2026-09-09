@@ -127,6 +127,7 @@ export default async function PortalPage({
 
   const filterCatalogs = loadVitrina
     ? {
+        ...EMPTY_VITRINA_FILTERS,
         fondos: catalogs.fondos.map((item) => item.nombre),
         sedes: catalogs.sedes.map((item) => item.nombre),
         escuelas: catalogs.escuelas.map((item) => item.nombre),

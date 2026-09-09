@@ -203,6 +203,7 @@ function filtersFromFacetConstraints(
   constraints: VitrinaAiFacetConstraints,
 ): VitrinaProjectFilters {
   return {
+    ...EMPTY_VITRINA_FILTERS,
     fondos: constraints.fondos,
     sedes: constraints.sedes,
     escuelas: constraints.escuelas,

@@ -249,10 +249,11 @@ describe('VitrinaDataDashboard', () => {
 
     expect(countImpulsa).toHaveTextContent('2');
     expect(countCrea).toHaveTextContent('1');
-    // Número en el flujo, encima de la barra (no absolute que se recorte).
     expect(countImpulsa.compareDocumentPosition(barImpulsa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(barImpulsa.style.height).toBe('148px');
-    expect(barCrea.style.height).toBe('74px');
+    expect(countImpulsa.previousElementSibling).toHaveStyle({ flexGrow: '0' });
+    expect(countCrea.previousElementSibling).toHaveStyle({ flexGrow: '50' });
+    expect(barImpulsa).toHaveStyle({ flexGrow: '100' });
+    expect(barCrea).toHaveStyle({ flexGrow: '50' });
   });
 
   it('dibuja sede, escuela y etiqueta como filas (barra por ancho)', () => {
@@ -316,6 +317,36 @@ describe('VitrinaDataDashboard', () => {
     ).toBeTruthy();
     expect(screen.getByText('Técnico en Cosmetología')).toBeInTheDocument();
     expect(screen.getByText('Anatomía')).toBeInTheDocument();
+  });
+
+  it('une Por fondo y Por línea en una tarjeta con separador y deja hueco entre filas', () => {
+    const proyectos = projectsFrom([
+      { nombre: 'A', fondos: ['Fondo Impulsa'], lineas: ['Línea Alfa'] },
+    ]);
+    render(<VitrinaDataDashboard proyectos={proyectos} />);
+
+    const fondo = screen.getByRole('heading', { name: 'Por fondo' });
+    const linea = screen.getByRole('heading', { name: 'Por línea' });
+    expect(
+      fondo.compareDocumentPosition(linea) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const stack = fondo.closest('[data-fondo-linea-stack]');
+    expect(stack).not.toBeNull();
+    expect(stack).toContainElement(linea);
+    expect(fondo.closest('article')).toBe(linea.closest('article'));
+    expect(stack).toHaveClass('flex-col');
+    expect(within(stack as HTMLElement).getByRole('separator')).toHaveClass(
+      'border-t',
+      'border-slate-200',
+    );
+
+    const grid = stack!.parentElement;
+    expect(grid).toHaveClass(
+      'lg:grid-cols-[minmax(14rem,0.8fr)_minmax(0,2.2fr)_minmax(12rem,0.75fr)]',
+    );
+    expect(grid).toHaveClass('auto-rows-[minmax(0,1fr)]');
+    expect(grid).not.toHaveClass('auto-rows-[minmax(28rem,1fr)]');
   });
 
   it('dibuja la torta de asignatura a la derecha de Por línea con fondos de Avances', () => {

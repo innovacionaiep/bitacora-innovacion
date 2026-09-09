@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Columns3, GraduationCap, Landmark, Mail, MapPin, PanelLeftClose, PanelLeftOpen, Search, Tag, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Columns3, FolderKanban, GraduationCap, Landmark, Mail, MapPin, PanelLeftClose, PanelLeftOpen, Search, Tag, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import type { PortalAvancesColumnDef } from '@/lib/portal-avances-columns';
 
 type Facet = keyof VitrinaProjectFilters;
-type Tone = 'fondo' | 'sede' | 'escuela' | 'tag' | 'column';
+type Tone = 'proyecto' | 'fondo' | 'sede' | 'escuela' | 'tag' | 'column';
 type OpenPanel = Facet | 'columnas' | null;
 
 const SEARCH_THRESHOLD = 7;
@@ -33,6 +33,14 @@ const FACETS: {
   icon: typeof MapPin;
   iconClass: string;
 }[] = [
+  {
+    key: 'nombres',
+    label: 'Proyecto',
+    placeholder: 'Todos los proyectos',
+    tone: 'proyecto',
+    icon: FolderKanban,
+    iconClass: 'text-indigo-600',
+  },
   {
     key: 'fondos',
     label: 'Fondo',
@@ -68,6 +76,7 @@ const FACETS: {
 ];
 
 const CHIP_CLASS: Record<Tone, string> = {
+  proyecto: 'bg-indigo-50 text-indigo-800',
   fondo: 'bg-orange-50 text-orange-800',
   sede: 'bg-slate-100 text-slate-700',
   escuela: 'bg-blue-50 text-blue-800',
@@ -214,14 +223,14 @@ export function VitrinaProjectsSidebar({
       </section>
 
       {FACETS.filter((facet) => !hiddenFacets.includes(facet.key)).map((facet) => {
-        const values = options[facet.key];
+        const values = options[facet.key] ?? [];
         if (values.length === 0) return null;
         return (
           <FilterDropdown
             key={facet.key}
             facet={facet}
             options={values}
-            selected={filters[facet.key]}
+            selected={filters[facet.key] ?? []}
             open={openFacet === facet.key}
             onOpenChange={(next) => setOpenFacet(next ? facet.key : null)}
             onToggle={(value) => onToggle(facet.key, value)}

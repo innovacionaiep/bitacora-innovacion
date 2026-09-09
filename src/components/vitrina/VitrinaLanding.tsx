@@ -51,11 +51,11 @@ import { buildFondoColorMap } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import { leavePortalGuestSession } from '@/lib/actions/portal-guest';
 import {
+  cascadingVitrinaFilterOptions,
   EMPTY_VITRINA_FILTERS,
   applyVitrinaAiMatchIds,
   filterVitrinaProyectos,
   toggleVitrinaFilterValue,
-  uniqueVitrinaFilterOptions,
   vitrinaDiscoveryIsActive,
   type VitrinaProjectFilters,
 } from '@/lib/vitrina-project-filters';
@@ -86,12 +86,12 @@ import {
 } from '@/lib/portal-guest-access';
 import {
   EMPTY_PORTAL_AVANCES_FILTERS,
+  cascadingPortalAvancesFilterOptions,
   portalAvancesDefaultFondoForLevel,
   portalAvancesFondosForLevel,
   avancesFiltersToVitrina,
   filterPortalAvancesRows,
   rowsForPortalAvancesFondo,
-  uniquePortalAvancesFilterOptions,
   type PortalAvancesFilters,
   type PortalAvancesProyecto,
 } from '@/lib/portal-avances';
@@ -255,7 +255,10 @@ export function VitrinaLanding({
       return;
     }
     setAvancesFondoNombre(nombre);
-    setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
+    setAvancesFilters((current) => ({
+      ...EMPTY_PORTAL_AVANCES_FILTERS,
+      nombres: current.nombres,
+    }));
     setAvancesQuery('');
     setAvancesVisibleColumns(defaultPortalAvancesVisibleColumns(nombre));
   }, [accessLevel, accessProfile]);
@@ -264,8 +267,14 @@ export function VitrinaLanding({
   const typewriterPaused = vitrinaTypewriterPaused(scene, busy);
   const carouselLive = vitrinaCarouselLive(scene, busy);
   const filterOptions = useMemo(
-    () => uniqueVitrinaFilterOptions(filterCatalogs, proyectosLocal),
-    [filterCatalogs, proyectosLocal],
+    () =>
+      cascadingVitrinaFilterOptions(
+        filterCatalogs,
+        applyVitrinaAiMatchIds(proyectosLocal, aiMatchIds),
+        filters,
+        searchQuery,
+      ),
+    [filterCatalogs, proyectosLocal, aiMatchIds, filters, searchQuery],
   );
   const isAvancesView = projectsView === 'avances';
   const isVinculamosView = projectsView === 'vinculamos';
@@ -274,8 +283,13 @@ export function VitrinaLanding({
     [avancesProyectos, avancesFondoNombre],
   );
   const avancesFilterOptions = useMemo(
-    () => uniquePortalAvancesFilterOptions(avancesFondoRows),
-    [avancesFondoRows],
+    () =>
+      cascadingPortalAvancesFilterOptions(
+        avancesFondoRows,
+        avancesFilters,
+        avancesQuery,
+      ),
+    [avancesFondoRows, avancesFilters, avancesQuery],
   );
   const avancesFiltrados = useMemo(
     () =>
@@ -290,6 +304,13 @@ export function VitrinaLanding({
       ),
     [proyectosLocal, filters, aiMatchIds, searchQuery],
   );
+  const avancesAnalisis = useMemo(() => {
+    if ((filters.nombres?.length ?? 0) === 0) return avancesProyectos;
+    const allowed = new Set(filters.nombres);
+    return avancesProyectos.filter((proyecto) =>
+      allowed.has(proyecto.proyecto),
+    );
+  }, [avancesProyectos, filters.nombres]);
 
   const { index, displayed, progress, current } = useVitrinaTypewriter(
     VITRINA_HERO.headlineRotating,
@@ -732,6 +753,17 @@ export function VitrinaLanding({
                 }
                 onBack={goToHero}
                 onToggle={(facet, value) => {
+                  if (facet === 'nombres') {
+                    const nombres = toggleVitrinaFilterValue(
+                      isAvancesView
+                        ? avancesFilters.nombres
+                        : (filters.nombres ?? []),
+                      value,
+                    );
+                    setFilters((current) => ({ ...current, nombres }));
+                    setAvancesFilters((current) => ({ ...current, nombres }));
+                    return;
+                  }
                   if (isAvancesView) {
                     if (facet !== 'sedes' && facet !== 'escuelas') return;
                     setAvancesFilters((current) => ({
@@ -755,6 +787,7 @@ export function VitrinaLanding({
                 onClear={() => {
                   if (isAvancesView) {
                     setAvancesFilters(EMPTY_PORTAL_AVANCES_FILTERS);
+                    setFilters((current) => ({ ...current, nombres: [] }));
                     setAvancesQuery('');
                     setAvancesVisibleColumns(
                       defaultPortalAvancesVisibleColumns(avancesFondoNombre),
@@ -762,6 +795,10 @@ export function VitrinaLanding({
                     return;
                   }
                   setFilters(EMPTY_VITRINA_FILTERS);
+                  setAvancesFilters((current) => ({
+                    ...current,
+                    nombres: [],
+                  }));
                   setSearchQuery('');
                   setAiMatchIds(null);
                   setAiApplied(false);
@@ -793,7 +830,7 @@ export function VitrinaLanding({
                 <div className="h-full min-h-0 overflow-hidden">
                   <VitrinaDataDashboard
                     proyectos={proyectosFiltrados}
-                    avancesProyectos={avancesProyectos}
+                    avancesProyectos={avancesAnalisis}
                     accessLevel={accessLevel}
                     accessProfile={accessProfile}
                     lineaCatalog={catalogs}

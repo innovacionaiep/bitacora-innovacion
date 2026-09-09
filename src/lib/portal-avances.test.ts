@@ -15,6 +15,7 @@ import {
   portalAvancesIsExcelFondo,
   portalAvancesLevelCanSeeFondo,
   rowsForPortalAvancesFondo,
+  cascadingPortalAvancesFilterOptions,
   uniquePortalAvancesFilterOptions,
   countPortalAvancesParticipantes,
   type PortalAvancesProyecto,
@@ -202,34 +203,54 @@ describe('filterPortalAvancesRows', () => {
 
   it('busca por nombre, sede y escuela sin acentos', () => {
     expect(
-      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'futuro').map(
+      filterPortalAvancesRows(
+        proyectos,
+        { nombres: [], sedes: [], escuelas: [] },
+        'futuro',
+      ).map(
         (p) => p.id,
       ),
     ).toEqual(['a']);
     expect(
-      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'rancagua').map(
+      filterPortalAvancesRows(
+        proyectos,
+        { nombres: [], sedes: [], escuelas: [] },
+        'rancagua',
+      ).map(
         (p) => p.id,
       ),
     ).toEqual(['a']);
     expect(
-      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'mineria').map(
+      filterPortalAvancesRows(
+        proyectos,
+        { nombres: [], sedes: [], escuelas: [] },
+        'mineria',
+      ).map(
         (p) => p.id,
       ),
     ).toEqual(['b']);
     expect(
-      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'enfermeria').map(
-        (p) => p.id,
-      ),
-    ).toEqual(['c']);
-    expect(
-      filterPortalAvancesRows(proyectos, { sedes: [], escuelas: [] }, 'anatomia').map(
+      filterPortalAvancesRows(
+        proyectos,
+        { nombres: [], sedes: [], escuelas: [] },
+        'enfermeria',
+      ).map(
         (p) => p.id,
       ),
     ).toEqual(['c']);
     expect(
       filterPortalAvancesRows(
         proyectos,
-        { sedes: [], escuelas: [] },
+        { nombres: [], sedes: [], escuelas: [] },
+        'anatomia',
+      ).map(
+        (p) => p.id,
+      ),
+    ).toEqual(['c']);
+    expect(
+      filterPortalAvancesRows(
+        proyectos,
+        { nombres: [], sedes: [], escuelas: [] },
         'jeremy.torres',
       ).map((p) => p.id),
     ).toEqual(['c']);
@@ -238,22 +259,35 @@ describe('filterPortalAvancesRows', () => {
   it('filtra sede y escuela con OR interno y AND entre facetas', () => {
     expect(
       filterPortalAvancesRows(proyectos, {
+        nombres: [],
         sedes: ['Rancagua', 'Calama'],
         escuelas: [],
       }).map((p) => p.id),
     ).toEqual(['a', 'b']);
     expect(
       filterPortalAvancesRows(proyectos, {
+        nombres: [],
         sedes: ['Rancagua'],
         escuelas: ['Minería'],
       }),
     ).toEqual([]);
     expect(
       filterPortalAvancesRows(proyectos, {
+        nombres: [],
         sedes: [],
         escuelas: ['Salud'],
       }).map((p) => p.id),
     ).toEqual(['a']);
+  });
+
+  it('filtra por nombre de proyecto', () => {
+    expect(
+      filterPortalAvancesRows(proyectos, {
+        nombres: ['Huerto', 'Festival del Futuro'],
+        sedes: [],
+        escuelas: [],
+      }).map((p) => p.id),
+    ).toEqual(['a', 'b']);
   });
 });
 
@@ -266,6 +300,52 @@ describe('uniquePortalAvancesFilterOptions', () => {
     expect(options.etiquetas).toEqual([]);
     expect(options.sedes).toEqual(['Calama']);
     expect(options.escuelas).toEqual(['Salud']);
+    expect(options.nombres).toEqual(['Proyecto']);
+  });
+});
+
+describe('cascadingPortalAvancesFilterOptions', () => {
+  const proyectos = [
+    row({
+      id: 'a',
+      proyecto: 'Festival del Futuro',
+      sede: 'Rancagua',
+      escuelas: ['Salud', 'Negocios'],
+    }),
+    row({
+      id: 'b',
+      proyecto: 'Huerto',
+      sede: 'Calama',
+      escuelas: ['Minería'],
+    }),
+    row({
+      id: 'c',
+      proyecto: 'Otro',
+      sede: 'Valparaíso',
+      escuelas: ['Negocios'],
+    }),
+  ];
+
+  it('un filtro recorta proyectos y escuelas, y deja las sedes compatibles', () => {
+    const options = cascadingPortalAvancesFilterOptions(proyectos, {
+      nombres: [],
+      sedes: ['Rancagua'],
+      escuelas: [],
+    });
+    expect(options.nombres).toEqual(['Festival del Futuro']);
+    expect(options.escuelas).toEqual(['Negocios', 'Salud']);
+    expect(options.sedes).toEqual(['Calama', 'Rancagua', 'Valparaíso']);
+  });
+
+  it('el segundo filtro recorta otra vez', () => {
+    const options = cascadingPortalAvancesFilterOptions(proyectos, {
+      nombres: [],
+      sedes: ['Rancagua'],
+      escuelas: ['Negocios'],
+    });
+    expect(options.nombres).toEqual(['Festival del Futuro']);
+    expect(options.escuelas).toEqual(['Negocios', 'Salud']);
+    expect(options.sedes).toEqual(['Rancagua', 'Valparaíso']);
   });
 });
 

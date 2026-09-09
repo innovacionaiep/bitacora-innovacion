@@ -51,10 +51,11 @@ export function portalAvancesIsExcelFondo(nombre: string): boolean {
 
 export type PortalAvancesFilters = Pick<
   VitrinaProjectFilters,
-  'sedes' | 'escuelas'
+  'nombres' | 'sedes' | 'escuelas'
 >;
 
 export const EMPTY_PORTAL_AVANCES_FILTERS: PortalAvancesFilters = {
+  nombres: [],
   sedes: [],
   escuelas: [],
 };
@@ -164,6 +165,7 @@ export function filterPortalAvancesRows(
 ): PortalAvancesProyecto[] {
   return proyectos.filter(
     (proyecto) =>
+      matchesFacet([proyecto.proyecto], filters.nombres ?? []) &&
       matchesFacet([proyecto.sede], filters.sedes) &&
       matchesFacet(proyecto.escuelas, filters.escuelas) &&
       portalAvancesMatchesQuery(proyecto, query),
@@ -180,6 +182,7 @@ export function uniquePortalAvancesFilterOptions(
   proyectos: PortalAvancesProyecto[],
 ): VitrinaProjectFilters {
   return {
+    nombres: uniqueSorted(proyectos.map((p) => p.proyecto)),
     fondos: [],
     sedes: uniqueSorted(proyectos.map((p) => p.sede)),
     escuelas: uniqueSorted(proyectos.flatMap((p) => p.escuelas)),
@@ -187,10 +190,35 @@ export function uniquePortalAvancesFilterOptions(
   };
 }
 
+export function cascadingPortalAvancesFilterOptions(
+  proyectos: PortalAvancesProyecto[],
+  filters: PortalAvancesFilters,
+  query = '',
+): VitrinaProjectFilters {
+  const facets = ['nombres', 'sedes', 'escuelas'] as const;
+  const next = uniquePortalAvancesFilterOptions([]);
+  for (const facet of facets) {
+    const pool = filterPortalAvancesRows(
+      proyectos,
+      { ...filters, [facet]: [] },
+      query,
+    );
+    next[facet] = uniqueSorted(
+      facet === 'nombres'
+        ? pool.map((proyecto) => proyecto.proyecto)
+        : facet === 'sedes'
+          ? pool.map((proyecto) => proyecto.sede)
+          : pool.flatMap((proyecto) => proyecto.escuelas),
+    );
+  }
+  return next;
+}
+
 export function avancesFiltersToVitrina(
   filters: PortalAvancesFilters,
 ): VitrinaProjectFilters {
   return {
+    nombres: filters.nombres ?? [],
     fondos: [],
     sedes: filters.sedes,
     escuelas: filters.escuelas,
