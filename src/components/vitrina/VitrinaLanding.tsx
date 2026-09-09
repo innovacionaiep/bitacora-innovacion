@@ -756,7 +756,7 @@ export function VitrinaLanding({
                   if (facet === 'nombres') {
                     const nombres = toggleVitrinaFilterValue(
                       isAvancesView
-                        ? avancesFilters.nombres
+                        ? (avancesFilters.nombres ?? [])
                         : (filters.nombres ?? []),
                       value,
                     );
