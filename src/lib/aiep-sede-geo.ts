@@ -853,10 +853,10 @@ export function layoutSedeLabels(
 const RM_SEDE_ZONE: Record<string, MapCompassZone> = {
   'santiago-norte': 'n',
   'barrio-universitario': 'nw',
-  bellavista: 'e',
+  bellavista: 'ne',
   'san-joaquin': 'se',
   'san-bernardo': 's',
-  maipu: 'w',
+  maipu: 'sw',
 };
 
 /** Los Lagos: Osorno NW, Puerto Montt E, Castro SW. */

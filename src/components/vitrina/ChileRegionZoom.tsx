@@ -427,16 +427,17 @@ export function ChileRegionZoom({
             <button
               type="button"
               key={`${card.pinId}-${card.proyecto.id}`}
-              className="absolute z-[1] cursor-pointer overflow-hidden rounded-xl border-2 border-white bg-white text-left shadow-md transition-[border-color,box-shadow,transform] duration-150 hover:z-[3] hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-lg"
+              className="absolute z-[1] cursor-pointer overflow-hidden rounded-lg border border-slate-200/80 bg-slate-200 text-left shadow-sm ring-2 ring-white transition-[border-color,box-shadow,transform] duration-150 hover:z-[3] hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md"
               style={{
                 width: CARD_WIDTH,
+                height: CARD_HEIGHT,
                 left: card.left,
                 top: card.top,
               }}
               onClick={() => onOpenProyecto?.(card.proyecto.id)}
               aria-label={card.proyecto.nombre}
             >
-              <div className="relative aspect-[2/1] w-full overflow-hidden bg-white">
+              <div className="absolute inset-0 overflow-hidden bg-slate-200">
                 {card.proyecto.fotoUrl ? (
                   <VitrinaCoverCrop
                     url={card.proyecto.fotoUrl}
@@ -446,12 +447,14 @@ export function ChileRegionZoom({
                     className="absolute inset-0 h-full w-full"
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-t from-transparent to-slate-200" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300" />
                 )}
               </div>
-              <p className="line-clamp-2 px-1.5 py-1 text-center text-[10px] font-semibold leading-snug text-slate-800">
-                {card.proyecto.nombre}
-              </p>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/75 via-slate-900/35 to-transparent px-1.5 pb-1.5 pt-6">
+                <p className="line-clamp-2 text-left text-[10px] font-medium leading-snug tracking-tight text-white [text-shadow:0_1px_2px_rgb(15_23_42_/_0.7)]">
+                  {card.proyecto.nombre}
+                </p>
+              </div>
             </button>
           ))}
         </div>

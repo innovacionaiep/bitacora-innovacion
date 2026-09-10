@@ -371,10 +371,10 @@ describe('región metropolitana', () => {
       'san-bernardo',
       'maipu',
     ] as const;
-    expect(metropolitanSedeZone('maipu', -1, 0)).toBe('w');
+    expect(metropolitanSedeZone('maipu', -1, 0)).toBe('sw');
     expect(metropolitanSedeZone('san-bernardo', 0, 1)).toBe('s');
     expect(metropolitanSedeZone('san-joaquin', 1, 1)).toBe('se');
-    expect(metropolitanSedeZone('bellavista', 1, 0)).toBe('e');
+    expect(metropolitanSedeZone('bellavista', 1, 0)).toBe('ne');
     expect(metropolitanSedeZone('barrio-universitario', 1, -1)).toBe('nw');
     expect(metropolitanSedeZone('santiago-norte', 0, -1)).toBe('n');
     expect(ids).toHaveLength(6);
@@ -409,9 +409,13 @@ describe('región metropolitana', () => {
     });
     const by = (id: string) => placed.find((card) => card.pinId === id);
     expect(by('maipu')!.left + 80).toBeLessThanOrEqual(mapRect.left);
+    expect(by('maipu')!.top).toBeGreaterThanOrEqual(
+      mapRect.top + mapRect.height,
+    );
     expect(by('bellavista')!.left).toBeGreaterThanOrEqual(
       mapRect.left + mapRect.width,
     );
+    expect(by('bellavista')!.top + 70).toBeLessThanOrEqual(mapRect.top);
     expect(by('santiago-norte')!.top + 70).toBeLessThanOrEqual(mapRect.top);
     expect(by('san-bernardo')!.top).toBeGreaterThanOrEqual(
       mapRect.top + mapRect.height,
@@ -428,7 +432,7 @@ describe('región metropolitana', () => {
     expect(by('barrio-universitario')!.top + 70).toBeLessThanOrEqual(mapRect.top);
   });
 
-  it('pone Santiago Norte en el eje arriba y con padding respecto a Bellavista', () => {
+  it('pone Santiago Norte en el eje arriba y Bellavista arriba-derecha', () => {
     const groupGap = 28;
     const pins = groupVitrinaProyectosBySede([
       { nombre: 'N1', sedes: ['Santiago Norte'] },
@@ -440,15 +444,15 @@ describe('región metropolitana', () => {
       { nombre: 'B5', sedes: ['Bellavista'] },
       { nombre: 'B6', sedes: ['Bellavista'] },
     ]);
-    const mapRect = { left: 160, top: 110, width: 180, height: 180 };
+    const mapRect = { left: 160, top: 200, width: 180, height: 180 };
     const placed = layoutFloatingMapCards({
       pins,
       positions: {
-        'santiago-norte': { x: 250, y: 140 },
-        bellavista: { x: 310, y: 180 },
+        'santiago-norte': { x: 250, y: 230 },
+        bellavista: { x: 310, y: 260 },
       },
-      width: 520,
-      height: 420,
+      width: 720,
+      height: 520,
       cardWidth: 80,
       cardHeight: 70,
       mapRect,
@@ -461,13 +465,17 @@ describe('región metropolitana', () => {
     expect(bella.length).toBe(6);
 
     const norteBottom = Math.max(...norte.map((c) => c.top + 70));
-    const bellaTop = Math.min(...bella.map((c) => c.top));
+    const bellaBottom = Math.max(...bella.map((c) => c.top + 70));
     expect(norteBottom).toBeLessThanOrEqual(mapRect.top);
-    expect(bellaTop - norteBottom).toBeGreaterThanOrEqual(groupGap);
+    expect(bellaBottom).toBeLessThanOrEqual(mapRect.top);
+
+    const norteRight = Math.max(...norte.map((c) => c.left + 80));
+    const bellaLeft = Math.min(...bella.map((c) => c.left));
+    expect(bellaLeft).toBeGreaterThanOrEqual(mapRect.left + mapRect.width);
+    expect(bellaLeft - norteRight).toBeGreaterThanOrEqual(groupGap);
 
     const mapMidX = mapRect.left + mapRect.width / 2;
     const norteLeft = Math.min(...norte.map((c) => c.left));
-    const norteRight = Math.max(...norte.map((c) => c.left + 80));
     const norteCenter = (norteLeft + norteRight) / 2;
     expect(Math.abs(norteCenter - mapMidX)).toBeLessThan(40);
   });
@@ -529,11 +537,9 @@ describe('región metropolitana', () => {
       by('santiago-norte').top + by('santiago-norte').height - 1,
     );
     const bella = clusterBox('bellavista');
-    expect(by('bellavista').left + by('bellavista').width).toBeLessThanOrEqual(
-      bella.left,
-    );
-    expect(by('bellavista').lineFrom.x).toBeLessThanOrEqual(
-      by('bellavista').left + 1,
+    expect(by('bellavista').top).toBeGreaterThanOrEqual(bella.bottom);
+    expect(by('bellavista').lineFrom.y).toBeGreaterThanOrEqual(
+      by('bellavista').top + by('bellavista').height - 1,
     );
     const bernardo = clusterBox('san-bernardo');
     expect(by('san-bernardo').top + by('san-bernardo').height).toBeLessThanOrEqual(
