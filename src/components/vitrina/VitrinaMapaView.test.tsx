@@ -63,7 +63,7 @@ describe('VitrinaMapaView', () => {
     );
     const svg = screen
       .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
-      .querySelector('svg');
+      .querySelector('.national-map-svg');
     expect(svg?.getAttribute('viewBox')).toBe('0 0 280 1120');
     await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
     const zoomed = svg?.getAttribute('viewBox') ?? '';
@@ -82,7 +82,7 @@ describe('VitrinaMapaView', () => {
     );
     const svg = screen
       .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
-      .querySelector('svg');
+      .querySelector('.national-map-svg');
     expect(svg).toBeTruthy();
     fireEvent.wheel(svg as SVGSVGElement, { deltaY: -120, clientX: 20, clientY: 40 });
     expect(svg?.getAttribute('viewBox')).not.toBe('0 0 280 1120');
@@ -99,7 +99,7 @@ describe('VitrinaMapaView', () => {
     );
     const svg = screen
       .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
-      .querySelector('svg') as SVGSVGElement;
+      .querySelector('.national-map-svg') as SVGSVGElement;
     await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
     const before = svg.getAttribute('viewBox');
     fireEvent.pointerDown(svg, {
@@ -160,6 +160,33 @@ describe('VitrinaMapaView', () => {
     expect(document.querySelector('img')?.getAttribute('src')).toBe(
       'https://res.cloudinary.com/demo/image/upload/clinic.jpg',
     );
+    expect(screen.queryByText('VirtualApp')).not.toBeInTheDocument();
+  });
+
+  it('al hacer clic en Sede Online muestra el título y las tarjetas alrededor', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([
+          { nombre: 'VirtualApp', sedes: ['Online'] },
+          { nombre: 'ClinicApp', sedes: ['Valparaíso'] },
+        ])}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Sede Online' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sede Online' }));
+
+    expect(
+      screen.getByRole('group', { name: 'Sede Online ampliada' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Online' })).toBeInTheDocument();
+    expect(screen.getByText('Sede')).toBeInTheDocument();
+    expect(screen.getByText('VirtualApp')).toBeInTheDocument();
+    expect(screen.queryByText('ClinicApp')).not.toBeInTheDocument();
+    expect(document.querySelector('.chile-region-zoom-path')).not.toBeInTheDocument();
+    expect(screen.getByTestId('online-sede-zoom-globe')).toBeInTheDocument();
   });
 
   it('el drag del mapa nacional no quita la región ampliada', async () => {
@@ -178,7 +205,7 @@ describe('VitrinaMapaView', () => {
     ).toBeInTheDocument();
     const svg = screen
       .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
-      .querySelector('svg') as SVGSVGElement;
+      .querySelector('.national-map-svg') as SVGSVGElement;
     await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
     fireEvent.pointerDown(svg, {
       pointerId: 1,

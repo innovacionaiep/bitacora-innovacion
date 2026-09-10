@@ -12,10 +12,14 @@ import {
   metropolitanSedeZone,
   nationalPinRadius,
   OHIGGINS_REGION_ID,
+  ONLINE_REGION_ID,
+  ONLINE_SEDE_ID,
   pinRadius,
+  pinsForOnline,
   pinsForRegion,
   resolveSedeGeo,
   sedeLabelParts,
+  splitOnlinePinAroundGlobe,
   usesCompassMapLayout,
   usesOverlaySedeLabel,
   VALPARAISO_REGION_ID,
@@ -40,9 +44,9 @@ describe('resolveSedeGeo', () => {
     expect(resolveSedeGeo('Concepción')?.id).toBe('concepcion');
   });
 
-  it('omite sedes en línea y nombres desconocidos', () => {
-    expect(resolveSedeGeo('Aiep Online')).toBeNull();
-    expect(resolveSedeGeo('Online')).toBeNull();
+  it('resuelve Online como sede virtual y omite nombres desconocidos', () => {
+    expect(resolveSedeGeo('Online')?.id).toBe('online');
+    expect(resolveSedeGeo('Aiep Online')?.id).toBe('online');
     expect(resolveSedeGeo('Sede inventada')).toBeNull();
   });
 
@@ -68,14 +72,19 @@ describe('groupVitrinaProyectosBySede', () => {
     ]);
   });
 
-  it('repite un proyecto en cada sede mappable y omite Online', () => {
+  it('repite un proyecto en cada sede mappable e incluye Online', () => {
     const pins = groupVitrinaProyectosBySede([
       { nombre: 'Beehappy', sedes: ['Valparaíso', 'Temuco', 'Online'] },
       { nombre: 'Sin sede', sedes: [] },
     ]);
-    expect(pins.map((pin) => pin.id)).toEqual(['valparaiso', 'temuco']);
-    expect(pins[0]?.nombres).toEqual(['Beehappy']);
-    expect(pins[1]?.nombres).toEqual(['Beehappy']);
+    expect(pins.map((pin) => pin.id)).toEqual([
+      'online',
+      'valparaiso',
+      'temuco',
+    ]);
+    expect(pins.find((pin) => pin.id === 'online')?.nombres).toEqual([
+      'Beehappy',
+    ]);
   });
 
   it('no duplica el mismo proyecto si dos alias caen en el mismo punto', () => {
@@ -109,6 +118,18 @@ describe('groupVitrinaProyectosBySede', () => {
         expect.objectContaining({ regionId: 9, count: 1 }),
       ]),
     );
+  });
+
+  it('no pone Online en el mapa nacional y sí lo filtra para el zoom', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'VirtualApp', sedes: ['Online'] },
+      { nombre: 'ClinicApp', sedes: ['Valparaíso'] },
+    ]);
+    expect(groupVitrinaProyectosByRegion(pins).map((p) => p.regionId)).toEqual([
+      5,
+    ]);
+    expect(pinsForOnline(pins).map((p) => p.id)).toEqual([ONLINE_SEDE_ID]);
+    expect(pinsForRegion(pins, ONLINE_REGION_ID)).toEqual([]);
   });
 });
 

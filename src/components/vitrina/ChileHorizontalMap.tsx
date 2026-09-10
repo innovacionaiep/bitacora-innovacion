@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Globe, Minus, Plus } from 'lucide-react';
 import {
   CHILE_MAP_VIEW,
   CHILE_REGION_PATHS,
@@ -23,7 +23,9 @@ import { TRL_SELECTED_ARROW_PATH } from '@/components/ui/TrlSelectedArrow';
 
 type ChileVerticalMapProps = {
   selectedRegionId?: number | null;
+  selectedOnline?: boolean;
   onSelectRegion?: (id: number) => void;
+  onSelectOnline?: () => void;
   regionPins?: AiepRegionPin[];
 };
 
@@ -45,7 +47,9 @@ function viewCenter(view: {
 
 export function ChileVerticalMap({
   selectedRegionId = null,
+  selectedOnline = false,
   onSelectRegion,
+  onSelectOnline,
   regionPins = [],
 }: ChileVerticalMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -187,6 +191,34 @@ export function ChileVerticalMap({
       role="group"
       aria-label="Mapa de Chile, norte arriba"
     >
+      <button
+        type="button"
+        aria-label="Sede Online"
+        aria-pressed={selectedOnline}
+        data-testid="national-online-sede"
+        className="group absolute left-6 top-7 z-20 inline-flex flex-col items-center gap-1"
+        onClick={() => onSelectOnline?.()}
+      >
+        <Globe
+          className={
+            selectedOnline
+              ? 'h-11 w-11 fill-emerald-500 stroke-emerald-600 transition-colors'
+              : 'h-11 w-11 fill-[#e2e8f0] stroke-[#cbd5e1] transition-colors group-hover:fill-emerald-500 group-hover:stroke-emerald-600 group-focus-visible:fill-emerald-500 group-focus-visible:stroke-emerald-600'
+          }
+          strokeWidth={1.35}
+          aria-hidden
+        />
+        <span
+          className={
+            selectedOnline
+              ? 'text-center text-[11px] font-semibold leading-tight text-emerald-600 transition-colors'
+              : 'text-center text-[11px] font-semibold leading-tight text-slate-500 transition-colors group-hover:text-emerald-600 group-focus-visible:text-emerald-600'
+          }
+        >
+          <span className="block">Sede</span>
+          <span className="block">Online</span>
+        </span>
+      </button>
       <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white">
         <svg
           ref={svgRef}

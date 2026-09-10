@@ -253,17 +253,34 @@ const POINTS: AiepSedeGeoPoint[] = [
   ),
 ];
 
-const POINTS_BY_ID = new Map(POINTS.map((point) => [point.id, point]));
+export const ONLINE_SEDE_ID = 'online';
+/** Región sintética: no existe en el SVG de Chile. */
+export const ONLINE_REGION_ID = 0;
+
+const ONLINE_POINT: AiepSedeGeoPoint = {
+  id: ONLINE_SEDE_ID,
+  label: 'Online',
+  regionId: ONLINE_REGION_ID,
+  address: '',
+  lon: 0,
+  lat: 0,
+  x: 0,
+  y: 0,
+};
+
+const POINTS_BY_ID = new Map(
+  [...POINTS, ONLINE_POINT].map((point) => [point.id, point]),
+);
 
 const OMIT = new Set([
-  'online',
-  'aieponline',
-  'aiep online',
   'virtual',
   'ead',
 ]);
 
 const ALIASES: Record<string, string> = {
+  online: 'online',
+  aieponline: 'online',
+  'aiep online': 'online',
   calama: 'calama',
   antofagasta: 'antofagasta',
   laserena: 'la-serena',
@@ -435,6 +452,7 @@ export function groupVitrinaProyectosByRegion(
     { xs: number[]; ys: number[]; names: Set<string> }
   >();
   for (const pin of pins) {
+    if (pin.id === ONLINE_SEDE_ID || pin.regionId === ONLINE_REGION_ID) continue;
     const bucket = byRegion.get(pin.regionId) ?? {
       xs: [],
       ys: [],
@@ -459,8 +477,34 @@ export function pinsForRegion(
   pins: AiepSedePin[],
   regionId: number | null,
 ): AiepSedePin[] {
-  if (regionId == null) return [];
+  if (regionId == null || regionId === ONLINE_REGION_ID) return [];
   return pins.filter((pin) => pin.regionId === regionId);
+}
+
+export function pinsForOnline(pins: AiepSedePin[]): AiepSedePin[] {
+  return pins.filter((pin) => pin.id === ONLINE_SEDE_ID);
+}
+
+const ONLINE_GLOBE_ZONES = ['n', 'e', 's', 'w'] as const;
+
+/** Reparte los proyectos Online en N/E/S/W alrededor del icono. */
+export function splitOnlinePinAroundGlobe(pin: AiepSedePin): AiepSedePin[] {
+  const buckets: AiepSedePinProyecto[][] = [[], [], [], []];
+  pin.proyectos.forEach((proyecto, index) => {
+    buckets[index % ONLINE_GLOBE_ZONES.length]?.push(proyecto);
+  });
+  return ONLINE_GLOBE_ZONES.flatMap((zone, index) => {
+    const proyectos = buckets[index] ?? [];
+    if (proyectos.length === 0) return [];
+    return [
+      {
+        ...pin,
+        id: `online-${zone}`,
+        proyectos,
+        nombres: proyectos.map((item) => item.nombre),
+      },
+    ];
+  });
 }
 
 export function nationalPinRadius(count: number): number {
@@ -691,7 +735,8 @@ export function usesCompassMapLayout(regionId?: number): boolean {
     regionId === METROPOLITANA_REGION_ID ||
     regionId === LOS_LAGOS_REGION_ID ||
     regionId === OHIGGINS_REGION_ID ||
-    regionId === VALPARAISO_REGION_ID
+    regionId === VALPARAISO_REGION_ID ||
+    regionId === ONLINE_REGION_ID
   );
 }
 
@@ -880,11 +925,19 @@ const VALPARAISO_SEDE_ZONE: Record<string, MapCompassZone> = {
   'san-antonio': 'sw',
 };
 
+const ONLINE_SEDE_ZONE: Record<string, MapCompassZone> = {
+  'online-n': 'n',
+  'online-e': 'e',
+  'online-s': 's',
+  'online-w': 'w',
+};
+
 const REGION_SEDE_ZONES: Record<number, Record<string, MapCompassZone>> = {
   [METROPOLITANA_REGION_ID]: RM_SEDE_ZONE,
   [LOS_LAGOS_REGION_ID]: LOS_LAGOS_SEDE_ZONE,
   [OHIGGINS_REGION_ID]: OHIGGINS_SEDE_ZONE,
   [VALPARAISO_REGION_ID]: VALPARAISO_SEDE_ZONE,
+  [ONLINE_REGION_ID]: ONLINE_SEDE_ZONE,
 };
 
 const ZONE_VECTOR: Record<MapCompassZone, { x: number; y: number }> = {
