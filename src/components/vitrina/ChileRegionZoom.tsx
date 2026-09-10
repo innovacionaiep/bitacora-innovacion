@@ -6,9 +6,14 @@ import type { ChileRegionPath } from '@/lib/chile-horizontal-paths';
 import type { AiepSedePin } from '@/lib/aiep-sede-geo';
 import {
   layoutFloatingMapCards,
+  layoutOverlaySedeLabelsNearCards,
   layoutSedeLabels,
+  LOS_LAGOS_REGION_ID,
   METROPOLITANA_REGION_ID,
+  OHIGGINS_REGION_ID,
   sedeLabelParts,
+  usesOverlaySedeLabel,
+  VALPARAISO_REGION_ID,
   VITRINA_MAP_LABEL_PX,
   zoomPinRadius,
 } from '@/lib/aiep-sede-geo';
@@ -17,6 +22,12 @@ import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
 const CARD_WIDTH = 115;
 const CARD_HEIGHT = 90;
 const CARD_GUTTER = CARD_WIDTH + 18;
+/** Padding mínimo entre grupos de tarjetas de sedes distintas. */
+const CARD_GROUP_GAP = 28;
+/** Distancia entre el borde del mapa y el grupo de tarjetas (RM / Santiago Norte). */
+const MAP_CARD_MARGIN = 44;
+/** Regiones compass sin achicar el mapa regional. */
+const COMPACT_CARD_MARGIN = 12;
 
 type OverlayRect = { left: number; top: number; width: number; height: number };
 
@@ -30,8 +41,20 @@ export function ChileRegionZoom({
   onOpenProyecto?: (id: string) => void;
 }) {
   const isMetropolitana = region.id === METROPOLITANA_REGION_ID;
-  const gutterX = CARD_GUTTER + (isMetropolitana ? CARD_WIDTH : 0);
-  const gutterY = isMetropolitana ? CARD_HEIGHT + 20 : 0;
+  const compactCompass =
+    region.id === LOS_LAGOS_REGION_ID ||
+    region.id === OHIGGINS_REGION_ID ||
+    region.id === VALPARAISO_REGION_ID;
+  const gutterX = isMetropolitana ? CARD_GUTTER + CARD_WIDTH : CARD_GUTTER;
+  // Solo RM agranda gutters; Valparaíso/Los Lagos/O'Higgins mantienen el zoom del mapa.
+  const gutterY = isMetropolitana
+    ? CARD_HEIGHT + MAP_CARD_MARGIN + CARD_GROUP_GAP + 24
+    : 0;
+  const mapCardMargin = isMetropolitana
+    ? MAP_CARD_MARGIN
+    : compactCompass
+      ? COMPACT_CARD_MARGIN
+      : 10;
   const box = chileRegionPathBBox(region.d);
   const tightBox = chileRegionPathBBox(region.d, 0);
   const minDim = Math.min(box.width, box.height);
@@ -147,22 +170,62 @@ export function ChileRegionZoom({
             cardWidth: CARD_WIDTH,
             cardHeight: CARD_HEIGHT,
             mapRect,
+            margin: mapCardMargin,
+            groupGap: CARD_GROUP_GAP,
             regionId: region.id,
           })
         : [],
-    [mapRect, overlaySize.height, overlaySize.width, pins, positions, region.id],
+    [
+      mapCardMargin,
+      mapRect,
+      overlaySize.height,
+      overlaySize.width,
+      pins,
+      positions,
+      region.id,
+    ],
   );
 
   const fontSize = VITRINA_MAP_LABEL_PX / labelPxPerUnit;
+  const overlayLabelPins = useMemo(
+    () =>
+      pins.filter((pin) => usesOverlaySedeLabel(region.id, pin.id)),
+    [pins, region.id],
+  );
+  const overlayLabels = useMemo(
+    () =>
+      overlayLabelPins.length > 0 && mapRect
+        ? layoutOverlaySedeLabelsNearCards({
+            pins: overlayLabelPins.map((pin) => ({
+              id: pin.id,
+              label: pin.label,
+            })),
+            positions,
+            cards,
+            cardWidth: CARD_WIDTH,
+            cardHeight: CARD_HEIGHT,
+            regionId: region.id,
+            labelFontPx: VITRINA_MAP_LABEL_PX,
+            gap: 8,
+          })
+        : [],
+    [cards, mapRect, overlayLabelPins, positions, region.id],
+  );
+  const overlayPinIds = useMemo(
+    () => new Set(overlayLabels.map((item) => item.pinId)),
+    [overlayLabels],
+  );
   const labelAnchors = useMemo(
     () =>
       layoutSedeLabels(
-        pins.map((pin) => ({
-          id: pin.id,
-          x: pin.x,
-          y: pin.y,
-          label: pin.label,
-        })),
+        pins
+          .filter((pin) => !overlayPinIds.has(pin.id))
+          .map((pin) => ({
+            id: pin.id,
+            x: pin.x,
+            y: pin.y,
+            label: pin.label,
+          })),
         {
           fontSize,
           regionId: region.id,
@@ -173,7 +236,7 @@ export function ChileRegionZoom({
             ),
         },
       ),
-    [fontSize, minDim, pins, region.id],
+    [fontSize, minDim, overlayPinIds, pins, region.id],
   );
   const labelsByPin = useMemo(
     () => new Map(labelAnchors.map((anchor) => [anchor.pinId, anchor])),
@@ -206,7 +269,7 @@ export function ChileRegionZoom({
             <svg
               ref={svgRef}
               viewBox={chileRegionViewBox(region.d)}
-              className="pointer-events-auto h-full w-full overflow-visible bg-transparent"
+              className="chile-region-zoom-svg pointer-events-auto h-full w-full overflow-visible bg-transparent"
               preserveAspectRatio="xMidYMid meet"
             >
               <path
@@ -220,16 +283,18 @@ export function ChileRegionZoom({
                 const r = zoomPinRadius(pin.nombres.length, minDim);
                 const label = sedeLabelParts(pin.label);
                 const anchor = labelsByPin.get(pin.id);
+                const skipSvgLabel = overlayPinIds.has(pin.id);
                 return (
                   <g key={pin.id}>
-                    {anchor?.lineTo ? (
+                    {!skipSvgLabel && anchor?.lineTo ? (
                       <line
                         x1={anchor.lineTo.x}
                         y1={anchor.lineTo.y}
                         x2={anchor.x}
                         y2={(anchor.yTop + anchor.yBottom) / 2}
-                        stroke="#94a3b8"
-                        strokeWidth={Math.max(minDim * 0.0025, 0.08)}
+                        stroke="#64748b"
+                        strokeOpacity={0.55}
+                        strokeWidth={Math.max(minDim * 0.002, 0.06)}
                         aria-hidden
                       />
                     ) : null}
@@ -246,28 +311,76 @@ export function ChileRegionZoom({
                         strokeWidth: Math.max(minDim * 0.0035, 0.12),
                       }}
                     />
-                    <text
-                      textAnchor={anchor?.textAnchor ?? 'middle'}
-                      fill="#64748b"
-                      fontSize={fontSize}
-                      fontWeight={500}
-                      aria-label={`Sede ${label.bottom}`}
-                    >
-                      <tspan x={anchor?.x ?? pin.x} y={anchor?.yTop ?? pin.y - r}>
-                        {label.top}
-                      </tspan>
-                      <tspan
-                        x={anchor?.x ?? pin.x}
-                        y={anchor?.yBottom ?? pin.y - r}
+                    {!skipSvgLabel ? (
+                      <text
+                        textAnchor={anchor?.textAnchor ?? 'middle'}
+                        fill="#64748b"
+                        fontSize={fontSize}
+                        fontWeight={500}
+                        aria-label={`Sede ${label.bottom}`}
                       >
-                        {label.bottom}
-                      </tspan>
-                    </text>
+                        <tspan
+                          x={anchor?.x ?? pin.x}
+                          y={anchor?.yTop ?? pin.y - r}
+                        >
+                          {label.top}
+                        </tspan>
+                        <tspan
+                          x={anchor?.x ?? pin.x}
+                          y={anchor?.yBottom ?? pin.y - r}
+                        >
+                          {label.bottom}
+                        </tspan>
+                      </text>
+                    ) : null}
                   </g>
                 );
               })}
             </svg>
           </div>
+          {overlayLabels.length > 0 && overlaySize.width > 0 ? (
+            <svg
+              className="pointer-events-none absolute inset-0 z-0 overflow-visible"
+              width={overlaySize.width}
+              height={overlaySize.height}
+              aria-hidden
+            >
+              {overlayLabels.map((item) => (
+                <line
+                  key={`line-${item.pinId}`}
+                  x1={item.lineTo.x}
+                  y1={item.lineTo.y}
+                  x2={item.lineFrom.x}
+                  y2={item.lineFrom.y}
+                  stroke="#64748b"
+                  strokeOpacity={0.55}
+                  strokeWidth={1.1}
+                />
+              ))}
+            </svg>
+          ) : null}
+          {overlayLabels.map((item) => {
+            const parts = sedeLabelParts(item.label);
+            return (
+              <div
+                key={`label-${item.pinId}`}
+                className="pointer-events-none absolute z-[2] rounded px-0.5 leading-tight text-slate-500 [text-shadow:0_0_3px_#fff,0_0_6px_#fff]"
+                style={{
+                  left: item.left,
+                  top: item.top,
+                  width: item.width,
+                  height: item.height,
+                  fontSize: VITRINA_MAP_LABEL_PX,
+                  fontWeight: 500,
+                  textAlign: item.textAlign,
+                }}
+                aria-label={`Sede ${parts.bottom}`}
+              >
+                <div>{parts.top}</div>
+                <div>{parts.bottom}</div>
+              </div>
+            );
+          })}
           {cards.map((card) => (
             <button
               type="button"

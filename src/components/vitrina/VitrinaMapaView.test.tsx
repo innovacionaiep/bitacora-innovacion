@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VitrinaMapaView } from '@/components/vitrina/VitrinaMapaView';
 import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
@@ -48,6 +48,69 @@ describe('VitrinaMapaView', () => {
     expect(
       document.querySelector('[data-testid="trl-selected-chevron"]'),
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId('national-map-frame')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acercar mapa' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Alejar mapa' })).toBeDisabled();
+  });
+
+  it('acerca el mapa nacional y permite volver a alejarlo', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([{ nombre: 'ClinicApp', sedes: ['Valparaíso'] }])}
+      />,
+    );
+    const svg = screen
+      .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
+      .querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 280 1120');
+    await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
+    const zoomed = svg?.getAttribute('viewBox') ?? '';
+    expect(zoomed).not.toBe('0 0 280 1120');
+    expect(screen.getByRole('button', { name: 'Alejar mapa' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Alejar mapa' }));
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 280 1120');
+  });
+
+  it('hace zoom con la rueda del ratón', () => {
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([{ nombre: 'ClinicApp', sedes: ['Valparaíso'] }])}
+      />,
+    );
+    const svg = screen
+      .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
+      .querySelector('svg');
+    expect(svg).toBeTruthy();
+    fireEvent.wheel(svg as SVGSVGElement, { deltaY: -120, clientX: 20, clientY: 40 });
+    expect(svg?.getAttribute('viewBox')).not.toBe('0 0 280 1120');
+    expect(screen.getByRole('button', { name: 'Alejar mapa' })).toBeEnabled();
+  });
+
+  it('permite arrastrar el mapa nacional al estar con zoom', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([{ nombre: 'ClinicApp', sedes: ['Valparaíso'] }])}
+      />,
+    );
+    const svg = screen
+      .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
+      .querySelector('svg') as SVGSVGElement;
+    await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
+    const before = svg.getAttribute('viewBox');
+    fireEvent.pointerDown(svg, {
+      pointerId: 1,
+      clientX: 40,
+      clientY: 40,
+      button: 0,
+    });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 40, clientY: 160 });
+    fireEvent.pointerUp(svg, { pointerId: 1 });
+    expect(svg.getAttribute('viewBox')).not.toBe(before);
   });
 
   it('al hacer clic en una región muestra el svg, el título y tarjetas con foto', async () => {
@@ -91,13 +154,42 @@ describe('VitrinaMapaView', () => {
     expect(screen.getByTestId('trl-selected-chevron')).toBeInTheDocument();
     expect(screen.getByText('ClinicApp')).toBeInTheDocument();
     expect(screen.getByText('Beehappy')).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('Sede Valparaíso', { selector: 'text' }),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Sede Valparaíso')).toBeInTheDocument();
     expect(screen.queryByText('AgroTech')).not.toBeInTheDocument();
     expect(document.querySelector('img')?.getAttribute('src')).toBe(
       'https://res.cloudinary.com/demo/image/upload/clinic.jpg',
     );
+  });
+
+  it('el drag del mapa nacional no quita la región ampliada', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([{ nombre: 'ClinicApp', sedes: ['Valparaíso'] }])}
+      />,
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Región de Valparaíso' }),
+    );
+    expect(
+      screen.getByRole('group', { name: 'Región de Valparaíso ampliada' }),
+    ).toBeInTheDocument();
+    const svg = screen
+      .getByRole('group', { name: 'Mapa de Chile, norte arriba' })
+      .querySelector('svg') as SVGSVGElement;
+    await user.click(screen.getByRole('button', { name: 'Acercar mapa' }));
+    fireEvent.pointerDown(svg, {
+      pointerId: 1,
+      clientX: 40,
+      clientY: 40,
+      button: 0,
+    });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 40, clientY: 160 });
+    fireEvent.pointerUp(svg, { pointerId: 1 });
+    expect(
+      screen.getByRole('group', { name: 'Región de Valparaíso ampliada' }),
+    ).toBeInTheDocument();
   });
 
   it('al hacer clic en una tarjeta abre la ficha del proyecto', async () => {

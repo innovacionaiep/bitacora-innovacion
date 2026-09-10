@@ -214,5 +214,73 @@ export const CHILE_REGION_PATHS: ChileRegionPath[] = CHILE_REGION_PATHS_H.map(
 
 export function chileRegionById(id: number): ChileRegionPath | undefined {
   return CHILE_REGION_PATHS.find((region) => region.id === id);
-};
+}
+
+export const NATIONAL_MAP_ZOOM_MIN = 1;
+export const NATIONAL_MAP_ZOOM_MAX = 2.4;
+export const NATIONAL_MAP_ZOOM_STEP = 0.4;
+
+export function clampNationalMapZoom(zoom: number): number {
+  return Math.min(
+    NATIONAL_MAP_ZOOM_MAX,
+    Math.max(NATIONAL_MAP_ZOOM_MIN, zoom),
+  );
+}
+
+export function nationalMapViewBox(
+  zoom: number,
+  focus?: { x: number; y: number } | null,
+): { minX: number; minY: number; width: number; height: number } {
+  const z = clampNationalMapZoom(zoom);
+  const { width, height } = CHILE_MAP_VIEW;
+  const viewW = width / z;
+  const viewH = height / z;
+  const cx = focus?.x ?? width / 2;
+  const cy = focus?.y ?? height / 2;
+  return {
+    minX: Math.min(Math.max(cx - viewW / 2, 0), width - viewW),
+    minY: Math.min(Math.max(cy - viewH / 2, 0), height - viewH),
+    width: viewW,
+    height: viewH,
+  };
+}
+
+export function shiftNationalMapView(
+  view: { minX: number; minY: number; width: number; height: number },
+  dx: number,
+  dy: number,
+): { minX: number; minY: number; width: number; height: number } {
+  const { width, height } = CHILE_MAP_VIEW;
+  return {
+    minX: Math.min(Math.max(view.minX - dx, 0), Math.max(width - view.width, 0)),
+    minY: Math.min(
+      Math.max(view.minY - dy, 0),
+      Math.max(height - view.height, 0),
+    ),
+    width: view.width,
+    height: view.height,
+  };
+}
+
+export function zoomNationalMapAt(
+  view: { minX: number; minY: number; width: number; height: number },
+  nextZoom: number,
+  point: { x: number; y: number },
+): { minX: number; minY: number; width: number; height: number } {
+  const z = clampNationalMapZoom(nextZoom);
+  const { width, height } = CHILE_MAP_VIEW;
+  const nextW = width / z;
+  const nextH = height / z;
+  const fx = view.width <= 0 ? 0.5 : (point.x - view.minX) / view.width;
+  const fy = view.height <= 0 ? 0.5 : (point.y - view.minY) / view.height;
+  return {
+    minX: Math.min(Math.max(point.x - fx * nextW, 0), Math.max(width - nextW, 0)),
+    minY: Math.min(
+      Math.max(point.y - fy * nextH, 0),
+      Math.max(height - nextH, 0),
+    ),
+    width: nextW,
+    height: nextH,
+  };
+}
 

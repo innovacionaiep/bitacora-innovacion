@@ -204,14 +204,20 @@ describe('VitrinaDataDashboard', () => {
     expect(twoLines).toHaveClass('block');
   });
 
-  it('limita las etiquetas de barra vertical a dos líneas', () => {
-    expect(formatVerticalBarLabel('Innovación en el Aula')).toBe(
-      'Innovación\nen el Aula',
-    );
+  it('limita las etiquetas de barra vertical a 20 caracteres y dos líneas', () => {
     expect(formatVerticalBarLabel('Innovación Social')).toBe(
       'Innovación\nSocial',
     );
     expect(formatVerticalBarLabel('Escalamiento')).toBe('Escalamiento');
+    expect(formatVerticalBarLabel('Innovación en el Aula')).toBe(
+      'Innovación\nen el Aul…',
+    );
+    expect(formatVerticalBarLabel('Reto Innovador de Especialidad')).toBe(
+      'Reto\nInnovador de Es…',
+    );
+    expect(formatVerticalBarLabel('Ganadores DemoDay Impulsa')).toBe(
+      'Ganadores\nDemoDay Im…',
+    );
 
     const proyectos = projectsFrom([
       { nombre: 'A', lineas: ['Innovación en el Aula'] },
@@ -220,7 +226,7 @@ describe('VitrinaDataDashboard', () => {
     const label = screen
       .getByLabelText('Innovación en el Aula: 1 proyecto')
       .querySelector('.whitespace-pre');
-    expect(label!.textContent).toBe('Innovación\nen el Aula');
+    expect(label!.textContent).toBe('Innovación\nen el Aul…');
   });
 
   it('coloca el conteo justo encima de cada barra vertical', () => {

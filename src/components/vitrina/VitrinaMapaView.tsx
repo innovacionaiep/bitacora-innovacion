@@ -46,15 +46,15 @@ export function VitrinaMapaView({
           Volver
         </button>
       </div>
-      <div className="relative flex min-h-0 flex-1 gap-8 overflow-visible pb-6 pl-36 pr-8 pt-12">
-        <div className="ml-6 h-full w-[220px] shrink-0 overflow-visible">
+      <div className="relative flex min-h-0 flex-1 gap-2 overflow-visible pb-6 pl-16 pr-14 pt-12">
+        <div className="h-full w-[380px] shrink-0 overflow-visible">
           <ChileVerticalMap
             selectedRegionId={regionId}
             regionPins={regionPins}
             onSelectRegion={setRegionId}
           />
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-visible">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-visible pr-2">
           {region ? (
             <ChileRegionZoom
               region={region}

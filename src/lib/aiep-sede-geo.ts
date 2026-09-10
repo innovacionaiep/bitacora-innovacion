@@ -495,10 +495,217 @@ export type FloatingMapCard = {
   top: number;
 };
 
+/** Etiqueta de sede en coordenadas del overlay (px), anclada al grupo de tarjetas. */
+export type OverlaySedeLabel = {
+  pinId: string;
+  label: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  textAlign: 'left' | 'center' | 'right';
+  /** Punto del texto hacia el que llega la línea. */
+  lineFrom: { x: number; y: number };
+  /** Pin en overlay. */
+  lineTo: { x: number; y: number };
+};
+
+/** Intersección del rayo pin→centro con el borde del rectángulo (fuera→dentro). */
+function rayEnterAabb(
+  origin: { x: number; y: number },
+  target: { x: number; y: number },
+  box: { left: number; top: number; right: number; bottom: number },
+): { x: number; y: number } {
+  const dx = target.x - origin.x;
+  const dy = target.y - origin.y;
+  let tEnter = 0;
+  let tExit = 1;
+
+  const clip = (min: number, max: number, originV: number, delta: number) => {
+    if (Math.abs(delta) < 1e-9) {
+      if (originV < min || originV > max) {
+        tEnter = 1;
+        tExit = 0;
+      }
+      return;
+    }
+    let t1 = (min - originV) / delta;
+    let t2 = (max - originV) / delta;
+    if (t1 > t2) {
+      const swap = t1;
+      t1 = t2;
+      t2 = swap;
+    }
+    tEnter = Math.max(tEnter, t1);
+    tExit = Math.min(tExit, t2);
+  };
+
+  clip(box.left, box.right, origin.x, dx);
+  clip(box.top, box.bottom, origin.y, dy);
+
+  if (tEnter > tExit || tEnter > 1 || tEnter < 0) {
+    return { x: target.x, y: target.y };
+  }
+  return { x: origin.x + dx * tEnter, y: origin.y + dy * tEnter };
+}
+
+/**
+ * Coloca el nombre de sede junto al grupo de tarjetas (antes en el eje hacia el mapa).
+ * La línea apunta al centro del label y se corta en su borde (misma dirección, sin cruzar texto).
+ */
+export function layoutOverlaySedeLabelsNearCards({
+  pins,
+  positions,
+  cards,
+  cardWidth,
+  cardHeight,
+  regionId,
+  labelFontPx = VITRINA_MAP_LABEL_PX,
+  gap = 8,
+}: {
+  pins: Array<{ id: string; label: string }>;
+  positions: Record<string, { x: number; y: number }>;
+  cards: FloatingMapCard[];
+  cardWidth: number;
+  cardHeight: number;
+  regionId?: number;
+  labelFontPx?: number;
+  gap?: number;
+}): OverlaySedeLabel[] {
+  const withCards = pins.filter(
+    (pin) => positions[pin.id] && cards.some((card) => card.pinId === pin.id),
+  );
+  if (withCards.length === 0) return [];
+
+  const cx =
+    withCards.reduce((sum, pin) => sum + (positions[pin.id]?.x ?? 0), 0) /
+    withCards.length;
+  const cy =
+    withCards.reduce((sum, pin) => sum + (positions[pin.id]?.y ?? 0), 0) /
+    withCards.length;
+
+  const labelH = labelFontPx * 2.35;
+  const placed: OverlaySedeLabel[] = [];
+
+  for (const pin of withCards) {
+    const pinPos = positions[pin.id]!;
+    const cluster = cards.filter((card) => card.pinId === pin.id);
+    const left = Math.min(...cluster.map((card) => card.left));
+    const top = Math.min(...cluster.map((card) => card.top));
+    const right = Math.max(...cluster.map((card) => card.left + cardWidth));
+    const bottom = Math.max(...cluster.map((card) => card.top + cardHeight));
+    const midX = (left + right) / 2;
+    const midY = (top + bottom) / 2;
+    const zone = compassSedeZone(regionId, pin.id, pinPos.x - cx, pinPos.y - cy);
+    const parts = sedeLabelParts(pin.label);
+    const labelW = Math.max(
+      estimateLabelWidth(pin.label, labelFontPx),
+      Math.max(parts.top.length, parts.bottom.length) * labelFontPx * 0.55,
+      56,
+    );
+
+    let labelLeft = left;
+    let labelTop = top;
+    let textAlign: OverlaySedeLabel['textAlign'] = 'center';
+
+    // Maipú: nombre sobre las tarjetas (pedido explícito).
+    if (pin.id === 'maipu') {
+      labelTop = top - gap - labelH;
+      labelLeft = midX - labelW / 2;
+      textAlign = 'center';
+    } else if (zone === 'n' || zone === 'ne' || zone === 'nw') {
+      labelTop = bottom + gap;
+      if (zone === 'n') {
+        labelLeft = midX - labelW / 2;
+        textAlign = 'center';
+      } else if (zone === 'nw') {
+        labelLeft = Math.min(right - labelW * 0.35, midX);
+        textAlign = 'right';
+      } else {
+        labelLeft = Math.max(left - labelW * 0.15, midX - labelW);
+        textAlign = 'left';
+      }
+    } else if (zone === 's' || zone === 'se' || zone === 'sw') {
+      labelTop = top - gap - labelH;
+      if (zone === 's') {
+        labelLeft = midX - labelW / 2;
+        textAlign = 'center';
+      } else if (zone === 'sw') {
+        labelLeft = Math.min(right - labelW * 0.35, midX);
+        textAlign = 'right';
+      } else {
+        labelLeft = Math.max(left - labelW * 0.15, midX - labelW);
+        textAlign = 'left';
+      }
+    } else if (zone === 'e') {
+      labelLeft = left - gap - labelW;
+      labelTop = midY - labelH / 2;
+      textAlign = 'right';
+    } else {
+      labelLeft = right + gap;
+      labelTop = midY - labelH / 2;
+      textAlign = 'left';
+    }
+
+    const labelCenter = {
+      x: labelLeft + labelW / 2,
+      y: labelTop + labelH / 2,
+    };
+    const lineFrom = rayEnterAabb(pinPos, labelCenter, {
+      left: labelLeft,
+      top: labelTop,
+      right: labelLeft + labelW,
+      bottom: labelTop + labelH,
+    });
+
+    placed.push({
+      pinId: pin.id,
+      label: pin.label,
+      left: labelLeft,
+      top: labelTop,
+      width: labelW,
+      height: labelH,
+      textAlign,
+      lineFrom,
+      lineTo: { x: pinPos.x, y: pinPos.y },
+    });
+  }
+
+  return placed;
+}
+
 export const VITRINA_MAP_LABEL_PX = 12;
 /** Hover del mapa nacional: px en pantalla (el SVG escala las unidades). */
 export const VITRINA_MAP_HOVER_LABEL_PX = 14;
 export const METROPOLITANA_REGION_ID = 13;
+export const LOS_LAGOS_REGION_ID = 10;
+export const OHIGGINS_REGION_ID = 6;
+export const VALPARAISO_REGION_ID = 5;
+
+/** Solo Viña del Mar separa nombre del pin en Valparaíso. */
+const VALPARAISO_OVERLAY_LABEL_PINS = new Set(['vina-del-mar']);
+
+/** Regiones que usan layout de brújula para tarjetas. */
+export function usesCompassMapLayout(regionId?: number): boolean {
+  return (
+    regionId === METROPOLITANA_REGION_ID ||
+    regionId === LOS_LAGOS_REGION_ID ||
+    regionId === OHIGGINS_REGION_ID ||
+    regionId === VALPARAISO_REGION_ID
+  );
+}
+
+/** Etiqueta + línea en overlay (no texto SVG junto al pin). */
+export function usesOverlaySedeLabel(
+  regionId: number | undefined,
+  pinId: string,
+): boolean {
+  if (regionId === METROPOLITANA_REGION_ID) return true;
+  if (regionId === VALPARAISO_REGION_ID) {
+    return VALPARAISO_OVERLAY_LABEL_PINS.has(pinId);
+  }
+  return false;
+}
 
 export type MapCompassZone = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -579,20 +786,42 @@ function labelSlots(
   ];
 }
 
+/** Orden de slots: Valparaíso (W) prioriza izquierda del pin. */
+function orderedLabelSlots(
+  pin: { id: string; x: number; y: number },
+  radius: number,
+  fontSize: number,
+  regionId?: number,
+): Array<Pick<SedeLabelAnchor, 'x' | 'yTop' | 'yBottom' | 'textAnchor'>> {
+  const slots = labelSlots(pin, radius, fontSize);
+  if (regionId === VALPARAISO_REGION_ID && pin.id === 'valparaiso') {
+    // left, above, below, right
+    return [slots[2]!, slots[0]!, slots[1]!, slots[3]!];
+  }
+  return slots;
+}
+
 export function layoutSedeLabels(
   pins: Array<{ id: string; x: number; y: number; label: string }>,
   {
     fontSize,
     radius,
     regionId,
+    mapBBox,
   }: {
     fontSize: number;
     radius: number | ((id: string) => number);
     regionId?: number;
+    mapBBox?: { minX: number; minY: number; width: number; height: number };
   },
 ): SedeLabelAnchor[] {
   if (regionId === METROPOLITANA_REGION_ID) {
-    return layoutMetropolitanSedeLabels(pins, { fontSize, radius });
+    return layoutCompassSedeLabels(pins, {
+      fontSize,
+      radius,
+      regionId,
+      mapBBox,
+    });
   }
   const radiusOf = typeof radius === 'function' ? radius : () => radius;
   const sorted = [...pins].sort((a, b) => a.y - b.y || a.x - b.x);
@@ -601,7 +830,7 @@ export function layoutSedeLabels(
   for (const pin of sorted) {
     const width = estimateLabelWidth(pin.label, fontSize);
     const r = radiusOf(pin.id);
-    const slots = labelSlots(pin, r, fontSize);
+    const slots = orderedLabelSlots(pin, r, fontSize, regionId);
     let chosen: SedeLabelAnchor | null = null;
     for (const slot of slots) {
       const candidate: SedeLabelAnchor = { pinId: pin.id, ...slot };
@@ -630,6 +859,34 @@ const RM_SEDE_ZONE: Record<string, MapCompassZone> = {
   maipu: 'w',
 };
 
+/** Los Lagos: Osorno NW, Puerto Montt E, Castro SW. */
+const LOS_LAGOS_SEDE_ZONE: Record<string, MapCompassZone> = {
+  osorno: 'nw',
+  'puerto-montt': 'e',
+  castro: 'sw',
+};
+
+/** O'Higgins: Rancagua E, San Fernando S. */
+const OHIGGINS_SEDE_ZONE: Record<string, MapCompassZone> = {
+  rancagua: 'e',
+  'san-fernando': 's',
+};
+
+/** Valparaíso: Viña NW, Valparaíso W, San Felipe E, San Antonio SW. */
+const VALPARAISO_SEDE_ZONE: Record<string, MapCompassZone> = {
+  'vina-del-mar': 'nw',
+  valparaiso: 'w',
+  'san-felipe': 'e',
+  'san-antonio': 'sw',
+};
+
+const REGION_SEDE_ZONES: Record<number, Record<string, MapCompassZone>> = {
+  [METROPOLITANA_REGION_ID]: RM_SEDE_ZONE,
+  [LOS_LAGOS_REGION_ID]: LOS_LAGOS_SEDE_ZONE,
+  [OHIGGINS_REGION_ID]: OHIGGINS_SEDE_ZONE,
+  [VALPARAISO_REGION_ID]: VALPARAISO_SEDE_ZONE,
+};
+
 const ZONE_VECTOR: Record<MapCompassZone, { x: number; y: number }> = {
   n: { x: 0, y: -1 },
   ne: { x: 0.707, y: -0.707 },
@@ -654,12 +911,24 @@ export function compassZoneFromDelta(dx: number, dy: number): MapCompassZone {
   return 'ne';
 }
 
+export function compassSedeZone(
+  regionId: number | undefined,
+  pinId: string,
+  dx: number,
+  dy: number,
+): MapCompassZone {
+  const overrides =
+    regionId != null ? REGION_SEDE_ZONES[regionId] : undefined;
+  return overrides?.[pinId] ?? compassZoneFromDelta(dx, dy);
+}
+
+/** @deprecated Prefer compassSedeZone(METROPOLITANA_REGION_ID, …) */
 export function metropolitanSedeZone(
   pinId: string,
   dx: number,
   dy: number,
 ): MapCompassZone {
-  return RM_SEDE_ZONE[pinId] ?? compassZoneFromDelta(dx, dy);
+  return compassSedeZone(METROPOLITANA_REGION_ID, pinId, dx, dy);
 }
 
 function zoneTextAnchor(zone: MapCompassZone): SedeLabelAnchor['textAnchor'] {
@@ -670,33 +939,79 @@ function zoneTextAnchor(zone: MapCompassZone): SedeLabelAnchor['textAnchor'] {
 
 export function layoutMetropolitanSedeLabels(
   pins: Array<{ id: string; x: number; y: number; label: string }>,
-  { fontSize, radius }: { fontSize: number; radius: number | ((id: string) => number) },
+  opts: { fontSize: number; radius: number | ((id: string) => number) },
+): SedeLabelAnchor[] {
+  return layoutCompassSedeLabels(pins, {
+    ...opts,
+    regionId: METROPOLITANA_REGION_ID,
+  });
+}
+
+export function layoutCompassSedeLabels(
+  pins: Array<{ id: string; x: number; y: number; label: string }>,
+  {
+    fontSize,
+    radius,
+    regionId,
+    mapBBox,
+  }: {
+    fontSize: number;
+    radius: number | ((id: string) => number);
+    regionId?: number;
+    mapBBox?: { minX: number; minY: number; width: number; height: number };
+  },
 ): SedeLabelAnchor[] {
   if (pins.length === 0) return [];
   const radiusOf = typeof radius === 'function' ? radius : () => radius;
-  const cx = pins.reduce((sum, pin) => sum + pin.x, 0) / pins.length;
-  const cy = pins.reduce((sum, pin) => sum + pin.y, 0) / pins.length;
-  const clusterR = Math.max(
-    ...pins.map((pin) => Math.hypot(pin.x - cx, pin.y - cy)),
-    fontSize * 2,
+  const xs = pins.map((pin) => pin.x);
+  const ys = pins.map((pin) => pin.y);
+  const pinsMinX = Math.min(...xs);
+  const pinsMaxX = Math.max(...xs);
+  const pinsMinY = Math.min(...ys);
+  const pinsMaxY = Math.max(...ys);
+  const bbox = mapBBox ?? {
+    minX: pinsMinX,
+    minY: pinsMinY,
+    width: Math.max(pinsMaxX - pinsMinX, fontSize * 4),
+    height: Math.max(pinsMaxY - pinsMinY, fontSize * 4),
+  };
+  const cx = bbox.minX + bbox.width / 2;
+  const cy = bbox.minY + bbox.height / 2;
+  const halfW = bbox.width / 2;
+  const halfH = bbox.height / 2;
+  // Justo fuera del polígono, en el hueco antes de las tarjetas (no más allá de ellas).
+  const towardCards = Math.max(
+    fontSize * 3.2,
+    Math.min(bbox.width, bbox.height) * 0.14,
   );
   const line = fontSize * 1.05;
   const used = new Set<MapCompassZone>();
   const placed: SedeLabelAnchor[] = [];
 
+  const ringOutside = (vec: { x: number; y: number }, pad: number) => {
+    const ax = Math.abs(vec.x);
+    const ay = Math.abs(vec.y);
+    let edge = Infinity;
+    if (ax > 1e-6) edge = Math.min(edge, halfW / ax);
+    if (ay > 1e-6) edge = Math.min(edge, halfH / ay);
+    if (!Number.isFinite(edge)) edge = Math.max(halfW, halfH);
+    return edge + pad;
+  };
+
   const ordered = [...pins].sort((a, b) => {
-    const za = metropolitanSedeZone(a.id, a.x - cx, a.y - cy);
-    const zb = metropolitanSedeZone(b.id, b.x - cx, b.y - cy);
+    const za = compassSedeZone(regionId, a.id, a.x - cx, a.y - cy);
+    const zb = compassSedeZone(regionId, b.id, b.x - cx, b.y - cy);
     return za.localeCompare(zb);
   });
 
   for (const pin of ordered) {
-    const zone = metropolitanSedeZone(pin.id, pin.x - cx, pin.y - cy);
+    const zone = compassSedeZone(regionId, pin.id, pin.x - cx, pin.y - cy);
     const sameZoneIndex = used.has(zone) ? 1 : 0;
     used.add(zone);
     const vec = ZONE_VECTOR[zone];
     let ring =
-      clusterR + radiusOf(pin.id) + fontSize * 8 + sameZoneIndex * fontSize * 4;
+      ringOutside(vec, towardCards + radiusOf(pin.id)) +
+      sameZoneIndex * fontSize * 4;
     const width = estimateLabelWidth(pin.label, fontSize);
     let anchor: SedeLabelAnchor = {
       pinId: pin.id,
@@ -732,7 +1047,7 @@ export function layoutMetropolitanSedeLabels(
   return placed;
 }
 
-function layoutMetropolitanMapCards({
+function layoutCompassMapCards({
   pins,
   positions,
   width,
@@ -742,7 +1057,9 @@ function layoutMetropolitanMapCards({
   mapRect,
   gap,
   margin,
-  maxRows,
+  maxCols,
+  groupGap,
+  regionId,
 }: {
   pins: AiepSedePin[];
   positions: Record<string, { x: number; y: number }>;
@@ -753,7 +1070,9 @@ function layoutMetropolitanMapCards({
   mapRect: { left: number; top: number; width: number; height: number };
   gap: number;
   margin: number;
-  maxRows: number;
+  maxCols: number;
+  groupGap: number;
+  regionId?: number;
 }): FloatingMapCard[] {
   const active = pins.filter(
     (pin) => positions[pin.id] && pin.proyectos.length > 0,
@@ -779,31 +1098,55 @@ function layoutMetropolitanMapCards({
     top: number;
   };
 
+  const mapRight = mapRect.left + mapRect.width;
+  const mapBottom = mapRect.top + mapRect.height;
+  const mapMidX = mapRect.left + mapRect.width / 2;
+  // Los Lagos: diagonales al costado a la altura del pin (más cerca del mapa).
+  // Valparaíso: Viña en esquina NW (arriba-izquierda), no side-pinned.
+  // RM: diagonales en las esquinas fuera del bbox.
+  const sidePinnedDiagonals = regionId === LOS_LAGOS_REGION_ID;
+  /** Extra separación Viña/Valparaíso respecto al mapa. */
+  const valparaisoAway =
+    regionId === VALPARAISO_REGION_ID ? Math.max(28, margin + 16) : 0;
+
   const clusters: Cluster[] = active.map((pin) => {
     const pos = positions[pin.id]!;
     const n = pin.proyectos.length;
-    const cols = Math.ceil(n / maxRows);
-    const rows = Math.min(n, maxRows);
+    const cols = Math.min(n, maxCols);
+    const rows = Math.ceil(n / maxCols);
     const stackW = cols * cardWidth + (cols - 1) * gap;
     const stackH = rows * cardHeight + (rows - 1) * gap;
-    const zone = metropolitanSedeZone(pin.id, pos.x - cx, pos.y - cy);
-    const mapRight = mapRect.left + mapRect.width;
-    const mapBottom = mapRect.top + mapRect.height;
+    const zone = compassSedeZone(regionId, pin.id, pos.x - cx, pos.y - cy);
+    // RM: Norte y San Bernardo un poco más lejos del mapa.
+    // Valparaíso: Viña (NW) más arriba/izquierda; Valpo (W) solo izquierda.
+    const zoneMargin =
+      regionId === METROPOLITANA_REGION_ID && (zone === 'n' || zone === 's')
+        ? margin + 20
+        : regionId === VALPARAISO_REGION_ID && (zone === 'nw' || zone === 'w')
+          ? margin + valparaisoAway
+          : margin;
     let left = mapRect.left;
     let top = mapRect.top;
     if (zone === 'w' || zone === 'nw' || zone === 'sw') {
-      left = mapRect.left - margin - stackW;
+      left = mapRect.left - zoneMargin - stackW;
     } else if (zone === 'e' || zone === 'ne' || zone === 'se') {
       left = mapRight + margin;
     } else {
-      left = pos.x - stackW / 2;
+      left = mapMidX - stackW / 2;
     }
-    if (zone === 'n' || zone === 'nw' || zone === 'ne') {
-      top = mapRect.top - margin - stackH;
-    } else if (zone === 's' || zone === 'sw' || zone === 'se') {
-      top = mapBottom + margin;
+    if (zone === 'n' || (!sidePinnedDiagonals && (zone === 'nw' || zone === 'ne'))) {
+      top = mapRect.top - zoneMargin - stackH;
+    } else if (zone === 's' || zone === 'se' || zone === 'sw') {
+      // Sur / SE / SW siempre bajo el mapa (p. ej. San Antonio abajo-izquierda).
+      top = mapBottom + zoneMargin;
     } else {
+      // e/w y NW/NE side-pinned: a la altura del pin
       top = pos.y - stackH / 2;
+      if (sidePinnedDiagonals && zone === 'nw') {
+        top = Math.min(top, mapRect.top + mapRect.height * 0.28 - stackH / 2);
+      } else if (sidePinnedDiagonals && zone === 'ne') {
+        top = Math.min(top, mapRect.top + mapRect.height * 0.28 - stackH / 2);
+      }
     }
     return {
       pinId: pin.id,
@@ -828,10 +1171,10 @@ function layoutMetropolitanMapCards({
       const current = sorted[i];
       if (!prev || !current) continue;
       if (axis === 'x') {
-        const minLeft = prev.left + prev.stackW + gap;
+        const minLeft = prev.left + prev.stackW + groupGap;
         if (current.left < minLeft) current.left = minLeft;
       } else {
-        const minTop = prev.top + prev.stackH + gap;
+        const minTop = prev.top + prev.stackH + groupGap;
         if (current.top < minTop) current.top = minTop;
       }
     }
@@ -839,6 +1182,10 @@ function layoutMetropolitanMapCards({
 
   packAxis(
     clusters.filter((c) => c.zone === 'n' || c.zone === 's'),
+    'x',
+  );
+  packAxis(
+    clusters.filter((c) => c.zone === 'nw' || c.zone === 'ne'),
     'x',
   );
   packAxis(
@@ -854,6 +1201,50 @@ function layoutMetropolitanMapCards({
     'y',
   );
 
+  resolveCardGroupPadding(clusters, groupGap, width, height);
+  const nsMargin =
+    regionId === METROPOLITANA_REGION_ID ? margin + 20 : margin;
+  const clampMargin =
+    regionId === VALPARAISO_REGION_ID ? margin + valparaisoAway : nsMargin;
+  anchorMetropolitanCardAxes(
+    clusters,
+    mapRect,
+    mapMidX,
+    nsMargin,
+    width,
+    height,
+    groupGap,
+  );
+  resolveCardGroupPadding(clusters, groupGap, width, height);
+  clampMetropolitanZoneSlots(
+    clusters,
+    mapRect,
+    mapMidX,
+    clampMargin,
+    width,
+    height,
+    sidePinnedDiagonals,
+  );
+  // Valparaíso: W estrictamente a la altura del pin (solo izquierda).
+  if (regionId === VALPARAISO_REGION_ID) {
+    for (const cluster of clusters) {
+      if (cluster.zone !== 'w') continue;
+      cluster.top = cluster.pinY - cluster.stackH / 2;
+      cluster.top = Math.min(
+        Math.max(cluster.top, 0),
+        Math.max(height - cluster.stackH, 0),
+      );
+      cluster.left = Math.min(
+        mapRect.left - clampMargin - cluster.stackW,
+        cluster.left,
+      );
+      cluster.left = Math.min(
+        Math.max(cluster.left, 0),
+        Math.max(width - cluster.stackW, 0),
+      );
+    }
+  }
+
   const placed: FloatingMapCard[] = [];
   for (const cluster of clusters) {
     const left = Math.min(
@@ -865,8 +1256,8 @@ function layoutMetropolitanMapCards({
       Math.max(height - cluster.stackH, 0),
     );
     cluster.proyectos.forEach((proyecto, index) => {
-      const col = Math.floor(index / maxRows);
-      const row = index % maxRows;
+      const col = index % maxCols;
+      const row = Math.floor(index / maxCols);
       placed.push({
         pinId: cluster.pinId,
         proyecto,
@@ -876,6 +1267,253 @@ function layoutMetropolitanMapCards({
     });
   }
   return placed;
+}
+
+/** Zona cardenal: N/S no se desplazan en X (quedan en el eje). */
+function zoneLocksAxis(zone?: MapCompassZone): { lockX: boolean; lockY: boolean } {
+  if (zone === 'n' || zone === 's') return { lockX: true, lockY: false };
+  return { lockX: false, lockY: false };
+}
+
+/**
+ * Reafirma ejes RM: N centrado arriba, S centrado abajo;
+ * empuja laterales que invadan el padding bajo/sobre N/S.
+ */
+function anchorMetropolitanCardAxes(
+  clusters: Array<{
+    left: number;
+    top: number;
+    stackW: number;
+    stackH: number;
+    zone: MapCompassZone;
+  }>,
+  mapRect: { left: number; top: number; width: number; height: number },
+  mapMidX: number,
+  margin: number,
+  width: number,
+  height: number,
+  groupGap: number,
+) {
+  const mapBottom = mapRect.top + mapRect.height;
+  for (const cluster of clusters) {
+    if (cluster.zone === 'n') {
+      cluster.left = mapMidX - cluster.stackW / 2;
+      cluster.top = Math.max(0, mapRect.top - margin - cluster.stackH);
+    } else if (cluster.zone === 's') {
+      cluster.left = mapMidX - cluster.stackW / 2;
+      cluster.top = Math.min(
+        Math.max(mapBottom + margin, 0),
+        Math.max(height - cluster.stackH, 0),
+      );
+    }
+    cluster.left = Math.min(
+      Math.max(cluster.left, 0),
+      Math.max(width - cluster.stackW, 0),
+    );
+    cluster.top = Math.min(
+      Math.max(cluster.top, 0),
+      Math.max(height - cluster.stackH, 0),
+    );
+  }
+
+  for (const axis of clusters.filter((c) => c.zone === 'n' || c.zone === 's')) {
+    const axisBottom = axis.top + axis.stackH + groupGap;
+    const axisTop = axis.top - groupGap;
+    for (const other of clusters) {
+      if (other === axis) continue;
+      // NW/NE/SW/SE comparten la franja superior/inferior: se separan en X, no se bajan.
+      if (
+        (axis.zone === 'n' && (other.zone === 'nw' || other.zone === 'ne')) ||
+        (axis.zone === 's' && (other.zone === 'sw' || other.zone === 'se'))
+      ) {
+        continue;
+      }
+      const overlapsX =
+        other.left < axis.left + axis.stackW + groupGap &&
+        other.left + other.stackW > axis.left - groupGap;
+      if (!overlapsX) continue;
+      if (axis.zone === 'n' && other.top < axisBottom) {
+        other.top = axisBottom;
+      } else if (axis.zone === 's' && other.top + other.stackH > axisTop) {
+        other.top = Math.max(0, axisTop - other.stackH);
+      }
+      other.top = Math.min(
+        Math.max(other.top, 0),
+        Math.max(height - other.stackH, 0),
+      );
+    }
+  }
+}
+
+/** Evita que el padding saque a una sede de su cuadrante (p. ej. SE hacia el mapa). */
+function clampMetropolitanZoneSlots(
+  clusters: Array<{
+    left: number;
+    top: number;
+    stackW: number;
+    stackH: number;
+    zone: MapCompassZone;
+  }>,
+  mapRect: { left: number; top: number; width: number; height: number },
+  mapMidX: number,
+  margin: number,
+  width: number,
+  height: number,
+  sidePinnedDiagonals = false,
+) {
+  const mapRight = mapRect.left + mapRect.width;
+  const mapBottom = mapRect.top + mapRect.height;
+  for (const cluster of clusters) {
+    if (cluster.zone === 'n') {
+      cluster.left = mapMidX - cluster.stackW / 2;
+      cluster.top = Math.max(0, mapRect.top - margin - cluster.stackH);
+    } else if (cluster.zone === 's') {
+      cluster.left = mapMidX - cluster.stackW / 2;
+      cluster.top = Math.max(mapBottom + margin, cluster.top);
+    } else if (cluster.zone === 'e') {
+      cluster.left = Math.max(mapRight + margin, cluster.left);
+    } else if (cluster.zone === 'w') {
+      cluster.left = Math.min(mapRect.left - margin - cluster.stackW, cluster.left);
+    } else if (cluster.zone === 'se') {
+      cluster.left = Math.max(mapRight + margin, cluster.left);
+      cluster.top = Math.max(mapBottom + margin, cluster.top);
+    } else if (cluster.zone === 'sw') {
+      cluster.left = Math.min(mapRect.left - margin - cluster.stackW, cluster.left);
+      cluster.top = Math.max(mapBottom + margin, cluster.top);
+    } else if (cluster.zone === 'ne') {
+      cluster.left = Math.max(mapRight + margin, cluster.left);
+      if (!sidePinnedDiagonals) {
+        cluster.top = Math.min(
+          cluster.top,
+          Math.max(0, mapRect.top - margin - cluster.stackH),
+        );
+      }
+    } else if (cluster.zone === 'nw') {
+      cluster.left = Math.min(mapRect.left - margin - cluster.stackW, cluster.left);
+      if (!sidePinnedDiagonals) {
+        cluster.top = Math.min(
+          cluster.top,
+          Math.max(0, mapRect.top - margin - cluster.stackH),
+        );
+      }
+    }
+    cluster.left = Math.min(
+      Math.max(cluster.left, 0),
+      Math.max(width - cluster.stackW, 0),
+    );
+    cluster.top = Math.min(
+      Math.max(cluster.top, 0),
+      Math.max(height - cluster.stackH, 0),
+    );
+  }
+}
+
+/** Separa grupos de sedes que quedan demasiado cerca (padding entre clusters). */
+function resolveCardGroupPadding(
+  clusters: Array<{
+    left: number;
+    top: number;
+    stackW: number;
+    stackH: number;
+    zone?: MapCompassZone;
+  }>,
+  groupGap: number,
+  width: number,
+  height: number,
+) {
+  const inflate = groupGap / 2;
+  for (let pass = 0; pass < 16; pass++) {
+    let moved = false;
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const a = clusters[i];
+        const b = clusters[j];
+        if (!a || !b) continue;
+        const ax1 = a.left - inflate;
+        const ay1 = a.top - inflate;
+        const ax2 = a.left + a.stackW + inflate;
+        const ay2 = a.top + a.stackH + inflate;
+        const bx1 = b.left - inflate;
+        const by1 = b.top - inflate;
+        const bx2 = b.left + b.stackW + inflate;
+        const by2 = b.top + b.stackH + inflate;
+        if (ax1 >= bx2 || bx1 >= ax2 || ay1 >= by2 || by1 >= ay2) continue;
+
+        const overlapX = Math.min(ax2, bx2) - Math.max(ax1, bx1);
+        const overlapY = Math.min(ay2, by2) - Math.max(ay1, by1);
+        const va = a.zone ? ZONE_VECTOR[a.zone] : { x: 0, y: 0 };
+        const vb = b.zone ? ZONE_VECTOR[b.zone] : { x: 0, y: 0 };
+        const lockA = zoneLocksAxis(a.zone);
+        const lockB = zoneLocksAxis(b.zone);
+
+        // N/S vs laterales: separación vertical para no correr N hacia Bellavista.
+        // Misma franja (N+NW/NE o S+SW/SE): separar en X, no subir/bajar al mapa.
+        const cardinal = (z?: MapCompassZone) => z === 'n' || z === 's';
+        const lateral = (z?: MapCompassZone) =>
+          z === 'e' ||
+          z === 'w' ||
+          z === 'ne' ||
+          z === 'nw' ||
+          z === 'se' ||
+          z === 'sw';
+        const northBand = (z?: MapCompassZone) =>
+          z === 'n' || z === 'ne' || z === 'nw';
+        const southBand = (z?: MapCompassZone) =>
+          z === 's' || z === 'se' || z === 'sw';
+        const sameBand =
+          (northBand(a.zone) && northBand(b.zone)) ||
+          (southBand(a.zone) && southBand(b.zone));
+        const preferY =
+          !sameBand &&
+          ((cardinal(a.zone) && lateral(b.zone)) ||
+            (cardinal(b.zone) && lateral(a.zone)));
+        const separateY = preferY || (!sameBand && overlapY <= overlapX);
+
+        if (separateY) {
+          const push = Math.max(overlapY / 2, 4);
+          let da = va.y !== 0 ? Math.sign(va.y) : a.top <= b.top ? -1 : 1;
+          let db = vb.y !== 0 ? Math.sign(vb.y) : b.top < a.top ? -1 : 1;
+          if (da === db) {
+            if (a.top <= b.top) {
+              da = -1;
+              db = 1;
+            } else {
+              da = 1;
+              db = -1;
+            }
+          }
+          if (!lockA.lockY) a.top += da * push;
+          if (!lockB.lockY) b.top += db * push;
+          if (lockA.lockY && !lockB.lockY) b.top += db * push;
+          if (lockB.lockY && !lockA.lockY) a.top += da * push;
+        } else {
+          const push = Math.max(overlapX / 2, 4);
+          let da = va.x !== 0 ? Math.sign(va.x) : a.left <= b.left ? -1 : 1;
+          let db = vb.x !== 0 ? Math.sign(vb.x) : b.left < a.left ? -1 : 1;
+          if (da === db) {
+            if (a.left <= b.left) {
+              da = -1;
+              db = 1;
+            } else {
+              da = 1;
+              db = -1;
+            }
+          }
+          if (!lockA.lockX) a.left += da * push;
+          if (!lockB.lockX) b.left += db * push;
+          if (lockA.lockX && !lockB.lockX) b.left += db * push;
+          if (lockB.lockX && !lockA.lockX) a.left += da * push;
+        }
+
+        a.left = Math.min(Math.max(a.left, 0), Math.max(width - a.stackW, 0));
+        a.top = Math.min(Math.max(a.top, 0), Math.max(height - a.stackH, 0));
+        b.left = Math.min(Math.max(b.left, 0), Math.max(width - b.stackW, 0));
+        b.top = Math.min(Math.max(b.top, 0), Math.max(height - b.stackH, 0));
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
 }
 
 function cardSidesByPinX(
@@ -918,7 +1556,8 @@ export function layoutFloatingMapCards({
   mapRect,
   gap = 8,
   margin = 10,
-  maxRows = 2,
+  maxCols = 3,
+  groupGap = 28,
   regionId,
 }: {
   pins: AiepSedePin[];
@@ -930,12 +1569,13 @@ export function layoutFloatingMapCards({
   mapRect: { left: number; top: number; width: number; height: number };
   gap?: number;
   margin?: number;
-  maxRows?: number;
+  maxCols?: number;
+  groupGap?: number;
   regionId?: number;
 }): FloatingMapCard[] {
   if (width <= 0 || height <= 0) return [];
-  if (regionId === METROPOLITANA_REGION_ID) {
-    return layoutMetropolitanMapCards({
+  if (usesCompassMapLayout(regionId)) {
+    return layoutCompassMapCards({
       pins,
       positions,
       width,
@@ -945,7 +1585,9 @@ export function layoutFloatingMapCards({
       mapRect,
       gap,
       margin,
-      maxRows,
+      maxCols,
+      groupGap,
+      regionId,
     });
   }
 
@@ -972,8 +1614,8 @@ export function layoutFloatingMapCards({
     const pos = positions[pin.id];
     if (!pos || pin.proyectos.length === 0) continue;
     const n = pin.proyectos.length;
-    const cols = Math.ceil(n / maxRows);
-    const rows = Math.min(n, maxRows);
+    const cols = Math.min(n, maxCols);
+    const rows = Math.ceil(n / maxCols);
     const stackW = cols * cardWidth + (cols - 1) * gap;
     const stackH = rows * cardHeight + (rows - 1) * gap;
     const side = sides[pin.id] ?? 'left';
@@ -1003,7 +1645,7 @@ export function layoutFloatingMapCards({
       const prev = list[i - 1];
       const current = list[i];
       if (!prev || !current) continue;
-      const minTop = prev.top + prev.stackH + gap;
+      const minTop = prev.top + prev.stackH + groupGap;
       if (current.top < minTop) current.top = minTop;
     }
     const last = list[list.length - 1];
@@ -1018,6 +1660,8 @@ export function layoutFloatingMapCards({
     }
   }
 
+  resolveCardGroupPadding(clusters, groupGap, width, height);
+
   const placed: FloatingMapCard[] = [];
   for (const cluster of clusters) {
     const left = Math.min(
@@ -1029,8 +1673,8 @@ export function layoutFloatingMapCards({
       Math.max(height - cluster.stackH, 0),
     );
     cluster.proyectos.forEach((proyecto, index) => {
-      const col = Math.floor(index / maxRows);
-      const row = index % maxRows;
+      const col = index % maxCols;
+      const row = Math.floor(index / maxCols);
       placed.push({
         pinId: cluster.pinId,
         proyecto,

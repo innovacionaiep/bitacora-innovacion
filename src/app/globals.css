@@ -295,16 +295,25 @@
   transition: fill 0.18s ease;
 }
 
-.chile-region-path:hover,
-.chile-region-path:focus,
-.chile-region-path:focus-visible {
-  fill: #10b981 !important;
+.national-map-svg {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.chile-region-path-selected,
-.chile-region-path-selected:hover,
-.chile-region-path-selected:focus {
-  fill: #10b981 !important;
+.national-map-svg,
+.national-map-svg .chile-region-path {
+  cursor: grab !important;
+}
+
+.national-map-svg:active,
+.national-map-svg:active .chile-region-path {
+  cursor: grabbing !important;
+}
+
+.national-map-svg .chile-region-path:focus,
+.national-map-svg .chile-region-path:focus-visible {
+  outline: none;
+  caret-color: transparent;
 }
 
 .chile-region-hover-label {
@@ -318,11 +327,33 @@
   stroke-width: 0.35;
   stroke-linejoin: round;
   transition: opacity 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
+.chile-region-hover-label-visible,
 .chile-region-hit:hover .chile-region-hover-label,
 .chile-region-hit:focus-within .chile-region-hover-label {
   opacity: 1;
+}
+
+.chile-region-zoom-svg text {
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+  caret-color: transparent;
+}
+
+.chile-region-path:hover,
+.chile-region-path:focus,
+.chile-region-path:focus-visible {
+  fill: #10b981 !important;
+}
+
+.chile-region-path-selected,
+.chile-region-path-selected:hover,
+.chile-region-path-selected:focus {
+  fill: #10b981 !important;
 }
 
 .chile-region-zoom-path {

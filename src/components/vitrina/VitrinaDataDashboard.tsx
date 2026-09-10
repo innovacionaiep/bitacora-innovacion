@@ -203,6 +203,7 @@ export function VitrinaDataDashboard({
               data={stats.porFondo}
               colorFor={(item) => vitrinaFondoStripePaint(item.label, fondoColors)}
               barHoverProps={barHoverProps}
+              spacing="comfortable"
             />
           </div>
 
@@ -218,6 +219,7 @@ export function VitrinaDataDashboard({
                 vitrinaLineaBarStripePaint(item.label, item.parentFondo, fondoColors)
               }
               barHoverProps={barHoverProps}
+              spacing="compact"
             />
           </div>
         </article>
@@ -280,12 +282,18 @@ export function VitrinaDataDashboard({
   );
 }
 
-/** Primera palabra en la línea 1; el resto, en una sola segunda línea. */
+const VERTICAL_BAR_LABEL_MAX = 20;
+
+/** Trunca a 20 caracteres; primera palabra en línea 1, el resto en la 2. */
 export function formatVerticalBarLabel(label: string) {
   const trimmed = label.trim().replace(/\s+/g, ' ');
-  const space = trimmed.indexOf(' ');
-  if (space === -1) return trimmed;
-  return `${trimmed.slice(0, space)}\n${trimmed.slice(space + 1)}`;
+  const truncated =
+    trimmed.length <= VERTICAL_BAR_LABEL_MAX
+      ? trimmed
+      : `${trimmed.slice(0, VERTICAL_BAR_LABEL_MAX)}…`;
+  const space = truncated.indexOf(' ');
+  if (space === -1) return truncated;
+  return `${truncated.slice(0, space)}\n${truncated.slice(space + 1)}`;
 }
 
 function ResumenPersonaRow({
@@ -377,10 +385,13 @@ function VitrinaVerticalBars({
   data,
   colorFor,
   barHoverProps,
+  spacing = 'compact',
 }: {
   data: VitrinaDataBarDatum[];
   colorFor: (item: VitrinaDataBarDatum) => BarColor;
   barHoverProps: BarHoverProps;
+  /** comfortable = espaciado original; compact = barras más juntas. */
+  spacing?: 'comfortable' | 'compact';
 }) {
   if (data.length === 0) {
     return (
@@ -391,16 +402,27 @@ function VitrinaVerticalBars({
   }
 
   const max = Math.max(...data.map((item) => item.value), 1);
+  const comfortable = spacing === 'comfortable';
 
   return (
-    <div className="flex h-full min-h-0 items-end gap-3 overflow-x-auto px-1">
+    <div
+      className={cn(
+        'flex h-full min-h-0 items-end overflow-x-auto px-1',
+        comfortable ? 'gap-5' : 'gap-1',
+      )}
+    >
       {data.map((item) => {
         const pct = Math.max(8, (item.value / max) * 100);
         const paint = resolveBarColor(colorFor(item));
         return (
           <div
             key={item.label}
-            className="flex h-full min-h-0 w-[5.5rem] min-w-[5.5rem] shrink-0 cursor-pointer flex-col"
+            className={cn(
+              'flex h-full min-h-0 shrink-0 cursor-pointer flex-col',
+              comfortable
+                ? 'w-[6rem] min-w-[6rem]'
+                : 'w-[4.5rem] min-w-[4.5rem]',
+            )}
             {...barHoverProps(item)}
           >
             <div className="flex min-h-0 w-full flex-1 flex-col items-center">
@@ -413,7 +435,11 @@ function VitrinaVerticalBars({
                 {item.value}
               </span>
               <div
-                className={cn('w-9 min-h-2 shrink-0 rounded-t-md', paint.className)}
+                className={cn(
+                  'min-h-2 shrink-0 rounded-t-md',
+                  comfortable ? 'w-[3.375rem]' : 'w-9',
+                  paint.className,
+                )}
                 style={{
                   flexGrow: pct,
                   flexBasis: 0,
