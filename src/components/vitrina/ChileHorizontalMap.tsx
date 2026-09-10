@@ -272,7 +272,7 @@ export function ChileVerticalMap({
                 cy={pin.y}
                 r={nationalPinRadius(pin.count)}
                 data-national-pin={pin.regionId}
-                fill="#1e293b"
+                fill="#475569"
                 stroke="#fff"
                 strokeWidth={1.4}
               />

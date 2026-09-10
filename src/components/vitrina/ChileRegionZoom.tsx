@@ -303,7 +303,7 @@ export function ChileRegionZoom({
                       cy={pin.y}
                       r={r}
                       aria-hidden
-                      fill="#1e293b"
+                      fill="#475569"
                       stroke="#fff"
                       className="vitrina-map-pin"
                       style={{
