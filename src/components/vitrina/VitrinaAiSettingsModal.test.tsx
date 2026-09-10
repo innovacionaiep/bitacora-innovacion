@@ -27,6 +27,7 @@ vi.mock('@/lib/actions/portal-guest', () => ({
       causalab: false,
       vinculacion: false,
       visor: false,
+      comunicaciones: false,
     },
   })),
   getPortalSessionRoleSettings: vi.fn(async () => ({
@@ -191,6 +192,7 @@ describe('VitrinaAiSettingsModal códigos de invitado', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/Vinculación —/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Visor —/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Comunicaciones —/)).toBeInTheDocument();
   });
 });
 

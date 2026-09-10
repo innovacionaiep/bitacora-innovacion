@@ -2,7 +2,11 @@ import type { VitrinaProjectsView } from '@/lib/vitrina-views';
 
 export type PortalGuestLevel = 0 | 1 | 2 | 3;
 export type PortalAccessKind = 'none' | 'session' | 'guest';
-export type PortalGuestProfile = 'causalab' | 'vinculacion' | 'visor';
+export type PortalGuestProfile =
+  | 'causalab'
+  | 'vinculacion'
+  | 'visor'
+  | 'comunicaciones';
 
 export type PortalAccess = {
   kind: PortalAccessKind;
@@ -18,6 +22,7 @@ export type PortalGuestHashes = {
   causalab: string;
   vinculacion: string;
   visor: string;
+  comunicaciones: string;
 };
 
 export type PortalGuestTicket = {
@@ -34,6 +39,7 @@ export const EMPTY_PORTAL_GUEST_HASHES: PortalGuestHashes = {
   causalab: '',
   vinculacion: '',
   visor: '',
+  comunicaciones: '',
 };
 
 export const PORTAL_GUEST_LEVELS: PortalGuestLevel[] = [0, 1, 2, 3];
@@ -41,6 +47,7 @@ export const PORTAL_GUEST_PROFILES: PortalGuestProfile[] = [
   'causalab',
   'vinculacion',
   'visor',
+  'comunicaciones',
 ];
 
 export const PORTAL_GUEST_PROFILE_LEVEL: Record<
@@ -50,6 +57,7 @@ export const PORTAL_GUEST_PROFILE_LEVEL: Record<
   causalab: 0,
   vinculacion: 3,
   visor: 1,
+  comunicaciones: 3,
 };
 
 export const PORTAL_VIEWS_BY_LEVEL: Record<
@@ -78,7 +86,10 @@ export function isPortalGuestProfile(
   value: unknown,
 ): value is PortalGuestProfile {
   return (
-    value === 'causalab' || value === 'vinculacion' || value === 'visor'
+    value === 'causalab' ||
+    value === 'vinculacion' ||
+    value === 'visor' ||
+    value === 'comunicaciones'
   );
 }
 
@@ -104,6 +115,7 @@ export function parsePortalGuestHashes(
       causalab: hasProfiles ? asHash(parsed.causalab) : legacyZero,
       vinculacion: asHash(parsed.vinculacion),
       visor: asHash(parsed.visor),
+      comunicaciones: asHash(parsed.comunicaciones),
     };
   } catch {
     return { ...EMPTY_PORTAL_GUEST_HASHES };
@@ -119,6 +131,7 @@ export function serializePortalGuestHashes(hashes: PortalGuestHashes): string {
     causalab: hashes.causalab ?? '',
     vinculacion: hashes.vinculacion ?? '',
     visor: hashes.visor ?? '',
+    comunicaciones: hashes.comunicaciones ?? '',
   });
 }
 
@@ -130,6 +143,7 @@ export function portalGuestConfiguredFlags(hashes: PortalGuestHashes): {
   causalab: boolean;
   vinculacion: boolean;
   visor: boolean;
+  comunicaciones: boolean;
 } {
   return {
     0: Boolean(hashes[0]),
@@ -139,6 +153,7 @@ export function portalGuestConfiguredFlags(hashes: PortalGuestHashes): {
     causalab: Boolean(hashes.causalab),
     vinculacion: Boolean(hashes.vinculacion),
     visor: Boolean(hashes.visor),
+    comunicaciones: Boolean(hashes.comunicaciones),
   };
 }
 
@@ -279,6 +294,9 @@ export function portalProfileCaption(profile: PortalGuestProfile): string {
   if (profile === 'visor') {
     return 'Proyectos, Mapa e Indicadores, con chat IA';
   }
+  if (profile === 'comunicaciones') {
+    return 'Toda la información de lectura, con chat IA, sin ingreso a la app';
+  }
   return 'Toda la información de lectura, sin chat IA ni ingreso a la app';
 }
 
@@ -313,7 +331,18 @@ export function portalCanUseAiChat(access: PortalAccess): boolean {
 }
 
 export function portalCanEnterApp(access: PortalAccess): boolean {
-  return !(access.kind === 'guest' && access.profile === 'vinculacion');
+  return !(
+    access.kind === 'guest' &&
+    (access.profile === 'vinculacion' || access.profile === 'comunicaciones')
+  );
+}
+
+/** Configuración y edición del portal: solo Admin con sesión de la app. */
+export function portalCanManageSettings(
+  access: PortalAccess,
+  isAdmin: boolean,
+): boolean {
+  return access.kind === 'session' && isAdmin;
 }
 
 export function portalSessionLevelCaption(level: PortalGuestLevel): string {

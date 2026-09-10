@@ -12,6 +12,7 @@ import { getSession } from '@/lib/auth-utils';
 import { userHasAdminEnabled } from '@/lib/authz/pure';
 import {
   PORTAL_CAUSALAB_FONDO,
+  portalCanManageSettings,
   portalCanSeeView,
   portalIsCausalab,
   portalNeedsVitrinaProyectos,
@@ -51,7 +52,10 @@ export default async function PortalPage({
     getVitrinaAiPublicStatus(),
     resolvePortalAccess(),
   ]);
-  const canEdit = userHasAdminEnabled(session?.user?.availableRoles);
+  const canEdit = portalCanManageSettings(
+    access,
+    userHasAdminEnabled(session?.user?.availableRoles),
+  );
   const sessionEmail = session?.user?.email?.trim() || null;
   if (
     params.vista === 'proyectos' &&

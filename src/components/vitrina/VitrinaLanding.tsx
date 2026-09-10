@@ -168,6 +168,7 @@ export function VitrinaLanding({
   };
   const isCausalab = portalIsCausalab(access);
   const showAppCta = portalCanEnterApp(access);
+  const canManagePortal = canEdit && accessKind === 'session';
   const visibleTabs = portalViewsForAccess(accessLevel, accessProfile);
   const fondoColors = useMemo(
     () => buildFondoColorMap(catalogs.fondos),
@@ -611,7 +612,7 @@ export function VitrinaLanding({
                 </button>
               </>
             ) : null}
-            {canEdit ? (
+            {canManagePortal ? (
               <VitrinaProjectsEditor
                 count={proyectosLocal.length}
                 onAdd={() => setFicha('new')}
@@ -830,7 +831,7 @@ export function VitrinaLanding({
                 >
                   <VitrinaProjectsGrid
                     proyectos={proyectosFiltrados}
-                    canEdit={canEdit}
+                    canEdit={canManagePortal}
                     emptyHint={
                       proyectosLocal.length > 0
                         ? 'No hay proyectos que coincidan con los filtros.'
@@ -906,7 +907,7 @@ export function VitrinaLanding({
                   <VitrinaProjectsTable
                     proyectos={proyectosFiltrados}
                     catalogs={catalogs}
-                    canEdit={canEdit}
+                    canEdit={canManagePortal}
                     emptyHint={
                       proyectosLocal.length > 0
                         ? 'No hay proyectos que coincidan con los filtros.'
@@ -948,7 +949,7 @@ export function VitrinaLanding({
         ) : null}
       </div>
 
-      {!heroOff && !headerCompact && canEdit && !busy ? (
+      {!heroOff && !headerCompact && canManagePortal && !busy ? (
         <VitrinaVideoEditor videos={videos} />
       ) : null}
 
@@ -963,7 +964,7 @@ export function VitrinaLanding({
             ? (proyectosLocal.find((p) => p.id === ficha) ?? null)
             : null
         }
-        canEdit={canEdit}
+        canEdit={canManagePortal}
         onCreated={(id) => setFicha(id)}
         onProyectoUpsert={upsertProyectoLocal}
         onProyectoRemove={removeProyectoLocal}

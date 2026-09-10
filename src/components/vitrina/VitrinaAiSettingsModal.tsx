@@ -93,6 +93,7 @@ const PROFILE_LABEL: Record<PortalGuestProfile, string> = {
   causalab: 'Causalab',
   vinculacion: 'Vinculación',
   visor: 'Visor',
+  comunicaciones: 'Comunicaciones',
 };
 
 const EMPTY_GUEST_CODES = {
@@ -103,6 +104,7 @@ const EMPTY_GUEST_CODES = {
   causalab: '',
   vinculacion: '',
   visor: '',
+  comunicaciones: '',
 };
 
 const EMPTY_GUEST_FLAGS = {
@@ -113,6 +115,7 @@ const EMPTY_GUEST_FLAGS = {
   causalab: false,
   vinculacion: false,
   visor: false,
+  comunicaciones: false,
 };
 
 type PortalGuestCodeKey = PortalGuestLevel | PortalGuestProfile;

@@ -6,6 +6,7 @@ import {
   parsePortalGuestHashes,
   parsePortalGuestTicket,
   portalCanEnterApp,
+  portalCanManageSettings,
   portalCanSeeView,
   portalCanUseAiChat,
   portalGuestConfiguredFlags,
@@ -19,6 +20,7 @@ import {
   portalViewsForAccess,
   portalViewsForLevel,
   serializePortalGuestHashes,
+  EMPTY_PORTAL_GUEST_HASHES,
   DEFAULT_PORTAL_SESSION_ROLE_LEVELS,
   parsePortalSessionRoleLevels,
   serializePortalSessionRoleLevels,
@@ -34,6 +36,7 @@ describe('portal guest hashes', () => {
       causalab: 'hc',
       vinculacion: 'hv',
       visor: 'hv2',
+      comunicaciones: 'hcom',
     });
     expect(parsePortalGuestHashes(raw)).toEqual({
       0: 'h0',
@@ -43,6 +46,7 @@ describe('portal guest hashes', () => {
       causalab: 'hc',
       vinculacion: 'hv',
       visor: 'hv2',
+      comunicaciones: 'hcom',
     });
     expect(portalGuestConfiguredFlags(parsePortalGuestHashes(raw))).toEqual({
       0: true,
@@ -52,6 +56,7 @@ describe('portal guest hashes', () => {
       causalab: true,
       vinculacion: true,
       visor: true,
+      comunicaciones: true,
     });
   });
 
@@ -64,6 +69,7 @@ describe('portal guest hashes', () => {
       causalab: '',
       vinculacion: '',
       visor: '',
+      comunicaciones: '',
     });
     expect(parsePortalGuestHashes('{"0":"old0","1":"h1","2":"","3":"h3"}')).toEqual({
       0: '',
@@ -73,6 +79,7 @@ describe('portal guest hashes', () => {
       causalab: 'old0',
       vinculacion: '',
       visor: '',
+      comunicaciones: '',
     });
   });
 
@@ -89,7 +96,7 @@ describe('portal guest hashes', () => {
       causalab: 'c0',
       vinculacion: '',
       visor: '',
-      visor: '',
+      comunicaciones: '',
     });
   });
 
@@ -102,6 +109,7 @@ describe('portal guest hashes', () => {
       causalab: '',
       vinculacion: '',
       visor: '',
+      comunicaciones: '',
     });
   });
 });
@@ -215,6 +223,31 @@ describe('perfiles de invitado', () => {
     expect(portalCanSeeView(3, 'proyectos')).toBe(true);
   });
 
+  it('Comunicaciones ve todos los tabs, con chat IA, sin ingreso a la app', () => {
+    expect(portalViewsForAccess(3, 'comunicaciones')).toEqual([
+      'proyectos',
+      'mapa',
+      'avances',
+      'analisis',
+      'indicadores',
+      'data',
+      'vinculamos',
+    ]);
+    expect(portalProfileCaption('comunicaciones')).toBe(
+      'Toda la información de lectura, con chat IA, sin ingreso a la app',
+    );
+    expect(
+      portalCanUseAiChat({ kind: 'guest', level: 3, profile: 'comunicaciones' }),
+    ).toBe(true);
+    expect(
+      portalCanEnterApp({
+        kind: 'guest',
+        level: 3,
+        profile: 'comunicaciones',
+      }),
+    ).toBe(false);
+  });
+
   it('el chat IA sigue el nivel general y se apaga en perfiles específicos', () => {
     expect(
       portalCanUseAiChat({ kind: 'guest', level: 0, profile: null }),
@@ -253,6 +286,46 @@ describe('perfiles de invitado', () => {
       portalCanEnterApp({ kind: 'session', level: 3, profile: null }),
     ).toBe(true);
   });
+
+  it('ningún invitado configura el portal ni edita información', () => {
+    const guests = [
+      { kind: 'guest' as const, level: 0 as const, profile: null },
+      { kind: 'guest' as const, level: 1 as const, profile: null },
+      { kind: 'guest' as const, level: 2 as const, profile: null },
+      { kind: 'guest' as const, level: 3 as const, profile: null },
+      { kind: 'guest' as const, level: 0 as const, profile: 'causalab' as const },
+      {
+        kind: 'guest' as const,
+        level: 3 as const,
+        profile: 'vinculacion' as const,
+      },
+      { kind: 'guest' as const, level: 1 as const, profile: 'visor' as const },
+      {
+        kind: 'guest' as const,
+        level: 3 as const,
+        profile: 'comunicaciones' as const,
+      },
+    ];
+    for (const access of guests) {
+      expect(portalCanManageSettings(access, false)).toBe(false);
+      expect(portalCanManageSettings(access, true)).toBe(false);
+    }
+    expect(
+      portalCanManageSettings({ kind: 'none', level: null, profile: null }, true),
+    ).toBe(false);
+    expect(
+      portalCanManageSettings(
+        { kind: 'session', level: 3, profile: null },
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      portalCanManageSettings(
+        { kind: 'session', level: 3, profile: null },
+        true,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe('guest ticket', () => {
@@ -268,6 +341,7 @@ describe('guest ticket', () => {
         causalab: '',
         vinculacion: '',
         visor: '',
+      comunicaciones: '',
       }),
     ).toBe(true);
     expect(
@@ -279,6 +353,7 @@ describe('guest ticket', () => {
         causalab: '',
         vinculacion: '',
         visor: '',
+      comunicaciones: '',
       }),
     ).toBe(false);
   });
@@ -292,6 +367,7 @@ describe('guest ticket', () => {
       causalab: 'c0',
       vinculacion: '',
       visor: '',
+      comunicaciones: '',
     };
     const profiled = parsePortalGuestTicket({
       level: 0,
@@ -326,6 +402,7 @@ describe('guest ticket', () => {
         causalab: '',
         vinculacion: 'v1',
         visor: '',
+      comunicaciones: '',
       }),
     ).toBe(true);
     expect(
@@ -337,8 +414,29 @@ describe('guest ticket', () => {
         causalab: '',
         vinculacion: 'otro',
         visor: '',
+        comunicaciones: '',
       }),
     ).toBe(false);
+  });
+
+  it('acepta ticket de Comunicaciones', () => {
+    const ticket = parsePortalGuestTicket({
+      level: 3,
+      hash: 'c1',
+      profile: 'comunicaciones',
+    });
+    expect(ticket).toEqual({
+      level: 3,
+      hash: 'c1',
+      profile: 'comunicaciones',
+    });
+    expect(
+      guestTicketStillValid(ticket!, {
+        ...EMPTY_PORTAL_GUEST_HASHES,
+        3: 'g3',
+        comunicaciones: 'c1',
+      }),
+    ).toBe(true);
   });
 });
 
@@ -354,6 +452,7 @@ describe('matchPortalGuestCode', () => {
         causalab: '',
         vinculacion: '',
         visor: '',
+      comunicaciones: '',
       },
       async (plain, hash) => plain === 'secreto' && hash === 'h2',
     );
@@ -371,6 +470,7 @@ describe('matchPortalGuestCode', () => {
         causalab: 'hc',
         vinculacion: '',
         visor: '',
+      comunicaciones: '',
       },
       async (plain, hash) =>
         (plain === 'causalab' && hash === 'hc') ||
@@ -390,6 +490,7 @@ describe('matchPortalGuestCode', () => {
         causalab: '',
         vinculacion: '',
         visor: 'hs',
+        comunicaciones: '',
       },
       async (plain, hash) => plain === 'visor-guest' && hash === 'hs',
     );
@@ -411,6 +512,7 @@ describe('matchPortalGuestCode', () => {
         causalab: '',
         vinculacion: 'hv',
         visor: '',
+      comunicaciones: '',
       },
       async (plain, hash) => plain === 'vcm-guest' && hash === 'hv',
     );
@@ -421,19 +523,42 @@ describe('matchPortalGuestCode', () => {
     });
   });
 
+  it('matchea el código de Comunicaciones', async () => {
+    const ticket = await matchPortalGuestCode(
+      'com-guest',
+      {
+        ...EMPTY_PORTAL_GUEST_HASHES,
+        3: 'h3',
+        comunicaciones: 'hc2',
+      },
+      async (plain, hash) => plain === 'com-guest' && hash === 'hc2',
+    );
+    expect(ticket).toEqual({
+      level: 3,
+      hash: 'hc2',
+      profile: 'comunicaciones',
+    });
+  });
+
   it('rechaza código vacío o sin match', async () => {
     const compare = async () => false;
     expect(
       await matchPortalGuestCode(
         '',
-        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '', visor: '' },
+        {
+          ...EMPTY_PORTAL_GUEST_HASHES,
+          1: 'h',
+        },
         compare,
       ),
     ).toBeNull();
     expect(
       await matchPortalGuestCode(
         'x',
-        { 0: '', 1: 'h', 2: '', 3: '', causalab: '', vinculacion: '', visor: '' },
+        {
+          ...EMPTY_PORTAL_GUEST_HASHES,
+          1: 'h',
+        },
         compare,
       ),
     ).toBeNull();
