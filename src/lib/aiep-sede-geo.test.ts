@@ -619,6 +619,31 @@ describe('región de Los Lagos', () => {
     expect(mapRect.left - rightEdge('castro')).toBeLessThanOrEqual(28);
   });
 
+  it('deja aire inferior bajo Castro igual al pb-6 del mapa nacional (24px)', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'C1', sedes: ['Castro'] },
+      { nombre: 'C2', sedes: ['Castro'] },
+      { nombre: 'C3', sedes: ['Castro'] },
+    ]);
+    const bottomPad = 24;
+    const overlayH = 480;
+    const mapRect = { left: 200, top: 110, width: 180, height: 200 };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions: { castro: { x: 220, y: 270 } },
+      width: 700,
+      height: overlayH - bottomPad,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: LOS_LAGOS_REGION_ID,
+    });
+    const bottom = Math.max(...placed.map((c) => c.top + 70));
+    expect(overlayH - bottom).toBeGreaterThanOrEqual(bottomPad);
+  });
+
   it('mantiene etiquetas cerca del pin sin líneas líderes', () => {
     const names = ['Osorno', 'Puerto Montt', 'Castro'];
     const pins = names.map((name) => {

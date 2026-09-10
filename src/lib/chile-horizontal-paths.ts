@@ -216,6 +216,15 @@ export function chileRegionById(id: number): ChileRegionPath | undefined {
   return CHILE_REGION_PATHS.find((region) => region.id === id);
 }
 
+/** Nombre corto para la placa del zoom (sin prefijo «Región de/del»). */
+export function chileRegionDisplayName(name: string): string {
+  return name
+    .replace(/^Región\s+del\s+/i, '')
+    .replace(/^Región\s+de\s+/i, '')
+    .replace(/^Región\s+/i, '')
+    .trim();
+}
+
 export const NATIONAL_MAP_ZOOM_MIN = 1;
 export const NATIONAL_MAP_ZOOM_MAX = 2.4;
 export const NATIONAL_MAP_ZOOM_STEP = 0.4;

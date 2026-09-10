@@ -144,8 +144,9 @@ describe('VitrinaMapaView', () => {
       screen.getByRole('group', { name: 'Región de Valparaíso ampliada' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Región de Valparaíso', { selector: 'p' }),
+      screen.getByRole('heading', { name: 'Valparaíso' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Región')).toBeInTheDocument();
     const zoomPath = document.querySelector('.chile-region-zoom-path');
     expect(zoomPath).toHaveAttribute('fill', '#e2e8f0');
     expect(

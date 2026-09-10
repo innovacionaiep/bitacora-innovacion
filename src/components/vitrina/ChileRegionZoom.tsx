@@ -1,7 +1,11 @@
 'use client';
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { chileRegionPathBBox, chileRegionViewBox } from '@/lib/chile-horizontal-paths';
+import {
+  chileRegionDisplayName,
+  chileRegionPathBBox,
+  chileRegionViewBox,
+} from '@/lib/chile-horizontal-paths';
 import type { ChileRegionPath } from '@/lib/chile-horizontal-paths';
 import type { AiepSedePin } from '@/lib/aiep-sede-geo';
 import {
@@ -28,6 +32,11 @@ const CARD_GROUP_GAP = 28;
 const MAP_CARD_MARGIN = 44;
 /** Regiones compass sin achicar el mapa regional. */
 const COMPACT_CARD_MARGIN = 12;
+/**
+ * Aire bajo las tarjetas inferiores.
+ * Igual a `pb-6` del contenedor del mapa nacional en VitrinaMapaView.
+ */
+const CARD_BOTTOM_EDGE_PAD = 24;
 
 type OverlayRect = { left: number; top: number; width: number; height: number };
 
@@ -166,7 +175,7 @@ export function ChileRegionZoom({
             pins,
             positions,
             width: overlaySize.width,
-            height: overlaySize.height,
+            height: Math.max(overlaySize.height - CARD_BOTTOM_EDGE_PAD, 0),
             cardWidth: CARD_WIDTH,
             cardHeight: CARD_HEIGHT,
             mapRect,
@@ -249,9 +258,42 @@ export function ChileRegionZoom({
       role="group"
       aria-label={`${region.name} ampliada`}
     >
-      <p className="mb-3 shrink-0 px-4 text-center text-base font-semibold text-slate-800">
-        {region.name}
-      </p>
+      <header
+        key={region.id}
+        aria-label={region.name}
+        className="vitrina-region-title mb-3 shrink-0 px-4 text-center"
+      >
+        <div className="relative mx-auto flex w-fit flex-col items-stretch">
+          <div
+            className="vitrina-region-title-mosaic pointer-events-none absolute inset-x-0 top-[0.1875rem] bottom-[0.125rem]"
+            aria-hidden
+          />
+          <div
+            className="relative z-10 mb-1.5 flex h-1.5 items-center justify-center gap-2"
+            aria-hidden
+          >
+            <span className="h-px w-32 bg-slate-300" />
+            <span className="h-1.5 w-1.5 rotate-45 bg-emerald-500" />
+            <span className="h-px w-32 bg-slate-300" />
+          </div>
+          <div className="relative z-10 px-3 py-1.5">
+            <p className="text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+              Región
+            </p>
+            <h2 className="mx-auto mt-0.5 max-w-md text-[1.375rem] font-semibold leading-tight tracking-tight text-slate-800">
+              {chileRegionDisplayName(region.name)}
+            </h2>
+          </div>
+          <div
+            className="relative z-10 mt-1.5 flex h-1 items-center justify-center gap-1.5"
+            aria-hidden
+          >
+            <span className="h-px w-24 bg-slate-300" />
+            <span className="h-1 w-1 rounded-full bg-slate-400" />
+            <span className="h-px w-24 bg-slate-300" />
+          </div>
+        </div>
+      </header>
       <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-visible px-2">
         <div
           ref={overlayRef}

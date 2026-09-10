@@ -288,6 +288,54 @@
   animation: vitrina-map-pin-in 0.45s ease-out both;
 }
 
+@keyframes vitrina-region-title-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vitrina-region-title {
+  animation: vitrina-region-title-in 0.2s ease-out both;
+}
+
+.vitrina-region-title-mosaic {
+  background-color: rgb(241 245 249 / 0.55);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgb(203 213 225 / 0.38) 0,
+      rgb(203 213 225 / 0.38) 1px,
+      transparent 1px,
+      transparent 11px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgb(203 213 225 / 0.38) 0,
+      rgb(203 213 225 / 0.38) 1px,
+      transparent 1px,
+      transparent 11px
+    );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 18%,
+    #000 82%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 18%,
+    #000 82%,
+    transparent
+  );
+}
+
 .chile-region-path {
   fill: #e2e8f0 !important;
   cursor: pointer;
