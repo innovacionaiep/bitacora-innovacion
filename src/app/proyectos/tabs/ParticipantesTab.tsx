@@ -74,6 +74,7 @@ import { useParticipantesTab } from './useParticipantesTab';
 import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSociosComunitariosDialog';
 import { ImportExcelDialog } from '@/components/proyectos/ImportExcelDialog';
 import { useCanProjectImport } from '@/hooks/useCanProjectImport';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 import { cn } from '@/lib/utils';
 
 type ProyectoTabName =
@@ -539,6 +540,7 @@ export function ParticipantesTab({
     'projects.import_participantes',
     project
   );
+  const readOnly = usePublicReadOnly();
 
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'asc' });
 
@@ -973,6 +975,7 @@ export function ParticipantesTab({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  {!readOnly ? (
                   <Button
                     type="button"
                     onClick={openEditarSociosDialog}
@@ -985,6 +988,9 @@ export function ParticipantesTab({
                       Editar socios
                     </span>
                   </Button>
+                  ) : (
+                    <span />
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Agregar o editar socios comunitarios del proyecto</p>
@@ -1868,7 +1874,7 @@ export function ParticipantesTab({
                   </TableRow>
                 )}
 
-                {!isLoadingParticipantes && !isAddingParticipante && (
+                {!isLoadingParticipantes && !isAddingParticipante && !readOnly && (
                   <TableRow
                     id="tour-participantes-agregar"
                     className="hover:bg-green-50/70 transition-colors cursor-pointer border-t-2 border-dashed border-gray-200"

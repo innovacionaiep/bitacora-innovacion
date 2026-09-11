@@ -71,6 +71,23 @@ export type LineasModulosMatrix = {
   dtCategorias: LineasModulosMatrixDtCat[];
 };
 
+async function loadLineasTabsCatalogData(): Promise<LineaModuloCatalogItem[]> {
+  const lineas = await prisma.linea.findMany({
+    select: {
+      id: true,
+      nombre: true,
+      fondo: { select: { nombre: true } },
+      ...LINEA_TAB_SELECT,
+    },
+  });
+  return lineas.map((l) => ({
+    id: l.id,
+    nombre: l.nombre,
+    fondoNombre: l.fondo.nombre,
+    ...toFlags(l),
+  }));
+}
+
 export async function getLineasTabsCatalog(): Promise<{
   success: boolean;
   data: LineaModuloCatalogItem[];
@@ -81,27 +98,21 @@ export async function getLineasTabsCatalog(): Promise<{
     return { success: false, data: [], error: gate.error };
   }
   try {
-    const lineas = await prisma.linea.findMany({
-      select: {
-        id: true,
-        nombre: true,
-        fondo: { select: { nombre: true } },
-        ...LINEA_TAB_SELECT,
-      },
-    });
     return {
       success: true,
-      data: lineas.map((l) => ({
-        id: l.id,
-        nombre: l.nombre,
-        fondoNombre: l.fondo.nombre,
-        ...toFlags(l),
-      })),
+      data: await loadLineasTabsCatalogData(),
     };
   } catch (e) {
     console.error('[getLineasTabsCatalog]', e);
     return { success: false, data: [], error: 'Error al cargar líneas' };
   }
+}
+
+/** Catálogo de tabs por línea, sin sesión (solo para ficha pública ya validada). */
+export async function getLineasTabsCatalogUnchecked(): Promise<
+  LineaModuloCatalogItem[]
+> {
+  return loadLineasTabsCatalogData();
 }
 
 export async function getLineasModulosMatrix(): Promise<{

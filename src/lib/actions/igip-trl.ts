@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { requireProjectAccess } from '@/lib/authz/guards';
+import { requireProjectAccess, requireProjectReadAccess } from '@/lib/authz/guards';
 import { getLineaTabFlagsForProyecto } from '@/lib/linea-modulos-db';
 import {
   describeIgipTrlCambio,
@@ -88,7 +88,7 @@ const IGIP_SELECT = {
 export async function getIgipTrlProyecto(proyectoId: string) {
   try {
     const [gate, proyecto] = await Promise.all([
-      requireProjectAccess(proyectoId, 'view.proyectos'),
+      requireProjectReadAccess(proyectoId),
       prisma.proyecto.findUnique({
         where: { id: proyectoId },
         select: {

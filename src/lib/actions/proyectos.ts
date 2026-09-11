@@ -9,6 +9,7 @@ import {
   requireAdmin,
   requirePermission,
   requireProjectAccess,
+  requireProjectReadAccess,
   requireProjectCoordinatorOrAdmin,
 } from '@/lib/authz/guards';
 import { catalogCreateRequiresAjustes } from '@/lib/authz/catalog-create-policy';
@@ -595,7 +596,7 @@ export async function getProyecto(
   } = options;
   try {
     const [gate, proyecto, lineaId] = await Promise.all([
-      requireProjectAccess(id),
+      requireProjectReadAccess(id),
       prisma.proyecto.findUnique({
         where: { id },
         select: {
@@ -762,7 +763,7 @@ export async function getProyectoBase(id: string) {
  */
 export async function getProyectoDesarrolloTecnico(proyectoId: string) {
   try {
-    const gate = await requireProjectAccess(proyectoId);
+    const gate = await requireProjectReadAccess(proyectoId);
     if (!gate.ok) {
       return { success: false as const, error: gate.error };
     }
@@ -813,7 +814,7 @@ export async function getProyectoDesarrolloTecnico(proyectoId: string) {
  */
 export async function getProyectoParticipantes(proyectoId: string) {
   try {
-    const gate = await requireProjectAccess(proyectoId);
+    const gate = await requireProjectReadAccess(proyectoId);
     if (!gate.ok) {
       return {
         success: false as const,

@@ -8,6 +8,11 @@ import {
   MAINTENANCE_STATUS_API,
   isProductionRuntime,
 } from '@/lib/maintenance';
+import {
+  isPublicProjectPathname,
+  publicLinkTokenFromPathname,
+  PUBLIC_LINK_COOKIE,
+} from '@/lib/public-link';
 
 const authMiddleware = withAuth({
   pages: {
@@ -78,8 +83,22 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
     pathname === '/vitrina' ||
-    pathname.startsWith('/vitrina/')
+    pathname.startsWith('/vitrina/') ||
+    isPublicProjectPathname(pathname)
   ) {
+    if (isPublicProjectPathname(pathname)) {
+      const token = publicLinkTokenFromPathname(pathname);
+      const res = NextResponse.next();
+      if (token) {
+        res.cookies.set(PUBLIC_LINK_COOKIE, token, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+        });
+      }
+      return res;
+    }
     return NextResponse.next();
   }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { requireProjectAccess } from '@/lib/authz/guards';
+import { requireProjectAccess, requireProjectReadAccess } from '@/lib/authz/guards';
 import {
   applyFilaPatch,
   describeFilaCambio,
@@ -37,7 +37,7 @@ async function assertLineaEscalamientoEnabled(
 export async function getEscalamientoProyecto(proyectoId: string) {
   try {
     const [gate, proyecto] = await Promise.all([
-      requireProjectAccess(proyectoId),
+      requireProjectReadAccess(proyectoId),
       prisma.proyecto.findUnique({
         where: { id: proyectoId },
         select: {

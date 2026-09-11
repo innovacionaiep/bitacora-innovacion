@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { GlobalTopLoader } from '@/components/GlobalTopLoader';
+import { isPublicProjectPathname } from '@/lib/public-link';
 
 const AuthenticatedShell = dynamic(
   () =>
@@ -26,7 +27,8 @@ export function RouteAwareShell({ children }: { children: React.ReactNode }) {
     pathname === '/' ||
     pathname === '/mantenimiento' ||
     pathname === '/vitrina' ||
-    pathname.startsWith('/vitrina/');
+    pathname.startsWith('/vitrina/') ||
+    isPublicProjectPathname(pathname);
 
   return (
     <>

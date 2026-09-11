@@ -41,6 +41,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 import {
   getComentariosActividad,
   createComentarioActividad,
@@ -637,6 +638,7 @@ export default function GanttChart({
   footerLeft,
 }: GanttChartProps) {
   const { data: session } = useSession();
+  const publicReadOnly = usePublicReadOnly();
   const [viewMode, setViewMode] = useState<'gantt' | 'kanban'>('gantt');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const wantNativeFullscreenRef = useRef(false);
@@ -2267,6 +2269,7 @@ export default function GanttChart({
                               className="w-[500px] border-r border-gray-200 bg-gray-50 text-center py-1.5"
                               data-column="activities"
                             >
+                              {publicReadOnly ? null : (
                               <button
                                 type="button"
                                 id="tour-gantt-agregar"
@@ -2280,6 +2283,7 @@ export default function GanttChart({
                               >
                                 <Plus className="h-4 w-4 text-white" strokeWidth={2.5} />
                               </button>
+                              )}
                             </div>
                             <div className="flex-1 bg-gray-50" />
                           </div>
@@ -3016,6 +3020,7 @@ export default function GanttChart({
                       </span>
                     )}
                   </h3>
+                  {!publicReadOnly && (
                   <button
                     type="button"
                     onClick={() => {
@@ -3033,6 +3038,7 @@ export default function GanttChart({
                     <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                     Agregar
                   </button>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">

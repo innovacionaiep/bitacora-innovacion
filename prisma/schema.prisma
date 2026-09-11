@@ -88,6 +88,8 @@ model User {
   // Convenios firmados subidos por este usuario
   conveniosFirmados Proyecto[] @relation("ConvenioFirmadoBy")
 
+  linksPublicosCreados ProyectoLinkPublico[] @relation("ProyectoLinkPublicoCreatedBy")
+
   @@map("users")
 }
 
@@ -179,8 +181,25 @@ model Proyecto {
   reunionesSeguimiento   ReunionSeguimiento[]
   itemsPresupuesto       ItemPresupuesto[]
   convenioFirmadoByUser  User? @relation("ConvenioFirmadoBy", fields: [convenioFirmadoByUserId], references: [id], onDelete: SetNull)
+  linksPublicos          ProyectoLinkPublico[]
 
   @@map("proyectos")
+}
+
+model ProyectoLinkPublico {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  proyectoId  String    @map("proyecto_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdById String?   @map("created_by_id")
+  revokedAt   DateTime? @map("revoked_at")
+
+  proyecto  Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("ProyectoLinkPublicoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([proyectoId])
+  @@index([proyectoId, revokedAt])
+  @@map("proyecto_links_publicos")
 }
 
 enum CuentaPresupuesto {

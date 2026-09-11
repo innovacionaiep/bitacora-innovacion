@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-options';
+import { PUBLIC_LINK_COOKIE } from '@/lib/public-link';
+import { findActivePublicLinkProyectoId } from '@/lib/public-link-db';
+
+async function allowSessionOrPublicLink(request: NextRequest): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  if (session?.user) return true;
+  const token = request.cookies.get(PUBLIC_LINK_COOKIE)?.value;
+  if (!token) return false;
+  return (await findActivePublicLinkProyectoId(token)) != null;
+}
 
 /**
  * Proxy para descargar PDFs de evidencias con Content-Disposition: attachment.
- * Requiere sesión autenticada.
+ * Requiere sesión o un link público activo.
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!(await allowSessionOrPublicLink(request))) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 

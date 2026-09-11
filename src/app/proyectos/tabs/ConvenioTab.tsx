@@ -22,6 +22,7 @@ import {
   eliminarConvenioFirmado,
   guardarConvenioFirmado,
 } from '@/lib/actions/convenios';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 type ConvenioTabProps = {
   project: ProyectoWithRelations;
@@ -59,6 +60,7 @@ async function triggerDownload(url: string, filename: string) {
 }
 
 export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
+  const readOnly = usePublicReadOnly();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingBruto, setDownloadingBruto] = useState(false);
@@ -294,6 +296,8 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
                   <Download className="h-4 w-4 mr-2" />
                   {downloadingFirmado ? 'Descargando…' : 'Descargar firmado'}
                 </Button>
+                {!readOnly && (
+                  <>
                 <Button
                   type="button"
                   variant="outline"
@@ -314,8 +318,14 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
                   <Trash2 className="h-4 w-4 mr-2" />
                   {deleting ? 'Eliminando…' : 'Eliminar'}
                 </Button>
+                  </>
+                )}
               </div>
             </div>
+          ) : readOnly ? (
+            <p className="text-[13px] text-gray-600">
+              Aún no hay convenio firmado para este proyecto.
+            </p>
           ) : (
             <div
               id="tour-convenio-acciones"
@@ -337,6 +347,7 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
             </div>
           )}
 
+          {!readOnly && (
           <input
             ref={inputRef}
             type="file"
@@ -344,6 +355,7 @@ export function ConvenioTab({ project, setProject }: ConvenioTabProps) {
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
+          )}
         </section>
 
         {error && (

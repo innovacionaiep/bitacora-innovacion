@@ -11,6 +11,14 @@ import {
   canEditPresupuestoAdjudicado,
 } from '@/lib/authz/pure';
 import type { PermissionKey } from '@/lib/permissions/catalog';
+import {
+  PUBLIC_READER_USER,
+  resolveProjectReadAccess,
+} from '@/lib/public-link';
+import {
+  findActivePublicLinkProyectoId,
+  readIncomingPublicLinkToken,
+} from '@/lib/public-link-db';
 
 export type AuthzUser = {
   id: string;
@@ -90,6 +98,33 @@ export async function requireProjectAccess(
     return { ok: false, error: 'No tienes acceso a este proyecto' };
   }
   return gate;
+}
+
+/**
+ * Lectura de un proyecto: sesión con acceso, o token de link público activo
+ * (cookie / ALS) de ese mismo proyecto. No usar en mutaciones.
+ */
+export async function requireProjectReadAccess(
+  proyectoId: string
+): Promise<AuthzGate> {
+  if (!proyectoId) {
+    return { ok: false, error: 'Proyecto no especificado' };
+  }
+  const sessionGate = await requireProjectAccess(proyectoId, 'view.proyectos');
+  const publicToken = await readIncomingPublicLinkToken();
+  const tokenProyectoId = publicToken
+    ? await findActivePublicLinkProyectoId(publicToken)
+    : null;
+  const resolved = resolveProjectReadAccess({
+    proyectoId,
+    sessionGate,
+    publicToken,
+    tokenProyectoId,
+  });
+  if (resolved.ok && resolved.user.id === PUBLIC_READER_USER.id) {
+    return { ok: true, user: PUBLIC_READER_USER };
+  }
+  return resolved as AuthzGate;
 }
 
 /** Admin habilitado o Coordinador del proyecto (participación). */

@@ -29,7 +29,7 @@ import {
   FullscreenRecommendHint,
   useFullscreenRecommendHint,
 } from '@/components/proyectos/FullscreenRecommendHint';
-import { useSidebar } from '@/components/ui/sidebar';
+import { useOptionalSidebar } from '@/components/ui/sidebar';
 
 const FS_BTN_SIZE = 40;
 const FS_BTN_GAP = 8;
@@ -48,7 +48,8 @@ function IndicadoresFullscreenOverlay({
   showHint,
   onToggle,
 }: IndicadoresFullscreenOverlayProps) {
-  const { state: sidebarState } = useSidebar();
+  const sidebar = useOptionalSidebar();
+  const sidebarState = sidebar?.state;
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 

@@ -29,6 +29,7 @@ import { runOptimisticMutation } from '@/lib/ui/optimistic-mutation';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { cn } from '@/lib/utils';
 import { TrlSelectedArrow } from '@/components/ui/TrlSelectedArrow';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 type IgipTrlCardProps = {
   projectId: string;
@@ -46,6 +47,8 @@ function HoverPencil({
   className?: string;
   iconClassName?: string;
 }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"

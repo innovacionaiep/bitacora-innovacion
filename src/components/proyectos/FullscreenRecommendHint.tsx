@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { useSidebar } from '@/components/ui/sidebar';
+import { useOptionalSidebar } from '@/components/ui/sidebar';
 
 const DELAY_AFTER_READY_MS = 2_000;
 const VISIBLE_MS = 2_500;
@@ -71,7 +71,8 @@ export function FullscreenRecommendHint({
   side?: FullscreenHintSide;
   children: ReactNode;
 }) {
-  const { state: sidebarState } = useSidebar();
+  const sidebar = useOptionalSidebar();
+  const sidebarState = sidebar?.state;
   const anchorRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(
     null

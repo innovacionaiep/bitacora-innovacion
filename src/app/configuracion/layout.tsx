@@ -11,6 +11,7 @@ import {
   FileSignature,
   Wrench,
   GitBranch,
+  Link2,
 } from 'lucide-react';
 import { ConfigRoleGuard } from '@/components/config/ConfigRoleGuard';
 import { userHasPermission } from '@/lib/permissions/check';
@@ -60,6 +61,11 @@ export default async function ConfiguracionLayout({
       href: '/configuracion/convenios',
       label: 'Convenios',
       icon: FileSignature,
+    },
+    {
+      href: '/configuracion/links-publicos',
+      label: 'Links públicos',
+      icon: Link2,
     },
     {
       href: '/configuracion/mantenimiento',

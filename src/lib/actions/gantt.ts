@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
 import { GET_ACTIVITIES_LIST_SELECT } from '@/lib/proyecto-detail-cache';
-import { requireProjectAccess } from '@/lib/authz/guards';
+import { requireProjectAccess, requireProjectReadAccess } from '@/lib/authz/guards';
 import { createHistorialEntry } from './historial';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
@@ -43,7 +43,7 @@ export async function getActivityById(actividadId: string) {
  */
 export async function getActivities(projectId: string) {
   try {
-    const gate = await requireProjectAccess(projectId, 'view.proyectos');
+    const gate = await requireProjectReadAccess(projectId);
     if (!gate.ok) {
       return { success: false, error: gate.error };
     }

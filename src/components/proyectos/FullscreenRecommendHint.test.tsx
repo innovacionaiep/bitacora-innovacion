@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useFullscreenRecommendHint } from './FullscreenRecommendHint';
+import { render, renderHook, act } from '@testing-library/react';
+import {
+  FullscreenRecommendHint,
+  useFullscreenRecommendHint,
+} from './FullscreenRecommendHint';
 
 describe('useFullscreenRecommendHint', () => {
   beforeEach(() => {
@@ -101,5 +104,21 @@ describe('useFullscreenRecommendHint', () => {
       vi.advanceTimersByTime(2_000);
     });
     expect(result.current).toBe(true);
+  });
+
+  it('no exige SidebarProvider (vista pública)', () => {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+    expect(() =>
+      render(
+        <FullscreenRecommendHint show>
+          <span>hint</span>
+        </FullscreenRecommendHint>
+      )
+    ).not.toThrow();
   });
 });

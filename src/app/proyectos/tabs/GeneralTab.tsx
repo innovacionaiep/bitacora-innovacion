@@ -48,6 +48,7 @@ import { IconByName } from '@/components/config/IconByName';
 import { useDesarrolloTecnicoConfigQuery } from '@/hooks/useDesarrolloTecnicoConfig';
 import { useEditarSociosComunitarios } from './useEditarSociosComunitarios';
 import { EditarSociosComunitariosDialog } from '@/components/proyectos/EditarSociosComunitariosDialog';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 /** Iconos por defecto (alineados al seed / ajustes) si aún no carga la config. */
 const DEFAULT_DT_ICONS: Record<DesarrolloTecnicoFieldKey, string> = {
@@ -182,6 +183,8 @@ function HoverEditButton({
   /** Posición absoluta del wrapper (el botón no reserva espacio en el layout). */
   className?: string;
 }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <div className={`absolute z-10 ${className}`}>
       <TooltipProvider>
@@ -445,6 +448,8 @@ function ProjectVideoEmbed({ url }: { url: string }) {
 }
 
 function AddInfoButton({ onClick }: { onClick: () => void }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"
@@ -985,6 +990,7 @@ export function GeneralTabHeader({
   | 'handleCancelGeneralEdit'
 >) {
   const isEditingTitle = editingField === 'proyecto';
+  const readOnly = usePublicReadOnly();
 
   return (
     <>
@@ -1016,7 +1022,7 @@ export function GeneralTabHeader({
             >
               {project.proyecto}
             </h1>
-            {selectedTab === 'General' && (
+            {selectedTab === 'General' && !readOnly && (
               <div className="absolute left-full top-1/2 z-10 -translate-y-1/2 ml-1">
                 <TooltipProvider>
                   <Tooltip>
