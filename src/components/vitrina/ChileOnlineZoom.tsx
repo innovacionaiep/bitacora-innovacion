@@ -65,7 +65,7 @@ export function ChileOnlineZoom({
     return source ? splitOnlinePinAroundGlobe(source) : [];
   }, [pins]);
 
-  const positions = useMemo(() => {
+  const positions = useMemo((): Record<string, { x: number; y: number }> => {
     if (!mapRect) return {};
     const cx = mapRect.left + mapRect.width / 2;
     const cy = mapRect.top + mapRect.height / 2;
