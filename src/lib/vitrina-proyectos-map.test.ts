@@ -44,12 +44,15 @@ describe('mapVitrinaProyectoRow', () => {
       sedes: [{ sede: { id: 's1', nombre: 'Rancagua' } }],
       escuelas: [],
       socios: [{ socio: { id: 'so1', nombre: 'MUKUNA' } }],
+      comunas: [{ comuna: { id: 'c1', nombre: 'Valparaíso' } }],
       etiquetas: [{ etiqueta: { id: 't1', nombre: 'Arte' } }],
     });
 
     expect(mapped.fondos).toEqual(['Impulsa']);
     expect(mapped.fondoIds).toEqual(['f1']);
     expect(mapped.socios).toEqual(['MUKUNA']);
+    expect(mapped.comunas).toEqual(['Valparaíso']);
+    expect(mapped.comunaIds).toEqual(['c1']);
     expect(mapped.fotos.map((f) => f.publicId)).toEqual(['p1', 'p2']);
     expect(mapped.igipInicial).toBe(1.25);
     expect(mapped.igipProyeccion).toBeNull();

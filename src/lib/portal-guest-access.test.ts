@@ -13,6 +13,7 @@ import {
   portalIsCausalab,
   portalLevelCaption,
   portalNeedsVitrinaProyectos,
+  portalPageLoadsDeferredTabs,
   portalProfileCaption,
   portalReadLevelForSessionRoles,
   portalSessionLevelCaption,
@@ -124,6 +125,11 @@ describe('portal views by level', () => {
     expect(clampPortalView(0, 'indicadores')).toBe('indicadores');
     expect(portalNeedsVitrinaProyectos(0)).toBe(true);
     expect(portalNeedsVitrinaProyectos(1)).toBe(true);
+    expect(portalPageLoadsDeferredTabs(undefined)).toBe(false);
+    expect(portalPageLoadsDeferredTabs('proyectos')).toBe(false);
+    expect(portalPageLoadsDeferredTabs('avances')).toBe(true);
+    expect(portalPageLoadsDeferredTabs('vinculamos')).toBe(true);
+    expect(portalPageLoadsDeferredTabs('analisis')).toBe(true);
     expect(portalLevelCaption(0)).toBe('Avances, Indicadores');
   });
 
@@ -223,18 +229,19 @@ describe('perfiles de invitado', () => {
     expect(portalCanSeeView(3, 'proyectos')).toBe(true);
   });
 
-  it('Comunicaciones ve todos los tabs, con chat IA, sin ingreso a la app', () => {
+  it('Comunicaciones ve todos los tabs excepto Data, con chat IA, sin ingreso a la app', () => {
     expect(portalViewsForAccess(3, 'comunicaciones')).toEqual([
       'proyectos',
       'mapa',
       'avances',
       'analisis',
       'indicadores',
-      'data',
       'vinculamos',
     ]);
+    expect(portalCanSeeView(3, 'data', 'comunicaciones')).toBe(false);
+    expect(clampPortalView(3, 'data', 'comunicaciones')).toBe('proyectos');
     expect(portalProfileCaption('comunicaciones')).toBe(
-      'Toda la información de lectura, con chat IA, sin ingreso a la app',
+      'Toda la información de lectura excepto Data, con chat IA, sin ingreso a la app',
     );
     expect(
       portalCanUseAiChat({ kind: 'guest', level: 3, profile: 'comunicaciones' }),

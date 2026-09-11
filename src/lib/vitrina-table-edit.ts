@@ -13,6 +13,7 @@ export type VitrinaTableCatalogField =
   | 'sedes'
   | 'escuelas'
   | 'socios'
+  | 'comunas'
   | 'etiquetas';
 
 export type VitrinaTableRow = {
@@ -24,6 +25,7 @@ export type VitrinaTableRow = {
   escuelas: string[];
   etiquetas: string[];
   socios: string[];
+  comunas: string[];
   encargadoNombre: string;
   encargadoCorreo: string;
   encargadoCargo: string;
@@ -42,6 +44,7 @@ export function vitrinaTableRowFromProyecto(
     escuelas: proyecto.escuelas,
     etiquetas: proyecto.etiquetas,
     socios: proyecto.socios,
+    comunas: proyecto.comunas,
     encargadoNombre: proyecto.encargadoNombre,
     encargadoCorreo: proyecto.encargadoCorreo,
     encargadoCargo: proyecto.encargadoCargo,
@@ -77,7 +80,9 @@ export function applyVitrinaTableCatalog(
             ? catalogs.escuelas
             : field === 'socios'
               ? catalogs.socios
-              : catalogs.etiquetas;
+              : field === 'comunas'
+                ? catalogs.comunas
+                : catalogs.etiquetas;
   const selected = namesToCatalogSelection(
     parseVitrinaTableNames(value),
     options,
@@ -113,6 +118,9 @@ export function applyVitrinaTableCatalog(
   }
   if (field === 'etiquetas') {
     return { ...draft, etiquetaIds: selected.ids, etiquetas: selected.names };
+  }
+  if (field === 'comunas') {
+    return { ...draft, comunaIds: selected.ids, comunas: selected.names };
   }
   return { ...draft, socioIds: selected.ids, socios: selected.names };
 }

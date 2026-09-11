@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VitrinaProjectFicha } from '@/components/vitrina/VitrinaProjectFicha';
 import { normalizeVitrinaProyectos } from '@/lib/vitrina-proyectos';
 
 import {
   getVitrinaProjectCatalogs,
+  upsertVitrinaProyecto,
 } from '@/lib/actions/vitrina-proyectos';
 
 vi.mock('@/lib/actions/vitrina-proyectos', () => ({
@@ -24,11 +25,22 @@ vi.mocked(getVitrinaProjectCatalogs).mockResolvedValue({
   sedes: [],
   escuelas: [],
   socios: [],
+  comunas: [],
   etiquetas: [],
 });
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
+  vi.mocked(getVitrinaProjectCatalogs).mockResolvedValue({
+    fondos: [],
+    lineas: [],
+    sedes: [],
+    escuelas: [],
+    socios: [],
+    comunas: [],
+    etiquetas: [],
+  });
 });
 
 function sampleProyecto() {
@@ -76,6 +88,85 @@ describe('VitrinaProjectFicha Contactar', () => {
       />,
     );
     expect(screen.queryByRole('button', { name: 'Contactar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('VitrinaProjectFicha comunas', () => {
+  it('muestra comunas debajo de socios comunitarios', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'AuditorIA',
+        socios: ['Junta de Vecinos'],
+        comunas: ['Valparaíso'],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+
+    render(
+      <VitrinaProjectFicha
+        open
+        onOpenChange={() => undefined}
+        proyecto={result.proyectos[0]!}
+        isNew={false}
+        canEdit={false}
+      />,
+    );
+
+    const socios = screen.getByText('Socios comunitarios');
+    const comunas = screen.getByText('Comunas');
+    expect(comunas.compareDocumentPosition(socios) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(screen.getByText('Valparaíso')).toBeInTheDocument();
+    expect(screen.getByLabelText('Comunas')).toBeInTheDocument();
+  });
+
+  it('al guardar comunas envía ids del catálogo', async () => {
+    vi.mocked(getVitrinaProjectCatalogs).mockResolvedValue({
+      fondos: [],
+      lineas: [],
+      sedes: [],
+      escuelas: [],
+      socios: [],
+      comunas: [{ id: 'c1', nombre: 'Sagrada Familia' }],
+      etiquetas: [],
+    });
+    vi.mocked(upsertVitrinaProyecto).mockResolvedValue({ success: true });
+
+    const catalogs = {
+      fondos: [],
+      lineas: [],
+      sedes: [],
+      escuelas: [],
+      socios: [],
+      comunas: [{ id: 'c1', nombre: 'Sagrada Familia' }],
+      etiquetas: [],
+    };
+
+    const user = userEvent.setup();
+    render(
+      <VitrinaProjectFicha
+        open
+        onOpenChange={() => undefined}
+        proyecto={sampleProyecto()}
+        isNew={false}
+        canEdit
+        catalogs={catalogs}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Editar Comunas' }));
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByText('Sagrada Familia'));
+    await user.click(screen.getByRole('button', { name: 'Guardar Comunas' }));
+
+    expect(getVitrinaProjectCatalogs).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(upsertVitrinaProyecto).toHaveBeenCalledWith({
+        proyecto: expect.objectContaining({
+          comunaIds: ['c1'],
+          comunas: ['Sagrada Familia'],
+        }),
+      });
+    });
   });
 });
 

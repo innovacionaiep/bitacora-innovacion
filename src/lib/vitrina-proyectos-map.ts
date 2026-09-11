@@ -57,6 +57,7 @@ export type VitrinaProyectoDbRow = {
   sedes: Array<{ sede: NamedRef }>;
   escuelas: Array<{ escuela: NamedRef }>;
   socios: Array<{ socio: NamedRef }>;
+  comunas: Array<{ comuna: NamedRef }>;
   etiquetas: Array<{ etiqueta: NamedRef }>;
 };
 
@@ -85,6 +86,7 @@ export function mapVitrinaProyectoRow(row: VitrinaProyectoDbRow): VitrinaProyect
   const sedes = pairFrom(row.sedes.map((item) => item.sede));
   const escuelas = pairFrom(row.escuelas.map((item) => item.escuela));
   const socios = pairFrom(row.socios.map((item) => item.socio));
+  const comunas = pairFrom((row.comunas ?? []).map((item) => item.comuna));
   const etiquetas = pairFrom(row.etiquetas.map((item) => item.etiqueta));
   const fotos: VitrinaProyectoFoto[] = [...row.fotos]
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
@@ -104,6 +106,8 @@ export function mapVitrinaProyectoRow(row: VitrinaProyectoDbRow): VitrinaProyect
     escuelas: escuelas.names,
     socioIds: socios.ids,
     socios: socios.names,
+    comunaIds: comunas.ids,
+    comunas: comunas.names,
     encargadoNombre: row.encargadoNombre ?? '',
     encargadoCorreo: row.encargadoCorreo ?? '',
     encargadoCargo: row.encargadoCargo ?? '',

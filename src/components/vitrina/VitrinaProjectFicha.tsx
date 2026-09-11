@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { Check, GitBranch, GraduationCap, Handshake, Landmark, MapPin, Pencil, Tag, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Check, GitBranch, GraduationCap, Handshake, Landmark, MapPin, MapPinned, Pencil, Tag, Trash2, X } from 'lucide-react';
 import { parseVideoUrl } from '@/lib/video-url';
 import {
   deleteVitrinaProyecto,
@@ -12,6 +12,7 @@ import {
 import {
   createEmptyVitrinaProyecto,
   clampDescripcionFontSize,
+  freezeVitrinaProyectoCatalogs,
   namesToCatalogSelection,
   VITRINA_COVER_ZOOM_MAX,
   VITRINA_COVER_ZOOM_MIN,
@@ -49,6 +50,7 @@ type FieldKey =
   | 'sedes'
   | 'escuelas'
   | 'socios'
+  | 'comunas'
   | 'etiquetas'
   | 'encargado'
   | 'video'
@@ -67,7 +69,7 @@ function parseNames(value: string): string[] {
 
 type CatalogFieldKey = Extract<
   FieldKey,
-  'fondos' | 'lineas' | 'sedes' | 'escuelas' | 'socios' | 'etiquetas'
+  'fondos' | 'lineas' | 'sedes' | 'escuelas' | 'socios' | 'comunas' | 'etiquetas'
 >;
 
 const CATALOG_ICONS = {
@@ -76,6 +78,7 @@ const CATALOG_ICONS = {
   sedes: MapPin,
   escuelas: GraduationCap,
   socios: Handshake,
+  comunas: MapPinned,
   etiquetas: Tag,
 } as const;
 
@@ -85,6 +88,7 @@ const CATALOG_ICON_CLASS = {
   sedes: 'text-slate-500',
   escuelas: 'text-blue-600',
   socios: 'text-violet-600',
+  comunas: 'text-amber-600',
   etiquetas: 'text-emerald-600',
 } as const;
 
@@ -94,6 +98,7 @@ const CATALOG_CHIP_CLASS = {
   sedes: 'bg-slate-100 text-slate-700',
   escuelas: 'bg-blue-50 text-blue-800',
   socios: 'bg-violet-50 text-violet-800',
+  comunas: 'bg-amber-50 text-amber-800',
   etiquetas: 'bg-emerald-50 text-emerald-800',
 } as const;
 
@@ -106,7 +111,7 @@ function Chip({
   field: CatalogFieldKey;
   compact?: boolean;
 }) {
-  const wrap = field === 'socios';
+  const wrap = field === 'socios' || field === 'comunas';
   return (
     <span
       className={cn(
@@ -135,6 +140,7 @@ type Props = {
   onProyectoRemove?: (id: string) => void;
   onOptimisticMutationStart?: () => void;
   onOptimisticMutationEnd?: () => void;
+  catalogs?: VitrinaProjectCatalogs | null;
 };
 
 export function VitrinaProjectFicha({
@@ -148,10 +154,14 @@ export function VitrinaProjectFicha({
   onProyectoRemove,
   onOptimisticMutationStart,
   onOptimisticMutationEnd,
+  catalogs: catalogsProp = null,
 }: Props) {
   const [draft, setDraft] = useState<VitrinaProyecto>(() =>
     createEmptyVitrinaProyecto(),
   );
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const skipPropSyncIdRef = useRef<string | null>(null);
   const [snapshot, setSnapshot] = useState<VitrinaProyecto | null>(null);
   const [editing, setEditing] = useState<FieldKey | null>(null);
   const [catalogs, setCatalogs] = useState<VitrinaProjectCatalogs | null>(null);
@@ -167,11 +177,20 @@ export function VitrinaProjectFicha({
       setEditing(null);
       setSnapshot(null);
       setContactOpen(false);
+      skipPropSyncIdRef.current = null;
     }
   }, [open]);
 
   useEffect(() => {
     if (!open || editing !== null) return;
+    if (
+      skipPropSyncIdRef.current &&
+      (proyecto?.id === skipPropSyncIdRef.current || (isNew && !proyecto))
+    ) {
+      skipPropSyncIdRef.current = null;
+      return;
+    }
+    skipPropSyncIdRef.current = null;
     setError('');
     setConfirmDelete(false);
     if (proyecto) {
@@ -187,19 +206,24 @@ export function VitrinaProjectFicha({
 
   useEffect(() => {
     if (!open || !canEdit) return;
+    if (catalogsProp) {
+      setCatalogs(catalogsProp);
+      setLoadingCats(false);
+      return;
+    }
     setLoadingCats(true);
     void getVitrinaProjectCatalogs()
       .then(setCatalogs)
       .catch(() => setError('No se pudieron cargar los catálogos'))
       .finally(() => setLoadingCats(false));
-  }, [open, canEdit]);
+  }, [open, canEdit, catalogsProp]);
 
   const patch = (partial: Partial<VitrinaProyecto>) => {
     setDraft((prev) => ({ ...prev, ...partial }));
   };
 
   const applyNames = (
-    field: 'fondos' | 'lineas' | 'sedes' | 'escuelas' | 'socios' | 'etiquetas',
+    field: 'fondos' | 'lineas' | 'sedes' | 'escuelas' | 'socios' | 'comunas' | 'etiquetas',
     value: string,
   ) => {
     const options =
@@ -213,7 +237,9 @@ export function VitrinaProjectFicha({
               ? catalogs?.escuelas ?? []
               : field === 'socios'
                 ? catalogs?.socios ?? []
-                : catalogs?.etiquetas ?? [];
+                : field === 'comunas'
+                  ? catalogs?.comunas ?? []
+                  : catalogs?.etiquetas ?? [];
     const selected = namesToCatalogSelection(parseNames(value), options);
 
     setDraft((prev) => {
@@ -247,6 +273,9 @@ export function VitrinaProjectFicha({
       if (field === 'etiquetas') {
         return { ...prev, etiquetaIds: selected.ids, etiquetas: selected.names };
       }
+      if (field === 'comunas') {
+        return { ...prev, comunaIds: selected.ids, comunas: selected.names };
+      }
       return { ...prev, socioIds: selected.ids, socios: selected.names };
     });
   };
@@ -266,14 +295,19 @@ export function VitrinaProjectFicha({
 
   function saveEdit() {
     setError('');
-    if (!draft.nombre.trim()) {
+    const current = draftRef.current;
+    if (!current.nombre.trim()) {
       setError('El nombre es obligatorio');
       setEditing('nombre');
       return;
     }
 
     const previous = proyecto;
-    const toSave = draft;
+    const toSave = catalogs
+      ? freezeVitrinaProyectoCatalogs(current, catalogs)
+      : current;
+    skipPropSyncIdRef.current = toSave.id;
+    setDraft(toSave);
     setEditing(null);
     setSnapshot(null);
     onOptimisticMutationStart?.();
@@ -644,6 +678,21 @@ export function VitrinaProjectFicha({
                   onSave={saveEdit}
                   onChange={(v) => applyNames('socios', v)}
                 />
+                <CatalogField
+                  label="Comunas"
+                  items={draft.comunas}
+                  field="comunas"
+                  canEdit={canEdit}
+                  editing={editing}
+                  busy={busy}
+                  loadingCats={loadingCats}
+                  options={catalogs?.comunas ?? []}
+                  value={namesValue(draft.comunas)}
+                  onStart={startEdit}
+                  onCancel={cancelEdit}
+                  onSave={saveEdit}
+                  onChange={(v) => applyNames('comunas', v)}
+                />
               </div>
             </div>
 
@@ -931,6 +980,7 @@ function CatalogField({
             'mt-1 flex flex-wrap',
             field === 'etiquetas' && items.length > 8 ? 'gap-1' : 'gap-1.5',
           )}
+          aria-label={label}
         >
           {items.length > 0 ? (
             items.map((item, i) => (

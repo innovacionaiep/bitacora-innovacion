@@ -9,13 +9,20 @@ import {
 import type { ChileRegionPath } from '@/lib/chile-horizontal-paths';
 import type { AiepSedePin } from '@/lib/aiep-sede-geo';
 import {
+  COMUNA_CARD_CAPTION_LINE_PX,
+  COMUNA_MAP_PIN_FILL,
+  isComunaMapPinKind,
+  layoutComunaCardLines,
   layoutFloatingMapCards,
   layoutOverlaySedeLabelsNearCards,
   layoutSedeLabels,
+  layoutSedeMapOverflowCaptions,
   LOS_LAGOS_REGION_ID,
+  mapComunaCardCaption,
+  mapComunaPinFill,
+  mapPinLabelParts,
   METROPOLITANA_REGION_ID,
   OHIGGINS_REGION_ID,
-  sedeLabelParts,
   usesOverlaySedeLabel,
   VALPARAISO_REGION_ID,
   VITRINA_MAP_LABEL_PX,
@@ -37,6 +44,8 @@ const COMPACT_CARD_MARGIN = 12;
  * Igual a `pb-6` del contenedor del mapa nacional en VitrinaMapaView.
  */
 const CARD_BOTTOM_EDGE_PAD = 24;
+/** Agranda solo el dibujo del mapa RM; el layout de tarjetas sigue el bbox original. */
+const RM_MAP_VISUAL_SCALE = 1.1;
 
 type OverlayRect = { left: number; top: number; width: number; height: number };
 
@@ -67,6 +76,9 @@ export function ChileRegionZoom({
   const box = chileRegionPathBBox(region.d);
   const tightBox = chileRegionPathBBox(region.d, 0);
   const minDim = Math.min(box.width, box.height);
+  const mapVisualTransform = isMetropolitana
+    ? `translate(${tightBox.minX + tightBox.width / 2} ${tightBox.minY + tightBox.height / 2}) scale(${RM_MAP_VISUAL_SCALE}) translate(${-(tightBox.minX + tightBox.width / 2)} ${-(tightBox.minY + tightBox.height / 2)})`
+    : undefined;
   const svgRef = useRef<SVGSVGElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<
@@ -195,10 +207,27 @@ export function ChileRegionZoom({
     ],
   );
 
+  const visualPositions = useMemo(() => {
+    if (!isMetropolitana || !mapRect) return positions;
+    const originX = mapRect.left + mapRect.width / 2;
+    const originY = mapRect.top + mapRect.height / 2;
+    const next: Record<string, { x: number; y: number }> = {};
+    for (const [id, point] of Object.entries(positions)) {
+      next[id] = {
+        x: originX + (point.x - originX) * RM_MAP_VISUAL_SCALE,
+        y: originY + (point.y - originY) * RM_MAP_VISUAL_SCALE,
+      };
+    }
+    return next;
+  }, [isMetropolitana, mapRect, positions]);
+
   const fontSize = VITRINA_MAP_LABEL_PX / labelPxPerUnit;
   const overlayLabelPins = useMemo(
     () =>
-      pins.filter((pin) => usesOverlaySedeLabel(region.id, pin.id)),
+      pins.filter(
+        (pin) =>
+          !isComunaMapPinKind(pin.kind) && usesOverlaySedeLabel(region.id, pin.id),
+      ),
     [pins, region.id],
   );
   const overlayLabels = useMemo(
@@ -209,7 +238,7 @@ export function ChileRegionZoom({
               id: pin.id,
               label: pin.label,
             })),
-            positions,
+            positions: visualPositions,
             cards,
             cardWidth: CARD_WIDTH,
             cardHeight: CARD_HEIGHT,
@@ -218,17 +247,44 @@ export function ChileRegionZoom({
             gap: 8,
           })
         : [],
-    [cards, mapRect, overlayLabelPins, positions, region.id],
+    [cards, mapRect, overlayLabelPins, region.id, visualPositions],
+  );
+  const overflowCaptions = useMemo(
+    () =>
+      layoutSedeMapOverflowCaptions({
+        pins,
+        cards,
+        cardWidth: CARD_WIDTH,
+        cardHeight: CARD_HEIGHT,
+        regionId: region.id,
+      }),
+    [cards, pins, region.id],
   );
   const overlayPinIds = useMemo(
     () => new Set(overlayLabels.map((item) => item.pinId)),
     [overlayLabels],
   );
+  const comunaLines = useMemo(
+    () =>
+      overlaySize.width > 0
+        ? layoutComunaCardLines({
+            pins,
+            positions: visualPositions,
+            cards,
+            cardWidth: CARD_WIDTH,
+            cardHeight: CARD_HEIGHT,
+          })
+        : [],
+    [cards, overlaySize.width, pins, visualPositions],
+  );
   const labelAnchors = useMemo(
     () =>
       layoutSedeLabels(
         pins
-          .filter((pin) => !overlayPinIds.has(pin.id))
+          .filter(
+            (pin) =>
+              !overlayPinIds.has(pin.id) && !isComunaMapPinKind(pin.kind),
+          )
           .map((pin) => ({
             id: pin.id,
             x: pin.x,
@@ -314,6 +370,10 @@ export function ChileRegionZoom({
               className="chile-region-zoom-svg pointer-events-auto h-full w-full overflow-visible bg-transparent"
               preserveAspectRatio="xMidYMid meet"
             >
+              <g
+                data-testid="region-map-visual"
+                transform={mapVisualTransform}
+              >
               <path
                 d={region.d}
                 aria-hidden
@@ -323,9 +383,11 @@ export function ChileRegionZoom({
               />
               {pins.map((pin, index) => {
                 const r = zoomPinRadius(pin.nombres.length, minDim);
-                const label = sedeLabelParts(pin.label);
+                const label = mapPinLabelParts(pin);
                 const anchor = labelsByPin.get(pin.id);
-                const skipSvgLabel = overlayPinIds.has(pin.id);
+                const skipSvgLabel =
+                  overlayPinIds.has(pin.id) || isComunaMapPinKind(pin.kind);
+                const comunaFill = mapComunaPinFill(pin.kind);
                 return (
                   <g key={pin.id}>
                     {!skipSvgLabel && anchor?.lineTo ? (
@@ -334,7 +396,7 @@ export function ChileRegionZoom({
                         y1={anchor.lineTo.y}
                         x2={anchor.x}
                         y2={(anchor.yTop + anchor.yBottom) / 2}
-                        stroke="#64748b"
+                        stroke={comunaFill ?? '#64748b'}
                         strokeOpacity={0.55}
                         strokeWidth={Math.max(minDim * 0.002, 0.06)}
                         aria-hidden
@@ -345,7 +407,7 @@ export function ChileRegionZoom({
                       cy={pin.y}
                       r={r}
                       aria-hidden
-                      fill="#475569"
+                      fill={comunaFill ?? '#475569'}
                       stroke="#fff"
                       className="vitrina-map-pin"
                       style={{
@@ -356,20 +418,30 @@ export function ChileRegionZoom({
                     {!skipSvgLabel ? (
                       <text
                         textAnchor={anchor?.textAnchor ?? 'middle'}
-                        fill="#64748b"
+                        fill={comunaFill ?? '#64748b'}
                         fontSize={fontSize}
                         fontWeight={500}
-                        aria-label={`Sede ${label.bottom}`}
+                        aria-label={
+                          comunaFill
+                            ? `Comuna ${label.bottom}`
+                            : `Sede ${label.bottom}`
+                        }
                       >
+                        {label.top ? (
+                          <tspan
+                            x={anchor?.x ?? pin.x}
+                            y={anchor?.yTop ?? pin.y - r}
+                          >
+                            {label.top}
+                          </tspan>
+                        ) : null}
                         <tspan
                           x={anchor?.x ?? pin.x}
-                          y={anchor?.yTop ?? pin.y - r}
-                        >
-                          {label.top}
-                        </tspan>
-                        <tspan
-                          x={anchor?.x ?? pin.x}
-                          y={anchor?.yBottom ?? pin.y - r}
+                          y={
+                            label.top
+                              ? (anchor?.yBottom ?? pin.y - r)
+                              : (anchor?.yTop ?? pin.y - r)
+                          }
                         >
                           {label.bottom}
                         </tspan>
@@ -378,9 +450,11 @@ export function ChileRegionZoom({
                   </g>
                 );
               })}
+              </g>
             </svg>
           </div>
-          {overlayLabels.length > 0 && overlaySize.width > 0 ? (
+          {(overlayLabels.length > 0 || comunaLines.length > 0) &&
+          overlaySize.width > 0 ? (
             <svg
               className="pointer-events-none absolute inset-0 z-0 overflow-visible"
               width={overlaySize.width}
@@ -399,10 +473,31 @@ export function ChileRegionZoom({
                   strokeWidth={1.1}
                 />
               ))}
+              {comunaLines.map((item) => {
+                const pin = pins.find((entry) => entry.id === item.pinId);
+                const stroke =
+                  (pin ? mapComunaPinFill(pin.kind) : null) ?? COMUNA_MAP_PIN_FILL;
+                return (
+                <line
+                  key={`comuna-line-${item.pinId}`}
+                  data-testid={`comuna-line-${item.pinId}`}
+                  x1={item.lineTo.x}
+                  y1={item.lineTo.y}
+                  x2={item.lineFrom.x}
+                  y2={item.lineFrom.y}
+                  stroke={stroke}
+                  strokeOpacity={0.85}
+                  strokeWidth={1.4}
+                />
+                );
+              })}
             </svg>
           ) : null}
           {overlayLabels.map((item) => {
-            const parts = sedeLabelParts(item.label);
+            const parts = mapPinLabelParts({
+              label: item.label,
+              kind: 'sede',
+            });
             return (
               <div
                 key={`label-${item.pinId}`}
@@ -423,40 +518,104 @@ export function ChileRegionZoom({
               </div>
             );
           })}
-          {cards.map((card) => (
-            <button
-              type="button"
-              key={`${card.pinId}-${card.proyecto.id}`}
-              className="absolute z-[1] cursor-pointer overflow-hidden rounded-lg border border-slate-200/80 bg-slate-200 text-left shadow-sm ring-2 ring-white transition-[border-color,box-shadow,transform] duration-150 hover:z-[3] hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md"
+          {overflowCaptions.map((item) => (
+            <p
+              key={`overflow-${item.pinId}`}
+              data-testid={`sede-overflow-${item.pinId}`}
+              className="absolute z-[2] px-0.5 text-center text-[12px] font-medium leading-snug tracking-tight text-slate-500 [text-shadow:0_0_3px_#fff,0_0_6px_#fff]"
               style={{
-                width: CARD_WIDTH,
-                height: CARD_HEIGHT,
-                left: card.left,
-                top: card.top,
+                left: item.left,
+                top: item.top,
+                width: item.width,
               }}
-              onClick={() => onOpenProyecto?.(card.proyecto.id)}
-              aria-label={card.proyecto.nombre}
             >
-              <div className="absolute inset-0 overflow-hidden bg-slate-200">
-                {card.proyecto.fotoUrl ? (
-                  <VitrinaCoverCrop
-                    url={card.proyecto.fotoUrl}
-                    offsetX={card.proyecto.coverOffsetX}
-                    offsetY={card.proyecto.coverOffsetY}
-                    zoom={card.proyecto.coverZoom}
-                    className="absolute inset-0 h-full w-full"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300" />
-                )}
-              </div>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/75 via-slate-900/35 to-transparent px-1.5 pb-1.5 pt-6">
-                <p className="line-clamp-2 text-left text-[10px] font-medium leading-snug tracking-tight text-white [text-shadow:0_1px_2px_rgb(15_23_42_/_0.7)]">
-                  {card.proyecto.nombre}
-                </p>
-              </div>
-            </button>
+              <span>
+                {item.proyectos.length === 1
+                  ? '+1 Proyecto'
+                  : `+${item.proyectos.length} proyectos`}
+              </span>
+              {' ( '}
+              {item.proyectos.map((proyecto, index) => (
+                <span key={proyecto.id}>
+                  {index > 0 ? ' - ' : null}
+                  <button
+                    type="button"
+                    className="text-[12px] font-medium leading-snug tracking-tight text-emerald-600 hover:underline"
+                    onClick={() => onOpenProyecto?.(proyecto.id)}
+                  >
+                    {proyecto.nombre}
+                  </button>
+                </span>
+              ))}
+              {' )'}
+            </p>
           ))}
+          {cards.map((card) => {
+            const pin = pins.find((entry) => entry.id === card.pinId);
+            const caption = mapComunaCardCaption(
+              card.kind ?? 'sede',
+              pin?.label ?? '',
+            );
+            const fill = mapComunaPinFill(card.kind ?? 'sede');
+            const captionH = caption
+              ? caption.lines.length * COMUNA_CARD_CAPTION_LINE_PX + 4
+              : 0;
+            const captionText = caption?.lines.join(', ') ?? '';
+            return (
+              <div
+                key={`${card.pinId}-${card.proyecto.id}`}
+                className="absolute z-[1]"
+                style={{
+                  left: card.left,
+                  top: caption ? card.top - captionH : card.top,
+                  width: CARD_WIDTH,
+                }}
+              >
+                {caption ? (
+                  <p
+                    className="mb-0.5 text-center text-[10px] font-semibold leading-tight tracking-tight"
+                    style={{ color: fill ?? COMUNA_MAP_PIN_FILL }}
+                    aria-label={captionText}
+                  >
+                    {caption.lines.map((line) => (
+                      <span key={line} className="block truncate">
+                        {line}
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="relative cursor-pointer overflow-hidden rounded-lg border border-slate-200/80 bg-slate-200 text-left shadow-sm ring-2 ring-white transition-[border-color,box-shadow,transform] duration-150 hover:z-[3] hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md"
+                  style={{
+                    width: CARD_WIDTH,
+                    height: CARD_HEIGHT,
+                  }}
+                  onClick={() => onOpenProyecto?.(card.proyecto.id)}
+                  aria-label={card.proyecto.nombre}
+                >
+                  <div className="absolute inset-0 overflow-hidden bg-slate-200">
+                    {card.proyecto.fotoUrl ? (
+                      <VitrinaCoverCrop
+                        url={card.proyecto.fotoUrl}
+                        offsetX={card.proyecto.coverOffsetX}
+                        offsetY={card.proyecto.coverOffsetY}
+                        zoom={card.proyecto.coverZoom}
+                        className="absolute inset-0 h-full w-full"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300" />
+                    )}
+                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/75 via-slate-900/35 to-transparent px-1.5 pb-1.5 pt-6">
+                    <p className="line-clamp-2 text-left text-[10px] font-medium leading-snug tracking-tight text-white [text-shadow:0_1px_2px_rgb(15_23_42_/_0.7)]">
+                      {card.proyecto.nombre}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

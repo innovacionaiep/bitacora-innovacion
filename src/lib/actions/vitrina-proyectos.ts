@@ -1,20 +1,20 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/authz/guards';
 import {
-  freezeCatalogPair,
+  freezeVitrinaProyectoCatalogs,
   clampCoverOffset,
   clampCoverZoom,
   clampCoverOffsetY,
   normalizeVitrinaProyectos,
+  vitrinaCatalogPairsAreFrozen,
   type VitrinaCatalogOption,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
 import {
   deleteVitrinaProyectoRecord,
-  readVitrinaProyectos,
+  readVitrinaProyectoCoverById,
   updateVitrinaProyectoCover,
   upsertVitrinaProyectoRecord,
   upsertVitrinaProyectosRecords,
@@ -28,11 +28,13 @@ export type VitrinaProjectCatalogs = {
   sedes: VitrinaCatalogOption[];
   escuelas: VitrinaCatalogOption[];
   socios: VitrinaCatalogOption[];
+  comunas: VitrinaCatalogOption[];
   etiquetas: VitrinaCatalogOption[];
 };
 
 export async function getVitrinaProjectCatalogs(): Promise<VitrinaProjectCatalogs> {
-  const [fondos, lineas, sedes, escuelas, socios, etiquetas] = await Promise.all([
+  const [fondos, lineas, sedes, escuelas, socios, comunas, etiquetas] =
+    await Promise.all([
     prisma.fondo.findMany({
       orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
       select: { id: true, nombre: true, colorHex: true },
@@ -53,48 +55,24 @@ export async function getVitrinaProjectCatalogs(): Promise<VitrinaProjectCatalog
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true },
     }),
+    prisma.comuna.findMany({
+      orderBy: [{ region: 'asc' }, { nombre: 'asc' }],
+      select: { id: true, nombre: true },
+    }),
     prisma.etiqueta.findMany({
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true },
     }),
   ]);
 
-  return { fondos, lineas, sedes, escuelas, socios, etiquetas };
+  return { fondos, lineas, sedes, escuelas, socios, comunas, etiquetas };
 }
 
 function freezeProyecto(
   proyecto: VitrinaProyecto,
   catalogs: VitrinaProjectCatalogs,
 ): VitrinaProyecto {
-  const fondos = freezeCatalogPair(proyecto.fondoIds, proyecto.fondos, catalogs.fondos);
-  const lineas = freezeCatalogPair(proyecto.lineaIds, proyecto.lineas, catalogs.lineas);
-  const sedes = freezeCatalogPair(proyecto.sedeIds, proyecto.sedes, catalogs.sedes);
-  const escuelas = freezeCatalogPair(
-    proyecto.escuelaIds,
-    proyecto.escuelas,
-    catalogs.escuelas,
-  );
-  const socios = freezeCatalogPair(proyecto.socioIds, proyecto.socios, catalogs.socios);
-  const etiquetas = freezeCatalogPair(
-    proyecto.etiquetaIds,
-    proyecto.etiquetas,
-    catalogs.etiquetas,
-  );
-  return {
-    ...proyecto,
-    fondoIds: fondos.ids,
-    fondos: fondos.names,
-    lineaIds: lineas.ids,
-    lineas: lineas.names,
-    sedeIds: sedes.ids,
-    sedes: sedes.names,
-    escuelaIds: escuelas.ids,
-    escuelas: escuelas.names,
-    socioIds: socios.ids,
-    socios: socios.names,
-    etiquetaIds: etiquetas.ids,
-    etiquetas: etiquetas.names,
-  };
+  return freezeVitrinaProyectoCatalogs(proyecto, catalogs);
 }
 
 export async function saveVitrinaProyectos(input: {
@@ -112,8 +90,6 @@ export async function saveVitrinaProyectos(input: {
     const catalogs = await getVitrinaProjectCatalogs();
     const proyectos = normalized.proyectos.map((p) => freezeProyecto(p, catalogs));
     await upsertVitrinaProyectosRecords(proyectos);
-    revalidatePath('/');
-    revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
     console.error('[vitrina] saveVitrinaProyectos', e);
@@ -139,10 +115,10 @@ export async function upsertVitrinaProyecto(input: {
   }
 
   try {
-    const catalogs = await getVitrinaProjectCatalogs();
-    await upsertVitrinaProyectoRecord(freezeProyecto(proyecto, catalogs));
-    revalidatePath('/');
-    revalidatePath('/vitrina');
+    const toPersist = vitrinaCatalogPairsAreFrozen(proyecto)
+      ? proyecto
+      : freezeProyecto(proyecto, await getVitrinaProjectCatalogs());
+    await upsertVitrinaProyectoRecord(toPersist);
     return { success: true };
   } catch (e) {
     console.error('[vitrina] upsertVitrinaProyecto', e);
@@ -166,8 +142,6 @@ export async function deleteVitrinaProyecto(input: {
     if (!removed) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
-    revalidatePath('/');
-    revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
     console.error('[vitrina] deleteVitrinaProyecto', e);
@@ -190,7 +164,7 @@ export async function saveVitrinaProyectoCoverOffset(input: {
   }
 
   try {
-    const current = (await readVitrinaProyectos()).find((p) => p.id === id);
+    const current = await readVitrinaProyectoCoverById(id);
     if (!current) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
@@ -206,8 +180,6 @@ export async function saveVitrinaProyectoCoverOffset(input: {
     if (!updated) {
       return { success: false, error: 'Proyecto no encontrado' };
     }
-    revalidatePath('/');
-    revalidatePath('/vitrina');
     return { success: true };
   } catch (e) {
     console.error('[vitrina] saveVitrinaProyectoCoverOffset', e);

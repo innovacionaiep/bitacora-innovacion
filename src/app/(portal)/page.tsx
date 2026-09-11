@@ -16,6 +16,7 @@ import {
   portalCanSeeView,
   portalIsCausalab,
   portalNeedsVitrinaProyectos,
+  portalPageLoadsDeferredTabs,
   portalSessionRedirectsToApp,
 } from '@/lib/portal-guest-access';
 import { canLoadPortalAvances } from '@/lib/portal-avances';
@@ -34,6 +35,7 @@ const EMPTY_CATALOGS: VitrinaProjectCatalogs = {
   sedes: [],
   escuelas: [],
   socios: [],
+  comunas: [],
   etiquetas: [],
 };
 
@@ -67,12 +69,11 @@ export default async function PortalPage({
   const hasReadAccess = access.kind !== 'none' && !redirectsToApp;
   const loadVitrina =
     portalNeedsVitrinaProyectos(access.level, access.profile) && !redirectsToApp;
-  const loadAvances = canLoadPortalAvances(
-    access.level,
-    access.kind,
-    access.profile,
-  );
+  const loadAvances =
+    portalPageLoadsDeferredTabs(params.vista) &&
+    canLoadPortalAvances(access.level, access.kind, access.profile);
   const loadVinculamos =
+    portalPageLoadsDeferredTabs(params.vista) &&
     portalCanSeeView(access.level, 'vinculamos', access.profile) &&
     !redirectsToApp;
 
@@ -159,6 +160,7 @@ export default async function PortalPage({
       initialScene={initialScene}
       avancesProyectos={avancesProyectos}
       vinculamosInitial={vinculamosInitial}
+      deferredTabsLoaded={portalPageLoadsDeferredTabs(params.vista)}
     />
   );
 }

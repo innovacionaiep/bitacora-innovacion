@@ -4,6 +4,11 @@ import {
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
 import { projectChileLonLat } from '@/lib/chile-horizontal-paths';
+import { resolveComunaGeo } from '@/lib/chile-comuna-geo';
+import {
+  VITRINA_SEDE_EMPRENDEDOR_EXTERNO,
+  vitrinaCardUsesComunasInPlaceOfEscuelas,
+} from '@/lib/vitrina-card-display';
 
 export type AiepSedeGeoPoint = {
   id: string;
@@ -25,7 +30,10 @@ export type AiepSedePinProyecto = {
   coverZoom: number;
 };
 
+export type AiepMapPinKind = 'sede' | 'comuna' | 'online-comuna';
+
 export type AiepSedePin = AiepSedeGeoPoint & {
+  kind: AiepMapPinKind;
   nombres: string[];
   proyectos: AiepSedePinProyecto[];
 };
@@ -385,21 +393,59 @@ export function resolveSedeGeo(nombre: string): AiepSedeGeoPoint | null {
   return null;
 }
 
+export function vitrinaSedeIsOnlineOnly(sedes: string[]): boolean {
+  const names = sedes.map((sede) => sede.trim()).filter(Boolean);
+  if (names.length === 0) return false;
+  if (vitrinaCardUsesComunasInPlaceOfEscuelas(names)) return false;
+  return names.every((sede) => resolveSedeGeo(sede)?.id === ONLINE_SEDE_ID);
+}
+
+export function isComunaMapPinKind(
+  kind: AiepMapPinKind | undefined,
+): boolean {
+  return kind === 'comuna' || kind === 'online-comuna';
+}
+
 export function groupVitrinaProyectosBySede(
   proyectos: Array<
     Pick<VitrinaProyecto, 'nombre' | 'sedes'> &
       Partial<
         Pick<
           VitrinaProyecto,
-          'id' | 'fotos' | 'coverOffsetX' | 'coverOffsetY' | 'coverZoom'
+          | 'id'
+          | 'fotos'
+          | 'coverOffsetX'
+          | 'coverOffsetY'
+          | 'coverZoom'
+          | 'comunas'
         >
       >
   >,
 ): AiepSedePin[] {
   const byId = new Map<
     string,
-    { point: AiepSedeGeoPoint; items: Map<string, AiepSedePinProyecto> }
+    {
+      point: AiepSedeGeoPoint;
+      kind: AiepMapPinKind;
+      items: Map<string, AiepSedePinProyecto>;
+    }
   >();
+
+  const upsert = (
+    point: AiepSedeGeoPoint,
+    kind: AiepMapPinKind,
+    item: AiepSedePinProyecto,
+  ) => {
+    const bucket = byId.get(point.id) ?? {
+      point,
+      kind,
+      items: new Map<string, AiepSedePinProyecto>(),
+    };
+    if (!bucket.items.has(item.id)) {
+      bucket.items.set(item.id, item);
+    }
+    byId.set(point.id, bucket);
+  };
 
   for (const proyecto of proyectos) {
     const nombre = proyecto.nombre.trim();
@@ -409,36 +455,70 @@ export function groupVitrinaProyectosBySede(
     const coverOffsetX = proyecto.coverOffsetX ?? VITRINA_COVER_OFFSET_DEFAULT;
     const coverOffsetY = proyecto.coverOffsetY ?? VITRINA_COVER_OFFSET_DEFAULT;
     const coverZoom = proyecto.coverZoom ?? VITRINA_COVER_ZOOM_DEFAULT;
+    const item: AiepSedePinProyecto = {
+      id,
+      nombre,
+      fotoUrl,
+      coverOffsetX,
+      coverOffsetY,
+      coverZoom,
+    };
+
+    const upsertComunas = (kind: 'comuna' | 'online-comuna') => {
+      for (const comunaNombre of proyecto.comunas ?? []) {
+        const comuna = resolveComunaGeo(comunaNombre);
+        if (!comuna) continue;
+        upsert(
+          {
+            id: kind === 'online-comuna' ? `online-${comuna.id}` : comuna.id,
+            label: comuna.nombre,
+            regionId: comuna.regionId,
+            address: '',
+            lon: comuna.lon,
+            lat: comuna.lat,
+            x: comuna.x,
+            y: comuna.y,
+          },
+          kind,
+          item,
+        );
+      }
+    };
+
+    if (vitrinaCardUsesComunasInPlaceOfEscuelas(proyecto.sedes)) {
+      upsertComunas('comuna');
+      continue;
+    }
+
+    if (vitrinaSedeIsOnlineOnly(proyecto.sedes)) {
+      upsert(ONLINE_POINT, 'sede', item);
+      upsertComunas('online-comuna');
+      continue;
+    }
+
     for (const sede of proyecto.sedes) {
+      if (
+        sede.trim().toLowerCase() ===
+        VITRINA_SEDE_EMPRENDEDOR_EXTERNO.trim().toLowerCase()
+      ) {
+        continue;
+      }
       const point = resolveSedeGeo(sede);
       if (!point) continue;
-      const bucket = byId.get(point.id) ?? {
-        point,
-        items: new Map<string, AiepSedePinProyecto>(),
-      };
-      if (!bucket.items.has(id)) {
-        bucket.items.set(id, {
-          id,
-          nombre,
-          fotoUrl,
-          coverOffsetX,
-          coverOffsetY,
-          coverZoom,
-        });
-      }
-      byId.set(point.id, bucket);
+      upsert(point, 'sede', item);
     }
   }
 
   return [...byId.values()]
-    .map(({ point, items }) => {
+    .map(({ point, kind, items }) => {
       const proyectosPin = [...items.values()].sort((a, b) =>
         a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }),
       );
       return {
         ...point,
+        kind,
         proyectos: proyectosPin,
-        nombres: proyectosPin.map((item) => item.nombre),
+        nombres: proyectosPin.map((p) => p.nombre),
       };
     })
     .sort((a, b) => a.y - b.y || a.x - b.x);
@@ -526,6 +606,64 @@ export function sedeLabelParts(label: string): { top: string; bottom: string } {
   return { top: 'Sede', bottom };
 }
 
+/** Etiqueta del pin: sedes usan «Sede / nombre»; comunas solo el nombre. */
+export function mapPinLabelParts(
+  pin: Pick<AiepSedePin, 'label' | 'kind'>,
+): { top: string; bottom: string } {
+  if (isComunaMapPinKind(pin.kind)) {
+    return { top: '', bottom: pin.label.trim() };
+  }
+  return sedeLabelParts(pin.label);
+}
+
+export const EMPRENDEDOR_EXTERNO_MAP_BADGE = VITRINA_SEDE_EMPRENDEDOR_EXTERNO;
+export const SEDE_ONLINE_MAP_BADGE = 'Sede Online';
+export const COMUNA_MAP_PIN_FILL = '#c2410c';
+export const ONLINE_COMUNA_MAP_PIN_FILL = '#6d28d9';
+
+export function mapComunaPinFill(kind: AiepMapPinKind): string | null {
+  if (kind === 'comuna') return COMUNA_MAP_PIN_FILL;
+  if (kind === 'online-comuna') return ONLINE_COMUNA_MAP_PIN_FILL;
+  return null;
+}
+
+export function mapComunaPinBadge(kind: AiepMapPinKind): string | null {
+  if (kind === 'comuna') return EMPRENDEDOR_EXTERNO_MAP_BADGE;
+  if (kind === 'online-comuna') return SEDE_ONLINE_MAP_BADGE;
+  return null;
+}
+
+export function mapComunaCardCaption(
+  kind: AiepMapPinKind,
+  label: string,
+): { lines: string[] } | null {
+  if (kind === 'online-comuna') {
+    const nombre = label.trim();
+    return {
+      lines: [nombre ? `Comuna ${nombre}` : 'Comuna', SEDE_ONLINE_MAP_BADGE],
+    };
+  }
+  if (kind === 'comuna') {
+    const nombre = label.trim();
+    return {
+      lines: [
+        nombre ? `Comuna ${nombre}` : 'Comuna',
+        EMPRENDEDOR_EXTERNO_MAP_BADGE,
+      ],
+    };
+  }
+  return null;
+}
+
+export const COMUNA_CARD_CAPTION_LINE_PX = 16;
+/** Solape de la mini-card de comuna hacia el interior del mapa. */
+export const COMUNA_MAP_EDGE_INSET = 24;
+/** Tope de mini-cards visibles por sede en el zoom RM. */
+export const RM_SEDE_MAP_VISIBLE_CARDS = 6;
+export const SEDE_MAP_OVERFLOW_LINE_PX = 18;
+/** Desfase vertical mínimo entre comunas RM del mismo lado según altura del pin. */
+const RM_COMUNA_PIN_Y_STEP = 28;
+
 export function zoomPinRadius(count: number, minDim: number): number {
   const base = minDim * 0.006;
   const extra = minDim * 0.0018 * Math.min(Math.max(count, 1) - 1, 6);
@@ -537,6 +675,14 @@ export type FloatingMapCard = {
   proyecto: AiepSedePinProyecto;
   left: number;
   top: number;
+  kind?: AiepMapPinKind;
+  zone?: MapCompassZone;
+};
+
+export type OverlayComunaLine = {
+  pinId: string;
+  lineFrom: { x: number; y: number };
+  lineTo: { x: number; y: number };
 };
 
 /** Etiqueta de sede en coordenadas del overlay (px), anclada al grupo de tarjetas. */
@@ -552,6 +698,15 @@ export type OverlaySedeLabel = {
   lineFrom: { x: number; y: number };
   /** Pin en overlay. */
   lineTo: { x: number; y: number };
+};
+
+export type SedeMapOverflowCaption = {
+  pinId: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  proyectos: Array<{ id: string; nombre: string }>;
 };
 
 /** Intersección del rayo pin→centro con el borde del rectángulo (fuera→dentro). */
@@ -658,8 +813,9 @@ export function layoutOverlaySedeLabelsNearCards({
       labelLeft = midX - labelW / 2;
       textAlign = 'center';
     } else if (zone === 'n' || zone === 'ne' || zone === 'nw') {
-      labelTop = bottom + gap;
-      if (zone === 'n') {
+      const aboveGroup = regionId === METROPOLITANA_REGION_ID;
+      labelTop = aboveGroup ? top - gap - labelH : bottom + gap;
+      if (zone === 'n' || aboveGroup) {
         labelLeft = midX - labelW / 2;
         textAlign = 'center';
       } else if (zone === 'nw') {
@@ -725,6 +881,86 @@ export const METROPOLITANA_REGION_ID = 13;
 export const LOS_LAGOS_REGION_ID = 10;
 export const OHIGGINS_REGION_ID = 6;
 export const VALPARAISO_REGION_ID = 5;
+
+export function visibleSedeMapProyectos(
+  proyectos: AiepSedePinProyecto[],
+  opts?: { regionId?: number; kind?: AiepMapPinKind },
+): AiepSedePinProyecto[] {
+  if (
+    opts?.regionId !== METROPOLITANA_REGION_ID ||
+    isComunaMapPinKind(opts?.kind)
+  ) {
+    return proyectos;
+  }
+  return proyectos.slice(0, RM_SEDE_MAP_VISIBLE_CARDS);
+}
+
+export function overflowSedeMapProyectos(
+  proyectos: AiepSedePinProyecto[],
+  opts?: { regionId?: number; kind?: AiepMapPinKind },
+): AiepSedePinProyecto[] {
+  if (
+    opts?.regionId !== METROPOLITANA_REGION_ID ||
+    isComunaMapPinKind(opts?.kind)
+  ) {
+    return [];
+  }
+  return proyectos.slice(RM_SEDE_MAP_VISIBLE_CARDS);
+}
+
+export function formatSedeMapOverflowCaption(
+  proyectos: Array<{ nombre: string }>,
+): string {
+  if (proyectos.length === 0) return '';
+  const noun = proyectos.length === 1 ? 'Proyecto' : 'proyectos';
+  const names = proyectos.map((item) => item.nombre).join(' - ');
+  return `+${proyectos.length} ${noun} ( ${names} )`;
+}
+
+export function layoutSedeMapOverflowCaptions({
+  pins,
+  cards,
+  cardWidth,
+  cardHeight,
+  regionId,
+  gap = 8,
+}: {
+  pins: AiepSedePin[];
+  cards: FloatingMapCard[];
+  cardWidth: number;
+  cardHeight: number;
+  regionId?: number;
+  gap?: number;
+}): SedeMapOverflowCaption[] {
+  if (regionId !== METROPOLITANA_REGION_ID) return [];
+  const result: SedeMapOverflowCaption[] = [];
+  for (const pin of pins) {
+    if (isComunaMapPinKind(pin.kind)) continue;
+    const extra = overflowSedeMapProyectos(pin.proyectos, {
+      regionId,
+      kind: pin.kind,
+    });
+    if (extra.length === 0) continue;
+    const cluster = cards.filter((card) => card.pinId === pin.id);
+    if (cluster.length === 0) continue;
+    const left = Math.min(...cluster.map((card) => card.left));
+    const right = Math.max(
+      ...cluster.map((card) => card.left + cardWidth),
+    );
+    const bottom = Math.max(
+      ...cluster.map((card) => card.top + cardHeight),
+    );
+    result.push({
+      pinId: pin.id,
+      left,
+      top: bottom + gap,
+      width: Math.max(right - left, cardWidth),
+      height: SEDE_MAP_OVERFLOW_LINE_PX,
+      proyectos: extra.map((item) => ({ id: item.id, nombre: item.nombre })),
+    });
+  }
+  return result;
+}
 
 /** Solo Viña del Mar separa nombre del pin en Valparaíso. */
 const VALPARAISO_OVERLAY_LABEL_PINS = new Set(['vina-del-mar']);
@@ -964,6 +1200,100 @@ export function compassZoneFromDelta(dx: number, dy: number): MapCompassZone {
   return 'ne';
 }
 
+const COMPASS_ZONE_RING: MapCompassZone[] = [
+  'e',
+  'se',
+  's',
+  'sw',
+  'w',
+  'nw',
+  'n',
+  'ne',
+];
+
+function compassZoneRingDistance(a: MapCompassZone, b: MapCompassZone): number {
+  const ia = COMPASS_ZONE_RING.indexOf(a);
+  const ib = COMPASS_ZONE_RING.indexOf(b);
+  const d = Math.abs(ia - ib);
+  return Math.min(d, COMPASS_ZONE_RING.length - d);
+}
+
+/** Hueco de brújula libre más cercano al pin (RM). */
+export function pickMetropolitanComunaZone(
+  pin: { x: number; y: number },
+  mapRect: { left: number; top: number; width: number; height: number },
+  used: Iterable<MapCompassZone>,
+): MapCompassZone | null {
+  const taken = new Set(used);
+  const unused = COMPASS_ZONE_RING.filter((zone) => !taken.has(zone));
+  if (unused.length === 0) return null;
+  const cx = mapRect.left + mapRect.width / 2;
+  const cy = mapRect.top + mapRect.height / 2;
+  const preferred = compassZoneFromDelta(pin.x - cx, pin.y - cy);
+  unused.sort((a, b) => {
+    const da = compassZoneRingDistance(a, preferred);
+    const db = compassZoneRingDistance(b, preferred);
+    if (da !== db) return da - db;
+    return a.localeCompare(b);
+  });
+  return unused[0] ?? null;
+}
+
+export type MapColumnSide = 'left' | 'right';
+
+export function mapPinColumnSide(
+  pinX: number,
+  mapRect: { left: number; width: number },
+): MapColumnSide {
+  return pinX < mapRect.left + mapRect.width / 2 ? 'left' : 'right';
+}
+
+export type MapCardinalSide = 'n' | 'e' | 's' | 'w';
+
+const CARDINAL_TIE_ORDER: MapCardinalSide[] = ['s', 'n', 'w', 'e'];
+
+function mapPinEdgeDistance(
+  pin: { x: number; y: number },
+  mapRect: { left: number; top: number; width: number; height: number },
+): Record<MapCardinalSide, number> {
+  return {
+    w: pin.x - mapRect.left,
+    e: mapRect.left + mapRect.width - pin.x,
+    n: pin.y - mapRect.top,
+    s: mapRect.top + mapRect.height - pin.y,
+  };
+}
+
+function mapPinSideOrder(
+  pin: { x: number; y: number },
+  mapRect: { left: number; top: number; width: number; height: number },
+): MapCardinalSide[] {
+  const dist = mapPinEdgeDistance(pin, mapRect);
+  return [...CARDINAL_TIE_ORDER].sort(
+    (a, b) =>
+      dist[a] - dist[b] ||
+      CARDINAL_TIE_ORDER.indexOf(a) - CARDINAL_TIE_ORDER.indexOf(b),
+  );
+}
+
+/** Borde del mapa más cercano al pin (incluye norte y sur). Empate → sur. */
+export function mapPinNearestSide(
+  pin: { x: number; y: number },
+  mapRect: { left: number; top: number; width: number; height: number },
+): MapCardinalSide {
+  return mapPinSideOrder(pin, mapRect)[0] ?? 's';
+}
+
+export function comunaStackLeft(
+  side: MapColumnSide,
+  mapRect: { left: number; width: number },
+  stackW: number,
+  inset = COMUNA_MAP_EDGE_INSET,
+): number {
+  if (side === 'left') return mapRect.left - stackW + inset;
+  return mapRect.left + mapRect.width - inset;
+}
+
 export function compassSedeZone(
   regionId: number | undefined,
   pinId: string,
@@ -1140,6 +1470,7 @@ function layoutCompassMapCards({
 
   type Cluster = {
     pinId: string;
+    kind: AiepMapPinKind;
     proyectos: AiepSedePinProyecto[];
     zone: MapCompassZone;
     pinX: number;
@@ -1164,7 +1495,11 @@ function layoutCompassMapCards({
 
   const clusters: Cluster[] = active.map((pin) => {
     const pos = positions[pin.id]!;
-    const n = pin.proyectos.length;
+    const visible = visibleSedeMapProyectos(pin.proyectos, {
+      regionId,
+      kind: pin.kind,
+    });
+    const n = visible.length;
     const cols = Math.min(n, maxCols);
     const rows = Math.ceil(n / maxCols);
     const stackW = cols * cardWidth + (cols - 1) * gap;
@@ -1203,7 +1538,8 @@ function layoutCompassMapCards({
     }
     return {
       pinId: pin.id,
-      proyectos: pin.proyectos,
+      kind: pin.kind ?? 'sede',
+      proyectos: visible,
       zone,
       pinX: pos.x,
       pinY: pos.y,
@@ -1314,6 +1650,8 @@ function layoutCompassMapCards({
       placed.push({
         pinId: cluster.pinId,
         proyecto,
+        kind: cluster.kind,
+        zone: cluster.zone,
         left: left + col * (cardWidth + gap),
         top: top + row * (cardHeight + gap),
       });
@@ -1627,25 +1965,89 @@ export function layoutFloatingMapCards({
   regionId?: number;
 }): FloatingMapCard[] {
   if (width <= 0 || height <= 0) return [];
-  if (usesCompassMapLayout(regionId)) {
-    return layoutCompassMapCards({
-      pins,
-      positions,
-      width,
-      height,
-      cardWidth,
-      cardHeight,
-      mapRect,
-      gap,
-      margin,
-      maxCols,
-      groupGap,
-      regionId,
-    });
-  }
+  const sedePins = pins.filter((pin) => !isComunaMapPinKind(pin.kind));
+  const comunaPins = pins.filter((pin) => isComunaMapPinKind(pin.kind));
+
+  const sedeCards =
+    usesCompassMapLayout(regionId)
+      ? layoutCompassMapCards({
+          pins: sedePins,
+          positions,
+          width,
+          height,
+          cardWidth,
+          cardHeight,
+          mapRect,
+          gap,
+          margin,
+          maxCols,
+          groupGap,
+          regionId,
+        })
+      : layoutSideMapCards({
+          pins: sedePins,
+          positions,
+          width,
+          height,
+          cardWidth,
+          cardHeight,
+          mapRect,
+          gap,
+          margin,
+          maxCols,
+          groupGap,
+        });
+
+  const comunaCards = layoutComunaDockedCards({
+    pins: comunaPins,
+    sedePins,
+    positions,
+    width,
+    height,
+    cardWidth,
+    cardHeight,
+    mapRect,
+    gap,
+    margin,
+    maxCols,
+    groupGap,
+    occupied: sedeCards,
+    regionId,
+  });
+
+  return [...sedeCards, ...comunaCards];
+}
+
+function layoutSideMapCards({
+  pins,
+  positions,
+  width,
+  height,
+  cardWidth,
+  cardHeight,
+  mapRect,
+  gap = 8,
+  margin = 10,
+  maxCols = 3,
+  groupGap = 28,
+}: {
+  pins: AiepSedePin[];
+  positions: Record<string, { x: number; y: number }>;
+  width: number;
+  height: number;
+  cardWidth: number;
+  cardHeight: number;
+  mapRect: { left: number; top: number; width: number; height: number };
+  gap?: number;
+  margin?: number;
+  maxCols?: number;
+  groupGap?: number;
+}): FloatingMapCard[] {
+  if (width <= 0 || height <= 0) return [];
 
   type Cluster = {
     pinId: string;
+    kind: AiepMapPinKind;
     proyectos: AiepSedePinProyecto[];
     pinY: number;
     side: 'left' | 'right';
@@ -1678,6 +2080,7 @@ export function layoutFloatingMapCards({
         : mapRect.left + mapRect.width + margin;
     clusters.push({
       pinId: pin.id,
+      kind: pin.kind ?? 'sede',
       proyectos: pin.proyectos,
       pinY: pos.y,
       side,
@@ -1731,10 +2134,721 @@ export function layoutFloatingMapCards({
       placed.push({
         pinId: cluster.pinId,
         proyecto,
+        kind: cluster.kind,
         left: left + col * (cardWidth + gap),
         top: top + row * (cardHeight + gap),
       });
     });
   }
   return placed;
+}
+
+function layoutComunaDockedCards({
+  pins,
+  sedePins,
+  positions,
+  width,
+  height,
+  cardWidth,
+  cardHeight,
+  mapRect,
+  gap,
+  margin,
+  maxCols,
+  groupGap,
+  occupied,
+  regionId,
+}: {
+  pins: AiepSedePin[];
+  sedePins: AiepSedePin[];
+  positions: Record<string, { x: number; y: number }>;
+  width: number;
+  height: number;
+  cardWidth: number;
+  cardHeight: number;
+  mapRect: { left: number; top: number; width: number; height: number };
+  gap: number;
+  margin: number;
+  maxCols: number;
+  groupGap: number;
+  occupied: FloatingMapCard[];
+  regionId?: number;
+}): FloatingMapCard[] {
+  const result: FloatingMapCard[] = [];
+  const blocks = sedeDockBlocks(occupied, positions, mapRect, cardWidth, cardHeight);
+  const overlayLabels = usesCompassMapLayout(regionId)
+    ? layoutOverlaySedeLabelsNearCards({
+        pins: sedePins.map((pin) => ({ id: pin.id, label: pin.label })),
+        positions,
+        cards: occupied,
+        cardWidth,
+        cardHeight,
+        regionId,
+      })
+    : [];
+  const overflowCaptions = layoutSedeMapOverflowCaptions({
+    pins: sedePins,
+    cards: occupied,
+    cardWidth,
+    cardHeight,
+    regionId,
+  });
+  const connectors =
+    overlayLabels.length > 0
+      ? overlayLabels.map((item) => ({
+          x1: item.lineTo.x,
+          y1: item.lineTo.y,
+          x2: item.lineFrom.x,
+          y2: item.lineFrom.y,
+        }))
+      : sedeConnectorSegments(occupied, positions, cardWidth, cardHeight);
+  const packRmPockets = regionId === METROPOLITANA_REGION_ID;
+  const stackMaxCols = packRmPockets ? Math.min(maxCols, 2) : maxCols;
+
+  const ordered = [...pins].sort((a, b) => {
+    const pa = positions[a.id];
+    const pb = positions[b.id];
+    return (pa?.y ?? 0) - (pb?.y ?? 0) || (pa?.x ?? 0) - (pb?.x ?? 0);
+  });
+
+  for (const pin of ordered) {
+    const pos = positions[pin.id];
+    if (!pos || pin.proyectos.length === 0) continue;
+    const n = pin.proyectos.length;
+    const cols = Math.min(n, stackMaxCols);
+    const rows = Math.ceil(n / stackMaxCols);
+    const stackW = cols * cardWidth + (cols - 1) * gap;
+    const stackH = rows * cardHeight + (rows - 1) * gap;
+
+    let left: number;
+    let top: number;
+    let zone: MapCompassZone;
+    let side: MapColumnSide;
+
+    side = mapPinColumnSide(pos.x, mapRect);
+    zone = side === 'left' ? 'w' : 'e';
+    left =
+      side === 'right'
+        ? mapRect.left + mapRect.width + margin
+        : mapRect.left - margin - stackW;
+    top = pos.y - stackH / 2;
+
+    left = Math.min(Math.max(left, 0), Math.max(width - stackW, 0));
+    top = Math.min(Math.max(top, 0), Math.max(height - stackH, 0));
+
+    const caption = mapComunaCardCaption(pin.kind, pin.label);
+    const captionPad = caption
+      ? caption.lines.length * COMUNA_CARD_CAPTION_LINE_PX + 4
+      : 0;
+    const mapBottom = mapRect.top + mapRect.height;
+
+    const hitsObstacle = (
+      candidateLeft: number,
+      candidateTop: number,
+      blockPad = groupGap,
+    ) => {
+      const visTop = candidateTop - captionPad;
+      const visH = stackH + captionPad;
+      if (
+        !packRmPockets &&
+        rectsOverlap(
+          candidateLeft,
+          visTop,
+          stackW,
+          visH,
+          mapRect.left,
+          mapRect.top,
+          mapRect.width,
+          mapRect.height,
+          0,
+        )
+      ) {
+        return true;
+      }
+      if (
+        blocks.some((block) =>
+          rectsOverlap(
+            candidateLeft,
+            visTop,
+            stackW,
+            visH,
+            block.left,
+            block.top,
+            block.stackW,
+            block.stackH,
+            blockPad,
+          ),
+        )
+      ) {
+        return true;
+      }
+      if (
+        overlayLabels.some((item) =>
+          rectsOverlap(
+            candidateLeft,
+            visTop,
+            stackW,
+            visH,
+            item.left,
+            item.top,
+            item.width,
+            item.height,
+            8,
+          ),
+        )
+      ) {
+        return true;
+      }
+      if (
+        overflowCaptions.some((item) =>
+          rectsOverlap(
+            candidateLeft,
+            visTop,
+            stackW,
+            visH,
+            item.left,
+            item.top,
+            item.width,
+            item.height,
+            8,
+          ),
+        )
+      ) {
+        return true;
+      }
+      return connectors.some((seg) =>
+        segmentHitsAabb(
+          seg.x1,
+          seg.y1,
+          seg.x2,
+          seg.y2,
+          {
+            left: candidateLeft,
+            top: visTop,
+            right: candidateLeft + stackW,
+            bottom: visTop + visH,
+          },
+          8,
+        ),
+      );
+    };
+
+    const step = Math.max(6, Math.round(groupGap / 4));
+    const clampLeft = (value: number) =>
+      Math.min(Math.max(value, 0), Math.max(width - stackW, 0));
+    const clampTop = (value: number) =>
+      Math.min(Math.max(value, 0), Math.max(height - stackH, 0));
+    const preferredTop = clampTop(pos.y - stackH / 2);
+    const mapCy = mapRect.top + mapRect.height / 2;
+
+    const pickTopInBestGap = (
+      colLeft: number,
+      blockPad: number,
+    ): { top: number; slack: number; dist: number; midDist: number; inMapBand: boolean } | null => {
+      const tMax = Math.max(height - stackH, 0);
+      const valid: number[] = [];
+      for (let t = 0; t <= tMax; t += step) {
+        if (!hitsObstacle(colLeft, t, blockPad)) valid.push(t);
+      }
+      if (!hitsObstacle(colLeft, preferredTop, blockPad)) {
+        valid.push(preferredTop);
+      }
+      if (valid.length === 0) return null;
+      const sorted = [...new Set(valid)].sort((a, b) => a - b);
+      const gaps: number[][] = [[sorted[0]!]];
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1]!;
+        const cur = sorted[i]!;
+        if (cur - prev <= step * 1.5) gaps[gaps.length - 1]!.push(cur);
+        else gaps.push([cur]);
+      }
+      const scored = gaps.map((tops) => {
+        const lo = Math.min(...tops);
+        const hi = Math.max(...tops);
+        const slack = hi - lo;
+        const closest = tops.reduce((best, t) =>
+          Math.abs(t - preferredTop) < Math.abs(best - preferredTop) ? t : best,
+        );
+        return {
+          top: closest,
+          slack,
+          dist: Math.abs(closest - preferredTop),
+          midDist: Math.abs((lo + hi) / 2 - mapCy),
+          inMapBand:
+            closest + stackH / 2 >= mapRect.top &&
+            closest + stackH / 2 <= mapBottom,
+        };
+      });
+      scored.sort((a, b) =>
+        packRmPockets
+          ? Number(b.inMapBand) - Number(a.inMapBand) ||
+            a.dist - b.dist ||
+            a.midDist - b.midDist ||
+            b.slack - a.slack
+          : a.dist - b.dist || b.slack - a.slack,
+      );
+      return scored[0] ?? null;
+    };
+
+    const corridorColumns = (colSide: MapColumnSide): number[] => {
+      const inner =
+        colSide === 'right'
+          ? mapRect.left + mapRect.width + margin
+          : mapRect.left - margin - stackW;
+      const dir = colSide === 'right' ? 1 : -1;
+      const colsX: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        const x = clampLeft(inner + dir * i * (stackW + groupGap));
+        if (colsX[colsX.length - 1] === x) continue;
+        colsX.push(x);
+      }
+      return colsX;
+    };
+
+    const preferredLeft = clampLeft(
+      stackW >= mapRect.width
+        ? pos.x - stackW / 2
+        : Math.min(
+            Math.max(pos.x - stackW / 2, mapRect.left),
+            mapRect.left + mapRect.width - stackW,
+          ),
+    );
+
+    const pickLeftInBestGap = (
+      rowTop: number,
+      blockPad: number,
+    ): { left: number; dist: number; slack: number } | null => {
+      const lMax = Math.max(width - stackW, 0);
+      const valid: number[] = [];
+      for (let l = 0; l <= lMax; l += step) {
+        if (!hitsObstacle(l, rowTop, blockPad)) valid.push(l);
+      }
+      if (!hitsObstacle(preferredLeft, rowTop, blockPad)) {
+        valid.push(preferredLeft);
+      }
+      if (valid.length === 0) return null;
+      const sorted = [...new Set(valid)].sort((a, b) => a - b);
+      const gaps: number[][] = [[sorted[0]!]];
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1]!;
+        const cur = sorted[i]!;
+        if (cur - prev <= step * 1.5) gaps[gaps.length - 1]!.push(cur);
+        else gaps.push([cur]);
+      }
+      const scored = gaps.map((lefts) => {
+        const lo = Math.min(...lefts);
+        const hi = Math.max(...lefts);
+        const closest = lefts.reduce((best, l) =>
+          Math.abs(l - preferredLeft) < Math.abs(best - preferredLeft)
+            ? l
+            : best,
+        );
+        return {
+          left: closest,
+          dist: Math.abs(closest - preferredLeft),
+          slack: hi - lo,
+        };
+      });
+      scored.sort((a, b) => a.dist - b.dist || b.slack - a.slack);
+      return scored[0] ?? null;
+    };
+
+    const bandRows = (cardinal: 'n' | 's'): number[] => {
+      const inner =
+        cardinal === 's'
+          ? mapBottom + margin + captionPad
+          : mapRect.top - margin - stackH;
+      const dir = cardinal === 's' ? 1 : -1;
+      const rows: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        const y = clampTop(inner + dir * i * (stackH + groupGap));
+        if (rows[rows.length - 1] === y) continue;
+        rows.push(y);
+      }
+      return rows;
+    };
+
+    const searchCardinal = (
+      cardinal: MapCardinalSide,
+      blockPad: number,
+    ): { left: number; top: number } | null => {
+      if (cardinal === 'w' || cardinal === 'e') {
+        const colSide: MapColumnSide = cardinal === 'e' ? 'right' : 'left';
+        for (const colLeft of corridorColumns(colSide)) {
+          const picked = pickTopInBestGap(colLeft, blockPad);
+          if (picked) return { left: colLeft, top: picked.top };
+        }
+        return null;
+      }
+      for (const rowTop of bandRows(cardinal)) {
+        const picked = pickLeftInBestGap(rowTop, blockPad);
+        if (picked) return { left: picked.left, top: rowTop };
+      }
+      return null;
+    };
+
+    const pickOrigin = (blockPad: number) => {
+      if (!packRmPockets) {
+        for (const cardinal of mapPinSideOrder(pos, mapRect)) {
+          const found = searchCardinal(cardinal, blockPad);
+          if (found) return { ...found, zone: cardinal };
+        }
+        return null;
+      }
+
+      const preferredSide = side;
+      const otherSide: MapColumnSide =
+        preferredSide === 'left' ? 'right' : 'left';
+      type Cand = {
+        left: number;
+        top: number;
+        inMapBand: boolean;
+        midDist: number;
+        dist: number;
+        sideRank: number;
+        colRank: number;
+      };
+      const cands: Cand[] = [];
+      ([preferredSide, otherSide] as MapColumnSide[]).forEach(
+        (colSide, sideRank) => {
+          corridorColumns(colSide).forEach((colLeft, colRank) => {
+            const picked = pickTopInBestGap(colLeft, blockPad);
+            if (!picked) return;
+            cands.push({
+              left: colLeft,
+              top: picked.top,
+              inMapBand: picked.inMapBand,
+              midDist: picked.midDist,
+              dist: picked.dist,
+              sideRank,
+              colRank,
+            });
+          });
+        },
+      );
+      cands.sort(
+        (a, b) =>
+          Number(b.inMapBand) - Number(a.inMapBand) ||
+          a.sideRank - b.sideRank ||
+          a.colRank - b.colRank ||
+          a.dist - b.dist ||
+          a.midDist - b.midDist,
+      );
+      const best = cands[0];
+      return best
+        ? {
+            left: best.left,
+            top: best.top,
+            zone: (best.left + stackW / 2 < mapRect.left + mapRect.width / 2
+              ? 'w'
+              : 'e') as MapCompassZone,
+          }
+        : null;
+    };
+
+    const placedOrigin = pickOrigin(groupGap) ?? pickOrigin(12);
+    if (placedOrigin) {
+      left = placedOrigin.left;
+      top = placedOrigin.top;
+      zone = placedOrigin.zone;
+      side = zone === 'e' || zone === 'ne' || zone === 'se' ? 'right' : 'left';
+    }
+
+    pin.proyectos.forEach((proyecto, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      result.push({
+        pinId: pin.id,
+        proyecto,
+        kind: pin.kind,
+        zone,
+        left: left + col * (cardWidth + gap),
+        top: top + row * (cardHeight + gap),
+      });
+    });
+    blocks.push({
+      pinId: pin.id,
+      pinY: pos.y,
+      side,
+      left,
+      top: top - captionPad,
+      stackW,
+      stackH: stackH + captionPad,
+    });
+  }
+
+  if (packRmPockets) {
+    restackRmComunasByPinY(result, positions, mapRect, cardHeight);
+  }
+
+  return result;
+}
+
+function restackRmComunasByPinY(
+  cards: FloatingMapCard[],
+  positions: Record<string, { x: number; y: number }>,
+  mapRect: { left: number; top: number; width: number; height: number },
+  cardHeight: number,
+) {
+  const byPin = new Map<string, FloatingMapCard[]>();
+  for (const card of cards) {
+    if (!isComunaMapPinKind(card.kind)) continue;
+    const list = byPin.get(card.pinId) ?? [];
+    list.push(card);
+    byPin.set(card.pinId, list);
+  }
+  const mapMidX = mapRect.left + mapRect.width / 2;
+  const mapTop = mapRect.top;
+  const mapBottom = mapRect.top + mapRect.height;
+  const clusters = [...byPin.entries()].map(([pinId, cluster]) => {
+    const left = Math.min(...cluster.map((card) => card.left));
+    const top = Math.min(...cluster.map((card) => card.top));
+    const right = Math.max(...cluster.map((card) => card.left));
+    const midX = (left + right) / 2;
+    const stackH =
+      Math.max(...cluster.map((card) => card.top)) - top + cardHeight;
+    return {
+      pinId,
+      pinY: positions[pinId]?.y ?? top,
+      top,
+      stackH,
+      side: midX < mapMidX ? 'w' : 'e',
+      inMapBand: top >= mapTop - 8 && top <= mapBottom,
+      cluster,
+    };
+  });
+  const sides = new Map<string, typeof clusters>();
+  for (const item of clusters) {
+    if (!item.inMapBand) continue;
+    const list = sides.get(item.side) ?? [];
+    list.push(item);
+    sides.set(item.side, list);
+  }
+  const applyTop = (item: (typeof clusters)[number], nextTop: number) => {
+    const delta = nextTop - item.top;
+    if (Math.abs(delta) < 0.5) return;
+    for (const card of item.cluster) card.top += delta;
+    item.top = nextTop;
+  };
+  for (const group of sides.values()) {
+    if (group.length < 2) continue;
+    const byPinY = [...group].sort(
+      (a, b) => a.pinY - b.pinY || a.pinId.localeCompare(b.pinId),
+    );
+    const tops = byPinY.map((item) => item.top);
+    const topSpan = Math.max(...tops) - Math.min(...tops);
+    const minSpan = (byPinY.length - 1) * RM_COMUNA_PIN_Y_STEP;
+    const inPinYOrder = byPinY.every((item, index) => {
+      if (index === 0) return true;
+      return item.top >= byPinY[index - 1]!.top - 4;
+    });
+    if (inPinYOrder && topSpan >= minSpan * 0.75) continue;
+
+    const maxStackH = Math.max(...byPinY.map((item) => item.stackH));
+    const lo = mapTop;
+    const hi = Math.max(lo, mapBottom - maxStackH);
+    const clampTop = (value: number) => Math.min(Math.max(value, lo), hi);
+
+    if (topSpan >= 8 && !inPinYOrder) {
+      const slots = group.map((item) => item.top).sort((a, b) => a - b);
+      byPinY.forEach((item, index) => {
+        const nextTop = slots[index];
+        if (nextTop == null) return;
+        applyTop(item, clampTop(nextTop));
+      });
+      continue;
+    }
+
+    const meanTop = tops.reduce((sum, value) => sum + value, 0) / tops.length;
+    byPinY.forEach((item, index) => {
+      const target =
+        meanTop + (index - (byPinY.length - 1) / 2) * RM_COMUNA_PIN_Y_STEP;
+      applyTop(item, clampTop(target));
+    });
+  }
+}
+
+type DockBlock = {
+  pinId: string;
+  pinY: number;
+  side: MapColumnSide;
+  left: number;
+  top: number;
+  stackW: number;
+  stackH: number;
+};
+
+function clusterColumnSide(
+  left: number,
+  stackW: number,
+  mapRect: { left: number; width: number },
+): MapColumnSide {
+  if (left + stackW <= mapRect.left + 1) return 'left';
+  if (left >= mapRect.left + mapRect.width - 1) return 'right';
+  return mapPinColumnSide(left + stackW / 2, mapRect);
+}
+
+function sedeDockBlocks(
+  cards: FloatingMapCard[],
+  positions: Record<string, { x: number; y: number }>,
+  mapRect: { left: number; top: number; width: number; height: number },
+  cardWidth: number,
+  cardHeight: number,
+): DockBlock[] {
+  const byPin = new Map<string, FloatingMapCard[]>();
+  for (const card of cards) {
+    if (isComunaMapPinKind(card.kind)) continue;
+    const list = byPin.get(card.pinId) ?? [];
+    list.push(card);
+    byPin.set(card.pinId, list);
+  }
+  const blocks: DockBlock[] = [];
+  for (const [pinId, cluster] of byPin) {
+    const left = Math.min(...cluster.map((card) => card.left));
+    const top = Math.min(...cluster.map((card) => card.top));
+    const right = Math.max(...cluster.map((card) => card.left + cardWidth));
+    const bottom = Math.max(...cluster.map((card) => card.top + cardHeight));
+    blocks.push({
+      pinId,
+      pinY: positions[pinId]?.y ?? top,
+      side: clusterColumnSide(left, right - left, mapRect),
+      left,
+      top,
+      stackW: right - left,
+      stackH: bottom - top,
+    });
+  }
+  return blocks;
+}
+
+export function layoutComunaCardLines({
+  pins,
+  positions,
+  cards,
+  cardWidth,
+  cardHeight,
+}: {
+  pins: AiepSedePin[];
+  positions: Record<string, { x: number; y: number }>;
+  cards: FloatingMapCard[];
+  cardWidth: number;
+  cardHeight: number;
+}): OverlayComunaLine[] {
+  const lines: OverlayComunaLine[] = [];
+  for (const pin of pins) {
+    if (!isComunaMapPinKind(pin.kind)) continue;
+    const pos = positions[pin.id];
+    const cluster = cards.filter(
+      (card) => isComunaMapPinKind(card.kind) && card.pinId === pin.id,
+    );
+    if (!pos || cluster.length === 0) continue;
+    const left = Math.min(...cluster.map((card) => card.left));
+    const top = Math.min(...cluster.map((card) => card.top));
+    const right = Math.max(...cluster.map((card) => card.left + cardWidth));
+    const bottom = Math.max(...cluster.map((card) => card.top + cardHeight));
+    const target = { x: (left + right) / 2, y: (top + bottom) / 2 };
+    lines.push({
+      pinId: pin.id,
+      lineTo: { x: pos.x, y: pos.y },
+      lineFrom: rayEnterAabb(pos, target, { left, top, right, bottom }),
+    });
+  }
+  return lines;
+}
+
+function rectsOverlap(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+  pad = 0,
+): boolean {
+  return !(
+    ax + aw + pad <= bx ||
+    bx + bw + pad <= ax ||
+    ay + ah + pad <= by ||
+    by + bh + pad <= ay
+  );
+}
+
+/** True si el segmento [p1,p2] cruza el AABB (con padding). */
+export function segmentHitsAabb(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  box: { left: number; top: number; right: number; bottom: number },
+  pad = 0,
+): boolean {
+  const left = box.left - pad;
+  const right = box.right + pad;
+  const top = box.top - pad;
+  const bottom = box.bottom + pad;
+  let t0 = 0;
+  let t1 = 1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const clip = (p: number, q: number) => {
+    if (Math.abs(p) < 1e-9) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  if (!clip(-dx, x1 - left)) return false;
+  if (!clip(dx, right - x1)) return false;
+  if (!clip(-dy, y1 - top)) return false;
+  if (!clip(dy, bottom - y1)) return false;
+  return t0 <= t1;
+}
+
+export function sedeConnectorSegments(
+  occupied: FloatingMapCard[],
+  positions: Record<string, { x: number; y: number }>,
+  cardWidth: number,
+  cardHeight: number,
+): Array<{ x1: number; y1: number; x2: number; y2: number }> {
+  const byPin = new Map<string, FloatingMapCard[]>();
+  for (const card of occupied) {
+    if (isComunaMapPinKind(card.kind)) continue;
+    const list = byPin.get(card.pinId) ?? [];
+    list.push(card);
+    byPin.set(card.pinId, list);
+  }
+  const gap = 8;
+  const labelH = VITRINA_MAP_LABEL_PX * 2.35;
+  const segments: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+  for (const [pinId, cluster] of byPin) {
+    const pos = positions[pinId];
+    if (!pos) continue;
+    const left = Math.min(...cluster.map((card) => card.left));
+    const top = Math.min(...cluster.map((card) => card.top));
+    const right = Math.max(...cluster.map((card) => card.left + cardWidth));
+    const bottom = Math.max(...cluster.map((card) => card.top + cardHeight));
+    const midX = (left + right) / 2;
+    const midY = (top + bottom) / 2;
+    const zone = cluster[0]?.zone ?? RM_SEDE_ZONE[pinId];
+    let tx = midX;
+    let ty = midY;
+    if (zone === 'n' || zone === 'ne' || zone === 'nw') {
+      ty = bottom + gap + labelH / 2;
+    } else if (zone === 's' || zone === 'se' || zone === 'sw') {
+      ty = top - gap - labelH / 2;
+    } else if (zone === 'e') {
+      tx = left - gap;
+    } else if (zone === 'w') {
+      tx = right + gap;
+    }
+    segments.push({ x1: pos.x, y1: pos.y, x2: tx, y2: ty });
+  }
+  return segments;
 }

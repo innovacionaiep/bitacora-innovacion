@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth-utils';
@@ -38,7 +39,7 @@ function revalidatePortal() {
   }
 }
 
-export async function resolvePortalAccess(): Promise<PortalAccess> {
+export const resolvePortalAccess = cache(async function resolvePortalAccess(): Promise<PortalAccess> {
   const session = await getSession();
   if (session?.user) {
     const roleLevels = await readPortalSessionRoleLevels();
@@ -65,7 +66,7 @@ export async function resolvePortalAccess(): Promise<PortalAccess> {
       ? 'causalab'
       : null);
   return { kind: 'guest', level: ticket.level, profile };
-}
+});
 
 export async function redeemPortalGuestCode(code: string): Promise<{
   success: boolean;

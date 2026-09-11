@@ -6,6 +6,11 @@ import {
 
 export const VITRINA_PROYECTOS_SETTING_KEY = 'vitrina_proyectos';
 export const VITRINA_PROYECTOS_MAX_FOTOS = 4;
+/** PgBouncer cierra el tx interactivo a los 5s (P2028) a mitad de los joins. */
+export const VITRINA_UPSERT_TX_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
 export const VITRINA_COVER_OFFSET_DEFAULT = 50;
 export const VITRINA_COVER_ZOOM_DEFAULT = 1;
 export const VITRINA_COVER_ZOOM_MIN = 1;
@@ -13,6 +18,53 @@ export const VITRINA_COVER_ZOOM_MAX = 3;
 export const VITRINA_DESCRIPCION_FONT_DEFAULT = 15;
 export const VITRINA_DESCRIPCION_FONT_MIN = 12;
 export const VITRINA_DESCRIPCION_FONT_MAX = 28;
+
+/** Pares catálogo ya resueltos en cliente: el upsert no vuelve a leer los 7 catálogos. */
+export function vitrinaCatalogPairsAreFrozen(proyecto: {
+  fondoIds: string[];
+  fondos: string[];
+  lineaIds: string[];
+  lineas: string[];
+  sedeIds: string[];
+  sedes: string[];
+  escuelaIds: string[];
+  escuelas: string[];
+  socioIds: string[];
+  socios: string[];
+  comunaIds: string[];
+  comunas: string[];
+  etiquetaIds: string[];
+  etiquetas: string[];
+}): boolean {
+  const pairs: Array<[string[], string[]]> = [
+    [proyecto.fondoIds, proyecto.fondos],
+    [proyecto.lineaIds, proyecto.lineas],
+    [proyecto.sedeIds, proyecto.sedes],
+    [proyecto.escuelaIds, proyecto.escuelas],
+    [proyecto.socioIds, proyecto.socios],
+    [proyecto.comunaIds, proyecto.comunas],
+    [proyecto.etiquetaIds, proyecto.etiquetas],
+  ];
+  return pairs.every(([ids, names]) => ids.length === names.length);
+}
+
+export function catalogIdSetsDiffer(current: string[], next: string[]): boolean {
+  const a = [...new Set(current.filter(Boolean))].sort();
+  const b = [...new Set(next.filter(Boolean))].sort();
+  if (a.length !== b.length) return true;
+  return a.some((id, i) => id !== b[i]);
+}
+
+export function vitrinaFotosDiffer(
+  current: Array<{ url: string; publicId: string }>,
+  next: Array<{ url: string; publicId: string }>,
+): boolean {
+  if (current.length !== next.length) return true;
+  return current.some(
+    (foto, i) =>
+      foto.url !== next[i]?.url || foto.publicId !== next[i]?.publicId,
+  );
+}
 
 export type VitrinaCatalogOption = {
   id: string;
@@ -39,6 +91,8 @@ export type VitrinaProyecto = {
   escuelas: string[];
   socioIds: string[];
   socios: string[];
+  comunaIds: string[];
+  comunas: string[];
   encargadoNombre: string;
   encargadoCorreo: string;
   encargadoCargo: string;
@@ -240,7 +294,75 @@ export function applySocioNombreToVitrinaProyectos(
   return { proyectos: next, changed };
 }
 
-/** Prefiere ids del catálogo; si no hay, resuelve por nombre. */
+export type VitrinaCatalogsForFreeze = {
+  fondos: VitrinaCatalogOption[];
+  lineas: VitrinaCatalogOption[];
+  sedes: VitrinaCatalogOption[];
+  escuelas: VitrinaCatalogOption[];
+  socios: VitrinaCatalogOption[];
+  comunas: VitrinaCatalogOption[];
+  etiquetas: VitrinaCatalogOption[];
+};
+
+export function freezeVitrinaProyectoCatalogs(
+  proyecto: VitrinaProyecto,
+  catalogs: VitrinaCatalogsForFreeze,
+): VitrinaProyecto {
+  const fondos = freezeCatalogPair(
+    proyecto.fondoIds,
+    proyecto.fondos,
+    catalogs.fondos,
+  );
+  const lineas = freezeCatalogPair(
+    proyecto.lineaIds,
+    proyecto.lineas,
+    catalogs.lineas,
+  );
+  const sedes = freezeCatalogPair(
+    proyecto.sedeIds,
+    proyecto.sedes,
+    catalogs.sedes,
+  );
+  const escuelas = freezeCatalogPair(
+    proyecto.escuelaIds,
+    proyecto.escuelas,
+    catalogs.escuelas,
+  );
+  const socios = freezeCatalogPair(
+    proyecto.socioIds,
+    proyecto.socios,
+    catalogs.socios,
+  );
+  const comunas = freezeCatalogPair(
+    proyecto.comunaIds,
+    proyecto.comunas,
+    catalogs.comunas,
+  );
+  const etiquetas = freezeCatalogPair(
+    proyecto.etiquetaIds,
+    proyecto.etiquetas,
+    catalogs.etiquetas,
+  );
+  return {
+    ...proyecto,
+    fondoIds: fondos.ids,
+    fondos: fondos.names,
+    lineaIds: lineas.ids,
+    lineas: lineas.names,
+    sedeIds: sedes.ids,
+    sedes: sedes.names,
+    escuelaIds: escuelas.ids,
+    escuelas: escuelas.names,
+    socioIds: socios.ids,
+    socios: socios.names,
+    comunaIds: comunas.ids,
+    comunas: comunas.names,
+    etiquetaIds: etiquetas.ids,
+    etiquetas: etiquetas.names,
+  };
+}
+
+/** Prefiere ids del catálogo; si no calzan, resuelve por nombre. */
 export function freezeCatalogPair(
   ids: string[],
   names: string[],
@@ -259,7 +381,9 @@ export function freezeCatalogPair(
       outIds.push(opt.id);
       outNames.push(opt.nombre);
     }
-    return { ids: outIds, names: outNames };
+    if (outIds.length > 0) {
+      return { ids: outIds, names: outNames };
+    }
   }
   return namesToCatalogSelection(names, options);
 }
@@ -298,6 +422,8 @@ function emptyProyecto(id?: string): VitrinaProyecto {
     escuelas: [],
     socioIds: [],
     socios: [],
+    comunaIds: [],
+    comunas: [],
     encargadoNombre: '',
     encargadoCorreo: '',
     encargadoCargo: '',
@@ -372,6 +498,7 @@ export function normalizeVitrinaProyectos(
     const sedes = pairIdsAndNames(rec.sedeIds, rec.sedes);
     const escuelas = pairIdsAndNames(rec.escuelaIds, rec.escuelas);
     const socios = pairIdsAndNames(rec.socioIds, rec.socios);
+    const comunas = pairIdsAndNames(rec.comunaIds, rec.comunas);
     const etiquetas = pairIdsAndNames(rec.etiquetaIds, rec.etiquetas);
 
     const existingId = asString(rec.id);
@@ -390,6 +517,8 @@ export function normalizeVitrinaProyectos(
       escuelas: escuelas.names,
       socioIds: socios.ids,
       socios: socios.names,
+      comunaIds: comunas.ids,
+      comunas: comunas.names,
       encargadoNombre: asString(rec.encargadoNombre),
       encargadoCorreo,
       encargadoCargo: asString(rec.encargadoCargo),

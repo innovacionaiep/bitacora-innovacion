@@ -7,6 +7,8 @@ import {
   layoutFloatingMapCards,
   layoutOverlaySedeLabelsNearCards,
   layoutSedeLabels,
+  layoutSedeMapOverflowCaptions,
+  formatSedeMapOverflowCaption,
   LOS_LAGOS_REGION_ID,
   METROPOLITANA_REGION_ID,
   metropolitanSedeZone,
@@ -14,22 +16,38 @@ import {
   OHIGGINS_REGION_ID,
   ONLINE_REGION_ID,
   ONLINE_SEDE_ID,
+  ONLINE_COMUNA_MAP_PIN_FILL,
+  SEDE_ONLINE_MAP_BADGE,
+  isComunaMapPinKind,
+  mapComunaCardCaption,
+  pickMetropolitanComunaZone,
+  segmentHitsAabb,
   pinRadius,
   pinsForOnline,
   pinsForRegion,
   resolveSedeGeo,
+  vitrinaSedeIsOnlineOnly,
   sedeLabelParts,
   splitOnlinePinAroundGlobe,
   usesCompassMapLayout,
   usesOverlaySedeLabel,
   VALPARAISO_REGION_ID,
   zoomPinRadius,
+  COMUNA_CARD_CAPTION_LINE_PX,
+  COMUNA_MAP_PIN_FILL,
+  EMPRENDEDOR_EXTERNO_MAP_BADGE,
+  mapPinLabelParts,
+  layoutComunaCardLines,
+  mapPinColumnSide,
+  mapPinNearestSide,
 } from '@/lib/aiep-sede-geo';
+import { resolveComunaGeo } from '@/lib/chile-comuna-geo';
 import {
   chileRegionById,
   chileRegionPathBBox,
   projectChileLonLat,
 } from '@/lib/chile-horizontal-paths';
+import { VITRINA_SEDE_EMPRENDEDOR_EXTERNO } from '@/lib/vitrina-card-display';
 
 describe('resolveSedeGeo', () => {
   it('ubica sedes oficiales y distingue campus de la RM', () => {
@@ -48,6 +66,7 @@ describe('resolveSedeGeo', () => {
     expect(resolveSedeGeo('Online')?.id).toBe('online');
     expect(resolveSedeGeo('Aiep Online')?.id).toBe('online');
     expect(resolveSedeGeo('Sede inventada')).toBeNull();
+    expect(resolveSedeGeo('Sede Online')?.id).toBe('online');
   });
 
   it('pone el norte arriba y el oeste a la izquierda', () => {
@@ -57,6 +76,19 @@ describe('resolveSedeGeo', () => {
     const valpo = resolveSedeGeo('Valparaíso');
     expect(calama?.y).toBeLessThan(castro?.y ?? 0);
     expect(valpo?.x).toBeLessThan(bellavista?.x ?? 0);
+  });
+});
+
+describe('vitrinaSedeIsOnlineOnly', () => {
+  it('acepta Online y Sede Online, rechaza mixto y Emprendedor', () => {
+    expect(vitrinaSedeIsOnlineOnly(['Online'])).toBe(true);
+    expect(vitrinaSedeIsOnlineOnly(['Sede Online'])).toBe(true);
+    expect(vitrinaSedeIsOnlineOnly(['AIEP Online'])).toBe(true);
+    expect(vitrinaSedeIsOnlineOnly(['Online', 'Valparaíso'])).toBe(false);
+    expect(vitrinaSedeIsOnlineOnly([VITRINA_SEDE_EMPRENDEDOR_EXTERNO])).toBe(
+      false,
+    );
+    expect(vitrinaSedeIsOnlineOnly([])).toBe(false);
   });
 });
 
@@ -453,6 +485,583 @@ describe('región metropolitana', () => {
     expect(by('barrio-universitario')!.top + 70).toBeLessThanOrEqual(mapRect.top);
   });
 
+  it('pone la comuna Online de San Joaquín en el hueco este, no en SE', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'Norte', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v1',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+    ]);
+    const onlinePin = pins.find((pin) => pin.kind === 'online-comuna');
+    expect(onlinePin?.id).toBe('online-comuna-san-joaquin');
+    const mapRect = { left: 160, top: 90, width: 180, height: 180 };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions: {
+        'santiago-norte': { x: 250, y: 140 },
+        bellavista: { x: 310, y: 180 },
+        'barrio-universitario': { x: 290, y: 150 },
+        'san-joaquin': { x: 310, y: 240 },
+        maipu: { x: 190, y: 200 },
+        'san-bernardo': { x: 250, y: 250 },
+        [onlinePin!.id]: { x: 300, y: 210 },
+      },
+      width: 500,
+      height: 400,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const online = placed.find((card) => card.pinId === onlinePin!.id)!;
+    const se = placed.find((card) => card.pinId === 'san-joaquin')!;
+    expect(online.zone).toBe('e');
+    expect(online.left).toBeGreaterThanOrEqual(mapRect.left + mapRect.width);
+    expect(online.top + 70).toBeLessThanOrEqual(se.top);
+  });
+
+  it('coloca la comuna Online en el hueco este entre Bellavista y San Joaquín', () => {
+    expect(
+      segmentHitsAabb(0, 0, 10, 10, { left: 4, top: 4, right: 8, bottom: 8 }),
+    ).toBe(true);
+    expect(
+      segmentHitsAabb(0, 0, 1, 1, { left: 8, top: 8, right: 12, bottom: 12 }),
+    ).toBe(false);
+
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'Norte', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v1',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+    ]);
+    const onlinePin = pins.find((pin) => pin.kind === 'online-comuna')!;
+    const mapRect = { left: 160, top: 90, width: 180, height: 180 };
+    const positions = {
+      'santiago-norte': { x: 250, y: 140 },
+      bellavista: { x: 310, y: 180 },
+      'barrio-universitario': { x: 290, y: 150 },
+      'san-joaquin': { x: 310, y: 240 },
+      maipu: { x: 190, y: 200 },
+      'san-bernardo': { x: 250, y: 250 },
+      [onlinePin.id]: { x: 300, y: 210 },
+    };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions,
+      width: 500,
+      height: 400,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const online = placed.find((card) => card.pinId === onlinePin.id)!;
+    const bellaBottom = Math.max(
+      ...placed
+        .filter((card) => card.pinId === 'bellavista')
+        .map((card) => card.top + 70),
+    );
+    const seTop = placed.find((card) => card.pinId === 'san-joaquin')!.top;
+    const captionPad = COMUNA_CARD_CAPTION_LINE_PX * 2 + 4;
+    const overlays = layoutOverlaySedeLabelsNearCards({
+      pins: pins
+        .filter((pin) => !isComunaMapPinKind(pin.kind))
+        .map((pin) => ({ id: pin.id, label: pin.label })),
+      positions,
+      cards: placed.filter((card) => card.pinId !== onlinePin.id),
+      cardWidth: 80,
+      cardHeight: 70,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const box = {
+      left: online.left,
+      top: online.top - captionPad,
+      right: online.left + 80,
+      bottom: online.top + 70,
+    };
+    for (const item of overlays) {
+      expect(
+        segmentHitsAabb(
+          item.lineTo.x,
+          item.lineTo.y,
+          item.lineFrom.x,
+          item.lineFrom.y,
+          box,
+          8,
+        ),
+        `no debe tapar la línea de ${item.pinId}`,
+      ).toBe(false);
+    }
+    expect(online.zone).toBe('e');
+    expect(online.left).toBeGreaterThanOrEqual(mapRect.left + mapRect.width);
+    expect(online.top).toBeGreaterThan(bellaBottom);
+    expect(online.top + 70).toBeLessThanOrEqual(seTop);
+    expect(online.top).toBeGreaterThanOrEqual(mapRect.top);
+    expect(online.top).toBeLessThan(mapRect.top + mapRect.height);
+  });
+
+  it('elige el hueco este junto al mapa aunque el espacio sobre Bellavista sea más alto', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'N1', sedes: ['Santiago Norte'] },
+      { nombre: 'N2', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Bellavista Q', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin Q', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin R', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v1',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v2',
+        nombre: 'VirtualApp 2',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v3',
+        nombre: 'BuinApp',
+        sedes: ['Online'],
+        comunas: ['Buin'],
+      },
+    ]);
+    const sjPin = pins.find((pin) => pin.id === 'online-comuna-san-joaquin')!;
+    const buinPin = pins.find((pin) => pin.id === 'online-comuna-buin')!;
+    const mapRect = { left: 300, top: 500, width: 250, height: 220 };
+    const positions = {
+      'santiago-norte': { x: 425, y: 560 },
+      bellavista: { x: 500, y: 600 },
+      'barrio-universitario': { x: 360, y: 570 },
+      'san-joaquin': { x: 500, y: 680 },
+      maipu: { x: 330, y: 640 },
+      'san-bernardo': { x: 425, y: 690 },
+      [sjPin.id]: { x: 490, y: 640 },
+      [buinPin.id]: { x: 340, y: 630 },
+    };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions,
+      width: 1100,
+      height: 900,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const online = placed.find((card) => card.pinId === sjPin.id)!;
+    const buin = placed.find((card) => card.pinId === buinPin.id)!;
+    const bella = placed.filter((card) => card.pinId === 'bellavista');
+    const bellaBottom = Math.max(...bella.map((card) => card.top + 70));
+    const seTop = Math.min(
+      ...placed
+        .filter((card) => card.pinId === 'san-joaquin')
+        .map((card) => card.top),
+    );
+    const nwBottom = Math.max(
+      ...placed
+        .filter((card) => card.pinId === 'barrio-universitario')
+        .map((card) => card.top + 70),
+    );
+    const swTop = Math.min(
+      ...placed.filter((card) => card.pinId === 'maipu').map((card) => card.top),
+    );
+    const captionPad = COMUNA_CARD_CAPTION_LINE_PX * 2 + 4;
+    const overlays = layoutOverlaySedeLabelsNearCards({
+      pins: pins
+        .filter((pin) => !isComunaMapPinKind(pin.kind))
+        .map((pin) => ({ id: pin.id, label: pin.label })),
+      positions,
+      cards: placed.filter(
+        (card) => card.pinId !== sjPin.id && card.pinId !== buinPin.id,
+      ),
+      cardWidth: 80,
+      cardHeight: 70,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const sjBox = {
+      left: online.left,
+      top: online.top - captionPad,
+      right: online.left + 80,
+      bottom: online.top + 70,
+    };
+    for (const item of overlays) {
+      expect(
+        segmentHitsAabb(
+          item.lineTo.x,
+          item.lineTo.y,
+          item.lineFrom.x,
+          item.lineFrom.y,
+          sjBox,
+          8,
+        ),
+      ).toBe(false);
+    }
+    expect(online.zone).toBe('e');
+    expect(online.top).toBeGreaterThanOrEqual(mapRect.top);
+    expect(online.top + 70).toBeLessThanOrEqual(seTop);
+    expect(online.top).toBeGreaterThan(bellaBottom - 40);
+    expect(online.top).toBeLessThan(mapRect.top + mapRect.height);
+    expect(buin.zone).toBe('w');
+    expect(buin.top).toBeGreaterThan(nwBottom);
+    expect(buin.top + 70).toBeLessThanOrEqual(swTop);
+  });
+
+  it('una segunda comuna al oeste usa el hueco w', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'Norte', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'east',
+        nombre: 'EastApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'west',
+        nombre: 'WestApp',
+        sedes: ['Online'],
+        comunas: ['Maipú'],
+      },
+    ]);
+    const eastPin = pins.find((pin) => pin.id === 'online-comuna-san-joaquin')!;
+    const westPin = pins.find((pin) => pin.id === 'online-comuna-maipu')!;
+    const mapRect = { left: 160, top: 90, width: 180, height: 180 };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions: {
+        'santiago-norte': { x: 250, y: 140 },
+        bellavista: { x: 310, y: 180 },
+        'barrio-universitario': { x: 290, y: 150 },
+        'san-joaquin': { x: 310, y: 240 },
+        maipu: { x: 190, y: 200 },
+        'san-bernardo': { x: 250, y: 250 },
+        [eastPin.id]: { x: 300, y: 210 },
+        [westPin.id]: { x: 180, y: 185 },
+      },
+      width: 500,
+      height: 400,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    expect(placed.find((card) => card.pinId === eastPin.id)?.zone).toBe('e');
+    expect(placed.find((card) => card.pinId === westPin.id)?.zone).toBe('w');
+  });
+
+  it('empaqueta 3 comunas RM sin solapar sedes, rótulos ni líneas', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'N1', sedes: ['Santiago Norte'] },
+      { nombre: 'N2', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Bellavista Q', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin Q', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin R', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v1',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v2',
+        nombre: 'VirtualApp 2',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v3',
+        nombre: 'BuinApp',
+        sedes: ['Online'],
+        comunas: ['Buin'],
+      },
+      {
+        id: 'e1',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Puente Alto'],
+      },
+    ]);
+    const sjPin = pins.find((pin) => pin.id === 'online-comuna-san-joaquin')!;
+    const buinPin = pins.find((pin) => pin.id === 'online-comuna-buin')!;
+    const extPin = pins.find((pin) => pin.id === 'comuna-puente-alto')!;
+    expect(sjPin).toBeTruthy();
+    expect(buinPin).toBeTruthy();
+    expect(extPin).toBeTruthy();
+    const mapRect = { left: 300, top: 500, width: 250, height: 220 };
+    const positions = {
+      'santiago-norte': { x: 425, y: 560 },
+      bellavista: { x: 500, y: 600 },
+      'barrio-universitario': { x: 360, y: 570 },
+      'san-joaquin': { x: 500, y: 680 },
+      maipu: { x: 330, y: 640 },
+      'san-bernardo': { x: 425, y: 690 },
+      [sjPin.id]: { x: 490, y: 640 },
+      [buinPin.id]: { x: 340, y: 650 },
+      [extPin.id]: { x: 355, y: 575 },
+    };
+    const cardWidth = 80;
+    const cardHeight = 70;
+    const groupGap = 28;
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions,
+      width: 1100,
+      height: 900,
+      cardWidth,
+      cardHeight,
+      mapRect,
+      groupGap,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const clusterBox = (pinId: string, captionLines: number) => {
+      const cluster = placed.filter((card) => card.pinId === pinId);
+      const left = Math.min(...cluster.map((card) => card.left));
+      const top = Math.min(...cluster.map((card) => card.top));
+      const right = Math.max(...cluster.map((card) => card.left + cardWidth));
+      const bottom = Math.max(...cluster.map((card) => card.top + cardHeight));
+      const captionPad = captionLines * COMUNA_CARD_CAPTION_LINE_PX + 4;
+      return { left, top: top - captionPad, right, bottom, cardTop: top };
+    };
+    const overlaps = (
+      a: { left: number; top: number; right: number; bottom: number },
+      b: { left: number; top: number; right: number; bottom: number },
+      pad = groupGap,
+    ) =>
+      !(
+        a.right + pad <= b.left ||
+        b.right + pad <= a.left ||
+        a.bottom + pad <= b.top ||
+        b.bottom + pad <= a.top
+      );
+    const sj = clusterBox(sjPin.id, 2);
+    const buin = clusterBox(buinPin.id, 2);
+    const ext = clusterBox(extPin.id, 2);
+    const norte = clusterBox('santiago-norte', 0);
+    const bella = clusterBox('bellavista', 0);
+    const se = clusterBox('san-joaquin', 0);
+    const overlays = layoutOverlaySedeLabelsNearCards({
+      pins: pins
+        .filter((pin) => !isComunaMapPinKind(pin.kind))
+        .map((pin) => ({ id: pin.id, label: pin.label })),
+      positions,
+      cards: placed.filter((card) => !isComunaMapPinKind(card.kind)),
+      cardWidth,
+      cardHeight,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    for (const box of [sj, buin, ext]) {
+      expect(overlaps(box, norte)).toBe(false);
+      expect(overlaps(box, bella)).toBe(false);
+      expect(overlaps(box, se)).toBe(false);
+      for (const item of overlays) {
+        expect(
+          segmentHitsAabb(
+            item.lineTo.x,
+            item.lineTo.y,
+            item.lineFrom.x,
+            item.lineFrom.y,
+            box,
+            8,
+          ),
+        ).toBe(false);
+        expect(
+          overlaps(
+            box,
+            {
+              left: item.left,
+              top: item.top,
+              right: item.left + item.width,
+              bottom: item.top + item.height,
+            },
+            8,
+          ),
+        ).toBe(false);
+      }
+    }
+    expect(overlaps(sj, buin)).toBe(false);
+    expect(overlaps(sj, ext)).toBe(false);
+    expect(overlaps(buin, ext)).toBe(false);
+    expect(sj.cardTop).toBeGreaterThanOrEqual(mapRect.top);
+    expect(sj.bottom).toBeLessThanOrEqual(se.top + 1);
+    expect(sj.left).toBeGreaterThanOrEqual(mapRect.left + mapRect.width - 24);
+    expect(buin.right).toBeLessThanOrEqual(mapRect.left + 24);
+    expect(ext.cardTop).toBeGreaterThan(norte.bottom);
+    expect(ext.cardTop).toBeLessThan(buin.cardTop);
+    const sjCards = placed.filter((card) => card.pinId === sjPin.id);
+    expect(sjCards).toHaveLength(2);
+    const sjCols = new Set(sjCards.map((card) => card.left)).size;
+    expect(sjCols).toBeLessThanOrEqual(2);
+  });
+
+  it('en el oeste ordena por altura del pin aunque las comunas no compartan columna', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'Norte', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v3',
+        nombre: 'BuinApp',
+        sedes: ['Online'],
+        comunas: ['Buin'],
+      },
+      {
+        id: 'e1',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Til Til'],
+      },
+    ]);
+    const buinPin = pins.find((pin) => pin.id === 'online-comuna-buin')!;
+    const extPin = pins.find((pin) => pin.id === 'comuna-til-til')!;
+    const mapRect = { left: 300, top: 500, width: 250, height: 220 };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions: {
+        'santiago-norte': { x: 425, y: 560 },
+        bellavista: { x: 500, y: 600 },
+        'barrio-universitario': { x: 360, y: 570 },
+        'san-joaquin': { x: 500, y: 680 },
+        maipu: { x: 330, y: 640 },
+        'san-bernardo': { x: 425, y: 690 },
+        [buinPin.id]: { x: 335, y: 655 },
+        [extPin.id]: { x: 380, y: 545 },
+      },
+      width: 1100,
+      height: 900,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const topOf = (pinId: string) =>
+      Math.min(
+        ...placed.filter((card) => card.pinId === pinId).map((card) => card.top),
+      );
+    expect(topOf(extPin.id)).toBeLessThan(topOf(buinPin.id));
+    expect(topOf(buinPin.id) - topOf(extPin.id)).toBeGreaterThanOrEqual(20);
+  });
+
+  it('en el este no manda una comuna a la fila NE al reordenar por pin', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { nombre: 'N1', sedes: ['Santiago Norte'] },
+      { nombre: 'N2', sedes: ['Santiago Norte'] },
+      { nombre: 'Bellavista P', sedes: ['Bellavista'] },
+      { nombre: 'Bellavista Q', sedes: ['Bellavista'] },
+      { nombre: 'Barrio P', sedes: ['Barrio Universitario'] },
+      { nombre: 'Joaquin P', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin Q', sedes: ['San Joaquín'] },
+      { nombre: 'Joaquin R', sedes: ['San Joaquín'] },
+      { nombre: 'Maipu P', sedes: ['Maipú'] },
+      { nombre: 'Bernardo P', sedes: ['San Bernardo'] },
+      {
+        id: 'v1',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v2',
+        nombre: 'VirtualApp 2',
+        sedes: ['Online'],
+        comunas: ['San Joaquín'],
+      },
+      {
+        id: 'v3',
+        nombre: 'ReinaApp',
+        sedes: ['Online'],
+        comunas: ['La Reina'],
+      },
+    ]);
+    const sjPin = pins.find((pin) => pin.id === 'online-comuna-san-joaquin')!;
+    const reinaPin = pins.find((pin) => pin.id === 'online-comuna-la-reina')!;
+    const mapRect = { left: 300, top: 500, width: 250, height: 220 };
+    const placed = layoutFloatingMapCards({
+      pins,
+      positions: {
+        'santiago-norte': { x: 425, y: 560 },
+        bellavista: { x: 500, y: 600 },
+        'barrio-universitario': { x: 360, y: 570 },
+        'san-joaquin': { x: 500, y: 680 },
+        maipu: { x: 330, y: 640 },
+        'san-bernardo': { x: 425, y: 690 },
+        [sjPin.id]: { x: 490, y: 650 },
+        [reinaPin.id]: { x: 505, y: 590 },
+      },
+      width: 1100,
+      height: 900,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    const topOf = (pinId: string) =>
+      Math.min(
+        ...placed.filter((card) => card.pinId === pinId).map((card) => card.top),
+      );
+    const bellaTop = Math.min(
+      ...placed
+        .filter((card) => card.pinId === 'bellavista')
+        .map((card) => card.top),
+    );
+    const bellaBottom = Math.max(
+      ...placed
+        .filter((card) => card.pinId === 'bellavista')
+        .map((card) => card.top + 70),
+    );
+    expect(topOf(sjPin.id)).toBeGreaterThanOrEqual(mapRect.top);
+    expect(topOf(reinaPin.id)).toBeGreaterThanOrEqual(mapRect.top);
+    expect(topOf(sjPin.id)).toBeGreaterThan(bellaBottom - 8);
+    expect(topOf(reinaPin.id)).toBeGreaterThan(bellaBottom - 8);
+    expect(topOf(reinaPin.id)).not.toBe(bellaTop);
+    expect(topOf(reinaPin.id)).toBeLessThan(topOf(sjPin.id));
+    expect(topOf(sjPin.id) - topOf(reinaPin.id)).toBeGreaterThanOrEqual(20);
+  });
+
+  it('pickMetropolitanComunaZone prefiere el hueco más cercano al pin', () => {
+    const mapRect = { left: 160, top: 90, width: 180, height: 180 };
+    const used = new Set(['n', 'nw', 'ne', 'se', 's', 'sw'] as const);
+    expect(
+      pickMetropolitanComunaZone({ x: 300, y: 210 }, mapRect, used),
+    ).toBe('e');
+    expect(
+      pickMetropolitanComunaZone({ x: 180, y: 185 }, mapRect, used),
+    ).toBe('w');
+  });
+
   it('pone Santiago Norte en el eje arriba y Bellavista arriba-derecha', () => {
     const groupGap = 28;
     const pins = groupVitrinaProyectosBySede([
@@ -501,11 +1110,91 @@ describe('región metropolitana', () => {
     expect(Math.abs(norteCenter - mapMidX)).toBeLessThan(40);
   });
 
+  it('en RM limita cada sede a 6 tarjetas y lista el resto debajo', () => {
+    const pins = groupVitrinaProyectosBySede([
+      { id: 'b1', nombre: 'Uno', sedes: ['Bellavista'] },
+      { id: 'b2', nombre: 'Dos', sedes: ['Bellavista'] },
+      { id: 'b3', nombre: 'Tres', sedes: ['Bellavista'] },
+      { id: 'b4', nombre: 'Cuatro', sedes: ['Bellavista'] },
+      { id: 'b5', nombre: 'Cinco', sedes: ['Bellavista'] },
+      { id: 'b6', nombre: 'Seis', sedes: ['Bellavista'] },
+      { id: 'b7', nombre: 'Verdética', sedes: ['Bellavista'] },
+    ]);
+    const mapRect = { left: 160, top: 200, width: 180, height: 180 };
+    const cards = layoutFloatingMapCards({
+      pins,
+      positions: { bellavista: { x: 310, y: 260 } },
+      width: 720,
+      height: 520,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    expect(cards).toHaveLength(6);
+    expect(cards.some((card) => card.proyecto.id === 'b7')).toBe(false);
+    expect(formatSedeMapOverflowCaption([{ nombre: 'Verdética' }])).toBe(
+      '+1 Proyecto ( Verdética )',
+    );
+    expect(
+      formatSedeMapOverflowCaption([
+        { nombre: 'Alpha' },
+        { nombre: 'Beta' },
+      ]),
+    ).toBe('+2 proyectos ( Alpha - Beta )');
+    const overflow = layoutSedeMapOverflowCaptions({
+      pins,
+      cards,
+      cardWidth: 80,
+      cardHeight: 70,
+      regionId: METROPOLITANA_REGION_ID,
+    });
+    expect(overflow).toHaveLength(1);
+    expect(overflow[0]!.pinId).toBe('bellavista');
+    expect(overflow[0]!.proyectos.map((item) => item.nombre)).toEqual([
+      'Verdética',
+    ]);
+    const bottom = Math.max(...cards.map((card) => card.top + 70));
+    expect(overflow[0]!.top).toBeGreaterThanOrEqual(bottom);
+  });
+
+  it('en otras regiones no recorta las tarjetas de sede', () => {
+    const pins = groupVitrinaProyectosBySede(
+      Array.from({ length: 7 }, (_, index) => ({
+        nombre: `V${index + 1}`,
+        sedes: ['Valparaíso'],
+      })),
+    );
+    const mapRect = { left: 200, top: 100, width: 200, height: 220 };
+    const cards = layoutFloatingMapCards({
+      pins,
+      positions: { valparaiso: { x: 235, y: 200 } },
+      width: 700,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      regionId: VALPARAISO_REGION_ID,
+    });
+    expect(cards).toHaveLength(7);
+    expect(
+      layoutSedeMapOverflowCaptions({
+        pins,
+        cards,
+        cardWidth: 80,
+        cardHeight: 70,
+        regionId: VALPARAISO_REGION_ID,
+      }),
+    ).toEqual([]);
+  });
+
+
   it('pone etiquetas overlay justo antes de cada grupo de tarjetas', () => {
     const pins = groupVitrinaProyectosBySede([
       { nombre: 'N1', sedes: ['Santiago Norte'] },
       { nombre: 'B1', sedes: ['Bellavista'] },
       { nombre: 'B2', sedes: ['Bellavista'] },
+      { nombre: 'U1', sedes: ['Barrio Universitario'] },
       { nombre: 'SF1', sedes: ['San Bernardo'] },
       { nombre: 'M1', sedes: ['Maipú'] },
       { nombre: 'M2', sedes: ['Maipú'] },
@@ -514,6 +1203,7 @@ describe('región metropolitana', () => {
     const positions = {
       'santiago-norte': { x: 290, y: 150 },
       bellavista: { x: 360, y: 200 },
+      'barrio-universitario': { x: 230, y: 160 },
       'san-bernardo': { x: 290, y: 280 },
       maipu: { x: 210, y: 220 },
     };
@@ -552,16 +1242,23 @@ describe('región metropolitana', () => {
     const by = (id: string) => labels.find((item) => item.pinId === id)!;
 
     const norte = clusterBox('santiago-norte');
-    expect(by('santiago-norte').top).toBeGreaterThanOrEqual(norte.bottom);
-    // Línea llega al borde del label hacia el mapa (no atraviesa el texto).
+    expect(by('santiago-norte').top + by('santiago-norte').height).toBeLessThanOrEqual(
+      norte.top,
+    );
     expect(by('santiago-norte').lineFrom.y).toBeGreaterThanOrEqual(
       by('santiago-norte').top + by('santiago-norte').height - 1,
     );
     const bella = clusterBox('bellavista');
-    expect(by('bellavista').top).toBeGreaterThanOrEqual(bella.bottom);
+    expect(by('bellavista').top + by('bellavista').height).toBeLessThanOrEqual(
+      bella.top,
+    );
     expect(by('bellavista').lineFrom.y).toBeGreaterThanOrEqual(
       by('bellavista').top + by('bellavista').height - 1,
     );
+    const barrio = clusterBox('barrio-universitario');
+    expect(
+      by('barrio-universitario').top + by('barrio-universitario').height,
+    ).toBeLessThanOrEqual(barrio.top);
     const bernardo = clusterBox('san-bernardo');
     expect(by('san-bernardo').top + by('san-bernardo').height).toBeLessThanOrEqual(
       bernardo.top,
@@ -727,6 +1424,76 @@ describe("región de O'Higgins", () => {
   });
 });
 
+describe('región del Bío-Bío', () => {
+  it('pone la comuna Los Ángeles abajo, sin solapar el mapa', () => {
+    const concepcion = groupVitrinaProyectosBySede([
+      { nombre: 'C1', sedes: ['Concepción'] },
+      { nombre: 'C2', sedes: ['Concepción'] },
+      { nombre: 'C3', sedes: ['Concepción'] },
+      { nombre: 'C4', sedes: ['Concepción'] },
+      { nombre: 'C5', sedes: ['Concepción'] },
+    ])[0]!;
+    const losAngeles = groupVitrinaProyectosBySede([
+      { nombre: 'L1', sedes: ['Los Ángeles'] },
+      { nombre: 'L2', sedes: ['Los Ángeles'] },
+      { nombre: 'L3', sedes: ['Los Ángeles'] },
+      { nombre: 'L4', sedes: ['Los Ángeles'] },
+      { nombre: 'L5', sedes: ['Los Ángeles'] },
+      { nombre: 'L6', sedes: ['Los Ángeles'] },
+    ])[0]!;
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'HuertoActivo',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Los Ángeles'],
+      },
+    ])[0]!;
+    const region = chileRegionById(8)!;
+    const box = chileRegionPathBBox(region.d, 0);
+    const mapRect = { left: 220, top: 40, width: 360, height: 348 };
+    const toOverlay = (point: { x: number; y: number }) => ({
+      x: mapRect.left + ((point.x - box.minX) / box.width) * mapRect.width,
+      y: mapRect.top + ((point.y - box.minY) / box.height) * mapRect.height,
+    });
+    const conceGeo = resolveSedeGeo('Concepción')!;
+    const laGeo = resolveSedeGeo('Los Ángeles')!;
+    const comunaGeo = resolveComunaGeo('Los Ángeles')!;
+    expect(mapPinNearestSide(toOverlay(comunaGeo), mapRect)).toBe('s');
+    const placed = layoutFloatingMapCards({
+      pins: [concepcion, losAngeles, comunaPin],
+      positions: {
+        [concepcion.id]: toOverlay(conceGeo),
+        [losAngeles.id]: toOverlay(laGeo),
+        [comunaPin.id]: toOverlay(comunaGeo),
+      },
+      width: 900,
+      height: 640,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: 8,
+    });
+    const comuna = placed.find((card) => card.pinId === comunaPin.id)!;
+    const captionH = COMUNA_CARD_CAPTION_LINE_PX * 2 + 4;
+    expect(comuna.zone).toBe('s');
+    expect(comuna.top - captionH).toBeGreaterThanOrEqual(
+      mapRect.top + mapRect.height,
+    );
+    expect(comuna.left).toBeGreaterThanOrEqual(mapRect.left);
+    expect(comuna.left + 80).toBeLessThanOrEqual(mapRect.left + mapRect.width);
+    const overlapsMap =
+      comuna.left < mapRect.left + mapRect.width &&
+      comuna.left + 80 > mapRect.left &&
+      comuna.top - captionH < mapRect.top + mapRect.height &&
+      comuna.top + 70 > mapRect.top;
+    expect(overlapsMap).toBe(false);
+  });
+});
+
+
 describe('región de Valparaíso', () => {
   it('asigna Viña NW, Valparaíso W y San Antonio SW; overlay solo Viña', () => {
     expect(usesCompassMapLayout(VALPARAISO_REGION_ID)).toBe(true);
@@ -839,5 +1606,568 @@ describe('región de Valparaíso', () => {
     expect(overlay).toHaveLength(1);
     expect(overlay[0]!.pinId).toBe('vina-del-mar');
     expect(overlay[0]!.top).toBeGreaterThanOrEqual(vina.top);
+  });
+});
+
+describe('Emprendedor/a Externo por comuna', () => {
+  it('crea un pin por comuna y no trata Emprendedor como campus AIEP', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'p1',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Valparaíso', 'Quilpué'],
+      },
+    ]);
+    expect(pins).toHaveLength(2);
+    expect(pins.every((pin) => pin.kind === 'comuna')).toBe(true);
+    expect(pins.map((pin) => pin.label).sort()).toEqual([
+      'Quilpué',
+      'Valparaíso',
+    ]);
+    expect(pins.every((pin) => pin.nombres.length === 1 && pin.nombres[0] === 'ExtApp')).toBe(
+      true,
+    );
+    expect(resolveSedeGeo(VITRINA_SEDE_EMPRENDEDOR_EXTERNO)).toBeNull();
+  });
+
+  it('agrupa varios proyectos de la misma comuna en un solo pin', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'a',
+        nombre: 'Alpha',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Punta Arenas'],
+      },
+      {
+        id: 'b',
+        nombre: 'Beta',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Punta Arenas'],
+      },
+    ]);
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toMatchObject({
+      kind: 'comuna',
+      label: 'Punta Arenas',
+      regionId: 12,
+    });
+    expect(pins[0]?.nombres).toEqual(['Alpha', 'Beta']);
+  });
+
+  it('cuenta proyectos únicos en el pin nacional aunque haya varias comunas', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'multi',
+        nombre: 'MultiComuna',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Valparaíso', 'Quilpué'],
+      },
+      {
+        id: 'campus',
+        nombre: 'ClinicApp',
+        sedes: ['Valparaíso'],
+      },
+    ]);
+    const regions = groupVitrinaProyectosByRegion(pins);
+    const valpo = regions.find((r) => r.regionId === VALPARAISO_REGION_ID);
+    expect(valpo?.count).toBe(2);
+  });
+
+  it('suma Magallanes solo con Emprendedor externo', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'mag',
+        nombre: 'SurApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Punta Arenas'],
+      },
+    ]);
+    const regions = groupVitrinaProyectosByRegion(pins);
+    expect(regions).toEqual([
+      expect.objectContaining({ regionId: 12, count: 1 }),
+    ]);
+  });
+
+  it('etiqueta comunas sin prefijo Sede', () => {
+    expect(
+      mapPinLabelParts({ label: 'Punta Arenas', kind: 'comuna' }),
+    ).toEqual({ top: '', bottom: 'Punta Arenas' });
+    expect(
+      mapPinLabelParts({ label: 'Sede Valparaíso', kind: 'sede' }),
+    ).toEqual({ top: 'Sede', bottom: 'Valparaíso' });
+    expect(COMUNA_MAP_PIN_FILL).toBe('#c2410c');
+    expect(EMPRENDEDOR_EXTERNO_MAP_BADGE).toBe(VITRINA_SEDE_EMPRENDEDOR_EXTERNO);
+  });
+
+  it('clasifica el pin a izquierda o derecha del mapa', () => {
+    const map = { left: 200, width: 240 };
+    expect(mapPinColumnSide(250, map)).toBe('left');
+    expect(mapPinColumnSide(400, map)).toBe('right');
+  });
+
+  it('elige el borde del mapa más cercano incluyendo norte y sur', () => {
+    const map = { left: 200, top: 80, width: 240, height: 320 };
+    expect(mapPinNearestSide({ x: 250, y: 240 }, map)).toBe('w');
+    expect(mapPinNearestSide({ x: 400, y: 240 }, map)).toBe('e');
+    expect(mapPinNearestSide({ x: 320, y: 100 }, map)).toBe('n');
+    expect(mapPinNearestSide({ x: 320, y: 360 }, map)).toBe('s');
+    expect(
+      mapPinNearestSide({ x: 50, y: 50 }, { left: 0, top: 0, width: 100, height: 100 }),
+    ).toBe('s');
+  });
+
+  const mapRect = { left: 200, top: 80, width: 240, height: 320 };
+
+  it('apila la comuna debajo del grupo de Talca si el pin está más abajo', () => {
+    const talca = groupVitrinaProyectosBySede([
+      { id: 't', nombre: 'CampusTalca', sedes: ['Talca'] },
+    ])[0]!;
+    const curico = groupVitrinaProyectosBySede([
+      { id: 'c', nombre: 'CampusCurico', sedes: ['Curicó'] },
+    ])[0]!;
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const positions = {
+      [talca.id]: { x: 280, y: 180 },
+      [curico.id]: { x: 420, y: 160 },
+      [comunaPin.id]: { x: 250, y: 300 },
+    };
+    const cards = layoutFloatingMapCards({
+      pins: [talca, curico, comunaPin],
+      positions,
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: 7,
+    });
+    const talcaCards = cards.filter((c) => c.pinId === talca.id);
+    const comunaCards = cards.filter((c) => c.kind === 'comuna');
+    const talcaBottom = Math.max(...talcaCards.map((c) => c.top + 70));
+    expect(comunaCards).toHaveLength(1);
+    expect(comunaCards[0]!.top).toBeGreaterThanOrEqual(talcaBottom + 20);
+    expect(comunaCards[0]!.left).toBeGreaterThanOrEqual(talcaCards[0]!.left);
+    expect(comunaCards[0]!.left + 80).toBeLessThanOrEqual(mapRect.left);
+    expect(comunaCards[0]?.zone).toBe('w');
+  });
+
+  it('apila la comuna encima de Talca si el pin está más arriba', () => {
+    const talca = groupVitrinaProyectosBySede([
+      { id: 't', nombre: 'CampusTalca', sedes: ['Talca'] },
+    ])[0]!;
+    const curico = groupVitrinaProyectosBySede([
+      { id: 'c', nombre: 'CampusCurico', sedes: ['Curicó'] },
+    ])[0]!;
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const positions = {
+      [talca.id]: { x: 280, y: 260 },
+      [curico.id]: { x: 420, y: 160 },
+      [comunaPin.id]: { x: 250, y: 140 },
+    };
+    const cards = layoutFloatingMapCards({
+      pins: [talca, curico, comunaPin],
+      positions,
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: 7,
+    });
+    const talcaCards = cards.filter((c) => c.pinId === talca.id);
+    const comunaCards = cards.filter((c) => c.kind === 'comuna');
+    const talcaTop = Math.min(...talcaCards.map((c) => c.top));
+    expect(comunaCards[0]!.top + 70).toBeLessThanOrEqual(talcaTop);
+    expect(comunaCards[0]!.left + 80).toBeLessThanOrEqual(mapRect.left);
+    expect(comunaCards[0]?.zone).toBe('w');
+  });
+
+  it('si no hay sede a la izquierda igual usa esa columna', () => {
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const cards = layoutFloatingMapCards({
+      pins: [comunaPin],
+      positions: { [comunaPin.id]: { x: 250, y: 240 } },
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    expect(cards[0]!.left + 80).toBeLessThanOrEqual(mapRect.left);
+    expect(cards[0]?.zone).toBe('w');
+  });
+
+  it('en el lado derecho queda fuera del mapa, bajo el grupo de sede', () => {
+    const curico = groupVitrinaProyectosBySede([
+      { id: 'c', nombre: 'CampusCurico', sedes: ['Curicó'] },
+    ])[0]!;
+    const talca = groupVitrinaProyectosBySede([
+      { id: 't', nombre: 'CampusTalca', sedes: ['Talca'] },
+    ])[0]!;
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Teno'],
+      },
+    ])[0]!;
+    const positions = {
+      [talca.id]: { x: 250, y: 180 },
+      [curico.id]: { x: 420, y: 160 },
+      [comunaPin.id]: { x: 400, y: 300 },
+    };
+    const cards = layoutFloatingMapCards({
+      pins: [talca, curico, comunaPin],
+      positions,
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: 7,
+    });
+    const comunaCards = cards.filter((c) => c.kind === 'comuna');
+    const curicoCards = cards.filter((c) => c.pinId === curico.id);
+    const curicoBottom = Math.max(...curicoCards.map((c) => c.top + 70));
+    expect(comunaCards[0]!.left).toBeGreaterThanOrEqual(
+      mapRect.left + mapRect.width,
+    );
+    expect(comunaCards[0]!.top).toBeGreaterThanOrEqual(curicoBottom);
+    expect(comunaCards[0]?.zone).toBe('e');
+  });
+
+
+
+  it('apila varios proyectos de la misma comuna en el mismo eje', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'a',
+        nombre: 'Alpha',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Teno'],
+      },
+      {
+        id: 'b',
+        nombre: 'Beta',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Teno'],
+      },
+    ]);
+    expect(pins).toHaveLength(1);
+    const cards = layoutFloatingMapCards({
+      pins,
+      positions: { [pins[0]!.id]: { x: 250, y: 240 } },
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    expect(cards).toHaveLength(2);
+    expect(new Set(cards.map((c) => c.zone)).size).toBe(1);
+    expect(cards.every((c) => c.kind === 'comuna')).toBe(true);
+  });
+
+  it('apila dos comunas del mismo lado en orden de altura', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'a',
+        nombre: 'Alpha',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+      {
+        id: 'b',
+        nombre: 'Beta',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Teno'],
+      },
+    ]);
+    expect(pins).toHaveLength(2);
+    const sagradaId = pins.find((p) => p.label === 'Sagrada Familia')!.id;
+    const tenoId = pins.find((p) => p.label === 'Teno')!.id;
+    const cards = layoutFloatingMapCards({
+      pins,
+      positions: {
+        [sagradaId]: { x: 240, y: 180 },
+        [tenoId]: { x: 260, y: 320 },
+      },
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      groupGap: 28,
+      regionId: 7,
+    });
+    const sagrada = cards.filter((c) => c.pinId === sagradaId);
+    const teno = cards.filter((c) => c.pinId === tenoId);
+    expect(sagrada[0]!.top).toBeLessThan(teno[0]!.top);
+    expect(sagrada[0]?.zone).toBe('w');
+    expect(teno[0]?.zone).toBe('w');
+  });
+
+  it('si el pin está más cerca del borde inferior coloca la comuna abajo y fuera del mapa', () => {
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const cards = layoutFloatingMapCards({
+      pins: [comunaPin],
+      positions: { [comunaPin.id]: { x: 320, y: 360 } },
+      width: 640,
+      height: 560,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    const captionH = COMUNA_CARD_CAPTION_LINE_PX * 2 + 4;
+    expect(cards[0]?.zone).toBe('s');
+    expect(cards[0]!.top - captionH).toBeGreaterThanOrEqual(
+      mapRect.top + mapRect.height,
+    );
+    expect(cards[0]!.left).toBeGreaterThanOrEqual(mapRect.left);
+    expect(cards[0]!.left + 80).toBeLessThanOrEqual(
+      mapRect.left + mapRect.width,
+    );
+  });
+
+  it('si el pin está más cerca del borde superior coloca la comuna arriba y fuera del mapa', () => {
+    const comunaPin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const cards = layoutFloatingMapCards({
+      pins: [comunaPin],
+      positions: { [comunaPin.id]: { x: 320, y: 100 } },
+      width: 640,
+      height: 560,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    expect(cards[0]?.zone).toBe('n');
+    expect(cards[0]!.top + 70).toBeLessThanOrEqual(mapRect.top);
+    expect(cards[0]!.left).toBeGreaterThanOrEqual(mapRect.left);
+    expect(cards[0]!.left + 80).toBeLessThanOrEqual(
+      mapRect.left + mapRect.width,
+    );
+  });
+
+
+
+  it('traza una línea del stack al pin de la comuna', () => {
+    const pin = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Sagrada Familia'],
+      },
+    ])[0]!;
+    const positions = { [pin.id]: { x: 250, y: 240 } };
+    const cards = layoutFloatingMapCards({
+      pins: [pin],
+      positions,
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    const lines = layoutComunaCardLines({
+      pins: [pin],
+      positions,
+      cards,
+      cardWidth: 80,
+      cardHeight: 70,
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.pinId).toBe(pin.id);
+    expect(lines[0]?.lineTo).toEqual(positions[pin.id]);
+    const card = cards[0]!;
+    const box = {
+      left: card.left,
+      top: card.top,
+      right: card.left + 80,
+      bottom: card.top + 70,
+    };
+    const from = lines[0]!.lineFrom;
+    const onEdge =
+      Math.abs(from.x - box.left) < 1.5 ||
+      Math.abs(from.x - box.right) < 1.5 ||
+      Math.abs(from.y - box.top) < 1.5 ||
+      Math.abs(from.y - box.bottom) < 1.5;
+    expect(onEdge).toBe(true);
+  });
+});
+
+describe('Sede Online por comuna', () => {
+  it('crea pin Online y pins de comuna morados, sin tratar Online como campus', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'p1',
+        nombre: 'VirtualApp',
+        sedes: ['Sede Online'],
+        comunas: ['Valparaíso', 'Quilpué'],
+      },
+    ]);
+    expect(pins.find((pin) => pin.id === ONLINE_SEDE_ID)?.kind).toBe('sede');
+    expect(pins.find((pin) => pin.id === ONLINE_SEDE_ID)?.nombres).toEqual([
+      'VirtualApp',
+    ]);
+    const comunas = pins.filter((pin) => pin.kind === 'online-comuna');
+    expect(comunas).toHaveLength(2);
+    expect(comunas.every((pin) => pin.id.startsWith('online-comuna-'))).toBe(
+      true,
+    );
+    expect(comunas.map((pin) => pin.label).sort()).toEqual([
+      'Quilpué',
+      'Valparaíso',
+    ]);
+    expect(pins.some((pin) => pin.kind === 'comuna')).toBe(false);
+  });
+
+  it('no pone pins de comuna si Online comparte otra sede', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'mix',
+        nombre: 'MixApp',
+        sedes: ['Online', 'Valparaíso'],
+        comunas: ['Quilpué'],
+      },
+    ]);
+    expect(pins.some((pin) => isComunaMapPinKind(pin.kind))).toBe(false);
+    expect(pins.map((pin) => pin.id).sort()).toEqual(['online', 'valparaiso']);
+  });
+
+  it('no pinta Emprendedor como online-comuna', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'e',
+        nombre: 'ExtApp',
+        sedes: [VITRINA_SEDE_EMPRENDEDOR_EXTERNO],
+        comunas: ['Quilpué'],
+      },
+    ]);
+    expect(pins.every((pin) => pin.kind === 'comuna')).toBe(true);
+    expect(pins.some((pin) => pin.kind === 'online-comuna')).toBe(false);
+  });
+
+  it('suma la región y sigue en el zoom Online', () => {
+    const pins = groupVitrinaProyectosBySede([
+      {
+        id: 'v',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['Quilpué'],
+      },
+    ]);
+    const regions = groupVitrinaProyectosByRegion(pins);
+    expect(regions).toEqual([
+      expect.objectContaining({ regionId: VALPARAISO_REGION_ID, count: 1 }),
+    ]);
+    expect(pinsForOnline(pins).map((p) => p.id)).toEqual([ONLINE_SEDE_ID]);
+  });
+
+  it('etiqueta online-comuna sin prefijo Sede y usa fill morado', () => {
+    expect(
+      mapPinLabelParts({ label: 'Quilpué', kind: 'online-comuna' }),
+    ).toEqual({ top: '', bottom: 'Quilpué' });
+    expect(ONLINE_COMUNA_MAP_PIN_FILL).toBe('#6d28d9');
+    expect(SEDE_ONLINE_MAP_BADGE).toBe('Sede Online');
+    expect(isComunaMapPinKind('online-comuna')).toBe(true);
+    expect(isComunaMapPinKind('comuna')).toBe(true);
+    expect(isComunaMapPinKind('sede')).toBe(false);
+    expect(mapComunaCardCaption('online-comuna', 'San Joaquín')).toEqual({
+      lines: ['Comuna San Joaquín', SEDE_ONLINE_MAP_BADGE],
+    });
+    expect(mapComunaCardCaption('comuna', 'Quilpué')).toEqual({
+      lines: ['Comuna Quilpué', EMPRENDEDOR_EXTERNO_MAP_BADGE],
+    });
+    expect(mapComunaCardCaption('sede', 'Valparaíso')).toBeNull();
+  });
+
+  it('apila y traza línea con kind online-comuna', () => {
+    const pin = groupVitrinaProyectosBySede([
+      {
+        id: 'v',
+        nombre: 'VirtualApp',
+        sedes: ['Online'],
+        comunas: ['Sagrada Familia'],
+      },
+    ]).find((item) => item.kind === 'online-comuna')!;
+    const mapRect = { left: 200, top: 80, width: 240, height: 320 };
+    const positions = { [pin.id]: { x: 250, y: 240 } };
+    const cards = layoutFloatingMapCards({
+      pins: [pin],
+      positions,
+      width: 640,
+      height: 480,
+      cardWidth: 80,
+      cardHeight: 70,
+      mapRect,
+      margin: 12,
+      regionId: 7,
+    });
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.kind).toBe('online-comuna');
+    const lines = layoutComunaCardLines({
+      pins: [pin],
+      positions,
+      cards,
+      cardWidth: 80,
+      cardHeight: 70,
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.pinId).toBe(pin.id);
   });
 });

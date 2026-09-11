@@ -10,10 +10,7 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     ...(datasourceUrl && { datasourceUrl }),
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['query', 'error', 'warn']
-        : ['error'],
+    log: ['error', 'warn'],
   });
 
 // Reutilizar el mismo cliente en serverless (Vercel) para no agotar el pool de conexiones.

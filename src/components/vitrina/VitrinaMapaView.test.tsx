@@ -10,6 +10,7 @@ function projectsFrom(
   rows: Array<{
     nombre: string;
     sedes?: string[];
+    comunas?: string[];
     fotos?: Array<{ url: string; publicId: string }>;
   }>,
 ) {
@@ -178,11 +179,10 @@ describe('VitrinaMapaView', () => {
     expect(screen.getByRole('button', { name: 'Sede Online' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sede Online' }));
 
-    expect(
-      screen.getByRole('group', { name: 'Sede Online ampliada' }),
-    ).toBeInTheDocument();
+    const zoom = screen.getByRole('group', { name: 'Sede Online ampliada' });
+    expect(zoom).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Online' })).toBeInTheDocument();
-    expect(screen.getByText('Sede')).toBeInTheDocument();
+    expect(zoom).toHaveTextContent('Sede');
     expect(screen.getByText('VirtualApp')).toBeInTheDocument();
     expect(screen.queryByText('ClinicApp')).not.toBeInTheDocument();
     expect(document.querySelector('.chile-region-zoom-path')).not.toBeInTheDocument();
@@ -239,5 +239,75 @@ describe('VitrinaMapaView', () => {
     );
     await user.click(screen.getByRole('button', { name: 'ClinicApp' }));
     expect(onOpenProyecto).toHaveBeenCalledWith(proyectos[0]?.id);
+  });
+
+  it('ubica Emprendedor/a Externo por comuna en el mapa nacional y el zoom', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([
+          {
+            nombre: 'ExtApp',
+            sedes: ['Emprendedor/a Externo'],
+            comunas: ['Quilpué'],
+          },
+        ])}
+      />,
+    );
+
+    const nationalPin = document.querySelector('[data-national-pin="5"]');
+    expect(nationalPin).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Región de Valparaíso' }),
+    );
+
+    expect(
+      screen.queryByLabelText('Comuna Quilpué', { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Comuna Quilpué')).toBeInTheDocument();
+    expect(screen.getByText('Emprendedor/a Externo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ExtApp' })).toBeInTheDocument();
+    expect(
+      document.querySelector('.vitrina-map-pin'),
+    ).toHaveAttribute('fill', '#c2410c');
+  });
+
+  it('muestra un proyecto solo Online en el globo y por comuna en la región', async () => {
+    const user = userEvent.setup();
+    render(
+      <VitrinaMapaView
+        onBack={vi.fn()}
+        proyectos={projectsFrom([
+          {
+            nombre: 'VirtualApp',
+            sedes: ['Sede Online'],
+            comunas: ['Quilpué'],
+          },
+        ])}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Sede Online' })).toBeInTheDocument();
+    const nationalPin = document.querySelector('[data-national-pin="5"]');
+    expect(nationalPin).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Sede Online' }));
+    expect(screen.getByText('VirtualApp')).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Región de Valparaíso' }),
+    );
+    expect(
+      screen.queryByLabelText('Comuna Quilpué', { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Comuna Quilpué')).toBeInTheDocument();
+    expect(screen.getByText('Sede Online')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'VirtualApp' })).toBeInTheDocument();
+    expect(document.querySelector('.vitrina-map-pin')).toHaveAttribute(
+      'fill',
+      '#6d28d9',
+    );
   });
 });

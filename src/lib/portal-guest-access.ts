@@ -185,6 +185,14 @@ export const PORTAL_GUEST_PROFILE_VIEWS: Partial<
   Record<PortalGuestProfile, VitrinaProjectsView[]>
 > = {
   visor: ['proyectos', 'mapa', 'indicadores'],
+  comunicaciones: [
+    'proyectos',
+    'mapa',
+    'avances',
+    'analisis',
+    'indicadores',
+    'vinculamos',
+  ],
 };
 
 export function portalViewsForLevel(
@@ -226,6 +234,11 @@ export function portalNeedsVitrinaProyectos(
     portalCanSeeView(level, 'analisis', profile) ||
     portalCanSeeView(level, 'data', profile)
   );
+}
+
+/** Avances/Vinculamos/Análisis: el RSC no los pide en hero ni en Proyectos. */
+export function portalPageLoadsDeferredTabs(vista?: string): boolean {
+  return vista === 'avances' || vista === 'vinculamos' || vista === 'analisis';
 }
 
 export function clampPortalView(
@@ -295,7 +308,7 @@ export function portalProfileCaption(profile: PortalGuestProfile): string {
     return 'Proyectos, Mapa e Indicadores, con chat IA';
   }
   if (profile === 'comunicaciones') {
-    return 'Toda la información de lectura, con chat IA, sin ingreso a la app';
+    return 'Toda la información de lectura excepto Data, con chat IA, sin ingreso a la app';
   }
   return 'Toda la información de lectura, sin chat IA ni ingreso a la app';
 }

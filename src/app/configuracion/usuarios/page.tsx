@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,9 @@ import {
   Trash2,
   KeyRound,
   FolderOpen,
+  Search,
 } from 'lucide-react';
+import { filterUsuariosByName } from '@/lib/configuracion-usuarios-filter';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 
 const SELECT_NONE = '__none__';
@@ -102,6 +104,7 @@ function getRolTagClasses(rol: string): string {
 export default function ConfiguracionUsuariosPage() {
   const { data: session, update: updateSession } = useSession();
   const [users, setUsers] = useState<UserListRowWithPassword[]>([]);
+  const [nameFilter, setNameFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
@@ -148,6 +151,11 @@ export default function ConfiguracionUsuariosPage() {
   const pageRootRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const tableHeaderRef = useRef<HTMLTableSectionElement>(null);
+
+  const usersFiltrados = useMemo(
+    () => filterUsuariosByName(users, nameFilter),
+    [users, nameFilter]
+  );
 
   const load = async () => {
     setLoading(true);
@@ -367,7 +375,20 @@ export default function ConfiguracionUsuariosPage() {
               para editar contraseñas.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                placeholder="Filtrar por nombre"
+                aria-label="Filtrar por nombre de usuario"
+                className="h-8 w-56 pl-8"
+              />
+            </div>
             {unlocked ? (
               <Button
                 variant="outline"
@@ -447,7 +468,19 @@ export default function ConfiguracionUsuariosPage() {
             <div className="flex-1 min-h-0 overflow-auto rounded-b-md border">
               <Table className="table-fixed w-full min-w-[1200px]">
                 <TableBody>
-                  {users.map((u) => {
+                  {usersFiltrados.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={11}
+                        className="text-muted-foreground text-sm py-8 text-center"
+                      >
+                        {nameFilter.trim()
+                          ? 'No hay usuarios que coincidan con el filtro.'
+                          : 'No hay usuarios.'}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  {usersFiltrados.map((u) => {
                     const isEditing = editUser?.id === u.id;
                     return (
                       <TableRow

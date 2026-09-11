@@ -391,6 +391,7 @@ model Comuna {
   region String
 
   proyectos ProyectoComuna[]
+  vitrinaProyectos VitrinaProyectoComuna[]
 
   @@map("comunas")
 }
@@ -1047,6 +1048,7 @@ model VitrinaProyecto {
   sedes     VitrinaProyectoSede[]
   escuelas  VitrinaProyectoEscuela[]
   socios    VitrinaProyectoSocio[]
+  comunas   VitrinaProyectoComuna[]
   etiquetas VitrinaProyectoEtiqueta[]
 
   @@index([nombre])
@@ -1125,6 +1127,18 @@ model VitrinaProyectoSocio {
   @@id([vitrinaProyectoId, socioComunitarioId])
   @@index([socioComunitarioId])
   @@map("vitrina_proyecto_socios")
+}
+
+model VitrinaProyectoComuna {
+  vitrinaProyectoId String @map("vitrina_proyecto_id")
+  comunaId          String @map("comuna_id")
+
+  proyecto VitrinaProyecto @relation(fields: [vitrinaProyectoId], references: [id], onDelete: Cascade)
+  comuna   Comuna          @relation(fields: [comunaId], references: [id], onDelete: Restrict)
+
+  @@id([vitrinaProyectoId, comunaId])
+  @@index([comunaId])
+  @@map("vitrina_proyecto_comunas")
 }
 
 model VitrinaProyectoEtiqueta {

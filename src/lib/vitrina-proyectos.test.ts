@@ -9,6 +9,10 @@ import {
   upsertVitrinaProyectoInList,
   vitrinaCoverImageStyle,
   VITRINA_PROYECTOS_MAX_FOTOS,
+  VITRINA_UPSERT_TX_OPTIONS,
+  catalogIdSetsDiffer,
+  vitrinaCatalogPairsAreFrozen,
+  vitrinaFotosDiffer,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
 
@@ -16,6 +20,53 @@ const catalog = {
   id: 'f1',
   nombre: 'Fondo A',
 };
+
+describe('VITRINA_UPSERT_TX_OPTIONS', () => {
+  it('deja margen sobre los 5s por defecto de Prisma (P2028 / PgBouncer)', () => {
+    expect(VITRINA_UPSERT_TX_OPTIONS.timeout).toBeGreaterThanOrEqual(15_000);
+    expect(VITRINA_UPSERT_TX_OPTIONS.maxWait).toBeGreaterThanOrEqual(5_000);
+  });
+});
+
+describe('vitrinaCatalogPairsAreFrozen', () => {
+  it('acepta ids alineados con nombres, incluido vacío', () => {
+    const empty = named('X', 'id-1');
+    expect(vitrinaCatalogPairsAreFrozen(empty)).toBe(true);
+    expect(
+      vitrinaCatalogPairsAreFrozen({
+        ...empty,
+        comunaIds: ['c1'],
+        comunas: ['Talca'],
+      }),
+    ).toBe(true);
+  });
+
+  it('rechaza nombres sin ids', () => {
+    expect(
+      vitrinaCatalogPairsAreFrozen({
+        ...named('X', 'id-1'),
+        comunas: ['Talca'],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('catalogIdSetsDiffer', () => {
+  it('ignora orden y duplicados', () => {
+    expect(catalogIdSetsDiffer(['a', 'b'], ['b', 'a'])).toBe(false);
+    expect(catalogIdSetsDiffer(['a'], ['a', 'b'])).toBe(true);
+  });
+});
+
+describe('vitrinaFotosDiffer', () => {
+  it('compara url y publicId en orden', () => {
+    const foto = { url: 'https://a.com/1.jpg', publicId: 'p1' };
+    expect(vitrinaFotosDiffer([foto], [foto])).toBe(false);
+    expect(
+      vitrinaFotosDiffer([foto], [{ ...foto, publicId: 'p2' }]),
+    ).toBe(true);
+  });
+});
 
 describe('namesToCatalogSelection', () => {
   it('resuelve ids y congela nombres del catálogo', () => {
@@ -30,6 +81,25 @@ describe('freezeCatalogPair', () => {
     expect(
       freezeCatalogPair(['f1'], ['nombre viejo'], [catalog]),
     ).toEqual({ ids: ['f1'], names: ['Fondo A'] });
+  });
+
+  it('si los ids no están en el catálogo, resuelve por nombre', () => {
+    expect(
+      freezeCatalogPair(['id-muerto'], ['Fondo A'], [catalog]),
+    ).toEqual({ ids: ['f1'], names: ['Fondo A'] });
+  });
+
+  it('congela comunas por id o por nombre del catálogo territorial', () => {
+    const comunas = [
+      { id: 'c1', nombre: 'Sagrada Familia' },
+      { id: 'c2', nombre: 'Talca' },
+    ];
+    expect(
+      freezeCatalogPair(['c1'], ['nombre viejo'], comunas),
+    ).toEqual({ ids: ['c1'], names: ['Sagrada Familia'] });
+    expect(
+      freezeCatalogPair([], ['Talca'], comunas),
+    ).toEqual({ ids: ['c2'], names: ['Talca'] });
   });
 });
 
@@ -94,12 +164,28 @@ describe('normalizeVitrinaProyectos', () => {
     expect(p?.fondos).toEqual(['Fondo A']);
     expect(p?.etiquetas).toEqual(['social', 'territorio']);
     expect(p?.etiquetaIds).toEqual([]);
+    expect(p?.comunas).toEqual([]);
+    expect(p?.comunaIds).toEqual([]);
     expect(p?.videoUrl).toContain('youtube');
     expect(p?.fotos).toHaveLength(1);
     expect(p?.coverOffsetY).toBe(50);
     expect(p?.coverOffsetX).toBe(50);
     expect(p?.coverZoom).toBe(1);
     expect(p?.id).toBeTruthy();
+  });
+
+  it('acepta comunas del catálogo territorial', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'Territorio',
+        comunaIds: ['c1'],
+        comunas: ['Valparaíso'],
+      },
+    ]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proyectos[0]?.comunaIds).toEqual(['c1']);
+    expect(result.proyectos[0]?.comunas).toEqual(['Valparaíso']);
   });
 
   it('acepta coverOffsetY y lo recorta a 0–100', () => {
@@ -324,6 +410,18 @@ describe('upsertVitrinaProyectoInList', () => {
     expect(result.proyectos).toHaveLength(1);
     expect(result.proyectos[0]?.nombre).toBe('Nuevo');
     expect(result.proyectos[0]?.id).toBeTruthy();
+  });
+
+  it('conserva comunas e ids al upsertar en la lista', () => {
+    const result = upsertVitrinaProyectoInList([], {
+      nombre: 'Territorio',
+      comunaIds: ['c1'],
+      comunas: ['Sagrada Familia'],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proyectos[0]?.comunaIds).toEqual(['c1']);
+    expect(result.proyectos[0]?.comunas).toEqual(['Sagrada Familia']);
   });
 
   it('rechaza nombre vacío', () => {

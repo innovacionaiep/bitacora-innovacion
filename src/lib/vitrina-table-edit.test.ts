@@ -24,6 +24,7 @@ const catalogs: VitrinaProjectCatalogs = {
   sedes: [{ id: 's1', nombre: 'Valparaíso' }],
   escuelas: [{ id: 'e1', nombre: 'Salud' }],
   socios: [{ id: 'so1', nombre: 'ONG' }],
+  comunas: [{ id: 'c1', nombre: 'Valparaíso' }],
   etiquetas: [{ id: 't1', nombre: 'Tecnología' }],
 };
 
@@ -60,5 +61,16 @@ describe('applyVitrinaTableCatalog', () => {
     const next = applyVitrinaTableCatalog(base, 'fondos', 'Impulsa', catalogs);
     expect(next.fondos).toEqual(['Impulsa']);
     expect(next.lineas).toEqual(['Innovación']);
+  });
+
+  it('asigna comunas desde el catálogo por nombre', () => {
+    const next = applyVitrinaTableCatalog(
+      projectFrom({ nombre: 'A' }),
+      'comunas',
+      'Valparaíso',
+      catalogs,
+    );
+    expect(next.comunaIds).toEqual(['c1']);
+    expect(next.comunas).toEqual(['Valparaíso']);
   });
 });

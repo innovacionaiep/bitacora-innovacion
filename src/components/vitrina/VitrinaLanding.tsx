@@ -50,6 +50,8 @@ import {
 } from '@/lib/vitrina-proyectos';
 import { buildFondoColorMap } from '@/lib/vitrina-fondo-style';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
+import { getPortalAvancesProyectos } from '@/lib/actions/portal-avances';
+import { getMideimpactoIniciativas } from '@/lib/actions/mideimpacto-iniciativas';
 import { leavePortalGuestSession } from '@/lib/actions/portal-guest';
 import {
   cascadingVitrinaFilterOptions,
@@ -139,6 +141,7 @@ export function VitrinaLanding({
   initialScene = 'hero',
   avancesProyectos = [],
   vinculamosInitial = EMPTY_VINCULAMOS_INITIAL,
+  deferredTabsLoaded = false,
 }: {
   videos: VitrinaVideo[];
   proyectos: VitrinaProyecto[];
@@ -157,6 +160,7 @@ export function VitrinaLanding({
     data?: MideimpactoIniciativasPage;
     error?: string;
   };
+  deferredTabsLoaded?: boolean;
 }) {
   const router = useRouter();
   const startProjects = initialScene === 'projects';
@@ -175,6 +179,10 @@ export function VitrinaLanding({
     [catalogs.fondos],
   );
   const [proyectosLocal, setProyectosLocal] = useState(proyectos);
+  const [avancesLocal, setAvancesLocal] = useState(avancesProyectos);
+  const [vinculamosLocal, setVinculamosLocal] = useState(vinculamosInitial);
+  const avancesLoadedRef = useRef(deferredTabsLoaded);
+  const vinculamosLoadedRef = useRef(deferredTabsLoaded);
   const [heroOff, setHeroOff] = useState(startProjects);
   const [headerCompact, setHeaderCompact] = useState(startProjects);
   const [cardsShown, setCardsShown] = useState(startProjects);
@@ -217,6 +225,34 @@ export function VitrinaLanding({
     }
   }, [proyectos]);
 
+  useEffect(() => {
+    if (!deferredTabsLoaded) return;
+    avancesLoadedRef.current = true;
+    vinculamosLoadedRef.current = true;
+    setAvancesLocal(avancesProyectos);
+    setVinculamosLocal(vinculamosInitial);
+  }, [avancesProyectos, vinculamosInitial, deferredTabsLoaded]);
+
+  useEffect(() => {
+    if (!heroOff && !hasVisitedProjects) return;
+    if (projectsView !== 'avances' && projectsView !== 'analisis') return;
+    if (avancesLoadedRef.current) return;
+    avancesLoadedRef.current = true;
+    void getPortalAvancesProyectos().then((result) => {
+      if (result.success && result.data) setAvancesLocal(result.data);
+    });
+  }, [projectsView, heroOff, hasVisitedProjects]);
+
+  useEffect(() => {
+    if (!heroOff && !hasVisitedProjects) return;
+    if (projectsView !== 'vinculamos') return;
+    if (vinculamosLoadedRef.current) return;
+    vinculamosLoadedRef.current = true;
+    void getMideimpactoIniciativas({ page: 1 }).then((result) => {
+      setVinculamosLocal(result);
+    });
+  }, [projectsView, heroOff, hasVisitedProjects]);
+
   const upsertProyectoLocal = useCallback((proyecto: VitrinaProyecto) => {
     setProyectosLocal((prev) => {
       const result = upsertVitrinaProyectoInList(prev, proyecto);
@@ -237,10 +273,7 @@ export function VitrinaLanding({
 
   const endOptimisticMutation = useCallback(() => {
     pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
-    if (pendingMutationsRef.current === 0) {
-      router.refresh();
-    }
-  }, [router]);
+  }, []);
 
   const handleSignOut = useCallback(() => {
     void signOut({ callbackUrl: '/' });
@@ -287,8 +320,8 @@ export function VitrinaLanding({
   const isVinculamosView = projectsView === 'vinculamos';
   const isMapaView = projectsView === 'mapa';
   const avancesFondoRows = useMemo(
-    () => rowsForPortalAvancesFondo(avancesProyectos, avancesFondoNombre),
-    [avancesProyectos, avancesFondoNombre],
+    () => rowsForPortalAvancesFondo(avancesLocal, avancesFondoNombre),
+    [avancesLocal, avancesFondoNombre],
   );
   const avancesFilterOptions = useMemo(
     () =>
@@ -313,12 +346,12 @@ export function VitrinaLanding({
     [proyectosLocal, filters, aiMatchIds, searchQuery],
   );
   const avancesAnalisis = useMemo(() => {
-    if ((filters.nombres?.length ?? 0) === 0) return avancesProyectos;
+    if ((filters.nombres?.length ?? 0) === 0) return avancesLocal;
     const allowed = new Set(filters.nombres);
-    return avancesProyectos.filter((proyecto) =>
+    return avancesLocal.filter((proyecto) =>
       allowed.has(proyecto.proyecto),
     );
-  }, [avancesProyectos, filters.nombres]);
+  }, [avancesLocal, filters.nombres]);
 
   const { index, displayed, progress, current } = useVitrinaTypewriter(
     VITRINA_HERO.headlineRotating,
@@ -923,7 +956,7 @@ export function VitrinaLanding({
                 projectsView === 'vinculamos' ? (
                 <div className="h-full min-h-0 overflow-hidden">
                   <VitrinaVinculamosView
-                    initial={vinculamosInitial}
+                    initial={vinculamosLocal}
                     onBack={goToHero}
                   />
                 </div>
@@ -965,6 +998,7 @@ export function VitrinaLanding({
             : null
         }
         canEdit={canManagePortal}
+        catalogs={catalogs}
         onCreated={(id) => setFicha(id)}
         onProyectoUpsert={upsertProyectoLocal}
         onProyectoRemove={removeProyectoLocal}

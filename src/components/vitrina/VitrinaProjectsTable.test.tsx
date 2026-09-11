@@ -26,6 +26,7 @@ const catalogs: VitrinaProjectCatalogs = {
   sedes: [{ id: 's1', nombre: 'Rancagua' }],
   escuelas: [{ id: 'e1', nombre: 'Salud' }],
   socios: [{ id: 'so1', nombre: 'MUKUNA' }],
+  comunas: [{ id: 'c1', nombre: 'Valparaíso' }],
   etiquetas: [{ id: 't1', nombre: 'Arte' }],
 };
 
@@ -68,6 +69,7 @@ describe('VitrinaProjectsTable', () => {
     ).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Festival del Futuro')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Fondo' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Comunas' })).toBeInTheDocument();
     expect(
       screen.queryByRole('columnheader', { name: 'Vídeo' }),
     ).not.toBeInTheDocument();
@@ -106,6 +108,9 @@ describe('VitrinaProjectsTable', () => {
     expect(
       view.queryByRole('columnheader', { name: 'Fondo' }),
     ).not.toBeInTheDocument();
+    expect(
+      view.queryByRole('columnheader', { name: 'Comunas' }),
+    ).not.toBeInTheDocument();
 
     expect(view.getByText(LONG_DESC.slice(0, 100))).toBeInTheDocument();
     expect(view.queryByText(LONG_DESC)).not.toBeInTheDocument();
@@ -114,6 +119,27 @@ describe('VitrinaProjectsTable', () => {
     expect(view.getByText(LONG_VIDEO.slice(0, 100))).toBeInTheDocument();
     expect(view.queryByText(LONG_VIDEO)).not.toBeInTheDocument();
     expect(view.getByTitle(LONG_VIDEO)).toBeInTheDocument();
+  });
+
+  it('muestra las comunas del proyecto en Información General', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'Festival del Futuro',
+        comunas: ['Valparaíso'],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+
+    render(
+      <VitrinaProjectsTable
+        proyectos={result.proyectos}
+        catalogs={catalogs}
+        canEdit={false}
+      />,
+    );
+
+    expect(screen.getByRole('columnheader', { name: 'Comunas' })).toBeInTheDocument();
+    expect(screen.getByText('Valparaíso')).toBeInTheDocument();
   });
 
   it('aplica anchos A/B en Información General', () => {

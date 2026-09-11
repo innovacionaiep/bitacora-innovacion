@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Check, GraduationCap, MapPin, SlidersHorizontal, Tag, X } from 'lucide-react';
+import { Check, GraduationCap, MapPin, MapPinned, SlidersHorizontal, Tag, X } from 'lucide-react';
 import { saveVitrinaProyectoCoverOffset } from '@/lib/actions/vitrina-proyectos';
 import {
   VITRINA_COVER_ZOOM_MAX,
   VITRINA_COVER_ZOOM_MIN,
   type VitrinaProyecto,
 } from '@/lib/vitrina-proyectos';
+import { vitrinaCardUsesComunasInPlaceOfEscuelas } from '@/lib/vitrina-card-display';
 import { vitrinaFondoStripePaint } from '@/lib/vitrina-fondo-style';
 import { useVitrinaFondoColors } from '@/components/vitrina/VitrinaFondoColorsContext';
 import { VitrinaCoverCrop } from '@/components/vitrina/VitrinaCoverCrop';
@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 const SECTION_ICONS = {
   sede: MapPin,
   escuela: GraduationCap,
+  comuna: MapPinned,
   tag: Tag,
 } as const;
 
@@ -25,17 +26,24 @@ function Chip({
   tone,
 }: {
   children: string;
-  tone: 'sede' | 'escuela' | 'tag';
+  tone: 'sede' | 'escuela' | 'comuna' | 'tag';
 }) {
   const className =
     tone === 'sede'
       ? 'bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700'
       : tone === 'escuela'
         ? 'bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800'
-        : 'bg-emerald-50 px-2 py-px text-[10px] text-emerald-800';
+        : tone === 'comuna'
+          ? 'bg-amber-50 px-2.5 py-0.5 text-xs text-amber-800'
+          : 'bg-emerald-50 px-2 py-px text-[10px] text-emerald-800';
+  const wrap = tone === 'comuna';
   return (
     <span
-      className={`inline-flex max-w-full truncate rounded-full font-medium ${className}`}
+      className={`max-w-full rounded-full font-medium ${className} ${
+        wrap
+          ? 'inline-block whitespace-normal break-words text-left leading-snug'
+          : 'inline-flex truncate'
+      }`}
     >
       {children}
     </span>
@@ -47,7 +55,7 @@ function ChipSection({
   label,
   items,
 }: {
-  tone: 'sede' | 'escuela' | 'tag';
+  tone: 'sede' | 'escuela' | 'comuna' | 'tag';
   label: string;
   items: string[];
 }) {
@@ -57,7 +65,9 @@ function ChipSection({
       ? 'text-slate-500'
       : tone === 'escuela'
         ? 'text-blue-600'
-        : 'text-emerald-600';
+        : tone === 'comuna'
+          ? 'text-amber-600'
+          : 'text-emerald-600';
 
   return (
     <div className="flex items-start gap-2">
@@ -82,7 +92,6 @@ type Props = {
 };
 
 export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
-  const router = useRouter();
   const fondoColors = useVitrinaFondoColors();
   const [framing, setFraming] = useState(false);
   const [frame, setFrame] = useState({
@@ -104,6 +113,9 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
   const cover = proyecto.fotos[0];
   const fondoLabel = proyecto.fondos.join(' · ');
   const fondoStripe = vitrinaFondoStripePaint(fondoLabel, fondoColors);
+  const showComunasInPlaceOfEscuelas = vitrinaCardUsesComunasInPlaceOfEscuelas(
+    proyecto.sedes,
+  );
 
   function startFraming(event: React.SyntheticEvent) {
     event.stopPropagation();
@@ -143,7 +155,6 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
       return;
     }
     setFraming(false);
-    router.refresh();
   }
 
   return (
@@ -265,7 +276,15 @@ export function VitrinaProjectCard({ proyecto, canEdit, onOpen }: Props) {
         {proyecto.sedes.length > 0 ? (
           <ChipSection tone="sede" label="Sedes" items={proyecto.sedes} />
         ) : null}
-        {proyecto.escuelas.length > 0 ? (
+        {showComunasInPlaceOfEscuelas ? (
+          proyecto.comunas.length > 0 ? (
+            <ChipSection
+              tone="comuna"
+              label="Comunas"
+              items={proyecto.comunas}
+            />
+          ) : null
+        ) : proyecto.escuelas.length > 0 ? (
           <ChipSection
             tone="escuela"
             label="Escuelas"

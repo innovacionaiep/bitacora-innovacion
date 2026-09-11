@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
-import { VITRINA_PROYECTOS_MAX_FOTOS } from '@/lib/vitrina-proyectos';
+import { VITRINA_PROYECTOS_MAX_FOTOS, VITRINA_UPSERT_TX_OPTIONS, catalogIdSetsDiffer, vitrinaFotosDiffer } from '@/lib/vitrina-proyectos';
 import { mapVitrinaProyectoRow } from '@/lib/vitrina-proyectos-map';
 
 const include = {
@@ -11,6 +11,7 @@ const include = {
   sedes: { include: { sede: { select: { id: true, nombre: true } } } },
   escuelas: { include: { escuela: { select: { id: true, nombre: true } } } },
   socios: { include: { socio: { select: { id: true, nombre: true } } } },
+  comunas: { include: { comuna: { select: { id: true, nombre: true } } } },
   etiquetas: { include: { etiqueta: { select: { id: true, nombre: true } } } },
 };
 
@@ -63,106 +64,189 @@ function scalars(proyecto: VitrinaProyecto) {
   };
 }
 
+type ExistingJoins = {
+  fotos: Array<{ url: string; publicId: string }>;
+  fondos: Array<{ fondoId: string }>;
+  lineas: Array<{ lineaId: string }>;
+  sedes: Array<{ sedeId: string }>;
+  escuelas: Array<{ escuelaId: string }>;
+  socios: Array<{ socioComunitarioId: string }>;
+  comunas: Array<{ comunaId: string }>;
+  etiquetas: Array<{ etiquetaId: string }>;
+};
+
+const joinSelect = {
+  orden: true,
+  fotos: {
+    select: { url: true, publicId: true },
+    orderBy: { orden: 'asc' as const },
+  },
+  fondos: { select: { fondoId: true } },
+  lineas: { select: { lineaId: true } },
+  sedes: { select: { sedeId: true } },
+  escuelas: { select: { escuelaId: true } },
+  socios: { select: { socioComunitarioId: true } },
+  comunas: { select: { comunaId: true } },
+  etiquetas: { select: { etiquetaId: true } },
+} as const;
+
 async function persistProyecto(
   tx: Prisma.TransactionClient,
   proyecto: VitrinaProyecto,
   orden: number,
+  existing: ExistingJoins | null,
 ) {
   const data = { ...scalars(proyecto), orden };
+  const id = proyecto.id;
   await tx.vitrinaProyecto.upsert({
-    where: { id: proyecto.id },
-    create: { id: proyecto.id, ...data },
+    where: { id },
+    create: { id, ...data },
     update: data,
   });
 
-  await tx.vitrinaProyectoFoto.deleteMany({
-    where: { vitrinaProyectoId: proyecto.id },
-  });
   const fotos = proyecto.fotos.slice(0, VITRINA_PROYECTOS_MAX_FOTOS);
-  if (fotos.length > 0) {
-    await tx.vitrinaProyectoFoto.createMany({
-      data: fotos.map((foto, index) => ({
-        vitrinaProyectoId: proyecto.id,
-        url: foto.url,
-        publicId: foto.publicId,
-        orden: index,
-      })),
-    });
-  }
+  const deletes: Prisma.PrismaPromise<unknown>[] = [];
+  const creates: Prisma.PrismaPromise<unknown>[] = [];
 
-  await replaceJoins(tx, proyecto);
-}
+  const syncJoin = (
+    changed: boolean,
+    deleteOp: Prisma.PrismaPromise<unknown>,
+    createOp: Prisma.PrismaPromise<unknown> | null,
+  ) => {
+    if (!changed) return;
+    if (existing) deletes.push(deleteOp);
+    if (createOp) creates.push(createOp);
+  };
 
-async function replaceJoins(
-  tx: Prisma.TransactionClient,
-  proyecto: VitrinaProyecto,
-) {
-  const id = proyecto.id;
-  await tx.vitrinaProyectoFondo.deleteMany({ where: { vitrinaProyectoId: id } });
-  await tx.vitrinaProyectoLinea.deleteMany({ where: { vitrinaProyectoId: id } });
-  await tx.vitrinaProyectoSede.deleteMany({ where: { vitrinaProyectoId: id } });
-  await tx.vitrinaProyectoEscuela.deleteMany({
-    where: { vitrinaProyectoId: id },
-  });
-  await tx.vitrinaProyectoSocio.deleteMany({ where: { vitrinaProyectoId: id } });
-  await tx.vitrinaProyectoEtiqueta.deleteMany({
-    where: { vitrinaProyectoId: id },
-  });
+  syncJoin(
+    vitrinaFotosDiffer(existing?.fotos ?? [], fotos),
+    tx.vitrinaProyectoFoto.deleteMany({ where: { vitrinaProyectoId: id } }),
+    fotos.length > 0
+      ? tx.vitrinaProyectoFoto.createMany({
+          data: fotos.map((foto, index) => ({
+            vitrinaProyectoId: id,
+            url: foto.url,
+            publicId: foto.publicId,
+            orden: index,
+          })),
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.fondos ?? []).map((row) => row.fondoId),
+      proyecto.fondoIds,
+    ),
+    tx.vitrinaProyectoFondo.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.fondoIds.length > 0
+      ? tx.vitrinaProyectoFondo.createMany({
+          data: uniqueIds(proyecto.fondoIds).map((fondoId) => ({
+            vitrinaProyectoId: id,
+            fondoId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.lineas ?? []).map((row) => row.lineaId),
+      proyecto.lineaIds,
+    ),
+    tx.vitrinaProyectoLinea.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.lineaIds.length > 0
+      ? tx.vitrinaProyectoLinea.createMany({
+          data: uniqueIds(proyecto.lineaIds).map((lineaId) => ({
+            vitrinaProyectoId: id,
+            lineaId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.sedes ?? []).map((row) => row.sedeId),
+      proyecto.sedeIds,
+    ),
+    tx.vitrinaProyectoSede.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.sedeIds.length > 0
+      ? tx.vitrinaProyectoSede.createMany({
+          data: uniqueIds(proyecto.sedeIds).map((sedeId) => ({
+            vitrinaProyectoId: id,
+            sedeId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.escuelas ?? []).map((row) => row.escuelaId),
+      proyecto.escuelaIds,
+    ),
+    tx.vitrinaProyectoEscuela.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.escuelaIds.length > 0
+      ? tx.vitrinaProyectoEscuela.createMany({
+          data: uniqueIds(proyecto.escuelaIds).map((escuelaId) => ({
+            vitrinaProyectoId: id,
+            escuelaId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.socios ?? []).map((row) => row.socioComunitarioId),
+      proyecto.socioIds,
+    ),
+    tx.vitrinaProyectoSocio.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.socioIds.length > 0
+      ? tx.vitrinaProyectoSocio.createMany({
+          data: uniqueIds(proyecto.socioIds).map((socioComunitarioId) => ({
+            vitrinaProyectoId: id,
+            socioComunitarioId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.comunas ?? []).map((row) => row.comunaId),
+      proyecto.comunaIds,
+    ),
+    tx.vitrinaProyectoComuna.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.comunaIds.length > 0
+      ? tx.vitrinaProyectoComuna.createMany({
+          data: uniqueIds(proyecto.comunaIds).map((comunaId) => ({
+            vitrinaProyectoId: id,
+            comunaId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
+  syncJoin(
+    catalogIdSetsDiffer(
+      (existing?.etiquetas ?? []).map((row) => row.etiquetaId),
+      proyecto.etiquetaIds,
+    ),
+    tx.vitrinaProyectoEtiqueta.deleteMany({ where: { vitrinaProyectoId: id } }),
+    proyecto.etiquetaIds.length > 0
+      ? tx.vitrinaProyectoEtiqueta.createMany({
+          data: uniqueIds(proyecto.etiquetaIds).map((etiquetaId) => ({
+            vitrinaProyectoId: id,
+            etiquetaId,
+          })),
+          skipDuplicates: true,
+        })
+      : null,
+  );
 
-  if (proyecto.fondoIds.length > 0) {
-    await tx.vitrinaProyectoFondo.createMany({
-      data: uniqueIds(proyecto.fondoIds).map((fondoId) => ({
-        vitrinaProyectoId: id,
-        fondoId,
-      })),
-      skipDuplicates: true,
-    });
-  }
-  if (proyecto.lineaIds.length > 0) {
-    await tx.vitrinaProyectoLinea.createMany({
-      data: uniqueIds(proyecto.lineaIds).map((lineaId) => ({
-        vitrinaProyectoId: id,
-        lineaId,
-      })),
-      skipDuplicates: true,
-    });
-  }
-  if (proyecto.sedeIds.length > 0) {
-    await tx.vitrinaProyectoSede.createMany({
-      data: uniqueIds(proyecto.sedeIds).map((sedeId) => ({
-        vitrinaProyectoId: id,
-        sedeId,
-      })),
-      skipDuplicates: true,
-    });
-  }
-  if (proyecto.escuelaIds.length > 0) {
-    await tx.vitrinaProyectoEscuela.createMany({
-      data: uniqueIds(proyecto.escuelaIds).map((escuelaId) => ({
-        vitrinaProyectoId: id,
-        escuelaId,
-      })),
-      skipDuplicates: true,
-    });
-  }
-  if (proyecto.socioIds.length > 0) {
-    await tx.vitrinaProyectoSocio.createMany({
-      data: uniqueIds(proyecto.socioIds).map((socioComunitarioId) => ({
-        vitrinaProyectoId: id,
-        socioComunitarioId,
-      })),
-      skipDuplicates: true,
-    });
-  }
-  if (proyecto.etiquetaIds.length > 0) {
-    await tx.vitrinaProyectoEtiqueta.createMany({
-      data: uniqueIds(proyecto.etiquetaIds).map((etiquetaId) => ({
-        vitrinaProyectoId: id,
-        etiquetaId,
-      })),
-      skipDuplicates: true,
-    });
-  }
+  if (deletes.length > 0) await Promise.all(deletes);
+  if (creates.length > 0) await Promise.all(creates);
 }
 
 function uniqueIds(ids: string[]): string[] {
@@ -188,7 +272,7 @@ export async function upsertVitrinaProyectoRecord(
   await prisma.$transaction(async (tx) => {
     const existing = await tx.vitrinaProyecto.findUnique({
       where: { id: proyecto.id },
-      select: { orden: true },
+      select: joinSelect,
     });
     let orden = existing?.orden;
     if (orden === undefined) {
@@ -197,8 +281,8 @@ export async function upsertVitrinaProyectoRecord(
       });
       orden = (last._max.orden ?? -1) + 1;
     }
-    await persistProyecto(tx, proyecto, orden);
-  });
+    await persistProyecto(tx, proyecto, orden, existing);
+  }, VITRINA_UPSERT_TX_OPTIONS);
 }
 
 export async function upsertVitrinaProyectosRecords(
@@ -206,16 +290,34 @@ export async function upsertVitrinaProyectosRecords(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const existing = await tx.vitrinaProyecto.findMany({
-      select: { id: true, orden: true },
+      select: { id: true, ...joinSelect },
     });
     const ordenById = new Map(existing.map((row) => [row.id, row.orden]));
+    const joinsById = new Map(existing.map((row) => [row.id, row]));
     let nextOrden =
       existing.reduce((max, row) => Math.max(max, row.orden), -1) + 1;
     for (const proyecto of proyectos) {
       const known = ordenById.get(proyecto.id);
       const orden = known ?? nextOrden++;
-      await persistProyecto(tx, proyecto, orden);
+      await persistProyecto(
+        tx,
+        proyecto,
+        orden,
+        joinsById.get(proyecto.id) ?? null,
+      );
     }
+  }, VITRINA_UPSERT_TX_OPTIONS);
+}
+
+export async function readVitrinaProyectoCoverById(id: string) {
+  return prisma.vitrinaProyecto.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      coverOffsetX: true,
+      coverOffsetY: true,
+      coverZoom: true,
+    },
   });
 }
 

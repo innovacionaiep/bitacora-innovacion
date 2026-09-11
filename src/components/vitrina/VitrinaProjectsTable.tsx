@@ -5,7 +5,11 @@ import { Check, Pencil, X } from 'lucide-react';
 import { upsertVitrinaProyecto } from '@/lib/actions/vitrina-proyectos';
 import type { VitrinaProjectCatalogs } from '@/lib/actions/vitrina-proyectos';
 import type { VitrinaProyecto } from '@/lib/vitrina-proyectos';
-import { asOptionalDecimal, asOptionalInt } from '@/lib/vitrina-proyectos';
+import {
+  asOptionalDecimal,
+  asOptionalInt,
+  freezeVitrinaProyectoCatalogs,
+} from '@/lib/vitrina-proyectos';
 import {
   asOptionalIgipScore,
   IGIP_SCORE_FIELDS,
@@ -61,6 +65,7 @@ const GENERAL_COLUMNS = [
   { key: 'escuelas', label: 'Escuelas', size: 'B' },
   { key: 'etiquetas', label: 'Etiquetas', size: 'B' },
   { key: 'socios', label: 'Socios', size: 'A' },
+  { key: 'comunas', label: 'Comunas', size: 'A' },
   { key: 'encargadoNombre', label: 'Encargado', size: 'A' },
   { key: 'encargadoCorreo', label: 'Correo', size: 'A' },
   { key: 'encargadoCargo', label: 'Cargo', size: 'A' },
@@ -147,7 +152,7 @@ export function VitrinaProjectsTable({
 
     const previous =
       proyectos.find((proyecto) => proyecto.id === draft.id) ?? null;
-    const toSave = draft;
+    const toSave = freezeVitrinaProyectoCatalogs(draft, catalogs);
     cancelEdit();
     onOptimisticMutationStart?.();
     onProyectoUpsert?.(toSave);
@@ -440,6 +445,15 @@ export function VitrinaProjectsTable({
                         options={catalogs.socios}
                         value={formatVitrinaTableNames(row.socios)}
                         onChange={(v) => patchCatalog('socios', v)}
+                        className={COL_A}
+                        wrapChips
+                      />
+                      <CatalogCell
+                        editing={isEditing}
+                        items={row.comunas}
+                        options={catalogs.comunas}
+                        value={formatVitrinaTableNames(row.comunas)}
+                        onChange={(v) => patchCatalog('comunas', v)}
                         className={COL_A}
                         wrapChips
                       />
