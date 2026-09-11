@@ -171,6 +171,38 @@ describe('VitrinaProjectFicha comunas', () => {
 });
 
 describe('VitrinaProjectFicha video', () => {
+  it('muestra la columna de video con portada borrosa aunque no haya enlace', () => {
+    const result = normalizeVitrinaProyectos([
+      {
+        nombre: 'Nalca Essence',
+        fotos: [
+          {
+            url: 'https://res.cloudinary.com/demo/image/upload/nalca.jpg',
+            publicId: 'nalca',
+          },
+        ],
+      },
+    ]);
+    if (!result.ok) throw new Error(result.error);
+
+    render(
+      <VitrinaProjectFicha
+        open
+        onOpenChange={() => undefined}
+        proyecto={result.proyectos[0]!}
+        isNew={false}
+        canEdit={false}
+      />,
+    );
+
+    expect(screen.getByText('Vídeo del proyecto')).toBeInTheDocument();
+    const blurred = document.querySelector('img.blur-md');
+    expect(blurred).toHaveAttribute(
+      'src',
+      'https://res.cloudinary.com/demo/image/upload/nalca.jpg',
+    );
+  });
+
   it('embebe un enlace de Google Drive', () => {
     const result = normalizeVitrinaProyectos([
       {

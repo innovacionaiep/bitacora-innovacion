@@ -375,7 +375,6 @@ export function VitrinaProjectFicha({
         );
   const cover = draft.fotos[0];
   const video = parseVideoUrl(draft.videoUrl);
-  const showVideoColumn = canEdit || video != null;
   const title = draft.nombre.trim() || (isNew ? 'Nuevo proyecto' : 'Proyecto');
 
   const videoField = (
@@ -485,14 +484,7 @@ export function VitrinaProjectFicha({
           {error ? <p className="mt-1 text-sm text-red-400">{error}</p> : null}
         </DialogHeader>
 
-        <div
-          className={cn(
-            'grid min-h-0 flex-1 overflow-y-auto lg:overflow-hidden',
-            showVideoColumn
-              ? 'lg:grid-cols-[minmax(23rem,1fr)_minmax(0,1.05fr)_minmax(32rem,0.75fr)]'
-              : 'lg:grid-cols-[minmax(23rem,1fr)_minmax(0,1.05fr)]',
-          )}
-        >
+        <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(23rem,1fr)_minmax(0,1.05fr)_minmax(32rem,0.75fr)] lg:overflow-hidden">
           <aside className="order-1 flex min-h-0 flex-col gap-4 overflow-y-auto border-slate-100 bg-white px-5 py-4 lg:col-start-1 lg:row-start-1 lg:border-r">
             <HoverEdit
               canEdit={canEdit}
@@ -843,11 +835,9 @@ export function VitrinaProjectFicha({
             </HoverEdit>
           </div>
 
-          {showVideoColumn ? (
-            <aside className="order-2 flex min-h-0 w-full items-center justify-center border-slate-100 px-6 py-4 lg:order-3 lg:col-start-3 lg:row-start-1 lg:border-l">
-              {videoField}
-            </aside>
-          ) : null}
+          <aside className="order-2 flex min-h-0 w-full items-center justify-center border-slate-100 px-6 py-4 lg:order-3 lg:col-start-3 lg:row-start-1 lg:border-l">
+            {videoField}
+          </aside>
         </div>
       </DialogContent>
     </Dialog>
