@@ -19,6 +19,7 @@ import {
 } from '@/lib/escalamiento-plan';
 import { escalamientoKey } from '@/lib/query-keys';
 import { cn } from '@/lib/utils';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 type EscalamientoTabProps = {
   projectId: string;
@@ -65,6 +66,8 @@ function HoverEditButton({
   onClick: () => void;
   label: string;
 }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"
@@ -79,6 +82,8 @@ function HoverEditButton({
 }
 
 function AddInfoButton({ onClick }: { onClick: () => void }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"

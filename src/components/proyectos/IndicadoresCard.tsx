@@ -30,6 +30,7 @@ import {
   useFullscreenRecommendHint,
 } from '@/components/proyectos/FullscreenRecommendHint';
 import { useOptionalSidebar } from '@/components/ui/sidebar';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 const FS_BTN_SIZE = 40;
 const FS_BTN_GAP = 8;
@@ -155,6 +156,7 @@ export function IndicadoresCard({
   canImport = false,
   onCargaMasiva,
 }: IndicadoresCardProps) {
+  const publicReadOnly = usePublicReadOnly();
   const {
     data,
     loading,
@@ -522,9 +524,11 @@ export function IndicadoresCard({
               objetivoGeneral={objetivoGeneral}
               progresoGeneral={progresoGeneral}
               onAddObjetivoEspecifico={
-                objetivoGeneral.objetivosEspecificos.length === 0
-                  ? handleAddObjetivoEspecifico
-                  : undefined
+                publicReadOnly
+                  ? undefined
+                  : objetivoGeneral.objetivosEspecificos.length === 0
+                    ? handleAddObjetivoEspecifico
+                    : undefined
               }
               onIndicadorClick={(indicador) => {
                 setSelectedIndicador({
@@ -540,13 +544,17 @@ export function IndicadoresCard({
                 });
               }}
               onAddIndicador={
-                tieneAlMenosUnObjetivoEspecifico
-                  ? handleOpenAgregarIndicador
-                  : undefined
+                publicReadOnly
+                  ? undefined
+                  : tieneAlMenosUnObjetivoEspecifico
+                    ? handleOpenAgregarIndicador
+                    : undefined
               }
-              onCargaMasiva={onCargaMasiva}
-              canImport={canImport}
-              onDeleteIndicador={handleDeleteIndicador}
+              onCargaMasiva={publicReadOnly ? undefined : onCargaMasiva}
+              canImport={publicReadOnly ? false : canImport}
+              onDeleteIndicador={
+                publicReadOnly ? undefined : handleDeleteIndicador
+              }
             />
           </div>
         ))}

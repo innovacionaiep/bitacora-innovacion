@@ -9,6 +9,7 @@ import {
   proyectoAplicaConvenio,
   resolveLineaCatalogItem,
   visibleProjectNavTabs,
+  visiblePublicProjectNavTabs,
   type LineaModuloCatalogItem,
   type ProjectNavTabId,
 } from './linea-modulos';
@@ -164,5 +165,18 @@ describe('linea-modulos', () => {
     expect(isProjectTabVisible('Resumen', 'Fondo 1', 'Linea A', catalog)).toBe(
       false
     );
+  });
+
+  it('public nav hides Convenio even when the línea enables it', () => {
+    const catalog = [flags({ tabConvenioEnabled: true })];
+    const ids = visiblePublicProjectNavTabs(
+      NAV_TABS,
+      'Fondo 1',
+      'Linea A',
+      catalog
+    ).map((t) => t.id);
+    expect(ids).not.toContain('Convenio');
+    expect(ids).toContain('General');
+    expect(ids).toContain('Gantt');
   });
 });

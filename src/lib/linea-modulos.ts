@@ -113,6 +113,23 @@ export function visibleProjectNavTabs<T extends { id: ProjectNavTabId }>(
   );
 }
 
+/** Tabs that guests must not see on `/p/{token}` even if the línea enables them. */
+export const PUBLIC_HIDDEN_PROJECT_TABS = ['Convenio'] as const satisfies readonly ProjectNavTabId[];
+
+export function visiblePublicProjectNavTabs<T extends { id: ProjectNavTabId }>(
+  tabs: readonly T[],
+  fondo: string | null | undefined,
+  lineaNombre: string | null | undefined,
+  catalog: readonly LineaModuloCatalogItem[]
+): T[] {
+  return visibleProjectNavTabs(tabs, fondo, lineaNombre, catalog).filter(
+    (tab) =>
+      !(PUBLIC_HIDDEN_PROJECT_TABS as readonly ProjectNavTabId[]).includes(
+        tab.id
+      )
+  );
+}
+
 export function convenioEnabledKeys(
   catalog: readonly Pick<
     LineaModuloCatalogItem,

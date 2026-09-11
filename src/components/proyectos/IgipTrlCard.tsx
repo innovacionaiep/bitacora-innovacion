@@ -171,6 +171,7 @@ export function IgipTrlCard({
   projectId,
   topLoaderEnabled = true,
 }: IgipTrlCardProps) {
+  const readOnly = usePublicReadOnly();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: igipTrlKey(projectId),
@@ -203,6 +204,7 @@ export function IgipTrlCard({
   }, [igipDraft, current.igip]);
 
   function persist(patch: IgipTrlPatch) {
+    if (readOnly) return;
     const previous =
       queryClient.getQueryData<IgipTrlData>(igipTrlKey(projectId)) ?? current;
     const next = { ...previous, ...patch };
@@ -334,9 +336,11 @@ export function IgipTrlCard({
                 type="button"
                 data-testid={`trl-row-${row.level}`}
                 data-appearance={appearance}
-                onClick={() =>
-                  persist({ trl: nextTrlOnClick(row.level, current.trl) })
-                }
+                disabled={readOnly}
+                onClick={() => {
+                  if (readOnly) return;
+                  persist({ trl: nextTrlOnClick(row.level, current.trl) });
+                }}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-lg text-left transition-opacity',
                   selected ? 'opacity-100' : 'opacity-45'

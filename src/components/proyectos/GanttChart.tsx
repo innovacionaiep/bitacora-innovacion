@@ -161,6 +161,7 @@ const SortableActivity = memo(function SortableActivity({
   formatDateForTooltip,
   scrollbarWidth,
 }: SortableActivityProps & { scrollbarWidth: number }) {
+  const publicReadOnly = usePublicReadOnly();
   const {
     attributes,
     listeners,
@@ -168,7 +169,7 @@ const SortableActivity = memo(function SortableActivity({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: activity.id });
+  } = useSortable({ id: activity.id, disabled: publicReadOnly });
 
   const isExpanded = expandedDescriptions.has(activity.id);
   const rowHeight = getActivityRowHeight(isExpanded, activity.tasks.length);
@@ -188,8 +189,8 @@ const SortableActivity = memo(function SortableActivity({
       ref={setNodeRef}
       style={style}
       className={`border-b border-white relative ${isDragging ? 'z-[9999]' : expandedDescriptions.has(activity.id) ? 'z-10' : 'z-20'}`}
-      {...attributes}
-      {...listeners}
+      {...(publicReadOnly ? {} : attributes)}
+      {...(publicReadOnly ? {} : listeners)}
     >
       {/* Fila de la actividad con sus tareas en la misma línea */}
       <div
@@ -231,7 +232,7 @@ const SortableActivity = memo(function SortableActivity({
                 </Button>
 
                 {/* Botones de acción - solo visibles cuando está expandido */}
-                {expandedDescriptions.has(activity.id) && (
+                {expandedDescriptions.has(activity.id) && !publicReadOnly && (
                   <>
                     <Button
                       size="sm"
@@ -372,9 +373,11 @@ const SortableActivity = memo(function SortableActivity({
                               <input
                                 type="checkbox"
                                 checked={task.completed}
-                                onChange={() =>
-                                  handleToggleTaskCompletion(task.id)
-                                }
+                                disabled={publicReadOnly}
+                                onChange={() => {
+                                  if (publicReadOnly) return;
+                                  handleToggleTaskCompletion(task.id);
+                                }}
                                 className="sr-only"
                               />
                               <div
@@ -1114,6 +1117,7 @@ export default function GanttChart({
 
   const handleToggleTaskCompletion = useCallback(
     (taskId: string) => {
+      if (publicReadOnly) return;
       try {
         toggleTaskCompletion(taskId);
 
@@ -1133,7 +1137,12 @@ export default function GanttChart({
         showSuccessMessage('Error al actualizar la tarea');
       }
     },
-    [toggleTaskCompletion, whenTaskCompletionSavesIdle, showSuccessMessage]
+    [
+      publicReadOnly,
+      toggleTaskCompletion,
+      whenTaskCompletionSavesIdle,
+      showSuccessMessage,
+    ]
   );
 
   useEffect(() => {
@@ -1157,6 +1166,7 @@ export default function GanttChart({
   // Eliminar actividad
   const handleDeleteActivity = useCallback(
     async (activityId: string) => {
+      if (publicReadOnly) return;
       if (
         confirm(
           '¿Estás seguro de que quieres eliminar esta actividad y todas sus tareas?'
@@ -1170,11 +1180,12 @@ export default function GanttChart({
         }
       }
     },
-    [deleteActivity, showSuccessMessage]
+    [publicReadOnly, deleteActivity, showSuccessMessage]
   );
 
   // Eliminar tarea
   const handleDeleteTask = async (taskId: string) => {
+    if (publicReadOnly) return;
     if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
       const { error } = await deleteTask(taskId);
       if (error) {
@@ -1190,6 +1201,7 @@ export default function GanttChart({
     activityId: string,
     status: ActivityStatus
   ) => {
+    if (publicReadOnly) return;
     const result = await updateActivityStatus(activityId, status);
     if (result?.success) {
       showSuccessMessage('Actividad actualizada exitosamente');
@@ -1204,6 +1216,7 @@ export default function GanttChart({
     targetActivityId: string,
     status: ActivityStatus
   ) => {
+    if (publicReadOnly) return;
     try {
       // Filtrar actividades solo de la columna específica y ordenar por kanbanOrderIndex
       const activitiesInColumn = activities
@@ -1266,6 +1279,7 @@ export default function GanttChart({
     targetActivityId: string,
     status: ActivityStatus
   ) => {
+    if (publicReadOnly) return;
     // Actualizar el estado local inmediatamente para una experiencia fluida
     const activitiesInColumn = activities
       .filter((a) => a.status === status)
@@ -1312,6 +1326,7 @@ export default function GanttChart({
 
   // Manejar clic en agregar actividad
   const handleAddActivityClick = (_event?: React.MouseEvent) => {
+    if (publicReadOnly) return;
     closeFormPopups();
     openActivityPopup('create');
   };
@@ -1811,6 +1826,7 @@ export default function GanttChart({
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      if (publicReadOnly) return;
       const { active, over } = event;
 
       if (over && active.id !== over.id) {
@@ -1831,7 +1847,7 @@ export default function GanttChart({
         }
       }
     },
-    [activities, reorderActivities, showSuccessMessage]
+    [publicReadOnly, activities, reorderActivities, showSuccessMessage]
   );
 
   const getActivityDateRange = useCallback(
@@ -2191,16 +2207,18 @@ export default function GanttChart({
                                 <div className="text-center text-gray-500">
                                   <Circle className="h-8 w-8 mx-auto mb-2" />
                                   <p className="text-sm">No hay actividades</p>
+                                  {publicReadOnly ? null : (
                                   <p className="text-xs mt-1">
                                     Usa el botón + de abajo para agregar una
                                   </p>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex-1 p-4 bg-gray-50"></div>
                             </div>
                           ) : (
                             <DndContext
-                              sensors={sensors}
+                              sensors={publicReadOnly ? [] : sensors}
                               collisionDetection={closestCenter}
                               onDragEnd={handleDragEnd}
                             >
@@ -2253,6 +2271,7 @@ export default function GanttChart({
                           )}
 
                           {/* Fila para crear nueva actividad */}
+                          {publicReadOnly ? null : (
                           <div
                             className="flex bg-gray-50 hover:bg-emerald-50/80 transition-colors cursor-pointer border-t border-dashed border-gray-200"
                             onClick={handleAddActivityClick}
@@ -2269,7 +2288,6 @@ export default function GanttChart({
                               className="w-[500px] border-r border-gray-200 bg-gray-50 text-center py-1.5"
                               data-column="activities"
                             >
-                              {publicReadOnly ? null : (
                               <button
                                 type="button"
                                 id="tour-gantt-agregar"
@@ -2283,10 +2301,10 @@ export default function GanttChart({
                               >
                                 <Plus className="h-4 w-4 text-white" strokeWidth={2.5} />
                               </button>
-                              )}
                             </div>
                             <div className="flex-1 bg-gray-50" />
                           </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -3275,7 +3293,9 @@ export default function GanttChart({
                               <input
                                 type="checkbox"
                                 checked={task.completed}
+                                disabled={publicReadOnly}
                                 onChange={() => {
+                                  if (publicReadOnly) return;
                                   if (task.id.startsWith('temp-')) {
                                     setTempTasks((prev) =>
                                       prev.map((t) =>

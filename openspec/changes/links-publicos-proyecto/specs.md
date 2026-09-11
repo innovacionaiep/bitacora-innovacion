@@ -12,10 +12,10 @@ A project MUST have at most one active public link (`revokedAt` is null). Genera
 An active link MUST NOT expire by time. Only Caducar (or a later generate after caducar) invalidates access.
 
 ### R4 — Public route
-`GET /p/{token}` MUST be reachable without login. Invalid or revoked tokens MUST NOT show the ficha. Valid tokens MUST render the same tabs as `/proyectos` for that project's línea, read-only, without the app sidebar or project list.
+`GET /p/{token}` MUST be reachable without login. Invalid or revoked tokens MUST NOT show the ficha. Valid tokens MUST render the same tabs as `/proyectos` for that project's línea except **Convenio** (MUST be hidden), read-only, without the app sidebar or project list.
 
 ### R5 — Read-only
-The public view MUST hide mutation UI (edit, import, upload, add participant/activity). Server mutations MUST still require a session even if a public-link cookie is present.
+The public view MUST hide mutation UI (edit, import, upload, add participant/activity, drag-and-drop reorder). Drag-and-drop MUST NOT start a mutation. Server mutations MUST still require a session even if a public-link cookie is present.
 
 ### R6 — Read access
 Project GET loaders that currently require `requireProjectAccess` MUST accept `requireProjectReadAccess`: session access OR an active public-link cookie (or ALS token) for that same project.

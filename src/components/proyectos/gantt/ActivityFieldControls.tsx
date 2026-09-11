@@ -7,6 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 export function ActivityFieldSaveCancel({
   isSaving,
@@ -53,6 +54,8 @@ export function ActivityHoverEditButton({
   // Radix Tooltip se dispara con focus, mostrando "Editar nombre" al montar.
   const [open, setOpen] = useState(false);
   const pointerInsideRef = useRef(false);
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
 
   return (
     <div

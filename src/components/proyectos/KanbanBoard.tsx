@@ -32,6 +32,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { ActivityStatus } from '@prisma/client';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 
 // Tipos para las columnas del Kanban
 type KanbanStatus = ActivityStatus;
@@ -154,6 +155,7 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
   onToggleTaskCompletion,
   onActivityTitleClick,
 }: ActivityCardProps) {
+  const readOnly = usePublicReadOnly();
   const {
     attributes,
     listeners,
@@ -163,6 +165,7 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
     isDragging,
   } = useSortable({
     id: activity.id,
+    disabled: readOnly,
     data: {
       type: 'activity',
       activity: activity,
@@ -205,11 +208,13 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
         setDroppableRef(node);
       }}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(readOnly ? {} : attributes)}
+      {...(readOnly ? {} : listeners)}
     >
       <Card
-        className={`mb-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${getCardBgColor(
+        className={`mb-3 shadow-sm hover:shadow-md transition-all duration-200 ${
+          readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+        } ${getCardBgColor(
           activity.status || 'TODO'
         )} ${
           isBeingDraggedOver
@@ -297,7 +302,11 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
                       <input
                         type="checkbox"
                         checked={task.completed}
-                        onChange={() => onToggleTaskCompletion(task.id)}
+                        disabled={readOnly}
+                        onChange={() => {
+                          if (readOnly) return;
+                          onToggleTaskCompletion(task.id);
+                        }}
                         className="sr-only"
                       />
                       <div
@@ -356,6 +365,7 @@ export default function KanbanBoard({
   onActivityTitleClick,
   isFullscreen = false,
 }: KanbanBoardProps) {
+  const readOnly = usePublicReadOnly();
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(
     new Set()
   );
@@ -408,6 +418,7 @@ export default function KanbanBoard({
 
   // Manejar inicio del drag
   const handleDragStart = (event: DragStartEvent) => {
+    if (readOnly) return;
     setActiveId(event.active.id as string);
   };
 
@@ -456,6 +467,7 @@ export default function KanbanBoard({
 
   // Manejar fin del drag
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (readOnly) return;
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -587,7 +599,7 @@ export default function KanbanBoard({
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={readOnly ? [] : sensors}
       collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -648,8 +660,10 @@ function KanbanColumn({
   onAddActivity,
   onActivityTitleClick,
 }: KanbanColumnProps) {
+  const readOnly = usePublicReadOnly();
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
+    disabled: readOnly,
     data: {
       type: 'column',
       status: column.id,
@@ -674,17 +688,21 @@ function KanbanColumn({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="relative group">
-              <Button
-                onClick={onAddActivity}
-                variant="outline"
-                className="rounded-full w-6 h-6 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
-                aria-label="Agregar actividad"
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
-                Agregar actividad
-              </div>
+              {readOnly ? null : (
+                <>
+                  <Button
+                    onClick={onAddActivity}
+                    variant="outline"
+                    className="rounded-full w-6 h-6 p-0 bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 hover:border-blue-300 hover:text-blue-600 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 ease-out"
+                    aria-label="Agregar actividad"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+                    Agregar actividad
+                  </div>
+                </>
+              )}
             </div>
             <h3
               className={`font-semibold text-sm transition-colors duration-200 ${

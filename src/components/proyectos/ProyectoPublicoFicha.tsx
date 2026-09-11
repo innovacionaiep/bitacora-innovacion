@@ -11,7 +11,6 @@ import {
 } from '@/app/proyectos/tabs/ProyectoTabs';
 import { GeneralTab, GeneralTabHeader } from '@/app/proyectos/tabs/GeneralTab';
 import { ParticipantesTab } from '@/app/proyectos/tabs/ParticipantesTab';
-import { ConvenioTab } from '@/app/proyectos/tabs/ConvenioTab';
 import { EscalamientoTab } from '@/app/proyectos/tabs/EscalamientoTab';
 import { IgipTrlTab } from '@/app/proyectos/tabs/IgipTrlTab';
 import { useGeneralTab } from '@/app/proyectos/tabs/useGeneralTab';
@@ -23,9 +22,8 @@ import {
   useFetchProyectoParticipantes,
 } from '@/hooks/useProyectoQuery';
 import { useQueryClient } from '@tanstack/react-query';
-import { isConvenioTabPendiente } from '@/lib/proyecto-detail-cache';
 import {
-  visibleProjectNavTabs,
+  visiblePublicProjectNavTabs,
   type LineaModuloCatalogItem,
 } from '@/lib/linea-modulos';
 import { cn } from '@/lib/utils';
@@ -135,7 +133,7 @@ export function ProyectoPublicoFicha({
 
   const visibleProjectTabs = useMemo(
     () =>
-      visibleProjectNavTabs(
+      visiblePublicProjectNavTabs(
         PROJECT_NAV_TABS,
         selectedProject?.fondo,
         selectedProject?.linea,
@@ -174,9 +172,6 @@ export function ProyectoPublicoFicha({
           <div className="mx-auto flex min-w-max items-stretch justify-center gap-1 px-2 sm:gap-2">
             {visibleProjectTabs.map((tab) => {
               const isActive = selectedTab === tab.id;
-              const convenioPendiente =
-                tab.id === 'Convenio' &&
-                isConvenioTabPendiente(selectedProject);
               return (
                 <button
                   key={tab.id}
@@ -184,15 +179,10 @@ export function ProyectoPublicoFicha({
                   onClick={() => setSelectedTab(tab.id)}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'group relative whitespace-nowrap px-3 text-[13px] tracking-wide focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm',
-                    convenioPendiente
-                      ? 'convenio-tab-pendiente self-center py-1 font-medium'
-                      : cn(
-                          'py-2 transition-colors',
-                          isActive
-                            ? 'font-medium text-gray-900'
-                            : 'font-normal text-gray-500 hover:text-gray-800'
-                        )
+                    'group relative whitespace-nowrap px-3 text-[13px] tracking-wide focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 rounded-sm py-2 transition-colors',
+                    isActive
+                      ? 'font-medium text-gray-900'
+                      : 'font-normal text-gray-500 hover:text-gray-800'
                   )}
                 >
                   {tab.label}
@@ -200,11 +190,9 @@ export function ProyectoPublicoFicha({
                     aria-hidden
                     className={cn(
                       'absolute inset-x-2.5 bottom-0 h-0.5 rounded-full transition-colors',
-                      convenioPendiente
-                        ? 'bg-transparent'
-                        : isActive
-                          ? 'bg-emerald-600'
-                          : 'bg-transparent group-hover:bg-gray-300'
+                      isActive
+                        ? 'bg-emerald-600'
+                        : 'bg-transparent group-hover:bg-gray-300'
                     )}
                   />
                 </button>
@@ -294,17 +282,6 @@ export function ProyectoPublicoFicha({
         </div>
 
         <div className="mt-4 flex-1 overflow-hidden">
-          {visibleTabIds.has('Convenio') && mountedTabs.has('Convenio') && (
-            <div
-              className={
-                selectedTab === 'Convenio'
-                  ? 'h-full overflow-y-auto custom-scrollbar'
-                  : 'hidden'
-              }
-            >
-              <ConvenioTab project={selectedProject} setProject={setProject} />
-            </div>
-          )}
           {mountedTabs.has('General') && (
             <div className={selectedTab === 'General' ? 'h-full' : 'hidden'}>
               <GeneralTab

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -269,6 +270,7 @@ export function PresupuestoCard({
   onCargaMasiva,
   onPresupuestoAdjudicadoChange,
 }: PresupuestoCardProps) {
+  const publicReadOnly = usePublicReadOnly();
   const queryClient = useQueryClient();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const wantNativeFullscreenRef = useRef(false);
@@ -768,7 +770,7 @@ export function PresupuestoCard({
                       <X className="h-3.5 w-3.5 text-gray-700" />
                     </button>
                   </div>
-                ) : canEditAdjudicado ? (
+                ) : canEditAdjudicado && !publicReadOnly ? (
                   <button
                     type="button"
                     onClick={startEditingAdjudicado}
@@ -1125,7 +1127,7 @@ export function PresupuestoCard({
                                     <X className="h-4 w-4 text-gray-700" />
                                   </button>
                                 </>
-                              ) : (
+                              ) : publicReadOnly ? null : (
                                 <>
                                   <button
                                     type="button"
@@ -1674,7 +1676,7 @@ export function PresupuestoCard({
                       <TableCell className="text-center align-middle  whitespace-normal" />
                     </TableRow>
                   )}
-                  {!isAddingRow && (
+                  {!isAddingRow && !publicReadOnly && (
                     <TableRow className="border-t-2 border-dashed border-gray-200">
                       <TableCell colSpan={11} className="py-4">
                         <div className="flex items-center justify-center px-2">

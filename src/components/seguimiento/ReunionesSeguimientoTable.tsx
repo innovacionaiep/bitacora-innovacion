@@ -11,6 +11,7 @@ import {
   toggleCompromiso,
   updateReunion,
 } from '@/lib/actions/seguimiento';
+import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 import { Check, Loader2, Pencil, Plus, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { userHasAdminEnabled } from '@/lib/authz/pure';
@@ -112,6 +113,8 @@ function HoverEditButton({
   onClick: () => void;
   label: string;
 }) {
+  const readOnly = usePublicReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"
@@ -145,6 +148,7 @@ export function ReunionesSeguimientoTable({
   onOptimisticReunionUpdate,
   onOptimisticReunionRemove,
 }: ReunionesSeguimientoTableProps) {
+  const publicReadOnly = usePublicReadOnly();
   const [draft, setDraft] = useState<DraftReunion | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
 
@@ -207,9 +211,11 @@ export function ReunionesSeguimientoTable({
   }, [addCompromisoReunionId]);
 
   const canCreateEdit =
-    isAdmin || partPerms?.['compromisos.create_edit'] === true;
+    !publicReadOnly &&
+    (isAdmin || partPerms?.['compromisos.create_edit'] === true);
   const canMarkRealizado =
-    isAdmin || partPerms?.['compromisos.mark_done'] === true;
+    !publicReadOnly &&
+    (isAdmin || partPerms?.['compromisos.mark_done'] === true);
 
   const startDraft = () => {
     if (draft || savingDraft) return;
