@@ -39,6 +39,10 @@ export type LinkPublicoActivo = {
   url: string;
 };
 
+export type LinkPublicoActivoRow = LinkPublicoActivo & {
+  proyecto: string;
+};
+
 function toLinkPublicoActivo(row: {
   token: string;
   proyectoId: string;
@@ -71,6 +75,37 @@ export async function listProyectosNombresLinksPublicos(): Promise<{
   } catch (e) {
     console.error('[listProyectosNombresLinksPublicos]', e);
     return { success: false, error: 'Error al listar proyectos' };
+  }
+}
+
+export async function listLinksPublicosActivos(): Promise<{
+  success: boolean;
+  data?: LinkPublicoActivoRow[];
+  error?: string;
+}> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { success: false, error: gate.error };
+  try {
+    const rows = await prisma.proyectoLinkPublico.findMany({
+      where: { revokedAt: null },
+      orderBy: { proyecto: { proyecto: 'asc' } },
+      select: {
+        token: true,
+        proyectoId: true,
+        createdAt: true,
+        proyecto: { select: { proyecto: true } },
+      },
+    });
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...toLinkPublicoActivo(row),
+        proyecto: row.proyecto.proyecto,
+      })),
+    };
+  } catch (e) {
+    console.error('[listLinksPublicosActivos]', e);
+    return { success: false, error: prismaLinkError(e) };
   }
 }
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireAdmin = vi.fn();
 const findManyProyectos = vi.fn();
+const findManyLinks = vi.fn();
 const findFirstLink = vi.fn();
 const findUniqueProyecto = vi.fn();
 const createLink = vi.fn();
@@ -23,6 +24,7 @@ vi.mock('@/lib/prisma', () => ({
     },
     proyectoLinkPublico: {
       findFirst: (...args: unknown[]) => findFirstLink(...args),
+      findMany: (...args: unknown[]) => findManyLinks(...args),
       create: (...args: unknown[]) => createLink(...args),
       updateMany: (...args: unknown[]) => updateManyLink(...args),
     },
@@ -41,6 +43,7 @@ describe('configuracion-links-publicos', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
     findManyProyectos.mockReset();
+    findManyLinks.mockReset();
     findFirstLink.mockReset();
     findUniqueProyecto.mockReset();
     createLink.mockReset();
@@ -103,5 +106,42 @@ describe('configuracion-links-publicos', () => {
       where: { proyectoId: 'p1', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it('lista solo links activos con nombre y url', async () => {
+    const token = 'ab'.repeat(32);
+    findManyLinks.mockResolvedValue([
+      {
+        token,
+        proyectoId: 'p1',
+        createdAt: new Date('2026-09-11'),
+        proyecto: { proyecto: 'Nalca Essence' },
+      },
+    ]);
+    const { listLinksPublicosActivos } = await loadActions();
+    const result = await listLinksPublicosActivos();
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([
+      {
+        token,
+        proyectoId: 'p1',
+        proyecto: 'Nalca Essence',
+        createdAt: expect.any(Date),
+        url: `https://bitacora-innovacion.vercel.app/p/${token}`,
+      },
+    ]);
+    expect(findManyLinks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { revokedAt: null },
+      })
+    );
+  });
+
+  it('no lista links activos si no es admin', async () => {
+    requireAdmin.mockResolvedValue({ ok: false, error: 'Solo Admin' });
+    const { listLinksPublicosActivos } = await loadActions();
+    const result = await listLinksPublicosActivos();
+    expect(result.success).toBe(false);
+    expect(findManyLinks).not.toHaveBeenCalled();
   });
 });

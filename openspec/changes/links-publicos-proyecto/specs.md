@@ -3,7 +3,7 @@
 ## Requirements
 
 ### R1 — Config tab
-Admin with `view.ajustes` MUST see Configuración → Links públicos. The panel MUST list all project names in a dropdown. When a project is selected and it has no active link, the UI MUST show Generar link público. When it has an active link, the UI MUST show the absolute URL, a copy action, and Caducar link.
+Admin with `view.ajustes` MUST see Configuración → Links públicos. The panel MUST list all project names in a dropdown. When a project is selected and it has no active link, the UI MUST show Generar link público. When it has an active link, the UI MUST show the absolute URL, a copy action, and Caducar link. Below that, the panel MUST show a table of projects that currently have an active link (project name, URL, Caducar).
 
 ### R2 — One active link
 A project MUST have at most one active public link (`revokedAt` is null). Generating MUST fail if one is already active. Caducar MUST set `revokedAt` and MUST NOT delete the row. After caducar, Generar MUST create a new token.
