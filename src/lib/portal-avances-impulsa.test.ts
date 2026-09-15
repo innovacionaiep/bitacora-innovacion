@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 import {
+  parseIdVinculamos,
   parseImpulsaHonorarios,
   parseImpulsaPercent,
   parseImpulsaPct,
@@ -43,6 +44,46 @@ async function workbookBuffer(opts?: {
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
 }
+
+function excelSerialFromUtcYmd(y: number, m: number, d: number): number {
+  return Math.round(
+    (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000,
+  );
+}
+
+describe('parseIdVinculamos', () => {
+  it('deja IDs numéricos como texto, incluso seriales de Excel', () => {
+    expect(parseIdVinculamos(18698)).toBe('18698');
+    expect(parseIdVinculamos(20640)).toBe('20640');
+    expect(parseIdVinculamos(20703)).toBe('20703');
+    expect(parseIdVinculamos(20782)).toBe('20782');
+  });
+
+  it('recupera el ID si Excel entregó un Date', () => {
+    const serial = excelSerialFromUtcYmd(1956, 10, 13);
+    expect(parseIdVinculamos(new Date(Date.UTC(1956, 9, 13)))).toBe(
+      String(serial),
+    );
+  });
+
+  it('recupera el ID si un import previo lo guardó como YYYY-MM-DD', () => {
+    expect(parseIdVinculamos('1956-10-13')).toBe(
+      String(excelSerialFromUtcYmd(1956, 10, 13)),
+    );
+    expect(parseIdVinculamos('1956-12-15')).toBe(
+      String(excelSerialFromUtcYmd(1956, 12, 15)),
+    );
+    expect(parseIdVinculamos('1957-03-04')).toBe(
+      String(excelSerialFromUtcYmd(1957, 3, 4)),
+    );
+  });
+
+  it('conserva texto no numérico', () => {
+    expect(parseIdVinculamos('Sin registro')).toBe('Sin registro');
+    expect(parseIdVinculamos('')).toBe('');
+    expect(parseIdVinculamos(null)).toBe('');
+  });
+});
 
 describe('parseImpulsaPercent', () => {
   it('trata 0–1 como fracción de Excel', () => {
@@ -320,6 +361,66 @@ describe('parseImpulsaWorkbook', () => {
     expect(result.rows[0]?.encargado).toBe('jeremy.torres@aiep.cl');
     expect(impulsaRowsToAvances(result.rows)[0]?.encargado).toBe(
       'jeremy.torres@aiep.cl',
+    );
+  });
+
+  it('no convierte ID Vinculamos numérico a fecha', async () => {
+    const buffer = await workbookBuffer({
+      rows: [
+        [
+          'Fondo Impulsa',
+          'Fluorcheck',
+          'Bellavista',
+          'Salud',
+          20640,
+          1,
+          1,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+        ],
+      ],
+    });
+    const result = await parseImpulsaWorkbook(
+      buffer,
+      PORTAL_AVANCES_IMPULSA_DEFAULT_SHEET,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows[0]?.idVinculamos).toBe('20640');
+    expect(impulsaRowsToAvances(result.rows)[0]?.idVinculamos).toBe('20640');
+  });
+
+  it('repara ID Vinculamos ya guardado como fecha ISO', () => {
+    const mapped = impulsaRowsToAvances([
+      {
+        rowNumber: 2,
+        proyecto: 'Fluorcheck',
+        encargado: '',
+        sede: 'Bellavista',
+        escuelas: [],
+        carreras: [],
+        asignaturas: [],
+        idVinculamos: '1956-10-13',
+        estudiantes: null,
+        docentes: null,
+        beneficiarios: null,
+        avanceGantt: { kind: 'pct', value: 0 },
+        avanceIndicadores: { kind: 'pct', value: 0 },
+        presupuestoAdjudicado: 0,
+        avanceOperativoSolicitado: { kind: 'pct', value: 0 },
+        avanceOperativoEjecutado: { kind: 'pct', value: 0 },
+        honorarios: { kind: 'na' },
+        saldoPresupuesto: 0,
+      },
+    ]);
+    expect(mapped[0]?.idVinculamos).toBe(
+      String(excelSerialFromUtcYmd(1956, 10, 13)),
     );
   });
 

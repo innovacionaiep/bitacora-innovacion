@@ -31,6 +31,7 @@ import {
   type MideimpactoIniciativaColumnKey,
   type MideimpactoIniciativasPage,
 } from '@/lib/mideimpacto-iniciativas';
+import { downloadVinculamosExcel } from '@/lib/portal-vinculamos-excel';
 import {
   EMPTY_VINCULAMOS_FILTERS,
   defaultVinculamosVisibleColumns,
@@ -124,6 +125,7 @@ export function VitrinaVinculamosView({
   const [total, setTotal] = useState<number | null>(initial.data?.total ?? null);
   const [loadingPage, setLoadingPage] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [filters, setFilters] = useState<VinculamosFilters>(EMPTY_VINCULAMOS_FILTERS);
   const [visibleColumns, setVisibleColumns] = useState(
     defaultVinculamosVisibleColumns,
@@ -251,6 +253,27 @@ export function VitrinaVinculamosView({
   const error = initial.success
     ? null
     : initial.error ?? 'No se pudieron cargar las iniciativas';
+  const downloadDisabled =
+    Boolean(error) ||
+    filtered.length === 0 ||
+    loadingPage != null ||
+    downloading;
+  const downloadLabel =
+    loadingPage != null
+      ? 'Cargando iniciativas…'
+      : filtered.length === 0
+        ? 'No hay iniciativas para descargar'
+        : 'Descargar Excel';
+
+  const handleDownload = async () => {
+    if (downloadDisabled) return;
+    setDownloading(true);
+    try {
+      await downloadVinculamosExcel(filtered, columns);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="flex h-full min-h-0 w-full items-stretch bg-white">
@@ -272,6 +295,11 @@ export function VitrinaVinculamosView({
             toggleVinculamosColumn(current, columnId),
           );
         }}
+        onDownload={() => {
+          void handleDownload();
+        }}
+        downloadDisabled={downloadDisabled}
+        downloadLabel={downloadLabel}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-auto px-4 py-4 lg:px-8">

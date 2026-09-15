@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { VitrinaVinculamosView } from '@/components/vitrina/VitrinaVinculamosView';
 import { getMideimpactoIniciativas } from '@/lib/actions/mideimpacto-iniciativas';
+import { downloadVinculamosExcel } from '@/lib/portal-vinculamos-excel';
 import {
   emptyMideimpactoIniciativa,
   type MideimpactoIniciativa,
@@ -12,11 +13,21 @@ vi.mock('@/lib/actions/mideimpacto-iniciativas', () => ({
   getMideimpactoIniciativas: vi.fn(),
 }));
 
+vi.mock('@/lib/portal-vinculamos-excel', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/portal-vinculamos-excel')>();
+  return {
+    ...actual,
+    downloadVinculamosExcel: vi.fn(),
+  };
+});
+
 const fetchMock = vi.mocked(getMideimpactoIniciativas);
+const downloadMock = vi.mocked(downloadVinculamosExcel);
 
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
+  downloadMock.mockReset();
 });
 
 function row(
@@ -429,5 +440,46 @@ describe('VitrinaVinculamosView', () => {
     expect(await screen.findByText('Página dos')).toBeInTheDocument();
     expect(screen.getByText('Huertos urbanos')).toBeInTheDocument();
     expect(screen.getByText(/2 \/ 2 iniciativas/)).toBeInTheDocument();
+  });
+
+  it('descarga Excel al pulsar el botón del sidebar', async () => {
+    const user = userEvent.setup();
+    downloadMock.mockResolvedValue(undefined);
+    render(
+      <VitrinaVinculamosView
+        onBack={vi.fn()}
+        initial={{
+          success: true,
+          data: pageOf([row({ id: '12', nombre: 'Huertos urbanos' })]),
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Descargar Excel' }));
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+    expect(downloadMock.mock.calls[0]?.[0][0]?.nombre).toBe('Huertos urbanos');
+  });
+
+  it('deshabilita la descarga mientras carga páginas o no hay filas', () => {
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    const { unmount } = render(
+      <VitrinaVinculamosView
+        onBack={vi.fn()}
+        initial={{
+          success: true,
+          data: pageOf([row({ id: '12', nombre: 'Huertos urbanos' })], 1, 2, 2),
+        }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Cargando iniciativas…' })).toBeDisabled();
+    unmount();
+    render(
+      <VitrinaVinculamosView
+        onBack={vi.fn()}
+        initial={{ success: true, data: pageOf([]) }}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'No hay iniciativas para descargar' }),
+    ).toBeDisabled();
   });
 });

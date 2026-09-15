@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
+  Download,
   GraduationCap,
   Hash,
   Landmark,
@@ -192,6 +193,9 @@ export function VitrinaVinculamosSidebar({
   columnOptions,
   visibleColumns,
   onToggleColumn,
+  onDownload,
+  downloadDisabled,
+  downloadLabel,
 }: {
   options: VinculamosFilters;
   filters: VinculamosFilters;
@@ -202,6 +206,9 @@ export function VitrinaVinculamosSidebar({
   columnOptions: readonly MideimpactoIniciativaColumn[];
   visibleColumns: MideimpactoIniciativaColumnKey[];
   onToggleColumn: (columnId: MideimpactoIniciativaColumnKey) => void;
+  onDownload: () => void;
+  downloadDisabled: boolean;
+  downloadLabel: string;
 }) {
   const filtersActive = vinculamosFiltersAreActive(filters);
   const [openFacet, setOpenFacet] = useState<OpenFacet | null>(null);
@@ -313,6 +320,25 @@ export function VitrinaVinculamosSidebar({
               Ocultar filtros
             </>
           )}
+        </button>
+      </div>
+      <div className={cn('shrink-0 pb-2', collapsed ? 'px-2' : 'px-5')}>
+        <button
+          type="button"
+          onClick={onDownload}
+          disabled={downloadDisabled}
+          aria-label={downloadLabel}
+          title={downloadLabel}
+          className={cn(
+            'inline-flex h-9 items-center gap-2 rounded-md text-xs font-medium',
+            collapsed ? 'w-full justify-center' : 'w-full px-1.5',
+            downloadDisabled
+              ? 'cursor-not-allowed text-slate-300'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+          )}
+        >
+          <Download className="h-4 w-4 shrink-0" aria-hidden />
+          {collapsed ? null : 'Descargar Excel'}
         </button>
       </div>
       <div

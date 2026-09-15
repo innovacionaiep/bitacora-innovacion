@@ -87,6 +87,50 @@ export const EMPTY_VCM_STORED: PortalAvancesImpulsaStored = {
   rows: [],
 };
 
+const EXCEL_SERIAL_EPOCH_UTC = Date.UTC(1899, 11, 30);
+
+function excelSerialFromUtcYmd(y: number, m: number, d: number): number {
+  return Math.round((Date.UTC(y, m - 1, d) - EXCEL_SERIAL_EPOCH_UTC) / 86400000);
+}
+
+function isValidUtcYmd(y: number, m: number, d: number): boolean {
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+/** ID Vinculamos es texto/código; no usar cellStr (convierte seriales Excel a fechas). */
+export function parseIdVinculamos(raw: unknown): string {
+  if (raw == null || raw === '') return '';
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return String(
+      excelSerialFromUtcYmd(
+        raw.getUTCFullYear(),
+        raw.getUTCMonth() + 1,
+        raw.getUTCDate(),
+      ),
+    );
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return String(Math.round(raw));
+  }
+  const text = String(raw).trim();
+  if (!text) return '';
+  const ymd = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+  if (ymd) {
+    const y = Number(ymd[1]);
+    const m = Number(ymd[2]);
+    const d = Number(ymd[3]);
+    if (isValidUtcYmd(y, m, d)) {
+      return String(excelSerialFromUtcYmd(y, m, d));
+    }
+  }
+  return text;
+}
+
 function excelCellRaw(cell: ExcelJS.Cell): unknown {
   const v = cell.value;
   if (v == null) return null;
@@ -249,7 +293,9 @@ export function parseImpulsaRowsFromSheet(
       asignaturas: parseImpulsaCommaList(
         cellByHeader(excelRow, idx, 'ASIGNATURAS'),
       ),
-      idVinculamos: cellStr(cellByHeader(excelRow, idx, 'ID VINCULAMOS')),
+      idVinculamos: parseIdVinculamos(
+        cellByHeader(excelRow, idx, 'ID VINCULAMOS'),
+      ),
       estudiantes: parseImpulsaInt(cellByHeader(excelRow, idx, 'ESTUDIANTES')),
       docentes: parseImpulsaInt(cellByHeader(excelRow, idx, 'DOCENTES')),
       beneficiarios: parseImpulsaInt(
@@ -358,7 +404,7 @@ export function impulsaRowsToAvances(
       avanceOperativoEjecutado: operativoEjecutado.value,
       operativoEjecutadoNoAplica: operativoEjecutado.noAplica,
       saldoPresupuesto: row.saldoPresupuesto,
-      idVinculamos: row.idVinculamos,
+      idVinculamos: parseIdVinculamos(row.idVinculamos),
       estudiantes: row.estudiantes,
       docentes: row.docentes,
       beneficiarios: row.beneficiarios,
