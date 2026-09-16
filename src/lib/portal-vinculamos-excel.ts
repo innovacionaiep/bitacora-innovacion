@@ -60,47 +60,47 @@ function hasVisibleKey(
   return columns.some((col) => set.has(col.key));
 }
 
-function dimensionLines<T>(lines: T[], emptyLine: T, expand: boolean): T[] {
-  if (!expand) return [emptyLine];
-  if (lines.length === 0) return [emptyLine];
-  return lines;
+function dimensionSpan(lines: unknown[], expand: boolean): number {
+  if (!expand) return 1;
+  return Math.max(lines.length, 1);
 }
 
-function combinations(
+function lineAt<T>(lines: T[], emptyLine: T, expand: boolean, index: number): T {
+  if (!expand) return emptyLine;
+  return lines[index] ?? emptyLine;
+}
+
+function stackedRows(
   row: MideimpactoIniciativa,
   expandEscuelas: boolean,
   expandTerritorios: boolean,
   expandSocios: boolean,
 ) {
-  const escuelas = dimensionLines(
-    row.escuelasCarreras,
-    EMPTY_ESCUELA,
-    expandEscuelas,
+  const count = Math.max(
+    dimensionSpan(row.escuelasCarreras, expandEscuelas),
+    dimensionSpan(row.territorios, expandTerritorios),
+    dimensionSpan(row.participantesExternos, expandSocios),
   );
-  const territorios = dimensionLines(
-    row.territorios,
-    EMPTY_TERRITORIO,
-    expandTerritorios,
-  );
-  const socios = dimensionLines(
-    row.participantesExternos,
-    EMPTY_SOCIO,
-    expandSocios,
-  );
-
-  const out: {
-    escuela: EscuelaCarreraLine;
-    territorio: TerritorioLine;
-    socio: ParticipanteExternoLine;
-  }[] = [];
-  for (const escuela of escuelas) {
-    for (const territorio of territorios) {
-      for (const socio of socios) {
-        out.push({ escuela, territorio, socio });
-      }
-    }
-  }
-  return out;
+  return Array.from({ length: count }, (_, index) => ({
+    escuela: lineAt(
+      row.escuelasCarreras,
+      EMPTY_ESCUELA,
+      expandEscuelas,
+      index,
+    ),
+    territorio: lineAt(
+      row.territorios,
+      EMPTY_TERRITORIO,
+      expandTerritorios,
+      index,
+    ),
+    socio: lineAt(
+      row.participantesExternos,
+      EMPTY_SOCIO,
+      expandSocios,
+      index,
+    ),
+  }));
 }
 
 function isTransversalKey(key: MideimpactoIniciativaColumnKey): boolean {
@@ -109,6 +109,26 @@ function isTransversalKey(key: MideimpactoIniciativaColumnKey): boolean {
     !isTerritorioSubcolumn(key) &&
     !isParticipanteExternoSubcolumn(key)
   );
+}
+
+function shouldMergeColumn(
+  key: MideimpactoIniciativaColumnKey,
+  row: MideimpactoIniciativa,
+  expandEscuelas: boolean,
+  expandTerritorios: boolean,
+  expandSocios: boolean,
+): boolean {
+  if (isTransversalKey(key)) return true;
+  if (isEscuelasCarrerasSubcolumn(key)) {
+    return expandEscuelas && row.escuelasCarreras.length <= 1;
+  }
+  if (isTerritorioSubcolumn(key)) {
+    return expandTerritorios && row.territorios.length <= 1;
+  }
+  if (isParticipanteExternoSubcolumn(key)) {
+    return expandSocios && row.participantesExternos.length <= 1;
+  }
+  return false;
 }
 
 function combinationCell(
@@ -147,7 +167,7 @@ export function buildVinculamosExcelSheet(
   const merges: VinculamosExcelMerge[] = [];
 
   for (const row of rows) {
-    const combos = combinations(
+    const combos = stackedRows(
       row,
       expandEscuelas,
       expandTerritorios,
@@ -156,7 +176,18 @@ export function buildVinculamosExcelSheet(
     const start = aoa.length;
     combos.forEach((combo, index) => {
       const line = columns.map((col) => {
-        if (index > 0 && isTransversalKey(col.key)) return '';
+        if (
+          index > 0 &&
+          shouldMergeColumn(
+            col.key,
+            row,
+            expandEscuelas,
+            expandTerritorios,
+            expandSocios,
+          )
+        ) {
+          return '';
+        }
         return combinationCell(row, col.key, combo);
       });
       aoa.push(line);
@@ -164,7 +195,17 @@ export function buildVinculamosExcelSheet(
     const end = aoa.length - 1;
     if (end > start) {
       columns.forEach((col, colIndex) => {
-        if (!isTransversalKey(col.key)) return;
+        if (
+          !shouldMergeColumn(
+            col.key,
+            row,
+            expandEscuelas,
+            expandTerritorios,
+            expandSocios,
+          )
+        ) {
+          return;
+        }
         merges.push({
           s: { r: start, c: colIndex },
           e: { r: end, c: colIndex },

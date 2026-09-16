@@ -111,7 +111,7 @@ describe('portal-vinculamos-excel', () => {
     expect(sheet.merges).toEqual([]);
   });
 
-  it('expande 2 escuelas × 3 socios a 6 filas y fusiona nombre y fecha', () => {
+  it('alinea escuelas y socios por índice, sin producto cartesiano', () => {
     const sheet = buildVinculamosExcelSheet(
       [
         row({
@@ -132,19 +132,13 @@ describe('portal-vinculamos-excel', () => {
       COLS,
     );
 
-    expect(sheet.aoa).toHaveLength(7);
+    expect(sheet.aoa).toHaveLength(4);
     expect(sheet.aoa.slice(1).map((line) => line[3])).toEqual([
       'Escuela 1',
-      'Escuela 1',
-      'Escuela 1',
       'Escuela 2',
-      'Escuela 2',
-      'Escuela 2',
+      '—',
     ]);
     expect(sheet.aoa.slice(1).map((line) => line[5])).toEqual([
-      'Socio 1',
-      'Socio 2',
-      'Socio 3',
       'Socio 1',
       'Socio 2',
       'Socio 3',
@@ -153,19 +147,93 @@ describe('portal-vinculamos-excel', () => {
     expect(sheet.aoa[2][1]).toBe('');
     expect(sheet.aoa[1][2]).toBe('2025-12-31');
     expect(sheet.aoa.slice(2).every((line) => line[2] === '')).toBe(true);
-    expect(sheet.aoa.slice(1).every((line) => line[4] === 'Viña')).toBe(true);
+    expect(sheet.aoa[1][4]).toBe('Viña');
+    expect(sheet.aoa.slice(2).every((line) => line[4] === '')).toBe(true);
 
     expect(sheet.merges).toEqual(
       expect.arrayContaining([
-        { s: { r: 1, c: 1 }, e: { r: 6, c: 1 } },
-        { s: { r: 1, c: 2 }, e: { r: 6, c: 2 } },
-        { s: { r: 1, c: 0 }, e: { r: 6, c: 0 } },
-        { s: { r: 1, c: 6 }, e: { r: 6, c: 6 } },
+        { s: { r: 1, c: 1 }, e: { r: 3, c: 1 } },
+        { s: { r: 1, c: 2 }, e: { r: 3, c: 2 } },
+        { s: { r: 1, c: 0 }, e: { r: 3, c: 0 } },
+        { s: { r: 1, c: 4 }, e: { r: 3, c: 4 } },
+        { s: { r: 1, c: 6 }, e: { r: 3, c: 6 } },
       ]),
     );
-    expect(
-      sheet.merges.some((m) => m.s.c === 3 || m.s.c === 4 || m.s.c === 5),
-    ).toBe(false);
+    expect(sheet.merges.some((m) => m.s.c === 3 || m.s.c === 5)).toBe(false);
+  });
+
+  it('no duplica socios de Mujeres con energía (4 escuelas, 2 socios)', () => {
+    const sheet = buildVinculamosExcelSheet(
+      [
+        row({
+          id: '40',
+          nombre: 'Mujeres con energía',
+          escuelasCarreras: [
+            escuela({
+              sedeNombre: 'Puerto Montt',
+              escuNombre: 'Desarrollo Social y Educación',
+              painEstudiantesFinal: '0',
+              painDocentesFinal: '2',
+            }),
+            escuela({
+              sedeNombre: 'Puerto Montt',
+              escuNombre: 'Artes e Industrias Creativas',
+              painEstudiantesFinal: '0',
+              painDocentesFinal: '1',
+            }),
+            escuela({
+              sedeNombre: 'Puerto Montt',
+              escuNombre: 'Estética Integral',
+              painEstudiantesFinal: '0',
+              painDocentesFinal: '1',
+            }),
+            escuela({
+              sedeNombre: 'Puerto Montt',
+              escuNombre: 'Administración y Gestión Empresarial',
+              painEstudiantesFinal: '11',
+              painDocentesFinal: '3',
+            }),
+          ],
+          territorios: [territorio({ comuna: 'Puerto Montt' })],
+          participantesExternos: [
+            socio({
+              socioComunitario: 'Grupo SAESA',
+              beneficiariosFinal: '163',
+            }),
+            socio({
+              socioComunitario: 'Centro de Negocios Sercotec Puerto Varas',
+              beneficiariosFinal: '1',
+            }),
+          ],
+        }),
+      ],
+      [
+        { key: 'nombre', label: 'Nombre proyecto' },
+        { key: 'escuNombre', label: 'Escuela' },
+        { key: 'socioComunitario', label: 'Socio Comunitario' },
+        { key: 'beneficiariosFinal', label: 'Beneficiarios Final' },
+      ],
+    );
+
+    expect(sheet.aoa).toHaveLength(5);
+    expect(sheet.aoa.slice(1).map((line) => line[1])).toEqual([
+      'Desarrollo Social y Educación',
+      'Artes e Industrias Creativas',
+      'Estética Integral',
+      'Administración y Gestión Empresarial',
+    ]);
+    expect(sheet.aoa.slice(1).map((line) => line[2])).toEqual([
+      'Grupo SAESA',
+      'Centro de Negocios Sercotec Puerto Varas',
+      '—',
+      '—',
+    ]);
+    expect(sheet.aoa.slice(1).map((line) => line[3])).toEqual([
+      '163',
+      '1',
+      '—',
+      '—',
+    ]);
   });
 
   it('una lista vacía no elimina el proyecto', () => {
