@@ -125,13 +125,18 @@ export function VitrinaVideoCarousel({
     void Promise.all(
       missing.map(async (item) => {
         try {
+          // Proxy same-origin: el oEmbed directo a vimeo.com falla en el
+          // navegador (extensiones / red) y Next muestra "Failed to fetch".
           const res = await fetch(
-            `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(item.url)}`,
+            `/api/vimeo-oembed?url=${encodeURIComponent(item.url)}`,
           );
           if (!res.ok) return;
-          const data = (await res.json()) as { thumbnail_url?: string };
+          const data = (await res.json()) as { thumbnail_url?: string | null };
           if (!cancelled && data.thumbnail_url) {
-            setVimeoThumbs((prev) => ({ ...prev, [item.url]: data.thumbnail_url! }));
+            setVimeoThumbs((prev) => ({
+              ...prev,
+              [item.url]: data.thumbnail_url!,
+            }));
           }
         } catch {
           /* miniatura opcional */

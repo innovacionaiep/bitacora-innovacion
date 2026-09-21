@@ -69,8 +69,10 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   const { pathname } = req.nextUrl;
 
   // Salida temprana: no reentrar al chequear estado (evita bucle middleware → API → middleware)
+  // /api/vimeo-oembed: público (landing vitrina sin sesión)
   if (
     pathname === MAINTENANCE_STATUS_API ||
+    pathname === '/api/vimeo-oembed' ||
     isStaticAsset(pathname) ||
     isPublicSeoAsset(pathname)
   ) {

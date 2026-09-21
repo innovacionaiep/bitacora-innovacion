@@ -247,14 +247,16 @@ export function getVideoProviderLabel(provider: VideoProvider): string {
   }
 }
 
-type VimeoOEmbed = {
+export type VimeoOEmbed = {
   width?: number;
   height?: number;
+  thumbnail_url?: string;
   thumbnail_width?: number;
   thumbnail_height?: number;
 };
 
 const vimeoOrientationCache = new Map<string, boolean>();
+const vimeoThumbnailCache = new Map<string, string | null>();
 
 /** True si algún par de dimensiones (player o thumbnail) es portrait. */
 export function isVerticalFromVimeoOEmbed(data: VimeoOEmbed): boolean {
@@ -267,10 +269,46 @@ export function isVerticalFromVimeoOEmbed(data: VimeoOEmbed): boolean {
 }
 
 /**
+ * oEmbed de Vimeo. Preferible en servidor: desde el navegador suele fallar
+ * (extensiones / políticas de red) aunque el endpoint declare CORS *.
+ */
+export async function fetchVimeoOEmbed(
+  pageUrl: string
+): Promise<VimeoOEmbed | null> {
+  const key = pageUrl.trim();
+  if (!key) return null;
+
+  try {
+    const endpoint = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(key)}`;
+    const res = await fetch(endpoint, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()) as VimeoOEmbed;
+  } catch {
+    return null;
+  }
+}
+
+/** Miniatura oEmbed de Vimeo (null si no hay o falla). Cachea éxitos y fallos. */
+export async function fetchVimeoThumbnailUrl(
+  pageUrl: string
+): Promise<string | null> {
+  const key = pageUrl.trim();
+  if (!key) return null;
+
+  if (vimeoThumbnailCache.has(key)) {
+    return vimeoThumbnailCache.get(key) ?? null;
+  }
+
+  const data = await fetchVimeoOEmbed(key);
+  const thumb = data?.thumbnail_url?.trim() || null;
+  vimeoThumbnailCache.set(key, thumb);
+  return thumb;
+}
+
+/**
  * Detecta si un video de Vimeo es vertical (alto > ancho) vía oEmbed.
  * Falla en silencio → false (layout landscape). No cachea errores: un fallo
  * transitorio no debe dejar el video como landscape hasta reiniciar el proceso.
- * Seguro para usar en cliente (oEmbed de Vimeo permite CORS *).
  */
 export async function detectVimeoIsVertical(
   pageUrl: string
@@ -281,18 +319,12 @@ export async function detectVimeoIsVertical(
   const cached = vimeoOrientationCache.get(key);
   if (cached !== undefined) return cached;
 
-  try {
-    const endpoint = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(key)}`;
-    const res = await fetch(endpoint, { cache: 'no-store' });
-    if (!res.ok) return false;
+  const data = await fetchVimeoOEmbed(key);
+  if (!data) return false;
 
-    const data = (await res.json()) as VimeoOEmbed;
-    const isVertical = isVerticalFromVimeoOEmbed(data);
-    vimeoOrientationCache.set(key, isVertical);
-    return isVertical;
-  } catch {
-    return false;
-  }
+  const isVertical = isVerticalFromVimeoOEmbed(data);
+  vimeoOrientationCache.set(key, isVertical);
+  return isVertical;
 }
 
 /**
