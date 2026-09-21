@@ -33,6 +33,8 @@ import {
 } from '@dnd-kit/sortable';
 import { ActivityStatus } from '@prisma/client';
 import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
+import { EvidenciasCargadasPill } from '@/components/proyectos/gantt/EvidenciasCargadasPill';
+import { activityHasEvidencias } from '@/components/proyectos/gantt/gantt-utils';
 
 // Tipos para las columnas del Kanban
 type KanbanStatus = ActivityStatus;
@@ -274,6 +276,9 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
               <span className="text-xs font-medium text-gray-700 flex-shrink-0">
                 {progress}%
               </span>
+              <EvidenciasCargadasPill
+                visible={activityHasEvidencias(activity)}
+              />
             </div>
           </div>
 

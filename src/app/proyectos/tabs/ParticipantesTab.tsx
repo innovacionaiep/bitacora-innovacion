@@ -109,9 +109,9 @@ type FilterOption = { value: string; label: string };
 
 const COL_COUNT = 12;
 
-const CELL_TEXT = 'text-[11px]';
-const INPUT_CELL = 'h-7 text-[11px] w-full min-w-0';
-const SELECT_TRIGGER = 'h-7 text-[11px] w-full min-w-0';
+const CELL_TEXT = 'text-[12px]';
+const INPUT_CELL = 'h-7 text-[12px] w-full min-w-0';
+const SELECT_TRIGGER = 'h-7 text-[12px] w-full min-w-0';
 
 /** Anchos fijos proporcionales (suma 100%) para caber sin scroll horizontal. */
 const COL_W = {
@@ -938,7 +938,7 @@ export function ParticipantesTab({
       key: 'socios',
       icon: Handshake,
       value: counts.sociosComunitarios,
-      label: 'Socios comunitarios',
+      label: 'Socios com.',
     },
   ] as const;
 
@@ -1125,7 +1125,7 @@ export function ParticipantesTab({
                     >
                       <div className="flex flex-col items-center justify-center gap-2 text-gray-400">
                         <Loader2 className="h-6 w-6 animate-spin" />
-                        <span className="text-[11px]">
+                        <span className="text-[12px]">
                           Cargando participantes…
                         </span>
                       </div>
@@ -1136,7 +1136,7 @@ export function ParticipantesTab({
                   <TableRow>
                     <TableCell
                       colSpan={COL_COUNT}
-                      className="text-center text-[11px] text-gray-400 leading-[1.75] py-10"
+                      className="text-center text-[12px] text-gray-400 leading-[1.75] py-10"
                     >
                       No hay participantes que coincidan con los filtros.
                     </TableCell>
@@ -1244,7 +1244,7 @@ export function ParticipantesTab({
                             </Select>
                           ) : (
                             <span
-                              className={`inline-flex items-center rounded border px-1 py-0.5 text-[10px] font-medium whitespace-normal break-words leading-tight ${colorClass}`}
+                              className={`inline-flex items-center rounded border px-1 py-0.5 text-[11px] font-medium whitespace-normal break-words leading-tight ${colorClass}`}
                             >
                               {p.rol}
                             </span>

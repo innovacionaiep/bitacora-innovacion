@@ -95,7 +95,7 @@ export function isConvenioTabPendiente(
   return !isProyectoGeneralShell(project) && !project.convenioFirmadoUrl;
 }
 
-/** Select de lista Gantt: sin _count.evidencias (el modal las carga aparte). */
+/** Select de lista Gantt: incluye _count.evidencias para la pastilla del timeline. */
 export const GET_ACTIVITIES_LIST_SELECT = {
   id: true,
   name: true,
@@ -108,6 +108,9 @@ export const GET_ACTIVITIES_LIST_SELECT = {
   status: true,
   createdAt: true,
   updatedAt: true,
+  _count: {
+    select: { evidencias: true },
+  },
   tasks: {
     select: {
       id: true,
@@ -125,7 +128,7 @@ export const GET_ACTIVITIES_LIST_SELECT = {
   },
 } as const;
 
-export const GET_ACTIVITIES_INCLUDE_EVIDENCIAS_COUNT = false;
+export const GET_ACTIVITIES_INCLUDE_EVIDENCIAS_COUNT = true;
 
 export const PROYECTO_DETAIL_LRU_KEEP = 5;
 

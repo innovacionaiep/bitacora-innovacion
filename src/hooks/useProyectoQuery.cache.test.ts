@@ -55,11 +55,9 @@ describe('GET_PROYECTO_BASE_OPTIONS', () => {
 });
 
 describe('GET_ACTIVITIES_LIST_SELECT', () => {
-  it('does not request evidencias count', () => {
-    expect(GET_ACTIVITIES_INCLUDE_EVIDENCIAS_COUNT).toBe(false);
-    expect(JSON.stringify(GET_ACTIVITIES_LIST_SELECT)).not.toMatch(
-      /evidencias/
-    );
+  it('requests evidencias count for Gantt pills', () => {
+    expect(GET_ACTIVITIES_INCLUDE_EVIDENCIAS_COUNT).toBe(true);
+    expect(GET_ACTIVITIES_LIST_SELECT._count.select.evidencias).toBe(true);
   });
 
   it('selects activity and task fields Gantt needs', () => {

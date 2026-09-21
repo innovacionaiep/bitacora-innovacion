@@ -77,6 +77,7 @@ import {
   useCallback,
 } from 'react';
 import { GanttActivityVirtualList } from '@/components/proyectos/gantt/GanttActivityList';
+import { EvidenciasCargadasPill } from '@/components/proyectos/gantt/EvidenciasCargadasPill';
 import {
   ActivityFieldSaveCancel,
   ActivityHoverEditButton,
@@ -90,8 +91,10 @@ import {
   convertDateToISO,
   formatDateForTooltip,
   getActivityDateRange as computeActivityDateRange,
+  activityHasEvidencias,
   getActivityProgress as computeActivityProgress,
   getActivityRowHeight,
+  withEvidenciasCountDelta,
   getBarWidth as computeBarWidth,
   getDatePosition as computeDatePosition,
   getProjectStats as computeProjectStats,
@@ -550,13 +553,22 @@ const SortableActivity = memo(function SortableActivity({
                     {/* Porcentaje siempre a la derecha de la barra; color negro→esmeralda según avance */}
                     {!expandedDescriptions.has(activity.id) && (
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 text-xs font-semibold z-30 pointer-events-none tabular-nums whitespace-nowrap"
+                        className="absolute top-1/2 -translate-y-1/2 z-30 pointer-events-none flex items-center gap-1.5 whitespace-nowrap"
                         style={{
                           left: `calc(${startPos.left + barWidth}% + 8px)`,
-                          color: getProgressLabelColor(activityProgress),
                         }}
                       >
-                        {activityProgress}%
+                        <span
+                          className="text-xs font-semibold tabular-nums"
+                          style={{
+                            color: getProgressLabelColor(activityProgress),
+                          }}
+                        >
+                          {activityProgress}%
+                        </span>
+                        <EvidenciasCargadasPill
+                          visible={activityHasEvidencias(activity)}
+                        />
                       </div>
                     )}
                   </div>
@@ -850,6 +862,17 @@ export default function GanttChart({
     loadActivities,
     updateActivitiesState, // ← Agregar
   } = useGantt(projectId, initialActivities);
+
+  const bumpEvidenciasCount = useCallback(
+    (activityId: string, delta: number) => {
+      updateActivitiesState((prev) =>
+        prev.map((a) =>
+          a.id === activityId ? withEvidenciasCountDelta(a, delta) : a
+        )
+      );
+    },
+    [updateActivitiesState]
+  );
 
   usePageTopLoader(ganttLoading, {
     completeOnReady: true,
@@ -2902,6 +2925,10 @@ export default function GanttChart({
                                       setEvidenciasActividad((prev) =>
                                         prev.filter((e) => e.id !== ev.id)
                                       );
+                                      bumpEvidenciasCount(
+                                        selectedActivityForPopup.id,
+                                        -1
+                                      );
                                     } else {
                                       alert(res.error ?? 'Error al eliminar');
                                     }
@@ -2966,6 +2993,7 @@ export default function GanttChart({
                                 });
                                 setIsLoadingEvidencias(false);
                                 setEvidenciaUploadOk(true);
+                                bumpEvidenciasCount(actividadId, 1);
                               } else {
                                 alert(
                                   createResult.error ??

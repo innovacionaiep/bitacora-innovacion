@@ -178,6 +178,28 @@ export function getActivityDateRange(
   };
 }
 
+/** True si la actividad tiene al menos una evidencia cargada. */
+export function activityHasEvidencias(
+  activity: { _count?: { evidencias?: number } } | null | undefined
+): boolean {
+  return (activity?._count?.evidencias ?? 0) > 0;
+}
+
+/** Ajusta el conteo de evidencias en memoria (p. ej. al subir o borrar). */
+export function withEvidenciasCountDelta(
+  activity: Activity,
+  delta: number
+): Activity {
+  const current = activity._count?.evidencias ?? 0;
+  return {
+    ...activity,
+    _count: {
+      ...activity._count,
+      evidencias: Math.max(0, current + delta),
+    },
+  };
+}
+
 /** Progreso de una actividad (% de tareas completadas). */
 export function getActivityProgress(activity: Activity): number {
   if (!activity.tasks || activity.tasks.length === 0) {
