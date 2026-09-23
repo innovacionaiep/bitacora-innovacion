@@ -112,22 +112,26 @@ export function convertDateToISO(dateString: string): string {
   return toCalendarYmd(dateString) || dateString;
 }
 
+function fallbackCalendarText(dateString: string | Date): string {
+  return typeof dateString === 'string' ? dateString : '';
+}
+
 export function formatCalendarDisplay(dateString: string | Date): string {
   const parts = parseCalendarParts(dateString);
-  if (!parts) return dateString;
+  if (!parts) return fallbackCalendarText(dateString);
   return `${pad2(parts.day)}-${pad2(parts.month)}-${parts.year}`;
 }
 
 export function formatCalendarPeriod(dateString: string | Date): string {
   const parts = parseCalendarParts(dateString);
-  if (!parts) return dateString;
+  if (!parts) return fallbackCalendarText(dateString);
   const month = MONTHS_ES[parts.month - 1].toUpperCase();
   return `${pad2(parts.day)} ${month} ${parts.year}`;
 }
 
 export function formatCalendarTooltip(dateString: string | Date): string {
   const parts = parseCalendarParts(dateString);
-  if (!parts) return dateString;
+  if (!parts) return fallbackCalendarText(dateString);
   return `${pad2(parts.day)}-${MONTHS_ES[parts.month - 1]}-${parts.year}`;
 }
 

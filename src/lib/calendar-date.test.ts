@@ -61,6 +61,12 @@ describe('formatos de pantalla', () => {
     expect(formatCalendarPeriod('2026-09-24')).toBe('24 SEPTIEMBRE 2026');
     expect(formatCalendarTooltip('2026-09-24')).toBe('24-septiembre-2026');
   });
+
+  it('devuelve string si no puede parsear, también con Date inválida', () => {
+    expect(formatCalendarDisplay('no-es-fecha')).toBe('no-es-fecha');
+    expect(formatCalendarPeriod(new Date(NaN))).toBe('');
+    expect(formatCalendarTooltip(new Date(NaN))).toBe('');
+  });
 });
 
 describe('comparación por día', () => {
