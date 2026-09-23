@@ -104,6 +104,7 @@ import {
   TIMELINE_MAX_OFFSET,
   TIMELINE_MIN_OFFSET,
 } from '@/components/proyectos/gantt/gantt-utils';
+import { compareCalendarDays } from '@/lib/calendar-date';
 import { useGantt, type Activity, type Task } from '@/hooks/useGantt';
 import { usePageTopLoader } from '@/hooks/usePageTopLoader';
 import { ActivityStatus } from '@prisma/client';
@@ -349,8 +350,7 @@ const SortableActivity = memo(function SortableActivity({
                   {activity.tasks
                     .sort(
                       (a, b) =>
-                        new Date(a.startDate).getTime() -
-                        new Date(b.startDate).getTime()
+                        compareCalendarDays(a.startDate, b.startDate)
                     )
                     .map((task, index) => {
                       const taskSpacing = 25;
@@ -582,8 +582,7 @@ const SortableActivity = memo(function SortableActivity({
             activity.tasks
               .sort(
                 (a, b) =>
-                  new Date(a.startDate).getTime() -
-                  new Date(b.startDate).getTime()
+                  compareCalendarDays(a.startDate, b.startDate)
               )
               .map((task, index) => {
                 const taskSpacing = 25;
@@ -3193,8 +3192,7 @@ export default function GanttChart({
                     }
                     tasksToShow = [...tasksToShow].sort(
                       (a, b) =>
-                        new Date(a.startDate).getTime() -
-                        new Date(b.startDate).getTime()
+                        compareCalendarDays(a.startDate, b.startDate)
                     );
 
                     if (tasksToShow.length === 0 && !showInlineAddTask) {

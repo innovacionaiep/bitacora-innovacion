@@ -1,9 +1,13 @@
 import prisma from '@/lib/prisma';
 import {
+  parseStoredAceleradora,
   parseStoredImpulsa,
+  parseStoredMoveLab,
   parseStoredVcm,
   serializeImpulsaStored,
+  PORTAL_AVANCES_ACELERADORA_SETTING_KEY,
   PORTAL_AVANCES_IMPULSA_SETTING_KEY,
+  PORTAL_AVANCES_MOVELAB_SETTING_KEY,
   PORTAL_AVANCES_VCM_SETTING_KEY,
   type PortalAvancesImpulsaStored,
 } from '@/lib/portal-avances-impulsa';
@@ -57,4 +61,30 @@ export async function writeVcmStored(
   stored: PortalAvancesImpulsaStored,
 ): Promise<void> {
   await writeExcelAvancesStored(PORTAL_AVANCES_VCM_SETTING_KEY, stored);
+}
+
+export async function readMoveLabStored(): Promise<PortalAvancesImpulsaStored> {
+  return readExcelAvancesStored(
+    PORTAL_AVANCES_MOVELAB_SETTING_KEY,
+    parseStoredMoveLab,
+  );
+}
+
+export async function writeMoveLabStored(
+  stored: PortalAvancesImpulsaStored,
+): Promise<void> {
+  await writeExcelAvancesStored(PORTAL_AVANCES_MOVELAB_SETTING_KEY, stored);
+}
+
+export async function readAceleradoraStored(): Promise<PortalAvancesImpulsaStored> {
+  return readExcelAvancesStored(
+    PORTAL_AVANCES_ACELERADORA_SETTING_KEY,
+    parseStoredAceleradora,
+  );
+}
+
+export async function writeAceleradoraStored(
+  stored: PortalAvancesImpulsaStored,
+): Promise<void> {
+  await writeExcelAvancesStored(PORTAL_AVANCES_ACELERADORA_SETTING_KEY, stored);
 }

@@ -14,11 +14,15 @@ import {
 } from '@/lib/portal-avances';
 import {
   impulsaRowsToAvances,
+  PORTAL_AVANCES_ACELERADORA_FONDO,
   PORTAL_AVANCES_IMPULSA_FONDO,
+  PORTAL_AVANCES_MOVELAB_FONDO,
   PORTAL_AVANCES_VCM_FONDO,
 } from '@/lib/portal-avances-impulsa';
 import {
+  readAceleradoraStored,
   readImpulsaStored,
+  readMoveLabStored,
   readVcmStored,
 } from '@/lib/portal-avances-impulsa-store';
 
@@ -138,6 +142,40 @@ export async function getPortalAvancesProyectos(): Promise<{
       ...impulsaRowsToAvances(vcm.rows, {
         fondo: PORTAL_AVANCES_VCM_FONDO,
         idPrefix: 'vcm',
+      }),
+    );
+  }
+
+  if (
+    portalAvancesLevelCanSeeFondo(
+      access.level,
+      PORTAL_AVANCES_MOVELAB_FONDO,
+      access.profile,
+      access.kind,
+    )
+  ) {
+    const movelab = await readMoveLabStored();
+    data.push(
+      ...impulsaRowsToAvances(movelab.rows, {
+        fondo: PORTAL_AVANCES_MOVELAB_FONDO,
+        idPrefix: 'movelab',
+      }),
+    );
+  }
+
+  if (
+    portalAvancesLevelCanSeeFondo(
+      access.level,
+      PORTAL_AVANCES_ACELERADORA_FONDO,
+      access.profile,
+      access.kind,
+    )
+  ) {
+    const aceleradora = await readAceleradoraStored();
+    data.push(
+      ...impulsaRowsToAvances(aceleradora.rows, {
+        fondo: PORTAL_AVANCES_ACELERADORA_FONDO,
+        idPrefix: 'aceleradora',
       }),
     );
   }

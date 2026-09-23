@@ -50,36 +50,157 @@ vi.mock('@/lib/actions/portal-avances-impulsa', () => ({
   getImpulsaExcelSettings: vi.fn(async () => ({
     success: true,
     data: {
-      filePath: '',
+      filePath: 'C:\\excel.xlsx',
       sheetName: 'IMPULSA',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  saveImpulsaExcelSettings: vi.fn(async (input: {
+    filePath: string;
+    sheetName: string;
+  }) => ({
+    success: true,
+    data: {
+      filePath: input.filePath,
+      sheetName: input.sheetName,
       fileOk: false,
       sheetOk: false,
       lastSyncedAt: null,
       rowCount: 0,
     },
   })),
-  saveImpulsaExcelSettings: vi.fn(),
-  testImpulsaExcelFile: vi.fn(),
-  testImpulsaExcelSheet: vi.fn(),
-  updateImpulsaExcelSnapshot: vi.fn(),
+  testImpulsaExcelFile: vi.fn(async () => ({ success: true })),
+  updateImpulsaExcelSnapshot: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'IMPULSA',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: '2026-09-21T00:00:00.000Z',
+      rowCount: 3,
+    },
+  })),
 }));
 
 vi.mock('@/lib/actions/portal-avances-vcm', () => ({
   getVcmExcelSettings: vi.fn(async () => ({
     success: true,
     data: {
-      filePath: '',
+      filePath: 'C:\\excel.xlsx',
       sheetName: 'Fondo VcM',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  saveVcmExcelSettings: vi.fn(async (input: {
+    filePath: string;
+    sheetName: string;
+  }) => ({
+    success: true,
+    data: {
+      filePath: input.filePath,
+      sheetName: input.sheetName,
       fileOk: false,
       sheetOk: false,
       lastSyncedAt: null,
       rowCount: 0,
     },
   })),
-  saveVcmExcelSettings: vi.fn(),
-  testVcmExcelFile: vi.fn(),
-  testVcmExcelSheet: vi.fn(),
-  updateVcmExcelSnapshot: vi.fn(),
+  updateVcmExcelSnapshot: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'Fondo VcM',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: '2026-09-21T00:00:00.000Z',
+      rowCount: 2,
+    },
+  })),
+}));
+
+vi.mock('@/lib/actions/portal-avances-movelab', () => ({
+  getMoveLabExcelSettings: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'MoveLab',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  saveMoveLabExcelSettings: vi.fn(async (input: {
+    filePath: string;
+    sheetName: string;
+  }) => ({
+    success: true,
+    data: {
+      filePath: input.filePath,
+      sheetName: input.sheetName,
+      fileOk: false,
+      sheetOk: false,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  updateMoveLabExcelSnapshot: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'MoveLab',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: '2026-09-21T00:00:00.000Z',
+      rowCount: 10,
+    },
+  })),
+}));
+
+vi.mock('@/lib/actions/portal-avances-aceleradora', () => ({
+  getAceleradoraExcelSettings: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'ACELERADORA',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  saveAceleradoraExcelSettings: vi.fn(async (input: {
+    filePath: string;
+    sheetName: string;
+  }) => ({
+    success: true,
+    data: {
+      filePath: input.filePath,
+      sheetName: input.sheetName,
+      fileOk: false,
+      sheetOk: false,
+      lastSyncedAt: null,
+      rowCount: 0,
+    },
+  })),
+  updateAceleradoraExcelSnapshot: vi.fn(async () => ({
+    success: true,
+    data: {
+      filePath: 'C:\\excel.xlsx',
+      sheetName: 'ACELERADORA',
+      fileOk: true,
+      sheetOk: true,
+      lastSyncedAt: '2026-09-21T00:00:00.000Z',
+      rowCount: 8,
+    },
+  })),
 }));
 
 vi.mock('@/lib/actions/portal-outlook', () => ({
@@ -151,24 +272,77 @@ describe('VitrinaAiSettingsModal sidebar', () => {
   });
 });
 
-describe('VitrinaAiSettingsModal Vinculación con el Medio', () => {
-  it('muestra ruta, hoja Fondo VcM y botones de prueba', async () => {
+describe('VitrinaAiSettingsModal Excel Onedrive', () => {
+  it('muestra el menú unificado y no las pestañas sueltas de fondos Excel', async () => {
     const user = userEvent.setup();
     render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: 'Vinculación con el Medio' }),
+        screen.getByRole('button', { name: 'Excel Onedrive' }),
       ).toBeInTheDocument();
     });
-    await user.click(
-      screen.getByRole('button', { name: 'Vinculación con el Medio' }),
+    expect(
+      screen.queryByRole('button', { name: 'Fondo Impulsa' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Aceleradora' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'MoveLab' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Vinculación con el Medio' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Excel Onedrive' }));
+    expect(screen.getByLabelText('Ruta del archivo .xlsx')).toHaveValue(
+      'C:\\excel.xlsx',
     );
-    expect(screen.getByLabelText('Ruta del archivo .xlsx')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hoja')).toHaveValue('Fondo VcM');
-    expect(screen.getByRole('button', { name: 'Guardar ruta' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Probar archivo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Probar hoja' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument();
+    expect(document.getElementById('excel-sheet-impulsa')).toHaveValue('IMPULSA');
+    expect(document.getElementById('excel-sheet-aceleradora')).toHaveValue(
+      'ACELERADORA',
+    );
+    expect(document.getElementById('excel-sheet-movelab')).toHaveValue('MoveLab');
+    expect(document.getElementById('excel-sheet-vcm')).toHaveValue('Fondo VcM');
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Probar archivo' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Actualizar todo' }),
+    ).toBeInTheDocument();
+  });
+
+  it('Actualizar todo llama a los cuatro snapshots', async () => {
+    const { updateImpulsaExcelSnapshot } = await import(
+      '@/lib/actions/portal-avances-impulsa'
+    );
+    const { updateAceleradoraExcelSnapshot } = await import(
+      '@/lib/actions/portal-avances-aceleradora'
+    );
+    const { updateMoveLabExcelSnapshot } = await import(
+      '@/lib/actions/portal-avances-movelab'
+    );
+    const { updateVcmExcelSnapshot } = await import(
+      '@/lib/actions/portal-avances-vcm'
+    );
+
+    const user = userEvent.setup();
+    render(<VitrinaAiSettingsModal open onOpenChange={() => undefined} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Excel Onedrive' }),
+      ).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Excel Onedrive' }));
+    await user.click(screen.getByRole('button', { name: 'Actualizar todo' }));
+
+    await waitFor(() => {
+      expect(updateImpulsaExcelSnapshot).toHaveBeenCalled();
+      expect(updateAceleradoraExcelSnapshot).toHaveBeenCalled();
+      expect(updateMoveLabExcelSnapshot).toHaveBeenCalled();
+      expect(updateVcmExcelSnapshot).toHaveBeenCalled();
+    });
   });
 });
 

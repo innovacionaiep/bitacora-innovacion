@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCalendarPeriod } from '@/lib/calendar-date';
 
 interface PeriodTimelineProps {
   startDate?: string;
@@ -11,19 +12,6 @@ export const PeriodTimeline: React.FC<PeriodTimelineProps> = ({
   endDate,
   className = '',
 }) => {
-  // Función para formatear fecha en formato chileno
-  const formatDateChilean = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = date.toLocaleDateString('es-ES', { month: 'long' });
-    const year = date.getFullYear();
-
-    // Capitalizar la primera letra del mes
-    const capitalizedMonth = month.charAt(0).toUpperCase() + month.slice(1);
-
-    return `${day} ${capitalizedMonth.toUpperCase()} ${year}`;
-  };
-
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex space-x-4">
@@ -32,7 +20,7 @@ export const PeriodTimeline: React.FC<PeriodTimelineProps> = ({
           <span className="text-xs font-medium text-gray-600">Inicio:</span>
           <div className="bg-white border border-gray-300 rounded-md px-3 py-2 shadow-sm">
             <span className="text-sm text-gray-900">
-              {startDate ? formatDateChilean(startDate) : '--'}
+              {startDate ? formatCalendarPeriod(startDate) : '--'}
             </span>
           </div>
         </div>
@@ -52,7 +40,7 @@ export const PeriodTimeline: React.FC<PeriodTimelineProps> = ({
           <span className="text-xs font-medium text-gray-600">Término:</span>
           <div className="bg-white border border-gray-300 rounded-md px-3 py-2 shadow-sm">
             <span className="text-sm text-gray-900">
-              {endDate ? formatDateChilean(endDate) : '--'}
+              {endDate ? formatCalendarPeriod(endDate) : '--'}
             </span>
           </div>
         </div>

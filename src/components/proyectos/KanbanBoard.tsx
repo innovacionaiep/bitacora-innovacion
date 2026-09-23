@@ -35,6 +35,7 @@ import { ActivityStatus } from '@prisma/client';
 import { usePublicReadOnly } from '@/components/proyectos/PublicProjectViewContext';
 import { EvidenciasCargadasPill } from '@/components/proyectos/gantt/EvidenciasCargadasPill';
 import { activityHasEvidencias } from '@/components/proyectos/gantt/gantt-utils';
+import { compareCalendarDays } from '@/lib/calendar-date';
 
 // Tipos para las columnas del Kanban
 type KanbanStatus = ActivityStatus;
@@ -286,10 +287,8 @@ const DraggableActivityCard = memo(function DraggableActivityCard({
           {isExpanded && activity.tasks && activity.tasks.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
               {activity.tasks
-                .sort(
-                  (a, b) =>
-                    new Date(a.startDate).getTime() -
-                    new Date(b.startDate).getTime()
+                .sort((a, b) =>
+                  compareCalendarDays(a.startDate, b.startDate)
                 )
                 .map((task) => (
                   <div

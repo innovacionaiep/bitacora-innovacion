@@ -43,11 +43,12 @@ function row(
 }
 
 describe('PORTAL_AVANCES_FONDOS', () => {
-  it('lista los 7 fondos en el orden pedido', () => {
+  it('lista los fondos en el orden pedido', () => {
     expect(PORTAL_AVANCES_FONDOS.map((f) => f.nombre)).toEqual([
       'Innovación Docente',
       'Reto Innovador de Especialidad',
       'Fondo Impulsa',
+      'Aceleradora',
       'MOVE Incuba',
       'MoveLab',
       'Proyectos Nacionales',
@@ -65,6 +66,8 @@ describe('PORTAL_AVANCES_FONDOS', () => {
     expect(portalAvancesIsAppFondo('Fondo Impulsa')).toBe(false);
     expect(portalAvancesIsExcelFondo('Fondo Impulsa')).toBe(true);
     expect(portalAvancesIsExcelFondo('Vinculación con el Medio')).toBe(true);
+    expect(portalAvancesIsExcelFondo('MoveLab')).toBe(true);
+    expect(portalAvancesIsExcelFondo('Aceleradora')).toBe(true);
     expect(portalAvancesIsAppFondo('Innovación Docente')).toBe(true);
   });
 });
@@ -128,6 +131,34 @@ describe('rowsForPortalAvancesFondo', () => {
         (p) => p.id,
       ),
     ).toEqual(['vcm:4']);
+  });
+
+  it('devuelve filas excel de MoveLab', () => {
+    const mix = [
+      ...proyectos,
+      row({
+        id: 'movelab:2',
+        fondo: 'MoveLab',
+        proyecto: 'L.E.O (MoveLab 25-26)',
+      }),
+    ];
+    expect(rowsForPortalAvancesFondo(mix, 'MoveLab').map((p) => p.id)).toEqual([
+      'movelab:2',
+    ]);
+  });
+
+  it('devuelve filas excel de Aceleradora', () => {
+    const mix = [
+      ...proyectos,
+      row({
+        id: 'aceleradora:2',
+        fondo: 'Aceleradora',
+        proyecto: 'Proyecto Aceleradora Demo',
+      }),
+    ];
+    expect(
+      rowsForPortalAvancesFondo(mix, 'Aceleradora').map((p) => p.id),
+    ).toEqual(['aceleradora:2']);
   });
 });
 

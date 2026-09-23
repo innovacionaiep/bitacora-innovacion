@@ -16,6 +16,19 @@ export const PORTAL_AVANCES_VCM_FONDO = 'Vinculación con el Medio';
 export const PORTAL_AVANCES_VCM_DEFAULT_SHEET = 'Fondo VcM';
 export const PORTAL_AVANCES_VCM_DEFAULT_PATH = PORTAL_AVANCES_IMPULSA_DEFAULT_PATH;
 
+export const PORTAL_AVANCES_MOVELAB_SETTING_KEY = 'portal_avances_movelab';
+export const PORTAL_AVANCES_MOVELAB_FONDO = 'MoveLab';
+export const PORTAL_AVANCES_MOVELAB_DEFAULT_SHEET = 'MoveLab';
+export const PORTAL_AVANCES_MOVELAB_DEFAULT_PATH =
+  PORTAL_AVANCES_IMPULSA_DEFAULT_PATH;
+
+export const PORTAL_AVANCES_ACELERADORA_SETTING_KEY =
+  'portal_avances_aceleradora';
+export const PORTAL_AVANCES_ACELERADORA_FONDO = 'Aceleradora';
+export const PORTAL_AVANCES_ACELERADORA_DEFAULT_SHEET = 'ACELERADORA';
+export const PORTAL_AVANCES_ACELERADORA_DEFAULT_PATH =
+  PORTAL_AVANCES_IMPULSA_DEFAULT_PATH;
+
 export const IMPULSA_REQUIRED_HEADERS = [
   'PROYECTO',
   'SEDES',
@@ -81,6 +94,24 @@ export const EMPTY_IMPULSA_STORED: PortalAvancesImpulsaStored = {
 export const EMPTY_VCM_STORED: PortalAvancesImpulsaStored = {
   filePath: PORTAL_AVANCES_VCM_DEFAULT_PATH,
   sheetName: PORTAL_AVANCES_VCM_DEFAULT_SHEET,
+  lastSyncedAt: null,
+  fileOk: false,
+  sheetOk: false,
+  rows: [],
+};
+
+export const EMPTY_MOVELAB_STORED: PortalAvancesImpulsaStored = {
+  filePath: PORTAL_AVANCES_MOVELAB_DEFAULT_PATH,
+  sheetName: PORTAL_AVANCES_MOVELAB_DEFAULT_SHEET,
+  lastSyncedAt: null,
+  fileOk: false,
+  sheetOk: false,
+  rows: [],
+};
+
+export const EMPTY_ACELERADORA_STORED: PortalAvancesImpulsaStored = {
+  filePath: PORTAL_AVANCES_ACELERADORA_DEFAULT_PATH,
+  sheetName: PORTAL_AVANCES_ACELERADORA_DEFAULT_SHEET,
   lastSyncedAt: null,
   fileOk: false,
   sheetOk: false,
@@ -463,4 +494,16 @@ export function parseStoredVcm(
   value: string | null | undefined,
 ): PortalAvancesImpulsaStored {
   return parseStoredExcelAvances(value, EMPTY_VCM_STORED);
+}
+
+export function parseStoredMoveLab(
+  value: string | null | undefined,
+): PortalAvancesImpulsaStored {
+  return parseStoredExcelAvances(value, EMPTY_MOVELAB_STORED);
+}
+
+export function parseStoredAceleradora(
+  value: string | null | undefined,
+): PortalAvancesImpulsaStored {
+  return parseStoredExcelAvances(value, EMPTY_ACELERADORA_STORED);
 }

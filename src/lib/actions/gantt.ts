@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { Activity, Task, ActivityStatus } from '@prisma/client';
 import { GET_ACTIVITIES_LIST_SELECT } from '@/lib/proyecto-detail-cache';
 import { requireProjectAccess, requireProjectReadAccess } from '@/lib/authz/guards';
+import { formatCalendarDisplay } from '@/lib/calendar-date';
 import { createHistorialEntry } from './historial';
 
 export type ActivityData = Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>;
@@ -452,11 +453,9 @@ export async function updateTask(id: string, data: Partial<TaskData>) {
         cambioValores.push(task.description ?? '');
       if (data.startDate !== undefined || data.endDate !== undefined) {
         const start = task.startDate
-          ? new Date(task.startDate).toLocaleDateString('es-CL')
+          ? formatCalendarDisplay(task.startDate)
           : '';
-        const end = task.endDate
-          ? new Date(task.endDate).toLocaleDateString('es-CL')
-          : '';
+        const end = task.endDate ? formatCalendarDisplay(task.endDate) : '';
         cambioValores.push(start && end ? `${start} - ${end}` : start || end);
       }
       const identificaTarea = data.name === undefined;

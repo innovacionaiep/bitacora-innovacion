@@ -18,6 +18,7 @@ import {
   History,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { parseCalendarDate } from '@/lib/calendar-date';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -204,12 +205,9 @@ export function ResumenProyectoCard({
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const maxEnd = activity.tasks.reduce<Date | null>((acc, t) => {
-      try {
-        const d = new Date(t.endDate);
-        return !acc ? d : d > acc ? d : acc;
-      } catch {
-        return acc;
-      }
+      const d = parseCalendarDate(t.endDate);
+      if (!d) return acc;
+      return !acc ? d : d > acc ? d : acc;
     }, null);
     return maxEnd != null && maxEnd < today;
   };

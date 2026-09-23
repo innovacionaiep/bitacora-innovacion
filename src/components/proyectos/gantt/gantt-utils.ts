@@ -1,4 +1,8 @@
 import type { Activity } from '@/hooks/useGantt';
+import {
+  parseCalendarParts,
+  toCalendarYmd,
+} from '@/lib/calendar-date';
 import type {
   ActivityDateRange,
   DatePosition,
@@ -86,10 +90,10 @@ export function getDatePosition(
   timelineOffset: number,
   visibleMonthsRange: number
 ): DatePosition {
-  const dateObj = new Date(date);
-  const year = dateObj.getFullYear();
-  const month = dateObj.getMonth();
-  const day = dateObj.getDate();
+  const parts = parseCalendarParts(date);
+  const year = parts?.year ?? 0;
+  const month = parts ? parts.month - 1 : 0;
+  const day = parts?.day ?? 1;
 
   const dateOffset = (year - TIMELINE_BASE_YEAR) * 12 + month;
   const visibleStartOffset = timelineOffset;
@@ -124,13 +128,14 @@ export function getBarWidth(
   timelineOffset: number,
   visibleMonthsRange: number
 ): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const startParts = parseCalendarParts(startDate);
+  const endParts = parseCalendarParts(endDate);
+  if (!startParts || !endParts) return 0;
 
   const startOffset =
-    (start.getFullYear() - TIMELINE_BASE_YEAR) * 12 + start.getMonth();
+    (startParts.year - TIMELINE_BASE_YEAR) * 12 + (startParts.month - 1);
   const endOffset =
-    (end.getFullYear() - TIMELINE_BASE_YEAR) * 12 + end.getMonth();
+    (endParts.year - TIMELINE_BASE_YEAR) * 12 + (endParts.month - 1);
   const visibleStartOffset = timelineOffset;
   const visibleEndOffset = timelineOffset + visibleMonthsRange - 1;
 
@@ -144,16 +149,19 @@ export function getBarWidth(
     visibleMonthsRange
   );
   const endPos = getDatePosition(endDate, timelineOffset, visibleMonthsRange);
+  const daysInEndMonth = new Date(endParts.year, endParts.month, 0).getDate();
+  const monthWidth = 100 / visibleMonthsRange;
+  const endDayWidth = monthWidth / daysInEndMonth;
 
-  let width = endPos.left - startPos.left;
+  let width = endPos.left - startPos.left + endDayWidth;
 
   if (startPos.left >= 100) {
     return 0;
-  } else if (endPos.left > 100) {
+  } else if (endPos.left + endDayWidth > 100) {
     width = 100 - startPos.left;
   }
 
-  return Math.max(1, width);
+  return Math.max(0, width);
 }
 
 /** Rango de fechas de una actividad según la primera y última tarea. */
@@ -164,17 +172,22 @@ export function getActivityDateRange(
     return null;
   }
 
-  const sortedTasks = [...activity.tasks].sort(
-    (a, b) =>
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
+  const starts = activity.tasks
+    .map((t) => toCalendarYmd(t.startDate))
+    .filter(Boolean)
+    .sort();
+  const ends = activity.tasks
+    .map((t) => toCalendarYmd(t.endDate))
+    .filter(Boolean)
+    .sort();
 
-  const firstTask = sortedTasks[0];
-  const lastTask = sortedTasks[sortedTasks.length - 1];
+  if (starts.length === 0 || ends.length === 0) {
+    return null;
+  }
 
   return {
-    startDate: firstTask.startDate,
-    endDate: lastTask.endDate,
+    startDate: starts[0],
+    endDate: ends[ends.length - 1],
   };
 }
 

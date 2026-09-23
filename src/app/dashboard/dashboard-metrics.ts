@@ -1,4 +1,8 @@
 import type { ProyectoConVariaciones } from '@/types/proyecto';
+import {
+  parseCalendarDate,
+  toCalendarYmd,
+} from '@/lib/calendar-date';
 
 export type Project = ProyectoConVariaciones;
 
@@ -84,8 +88,8 @@ export function hasTareasAtrasadas(p: Project, hoy = startOfToday()): boolean {
     p.activities?.some((activity) =>
       activity.tasks?.some((task) => {
         if (!task.endDate) return false;
-        const fechaFin = new Date(task.endDate);
-        fechaFin.setHours(0, 0, 0, 0);
+        const fechaFin = parseCalendarDate(task.endDate);
+        if (!fechaFin) return false;
         return fechaFin < hoy && task.progress < 100;
       })
     ) || false
@@ -120,27 +124,22 @@ export function calcularFechasProyecto(p: Project): {
   }
 
   const fechasInicio = todasLasTareas
-    .map((t) => t.startDate)
+    .map((t) => toCalendarYmd(t.startDate))
     .filter(Boolean)
-    .map((fecha) => new Date(fecha));
+    .sort();
 
   const fechasFin = todasLasTareas
-    .map((t) => t.endDate)
+    .map((t) => toCalendarYmd(t.endDate))
     .filter(Boolean)
-    .map((fecha) => new Date(fecha));
+    .sort();
 
   if (fechasInicio.length === 0 || fechasFin.length === 0) {
     return { fechaInicio: null, fechaFin: null };
   }
 
-  const fechaInicio = new Date(
-    Math.min(...fechasInicio.map((d) => d.getTime()))
-  );
-  const fechaFin = new Date(Math.max(...fechasFin.map((d) => d.getTime())));
-
   return {
-    fechaInicio: fechaInicio.toISOString().split('T')[0],
-    fechaFin: fechaFin.toISOString().split('T')[0],
+    fechaInicio: fechasInicio[0],
+    fechaFin: fechasFin[fechasFin.length - 1],
   };
 }
 

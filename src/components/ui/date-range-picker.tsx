@@ -6,6 +6,7 @@ import { Label } from './label';
 import { Button } from './button';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCalendarDisplay } from '@/lib/calendar-date';
 
 interface DateRangePickerProps {
   startDate?: string;
@@ -54,13 +55,7 @@ export function DateRangePicker({
   const formatRange = () => {
     if (!startDate && !endDate) return placeholder;
 
-    const formatDate = (date: string) => {
-      return new Date(date).toLocaleDateString('es-CL', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
-    };
+    const formatDate = (date: string) => formatCalendarDisplay(date);
 
     if (startDate && endDate) {
       return `${formatDate(startDate)} - ${formatDate(endDate)}`;

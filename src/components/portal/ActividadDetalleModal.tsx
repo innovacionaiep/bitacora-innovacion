@@ -32,6 +32,11 @@ import {
 import { uploadEvidenciaFile } from '@/lib/evidencias-upload';
 import { PeriodTimeline } from '@/components/ui/period-timeline';
 import {
+  compareCalendarDays,
+  formatCalendarDisplay,
+  toCalendarYmd,
+} from '@/lib/calendar-date';
+import {
   ActivityFieldSaveCancel,
   ActivityHoverEditButton,
 } from '@/components/proyectos/gantt/ActivityFieldControls';
@@ -53,23 +58,20 @@ type ActivityWithRelations = Awaited<
 
 type Task = NonNullable<ActivityWithRelations>['tasks'][number];
 
-function formatDateForTooltip(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('es-CL', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 function getActivityDateRange(activity: ActivityWithRelations): { startDate: string; endDate: string } | null {
   if (!activity?.tasks || activity.tasks.length === 0) return null;
-  const sorted = [...activity.tasks].sort(
-    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
+  const starts = activity.tasks
+    .map((t) => toCalendarYmd(t.startDate))
+    .filter(Boolean)
+    .sort();
+  const ends = activity.tasks
+    .map((t) => toCalendarYmd(t.endDate))
+    .filter(Boolean)
+    .sort();
+  if (starts.length === 0 || ends.length === 0) return null;
   return {
-    startDate: sorted[0].startDate,
-    endDate: sorted[sorted.length - 1].endDate,
+    startDate: starts[0],
+    endDate: ends[ends.length - 1],
   };
 }
 
@@ -578,9 +580,8 @@ export function ActividadDetalleModal({
                     </div>
                   ) : (
                     [...tasks]
-                      .sort(
-                        (a, b) =>
-                          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+                      .sort((a, b) =>
+                        compareCalendarDays(a.startDate, b.startDate)
                       )
                       .map((task: Task) => (
                         <div
@@ -610,8 +611,8 @@ export function ActividadDetalleModal({
                               <p className="text-[12px] text-gray-500 mt-0.5 leading-snug">{task.description}</p>
                             )}
                             <span className="text-[11px] text-gray-400 block mt-1">
-                              {formatDateForTooltip(task.startDate)} -{' '}
-                              {formatDateForTooltip(task.endDate)}
+                              {formatCalendarDisplay(task.startDate)} -{' '}
+                              {formatCalendarDisplay(task.endDate)}
                             </span>
                           </div>
                         </div>

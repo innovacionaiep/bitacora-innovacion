@@ -2,6 +2,7 @@ import type { ProyectoWithRelations } from '@/types/proyecto';
 import type { IndicadoresProyectoData } from '@/lib/actions/indicadores';
 import type { ResumenPresupuesto } from '@/types/presupuesto';
 import type { CuentaPresupuesto } from '@prisma/client';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 /** Datos agregados para construir el HTML del reporte */
 export type DatosReporteProyecto = {
@@ -704,12 +705,9 @@ export function buildHtmlReporteResumen(
       const today = new Date();
       today.setHours(23, 59, 59, 999);
       const maxEnd = act.tasks.reduce<Date | null>((acc, t) => {
-        try {
-          const d = new Date(t.endDate);
-          return !acc ? d : d > acc ? d : acc;
-        } catch {
-          return acc;
-        }
+        const d = parseCalendarDate(t.endDate);
+        if (!d) return acc;
+        return !acc ? d : d > acc ? d : acc;
       }, null);
       const fueraDePlazo =
         act.status !== 'DONE' && maxEnd != null && maxEnd < today;

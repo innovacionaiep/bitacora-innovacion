@@ -6,6 +6,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { userHasPermission } from '@/lib/permissions/check';
 import { requireSession } from '@/lib/authz/guards';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 // Tipos para las respuestas
 export interface PostWithRelations {
@@ -83,7 +84,7 @@ export interface CreatePostData {
     publicId: string;
   }[];
   videos?: { youtubeUrl: string; youtubeVideoId: string }[];
-  eventoFecha?: string; // Fecha en formato string (DD/MM/YYYY)
+  eventoFecha?: string;
   eventoNombre?: string;
   eventoDescripcion?: string;
 }
@@ -521,36 +522,14 @@ export async function createPost(data: CreatePostData) {
       }
     }
 
-    // Convertir fecha de string (DD/MM/YYYY o DD-MM-YYYY) a Date
     let eventoFechaDate: Date | null = null;
     if (data.eventoFecha) {
-      // El componente Calendar puede devolver formato DD/MM/YYYY o DD-MM-YYYY
-      const separators = ['/', '-'];
-      let day: string | undefined,
-        month: string | undefined,
-        year: string | undefined;
-
-      for (const sep of separators) {
-        if (data.eventoFecha.includes(sep)) {
-          [day, month, year] = data.eventoFecha.split(sep);
-          break;
-        }
-      }
-
-      if (day && month && year) {
-        eventoFechaDate = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day)
-        );
-        // Ajustar a medianoche para evitar problemas de timezone
-        eventoFechaDate.setHours(0, 0, 0, 0);
-        if (isNaN(eventoFechaDate.getTime())) {
-          return {
-            success: false,
-            error: 'Fecha del evento inválida',
-          };
-        }
+      eventoFechaDate = parseCalendarDate(data.eventoFecha);
+      if (!eventoFechaDate) {
+        return {
+          success: false,
+          error: 'Fecha del evento inválida',
+        };
       }
     }
 

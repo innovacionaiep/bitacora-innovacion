@@ -95,7 +95,7 @@ describe('getPortalAvancesProyectos', () => {
     expect(result.data?.some((p) => p.fondo === 'Fondo Impulsa')).toBe(false);
   });
 
-  it('incluye snapshot VcM en nivel 2 y lo omite en Causalab', async () => {
+  it('incluye snapshot VcM, MoveLab y Aceleradora en nivel 2 y los omite en Causalab', async () => {
     const vcmValue = JSON.stringify({
       filePath: 'C:\\x.xlsx',
       sheetName: 'Fondo VcM',
@@ -120,6 +120,64 @@ describe('getPortalAvancesProyectos', () => {
           presupuestoAdjudicado: 1000,
           avanceOperativoSolicitado: 0,
           avanceOperativoEjecutado: 0,
+          honorarios: { kind: 'pct', value: 0 },
+          saldoPresupuesto: 0,
+        },
+      ],
+    });
+    const movelabValue = JSON.stringify({
+      filePath: 'C:\\x.xlsx',
+      sheetName: 'MoveLab',
+      lastSyncedAt: '2026-09-03T00:00:00.000Z',
+      fileOk: true,
+      sheetOk: true,
+      rows: [
+        {
+          rowNumber: 2,
+          proyecto: 'L.E.O (MoveLab 25-26)',
+          encargado: '',
+          sede: 'San Joaquín',
+          escuelas: ['Administración y Gestión Empresarial'],
+          carreras: [],
+          asignaturas: [],
+          idVinculamos: 'Sin registro',
+          estudiantes: 1,
+          docentes: 1,
+          beneficiarios: 1,
+          avanceGantt: { kind: 'pct', value: 100 },
+          avanceIndicadores: { kind: 'pct', value: 0 },
+          presupuestoAdjudicado: 0,
+          avanceOperativoSolicitado: { kind: 'pct', value: 0 },
+          avanceOperativoEjecutado: { kind: 'pct', value: 0 },
+          honorarios: { kind: 'pct', value: 0 },
+          saldoPresupuesto: 0,
+        },
+      ],
+    });
+    const aceleradoraValue = JSON.stringify({
+      filePath: 'C:\\x.xlsx',
+      sheetName: 'ACELERADORA',
+      lastSyncedAt: '2026-09-03T00:00:00.000Z',
+      fileOk: true,
+      sheetOk: true,
+      rows: [
+        {
+          rowNumber: 2,
+          proyecto: 'Proyecto Aceleradora Demo',
+          encargado: '',
+          sede: 'Bellavista',
+          escuelas: ['Salud'],
+          carreras: [],
+          asignaturas: [],
+          idVinculamos: 'Sin registro',
+          estudiantes: 1,
+          docentes: 1,
+          beneficiarios: 0,
+          avanceGantt: { kind: 'pct', value: 50 },
+          avanceIndicadores: { kind: 'pct', value: 0 },
+          presupuestoAdjudicado: 1000,
+          avanceOperativoSolicitado: { kind: 'pct', value: 0 },
+          avanceOperativoEjecutado: { kind: 'pct', value: 0 },
           honorarios: { kind: 'pct', value: 0 },
           saldoPresupuesto: 0,
         },
@@ -158,6 +216,12 @@ describe('getPortalAvancesProyectos', () => {
       if (args.where.key === 'portal_avances_vcm') {
         return { value: vcmValue };
       }
+      if (args.where.key === 'portal_avances_movelab') {
+        return { value: movelabValue };
+      }
+      if (args.where.key === 'portal_avances_aceleradora') {
+        return { value: aceleradoraValue };
+      }
       if (args.where.key === 'portal_avances_impulsa') {
         return { value: impulsaValue };
       }
@@ -170,6 +234,8 @@ describe('getPortalAvancesProyectos', () => {
     const level2 = await getPortalAvancesProyectos();
     expect(level2.success).toBe(true);
     expect(level2.data?.some((p) => p.id === 'vcm:2')).toBe(true);
+    expect(level2.data?.some((p) => p.id === 'movelab:2')).toBe(true);
+    expect(level2.data?.some((p) => p.id === 'aceleradora:2')).toBe(true);
     expect(level2.data?.some((p) => p.id === 'impulsa:2')).toBe(true);
 
     settingFindUnique.mockClear();
@@ -181,10 +247,22 @@ describe('getPortalAvancesProyectos', () => {
     const level0 = await getPortalAvancesProyectos();
     expect(level0.success).toBe(true);
     expect(level0.data?.some((p) => p.id === 'vcm:2')).toBe(false);
+    expect(level0.data?.some((p) => p.id === 'movelab:2')).toBe(false);
+    expect(level0.data?.some((p) => p.id === 'aceleradora:2')).toBe(false);
     expect(level0.data?.some((p) => p.id === 'impulsa:2')).toBe(true);
     expect(
       settingFindUnique.mock.calls.some(
         (call) => call[0]?.where?.key === 'portal_avances_vcm',
+      ),
+    ).toBe(false);
+    expect(
+      settingFindUnique.mock.calls.some(
+        (call) => call[0]?.where?.key === 'portal_avances_movelab',
+      ),
+    ).toBe(false);
+    expect(
+      settingFindUnique.mock.calls.some(
+        (call) => call[0]?.where?.key === 'portal_avances_aceleradora',
       ),
     ).toBe(false);
   });
