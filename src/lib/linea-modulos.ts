@@ -88,12 +88,24 @@ export function resolveLineaCatalogItem(
   );
 }
 
+/** Tabs ocultos temporalmente para todos los fondos. Reactivar quitando el id. */
+export const GLOBALLY_HIDDEN_PROJECT_TABS = [
+  'Escalamiento',
+] as const satisfies readonly ProjectNavTabId[];
+
 export function isProjectTabVisible(
   tabId: ProjectNavTabId,
   fondo: string | null | undefined,
   lineaNombre: string | null | undefined,
   catalog: readonly LineaModuloCatalogItem[]
 ): boolean {
+  if (
+    (GLOBALLY_HIDDEN_PROJECT_TABS as readonly ProjectNavTabId[]).includes(
+      tabId
+    )
+  ) {
+    return false;
+  }
   if (tabId === 'General' || tabId === 'Historial') return true;
   if (tabId === 'Resumen') return false;
   if (!isOptionalProjectTab(tabId)) return true;

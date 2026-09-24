@@ -116,8 +116,8 @@ describe('linea-modulos', () => {
       'IgipTrl',
       'Seguimiento',
       'Historial',
-      'Escalamiento',
     ]);
+    expect(visible.map((t) => t.id)).not.toContain('Escalamiento');
   });
 
   it('S3: convenio listing excludes projects without línea or with flag off', () => {
@@ -158,6 +158,18 @@ describe('linea-modulos', () => {
     expect(isProjectTabVisible('IgipTrl', 'Fondo 1', 'Linea A', catalog)).toBe(
       false
     );
+  });
+
+  it('hides Escalamiento globally even when the línea flag is on', () => {
+    const catalog = [flags({ tabEscalamientoEnabled: true })];
+    expect(
+      isProjectTabVisible('Escalamiento', 'Fondo 1', 'Linea A', catalog)
+    ).toBe(false);
+    expect(
+      visibleProjectNavTabs(NAV_TABS, 'Fondo 1', 'Linea A', catalog).map(
+        (t) => t.id
+      )
+    ).not.toContain('Escalamiento');
   });
 
   it('Resumen is never visible via this helper', () => {
